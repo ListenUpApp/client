@@ -107,13 +107,13 @@ fun DiscoverBooksSection(
                     blurHash = book.coverBlurHash,
                     onClick = { onBookClick(book.id) },
                     authorName = book.authorName,
-                    subtitle = book.seriesName?.takeIf { it.isNotBlank() }?.let { series ->
-                        stringResource(Res.string.discover_book_1_of_series, series)
-                    },
+                    subtitle =
+                        book.seriesName?.takeIf { it.isNotBlank() }?.let { series ->
+                            stringResource(Res.string.discover_book_1_of_series, series)
+                        },
                     cardWidth = 140.dp,
                 )
             }
         }
     }
 }
-

@@ -151,16 +151,18 @@ private fun TwoUpCoverLayout(
         // Primary cover — takes more space
         StackedCover(
             coverPath = coverPaths.getOrNull(0),
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
         )
         // Secondary cover — equal size
         StackedCover(
             coverPath = coverPaths.getOrNull(1),
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
         )
     }
 }

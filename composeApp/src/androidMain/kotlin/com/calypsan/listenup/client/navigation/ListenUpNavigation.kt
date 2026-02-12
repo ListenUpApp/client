@@ -515,16 +515,17 @@ private fun AuthenticatedNavigation(
 
     // Wrap navigation with NowPlayingHost for persistent mini player
     CompositionLocalProvider(
-            LocalSnackbarHostState provides snackbarHostState,
-            LocalDeviceContext provides koinInject<DeviceContext>(),
-        ) {
+        LocalSnackbarHostState provides snackbarHostState,
+        LocalDeviceContext provides koinInject<DeviceContext>(),
+    ) {
         // Structural bottom padding when mini player is visible
-            val nowPlayingState by nowPlayingViewModel.state.collectAsState()
-            val miniPlayerVisible = (nowPlayingState.isVisible || nowPlayingState.isPreparing) && !nowPlayingState.isExpanded
-            val miniPlayerPadding by animateDpAsState(
-                targetValue = if (miniPlayerVisible) MiniPlayerReservedHeight else 0.dp,
-                label = "mini_player_padding",
-            )
+        val nowPlayingState by nowPlayingViewModel.state.collectAsState()
+        val miniPlayerVisible =
+            (nowPlayingState.isVisible || nowPlayingState.isPreparing) && !nowPlayingState.isExpanded
+        val miniPlayerPadding by animateDpAsState(
+            targetValue = if (miniPlayerVisible) MiniPlayerReservedHeight else 0.dp,
+            label = "mini_player_padding",
+        )
 
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
             NavDisplay(
@@ -573,9 +574,12 @@ private fun AuthenticatedNavigation(
                                 onTagClick = { tagId ->
                                     backStack.add(TagDetail(tagId))
                                 },
-                                onAdminClick = if (!LocalDeviceContext.current.isLeanback) {
-                                    { backStack.add(Admin) }
-                                } else null,
+                                onAdminClick =
+                                    if (!LocalDeviceContext.current.isLeanback) {
+                                        { backStack.add(Admin) }
+                                    } else {
+                                        null
+                                    },
                                 onSettingsClick = {
                                     backStack.add(Settings)
                                 },

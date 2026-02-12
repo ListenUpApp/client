@@ -79,4 +79,3 @@ fun RecentlyAddedSection(
         }
     }
 }
-

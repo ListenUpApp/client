@@ -88,13 +88,16 @@ fun NowPlayingBar(
                     .graphicsLayer {
                         scaleX = focusScale
                         scaleY = focusScale
-                    }
-                    .then(
-                        if (isFocused) Modifier.border(
-                            width = 2.dp,
-                            color = focusBorderColor,
-                            shape = focusBorderShape,
-                        ) else Modifier
+                    }.then(
+                        if (isFocused) {
+                            Modifier.border(
+                                width = 2.dp,
+                                color = focusBorderColor,
+                                shape = focusBorderShape,
+                            )
+                        } else {
+                            Modifier
+                        },
                     ),
             shape = MaterialTheme.shapes.large,
             tonalElevation = 6.dp,

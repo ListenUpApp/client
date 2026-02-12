@@ -72,11 +72,12 @@ fun ShelfCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     val isFocused by interactionSource.collectIsFocusedAsState()
     val scale by animateFloatAsState(
-        targetValue = when {
-            isPressed -> 0.96f
-            isFocused -> 1.05f
-            else -> 1f
-        },
+        targetValue =
+            when {
+                isPressed -> 0.96f
+                isFocused -> 1.05f
+                else -> 1f
+            },
         label = "card_scale",
     )
 

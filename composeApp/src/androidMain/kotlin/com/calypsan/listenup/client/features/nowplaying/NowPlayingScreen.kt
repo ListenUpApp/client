@@ -146,10 +146,11 @@ fun NowPlayingScreen(
     val breathScale by breathTransition.animateFloat(
         initialValue = 1f,
         targetValue = 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 7000, easing = EaseInOut),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 7000, easing = EaseInOut),
+                repeatMode = RepeatMode.Reverse,
+            ),
         label = "breathScale",
     )
 
@@ -191,8 +192,6 @@ fun NowPlayingScreen(
 
     val dragOffset = remember { Animatable(0f) }
 
-
-
     Surface(
         modifier =
             modifier
@@ -200,8 +199,7 @@ fun NowPlayingScreen(
                 .onKeyEvent {
                     if (isTv) resetAmbient()
                     false // don't consume
-                }
-                .graphicsLayer {
+                }.graphicsLayer {
                     translationY = dragOffset.value
                 }.pointerInput(Unit) {
                     detectVerticalDragGestures(
@@ -260,22 +258,70 @@ fun NowPlayingScreen(
                         breathScale = breathScale,
                         ambientAlpha = ambientAlpha,
                         onColorExtracted = { dominantColor = it },
-                        onCollapse = { resetAmbient(); onCollapse() },
-                        onPlayPause = { resetAmbient(); onPlayPause() },
-                        onSeek = { resetAmbient(); onSeek(it) },
-                        onSkipBack = { resetAmbient(); onSkipBack() },
-                        onSkipForward = { resetAmbient(); onSkipForward() },
-                        onPreviousChapter = { resetAmbient(); onPreviousChapter() },
-                        onNextChapter = { resetAmbient(); onNextChapter() },
-                        onSpeedClick = { resetAmbient(); onSpeedClick() },
-                        onChaptersClick = { resetAmbient(); onChaptersClick() },
-                        onSleepTimerClick = { resetAmbient(); onSleepTimerClick() },
-                        onGoToBook = { resetAmbient(); onGoToBook() },
-                        onGoToSeries = { resetAmbient(); onGoToSeries(it) },
-                        onGoToContributor = { resetAmbient(); onGoToContributor(it) },
-                        onShowAuthorPicker = { resetAmbient(); onShowAuthorPicker() },
-                        onShowNarratorPicker = { resetAmbient(); onShowNarratorPicker() },
-                        onCloseBook = { resetAmbient(); onCloseBook() },
+                        onCollapse = {
+                            resetAmbient()
+                            onCollapse()
+                        },
+                        onPlayPause = {
+                            resetAmbient()
+                            onPlayPause()
+                        },
+                        onSeek = {
+                            resetAmbient()
+                            onSeek(it)
+                        },
+                        onSkipBack = {
+                            resetAmbient()
+                            onSkipBack()
+                        },
+                        onSkipForward = {
+                            resetAmbient()
+                            onSkipForward()
+                        },
+                        onPreviousChapter = {
+                            resetAmbient()
+                            onPreviousChapter()
+                        },
+                        onNextChapter = {
+                            resetAmbient()
+                            onNextChapter()
+                        },
+                        onSpeedClick = {
+                            resetAmbient()
+                            onSpeedClick()
+                        },
+                        onChaptersClick = {
+                            resetAmbient()
+                            onChaptersClick()
+                        },
+                        onSleepTimerClick = {
+                            resetAmbient()
+                            onSleepTimerClick()
+                        },
+                        onGoToBook = {
+                            resetAmbient()
+                            onGoToBook()
+                        },
+                        onGoToSeries = {
+                            resetAmbient()
+                            onGoToSeries(it)
+                        },
+                        onGoToContributor = {
+                            resetAmbient()
+                            onGoToContributor(it)
+                        },
+                        onShowAuthorPicker = {
+                            resetAmbient()
+                            onShowAuthorPicker()
+                        },
+                        onShowNarratorPicker = {
+                            resetAmbient()
+                            onShowNarratorPicker()
+                        },
+                        onCloseBook = {
+                            resetAmbient()
+                            onCloseBook()
+                        },
                     )
                 } else {
                     // Tall layout: original vertical layout
@@ -285,8 +331,14 @@ fun NowPlayingScreen(
                         breathScale = breathScale,
                         ambientAlpha = ambientAlpha,
                         onColorExtracted = { dominantColor = it },
-                        onCollapse = { resetAmbient(); onCollapse() },
-                        onPlayPause = { resetAmbient(); onPlayPause() },
+                        onCollapse = {
+                            resetAmbient()
+                            onCollapse()
+                        },
+                        onPlayPause = {
+                            resetAmbient()
+                            onPlayPause()
+                        },
                         onSeek = onSeek,
                         onSkipBack = onSkipBack,
                         onSkipForward = onSkipForward,
@@ -300,7 +352,10 @@ fun NowPlayingScreen(
                         onGoToContributor = onGoToContributor,
                         onShowAuthorPicker = onShowAuthorPicker,
                         onShowNarratorPicker = onShowNarratorPicker,
-                        onCloseBook = { resetAmbient(); onCloseBook() },
+                        onCloseBook = {
+                            resetAmbient()
+                            onCloseBook()
+                        },
                     )
                 }
             }
@@ -346,16 +401,16 @@ private fun TallNowPlayingLayout(
     ) {
         // Top bar with collapse handle and menu
         Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-        NowPlayingTopBar(
-            state = state,
-            onCollapse = onCollapse,
-            onGoToBook = onGoToBook,
-            onGoToSeries = onGoToSeries,
-            onGoToContributor = onGoToContributor,
-            onShowAuthorPicker = onShowAuthorPicker,
-            onShowNarratorPicker = onShowNarratorPicker,
-            onCloseBook = onCloseBook,
-        )
+            NowPlayingTopBar(
+                state = state,
+                onCollapse = onCollapse,
+                onGoToBook = onGoToBook,
+                onGoToSeries = onGoToSeries,
+                onGoToContributor = onGoToContributor,
+                onShowAuthorPicker = onShowAuthorPicker,
+                onShowNarratorPicker = onShowNarratorPicker,
+                onCloseBook = onCloseBook,
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -379,52 +434,52 @@ private fun TallNowPlayingLayout(
 
         // Title and chapter info
         Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-        TitleSection(
-            title = state.title,
-            author = state.author,
-            chapterTitle = state.chapterTitle,
-            chapterLabel = state.chapterLabel,
-        )
+            TitleSection(
+                title = state.title,
+                author = state.author,
+                chapterTitle = state.chapterTitle,
+                chapterLabel = state.chapterLabel,
+            )
         }
 
         Spacer(Modifier.height(24.dp))
 
         // Chapter seek bar
         Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-        ChapterSeekBar(
-            progress = state.chapterProgress,
-            currentTime = state.chapterPosition,
-            totalTime = state.chapterDuration,
-            isPlaying = state.isPlaying,
-            onSeek = onSeek,
-        )
+            ChapterSeekBar(
+                progress = state.chapterProgress,
+                currentTime = state.chapterPosition,
+                totalTime = state.chapterDuration,
+                isPlaying = state.isPlaying,
+                onSeek = onSeek,
+            )
         }
 
         Spacer(Modifier.height(32.dp))
 
         // Main controls
         Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-        MainControls(
-            isPlaying = state.isPlaying,
-            onPlayPause = onPlayPause,
-            onSkipBack = onSkipBack,
-            onSkipForward = onSkipForward,
-            onPreviousChapter = onPreviousChapter,
-            onNextChapter = onNextChapter,
-        )
+            MainControls(
+                isPlaying = state.isPlaying,
+                onPlayPause = onPlayPause,
+                onSkipBack = onSkipBack,
+                onSkipForward = onSkipForward,
+                onPreviousChapter = onPreviousChapter,
+                onNextChapter = onNextChapter,
+            )
         }
 
         Spacer(Modifier.height(24.dp))
 
         // Secondary controls
         Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-        SecondaryControls(
-            playbackSpeed = state.playbackSpeed,
-            sleepTimerState = sleepTimerState,
-            onSpeedClick = onSpeedClick,
-            onChaptersClick = onChaptersClick,
-            onSleepTimerClick = onSleepTimerClick,
-        )
+            SecondaryControls(
+                playbackSpeed = state.playbackSpeed,
+                sleepTimerState = sleepTimerState,
+                onSpeedClick = onSpeedClick,
+                onChaptersClick = onChaptersClick,
+                onSleepTimerClick = onSleepTimerClick,
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -494,93 +549,93 @@ private fun WideNowPlayingLayout(
         ) {
             // Top bar with collapse and menu
             Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-            NowPlayingTopBar(
-                state = state,
-                onCollapse = onCollapse,
-                onGoToBook = onGoToBook,
-                onGoToSeries = onGoToSeries,
-                onGoToContributor = onGoToContributor,
-                onShowAuthorPicker = onShowAuthorPicker,
-                onShowNarratorPicker = onShowNarratorPicker,
-                onCloseBook = onCloseBook,
-            )
+                NowPlayingTopBar(
+                    state = state,
+                    onCollapse = onCollapse,
+                    onGoToBook = onGoToBook,
+                    onGoToSeries = onGoToSeries,
+                    onGoToContributor = onGoToContributor,
+                    onShowAuthorPicker = onShowAuthorPicker,
+                    onShowNarratorPicker = onShowNarratorPicker,
+                    onCloseBook = onCloseBook,
+                )
             }
 
             // Title and chapter info (left-aligned for wide layout)
             Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = state.title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = state.title,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
 
-                Spacer(Modifier.height(4.dp))
-
-                Text(
-                    text = state.author,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                state.chapterTitle?.let { chapterTitle ->
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
 
                     Text(
-                        text = chapterTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        text = state.author,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
 
-                    Text(
-                        text = state.chapterLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    state.chapterTitle?.let { chapterTitle ->
+                        Spacer(Modifier.height(8.dp))
+
+                        Text(
+                            text = chapterTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+
+                        Text(
+                            text = state.chapterLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-            }
             }
 
             // Chapter seek bar
             Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-            ChapterSeekBar(
-                progress = state.chapterProgress,
-                currentTime = state.chapterPosition,
-                totalTime = state.chapterDuration,
-                isPlaying = state.isPlaying,
-                onSeek = onSeek,
-            )
+                ChapterSeekBar(
+                    progress = state.chapterProgress,
+                    currentTime = state.chapterPosition,
+                    totalTime = state.chapterDuration,
+                    isPlaying = state.isPlaying,
+                    onSeek = onSeek,
+                )
             }
 
             // Main controls
             Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-            MainControls(
-                isPlaying = state.isPlaying,
-                onPlayPause = onPlayPause,
-                onSkipBack = onSkipBack,
-                onSkipForward = onSkipForward,
-                onPreviousChapter = onPreviousChapter,
-                onNextChapter = onNextChapter,
-            )
+                MainControls(
+                    isPlaying = state.isPlaying,
+                    onPlayPause = onPlayPause,
+                    onSkipBack = onSkipBack,
+                    onSkipForward = onSkipForward,
+                    onPreviousChapter = onPreviousChapter,
+                    onNextChapter = onNextChapter,
+                )
             }
 
             // Secondary controls
             Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
-            SecondaryControls(
-                playbackSpeed = state.playbackSpeed,
-                sleepTimerState = sleepTimerState,
-                onSpeedClick = onSpeedClick,
-                onChaptersClick = onChaptersClick,
-                onSleepTimerClick = onSleepTimerClick,
-            )
+                SecondaryControls(
+                    playbackSpeed = state.playbackSpeed,
+                    sleepTimerState = sleepTimerState,
+                    onSpeedClick = onSpeedClick,
+                    onChaptersClick = onChaptersClick,
+                    onSleepTimerClick = onSleepTimerClick,
+                )
             }
         }
     }

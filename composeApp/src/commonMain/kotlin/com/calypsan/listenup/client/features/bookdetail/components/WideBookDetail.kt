@@ -100,30 +100,32 @@ fun WideBookDetail(
     onUserProfileClick: (userId: String) -> Unit,
 ) {
     val deviceContext = LocalDeviceContext.current
-    val coverColors = rememberCoverColors(
-        imagePath = state.book?.coverPath,
-        cachedDominantColor = state.book?.dominantColor,
-        cachedDarkMutedColor = state.book?.darkMutedColor,
-        cachedVibrantColor = state.book?.vibrantColor,
-    )
+    val coverColors =
+        rememberCoverColors(
+            imagePath = state.book?.coverPath,
+            cachedDominantColor = state.book?.dominantColor,
+            cachedDarkMutedColor = state.book?.darkMutedColor,
+            cachedVibrantColor = state.book?.vibrantColor,
+        )
     val surfaceColor = MaterialTheme.colorScheme.surface
     val isDark = LocalDarkTheme.current
 
-    val gradientColors = if (isDark) {
-        listOf(
-            coverColors.darkMuted.copy(alpha = 0.5f),
-            coverColors.darkMuted.copy(alpha = 0.35f),
-            coverColors.darkMuted.copy(alpha = 0.2f),
-            surfaceColor,
-        )
-    } else {
-        listOf(
-            coverColors.darkMuted.copy(alpha = 0.95f),
-            coverColors.darkMuted.copy(alpha = 0.85f),
-            coverColors.darkMuted.copy(alpha = 0.7f),
-            surfaceColor,
-        )
-    }
+    val gradientColors =
+        if (isDark) {
+            listOf(
+                coverColors.darkMuted.copy(alpha = 0.5f),
+                coverColors.darkMuted.copy(alpha = 0.35f),
+                coverColors.darkMuted.copy(alpha = 0.2f),
+                surfaceColor,
+            )
+        } else {
+            listOf(
+                coverColors.darkMuted.copy(alpha = 0.95f),
+                coverColors.darkMuted.copy(alpha = 0.85f),
+                coverColors.darkMuted.copy(alpha = 0.7f),
+                surfaceColor,
+            )
+        }
 
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
@@ -158,21 +160,46 @@ fun WideBookDetail(
                             isComplete = isComplete,
                             hasProgress = hasProgress,
                             isAdmin = isAdmin,
-                            onEditClick = { showMenu = false; onEditClick() },
-                            onFindMetadataClick = { showMenu = false; onFindMetadataClick() },
-                            onMarkCompleteClick = { showMenu = false; onMarkCompleteClick() },
-                            onDiscardProgressClick = { showMenu = false; onDiscardProgressClick() },
-                            onAddToShelfClick = { showMenu = false; onAddToShelfClick() },
-                            onAddToCollectionClick = { showMenu = false; onAddToCollectionClick() },
-                            onShareClick = { showMenu = false; onShareClick() },
-                            onDeleteClick = { showMenu = false; onDeleteBookClick() },
+                            onEditClick = {
+                                showMenu = false
+                                onEditClick()
+                            },
+                            onFindMetadataClick = {
+                                showMenu = false
+                                onFindMetadataClick()
+                            },
+                            onMarkCompleteClick = {
+                                showMenu = false
+                                onMarkCompleteClick()
+                            },
+                            onDiscardProgressClick = {
+                                showMenu = false
+                                onDiscardProgressClick()
+                            },
+                            onAddToShelfClick = {
+                                showMenu = false
+                                onAddToShelfClick()
+                            },
+                            onAddToCollectionClick = {
+                                showMenu = false
+                                onAddToCollectionClick()
+                            },
+                            onShareClick = {
+                                showMenu = false
+                                onShareClick()
+                            },
+                            onDeleteClick = {
+                                showMenu = false
+                                onDeleteBookClick()
+                            },
                         )
                     }
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent,
-            ),
+            colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
         )
 
         LazyColumn(
@@ -182,24 +209,27 @@ fun WideBookDetail(
             // Hero section with gradient background
             item {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Brush.verticalGradient(gradientColors))
-                        .padding(horizontal = 32.dp, vertical = 24.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .background(Brush.verticalGradient(gradientColors))
+                            .padding(horizontal = 32.dp, vertical = 24.dp),
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
                         horizontalArrangement = Arrangement.spacedBy(24.dp),
                     ) {
                         // Cover
                         ElevatedCoverCard(
                             path = state.book?.coverPath,
                             contentDescription = state.book?.title,
-                            modifier = Modifier
-                                .width(300.dp)
-                                .aspectRatio(1f),
+                            modifier =
+                                Modifier
+                                    .width(300.dp)
+                                    .aspectRatio(1f),
                         ) {
                             state.progress?.let { progress ->
                                 ProgressOverlay(
@@ -222,10 +252,11 @@ fun WideBookDetail(
                                 // Title
                                 Text(
                                     text = state.book?.title ?: "",
-                                    style = MaterialTheme.typography.headlineMedium.copy(
-                                        fontFamily = DisplayFontFamily,
-                                        fontWeight = FontWeight.Bold,
-                                    ),
+                                    style =
+                                        MaterialTheme.typography.headlineMedium.copy(
+                                            fontFamily = DisplayFontFamily,
+                                            fontWeight = FontWeight.Bold,
+                                        ),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 3,
                                     overflow = TextOverflow.Ellipsis,
@@ -342,9 +373,10 @@ fun WideBookDetail(
             if (state.chapters.size > 10 && !isChaptersExpanded) {
                 item {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 32.dp, vertical = 8.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 32.dp, vertical = 8.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         TextButton(onClick = { isChaptersExpanded = true }) {
@@ -364,9 +396,10 @@ private fun ChapterListItemCompact(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(

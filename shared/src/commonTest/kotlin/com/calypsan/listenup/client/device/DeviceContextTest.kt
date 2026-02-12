@@ -6,7 +6,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DeviceContextTest {
-
     @Test
     fun phoneHasTouch() {
         assertTrue(DeviceContext(DeviceType.Phone).hasTouch)

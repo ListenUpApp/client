@@ -9,6 +9,10 @@ data class DeviceContext(
     val isLeanback: Boolean get() = type == DeviceType.Tv
     val prefersLargeTargets: Boolean get() = type in setOf(DeviceType.Tv, DeviceType.Xr, DeviceType.Auto)
     val isWearable: Boolean get() = type == DeviceType.Watch
-    val supportsFullLibrary: Boolean get() = type in setOf(DeviceType.Phone, DeviceType.Tablet, DeviceType.Desktop, DeviceType.Tv)
-    val supportsDownloads: Boolean get() = type in setOf(DeviceType.Phone, DeviceType.Tablet, DeviceType.Watch, DeviceType.Desktop)
+    val supportsFullLibrary: Boolean get() =
+        type in
+            setOf(DeviceType.Phone, DeviceType.Tablet, DeviceType.Desktop, DeviceType.Tv)
+    val supportsDownloads: Boolean get() =
+        type in
+            setOf(DeviceType.Phone, DeviceType.Tablet, DeviceType.Watch, DeviceType.Desktop)
 }

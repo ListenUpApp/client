@@ -78,19 +78,23 @@ fun DockedNowPlayingBar(
         Surface(
             onClick = onTap,
             interactionSource = interactionSource,
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    scaleX = focusScale
-                    scaleY = focusScale
-                }
-                .then(
-                    if (isFocused) Modifier.border(
-                        width = 2.dp,
-                        color = focusBorderColor,
-                        shape = RectangleShape,
-                    ) else Modifier
-                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = focusScale
+                        scaleY = focusScale
+                    }.then(
+                        if (isFocused) {
+                            Modifier.border(
+                                width = 2.dp,
+                                color = focusBorderColor,
+                                shape = RectangleShape,
+                            )
+                        } else {
+                            Modifier
+                        },
+                    ),
             shape = RectangleShape,
             tonalElevation = 3.dp,
         ) {
@@ -115,10 +119,11 @@ fun DockedNowPlayingBar(
 
                 // Main content row — three sections with controls centered
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(80.dp)
-                        .padding(horizontal = 20.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(80.dp)
+                            .padding(horizontal = 20.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Left: Cover + title/author
@@ -131,9 +136,10 @@ fun DockedNowPlayingBar(
                             coverPath = state.coverUrl,
                             blurHash = state.coverBlurHash,
                             contentDescription = "Book cover",
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                            modifier =
+                                Modifier
+                                    .size(64.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
                         )
 
                         Spacer(Modifier.width(16.dp))

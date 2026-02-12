@@ -80,18 +80,18 @@ fun SeriesCard(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                }
-                .then(
-                    if (isFocused) Modifier
-                        .border(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(12.dp),
-                        )
-                        .padding(8.dp)
-                    else Modifier
-                )
-                .focusable(interactionSource = interactionSource)
+                }.then(
+                    if (isFocused) {
+                        Modifier
+                            .border(
+                                width = 2.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(12.dp),
+                            ).padding(8.dp)
+                    } else {
+                        Modifier
+                    },
+                ).focusable(interactionSource = interactionSource)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,

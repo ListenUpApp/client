@@ -104,6 +104,9 @@ actual val platformStorageModule: Module =
  */
 actual val platformDeviceModule: Module =
     module {
-        single { com.calypsan.listenup.client.device.DeviceContextProvider() }
+        single {
+            com.calypsan.listenup.client.device
+                .DeviceContextProvider()
+        }
         single { get<com.calypsan.listenup.client.device.DeviceContextProvider>().detect() }
     }

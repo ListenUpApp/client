@@ -39,6 +39,9 @@ actual val platformDiscoveryModule: Module =
  */
 actual val platformDeviceModule: Module =
     module {
-        single { com.calypsan.listenup.client.device.DeviceContextProvider(context = get()) }
+        single {
+            com.calypsan.listenup.client.device
+                .DeviceContextProvider(context = get())
+        }
         single { get<com.calypsan.listenup.client.device.DeviceContextProvider>().detect() }
     }

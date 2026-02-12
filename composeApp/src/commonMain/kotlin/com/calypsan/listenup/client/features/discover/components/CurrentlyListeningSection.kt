@@ -74,17 +74,17 @@ fun CurrentlyListeningSection(
                     blurHash = session.coverBlurHash,
                     onClick = { onBookClick(session.bookId) },
                     authorName = session.authorName,
-                    avatarOverlay = AvatarOverlayData(
-                        userId = session.userId,
-                        displayName = session.displayName,
-                        avatarType = session.avatarType,
-                        avatarValue = session.avatarValue,
-                        avatarColor = session.avatarColor,
-                    ),
+                    avatarOverlay =
+                        AvatarOverlayData(
+                            userId = session.userId,
+                            displayName = session.displayName,
+                            avatarType = session.avatarType,
+                            avatarValue = session.avatarValue,
+                            avatarColor = session.avatarColor,
+                        ),
                     cardWidth = 140.dp,
                 )
             }
         }
     }
 }
-

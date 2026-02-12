@@ -183,19 +183,19 @@ private fun LoginContent(
                                 .padding(horizontal = 32.dp, vertical = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                    LoginForm(
-                        state = state,
-                        onSubmit = onSubmit,
-                        modifier = Modifier.widthIn(max = 480.dp),
-                    )
+                        LoginForm(
+                            state = state,
+                            onSubmit = onSubmit,
+                            modifier = Modifier.widthIn(max = 480.dp),
+                        )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    if (openRegistration) {
-                        TextButton(onClick = onRegister) {
-                            Text(stringResource(Res.string.auth_create_account))
+                        if (openRegistration) {
+                            TextButton(onClick = onRegister) {
+                                Text(stringResource(Res.string.auth_create_account))
+                            }
                         }
-                    }
 
                         TextButton(onClick = onChangeServer) {
                             Text(stringResource(Res.string.auth_change_server))

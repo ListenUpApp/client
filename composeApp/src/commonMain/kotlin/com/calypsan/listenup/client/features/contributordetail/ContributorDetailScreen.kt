@@ -733,66 +733,66 @@ private fun NavigationBar(
         }
 
         if (!LocalDeviceContext.current.isLeanback) {
-        Box {
-            IconButton(
-                onClick = { showMenu = true },
-                modifier =
-                    Modifier
-                        .size(48.dp)
-                        .background(
-                            color = surfaceColor.copy(alpha = 0.5f),
-                            shape = CircleShape,
-                        ),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(Res.string.book_detail_more_options),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
-            }
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier =
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                color = surfaceColor.copy(alpha = 0.5f),
+                                shape = CircleShape,
+                            ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(Res.string.book_detail_more_options),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
 
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(Res.string.common_edit)) },
-                    leadingIcon = { Icon(Icons.Default.Edit, null) },
-                    onClick = {
-                        showMenu = false
-                        onEditClick()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(Res.string.contributor_download_metadata)) },
-                    leadingIcon = { Icon(Icons.Default.CloudDownload, null) },
-                    onClick = {
-                        showMenu = false
-                        onDownloadMetadata()
-                    },
-                )
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(Res.string.common_delete),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Delete,
-                            null,
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    },
-                    onClick = {
-                        showMenu = false
-                        onDeleteClick()
-                    },
-                )
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.common_edit)) },
+                        leadingIcon = { Icon(Icons.Default.Edit, null) },
+                        onClick = {
+                            showMenu = false
+                            onEditClick()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.contributor_download_metadata)) },
+                        leadingIcon = { Icon(Icons.Default.CloudDownload, null) },
+                        onClick = {
+                            showMenu = false
+                            onDownloadMetadata()
+                        },
+                    )
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(Res.string.common_delete),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onDeleteClick()
+                        },
+                    )
+                }
             }
-        }
         }
     }
 }
