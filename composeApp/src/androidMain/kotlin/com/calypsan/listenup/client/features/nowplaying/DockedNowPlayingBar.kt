@@ -99,7 +99,7 @@ fun DockedNowPlayingBar(
                     LinearProgressIndicator(
                         progress = { state.prepareProgress / 100f },
                         modifier = Modifier.fillMaxWidth().height(4.dp),
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        trackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
                         color = MaterialTheme.colorScheme.tertiary,
                         drawStopIndicator = {},
                     )
@@ -107,7 +107,7 @@ fun DockedNowPlayingBar(
                     LinearProgressIndicator(
                         progress = { state.bookProgress },
                         modifier = Modifier.fillMaxWidth().height(4.dp),
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        trackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
                         drawStopIndicator = {},
                     )
                 }
