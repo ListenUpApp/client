@@ -113,6 +113,58 @@ final class Dependencies {
         return instance
     }
 
+
+    // MARK: - Playback
+
+    private var _playbackManager: PlaybackManager?
+    var playbackManager: PlaybackManager {
+        if let cached = _playbackManager {
+            return cached
+        }
+        let instance = KoinHelper.shared.getPlaybackManager()
+        _playbackManager = instance
+        return instance
+    }
+
+    private var _audioPlayer: AudioPlayer?
+    var audioPlayer: AudioPlayer {
+        if let cached = _audioPlayer {
+            return cached
+        }
+        let instance = KoinHelper.shared.getAudioPlayer()
+        _audioPlayer = instance
+        return instance
+    }
+
+    private var _bookRepository: BookRepository?
+    var bookRepository: BookRepository {
+        if let cached = _bookRepository {
+            return cached
+        }
+        let instance = KoinHelper.shared.getBookRepository()
+        _bookRepository = instance
+        return instance
+    }
+
+    private var _imageStorage: ImageStorage?
+    var imageStorage: ImageStorage {
+        if let cached = _imageStorage {
+            return cached
+        }
+        let instance = KoinHelper.shared.getImageStorage()
+        _imageStorage = instance
+        return instance
+    }
+
+    private var _sleepTimerManager: SleepTimerManager?
+    var sleepTimerManager: SleepTimerManager {
+        if let cached = _sleepTimerManager {
+            return cached
+        }
+        let instance = KoinHelper.shared.getSleepTimerManager()
+        _sleepTimerManager = instance
+        return instance
+    }
     // MARK: - Detail ViewModels (factory - new instance each time)
 
     /// Creates a new BookDetailViewModel instance (not cached - each screen gets its own)

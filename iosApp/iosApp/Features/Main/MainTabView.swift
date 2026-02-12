@@ -8,14 +8,13 @@ import UIKit
 /// - TabView with Home, Library, Discover tabs
 /// - Each tab wraps content in NavigationStack
 /// - iPad gets sidebar-adaptable style
-/// - ZStack overlay for MiniPlayerView
+/// - ZStack overlay for MiniPlayerView (glass mini player)
 /// - fullScreenCover for FullScreenPlayerView
 struct MainTabView: View {
+    @Environment(\.dependencies) private var deps
     @State private var selectedTab: Tab = .home
     @State private var showFullScreenPlayer = false
-
-    // TODO: Replace with actual NowPlayingViewModel observation
-    @State private var isPlaying = false
+    @State private var nowPlayingObserver: NowPlayingObserver?
 
     init() {
         // Configure tab bar appearance for glass effect with good contrast
@@ -37,16 +36,29 @@ struct MainTabView: View {
             }
             .tabViewStyle(.sidebarAdaptable)
 
-            // Mini player overlay
-            if isPlaying {
-                MiniPlayerView(onTap: { showFullScreenPlayer = true })
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            // Mini player overlay — floats above tab bar
+            if let observer = nowPlayingObserver, observer.isVisible {
+                MiniPlayerView(
+                    observer: observer,
+                    onTap: { showFullScreenPlayer = true }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(duration: 0.3), value: isPlaying)
+        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: nowPlayingObserver?.isVisible ?? false)
         .tint(Color.listenUpOrange)
         .fullScreenCover(isPresented: $showFullScreenPlayer) {
-            FullScreenPlayerView(isPresented: $showFullScreenPlayer)
+            if let observer = nowPlayingObserver {
+                FullScreenPlayerView(
+                    observer: observer,
+                    isPresented: $showFullScreenPlayer
+                )
+            }
+        }
+        .onAppear {
+            if nowPlayingObserver == nil {
+                nowPlayingObserver = NowPlayingObserver(deps: deps)
+            }
         }
     }
 
@@ -66,7 +78,7 @@ struct MainTabView: View {
         }
         .tag(tab)
         .safeAreaInset(edge: .bottom) {
-            if isPlaying {
+            if nowPlayingObserver?.isVisible == true {
                 Color.clear.frame(height: MiniPlayerView.height)
             }
         }
