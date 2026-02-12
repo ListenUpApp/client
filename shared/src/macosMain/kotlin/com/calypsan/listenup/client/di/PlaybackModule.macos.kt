@@ -114,7 +114,6 @@ val macosPlaybackModule: Module =
             )
         }
 
-
         // Audio player
         single<AudioPlayer> {
             AvFoundationAudioPlayer(

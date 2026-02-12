@@ -115,7 +115,6 @@ val iosPlaybackModule: Module =
             )
         }
 
-
         // Audio player
         single<AudioPlayer> {
             AvFoundationAudioPlayer(

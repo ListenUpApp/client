@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber", "NestedBlockDepth", "UnnecessaryParentheses")
+
 package com.calypsan.listenup.client.design.util
 
 import kotlin.math.PI
@@ -24,7 +26,11 @@ object BlurHashCore {
      * @param height Output height in pixels
      * @return IntArray of ARGB pixels (size = width * height), or null if invalid
      */
-    fun decode(blurHash: String, width: Int, height: Int): IntArray? {
+    fun decode(
+        blurHash: String,
+        width: Int,
+        height: Int,
+    ): IntArray? {
         if (blurHash.length < 6) return null
 
         val sizeFlag = decode83(blurHash, 0, 1)
@@ -37,13 +43,14 @@ object BlurHashCore {
         val quantisedMaximumValue = decode83(blurHash, 1, 2)
         val maximumValue = (quantisedMaximumValue + 1) / 166f
 
-        val colors = Array(numX * numY) { i ->
-            if (i == 0) {
-                decodeDC(decode83(blurHash, 2, 6))
-            } else {
-                decodeAC(decode83(blurHash, 4 + i * 2, 4 + i * 2 + 2), maximumValue)
+        val colors =
+            Array(numX * numY) { i ->
+                if (i == 0) {
+                    decodeDC(decode83(blurHash, 2, 6))
+                } else {
+                    decodeAC(decode83(blurHash, 4 + i * 2, 4 + i * 2 + 2), maximumValue)
+                }
             }
-        }
 
         val pixels = IntArray(width * height)
         for (y in 0 until height) {
@@ -54,8 +61,9 @@ object BlurHashCore {
 
                 for (j in 0 until numY) {
                     for (i in 0 until numX) {
-                        val basis = cos(PI * i * x / width).toFloat() *
-                            cos(PI * j * y / height).toFloat()
+                        val basis =
+                            cos(PI * i * x / width).toFloat() *
+                                cos(PI * j * y / height).toFloat()
                         val color = colors[i + j * numX]
                         r += color[0] * basis
                         g += color[1] * basis
@@ -73,7 +81,11 @@ object BlurHashCore {
         return pixels
     }
 
-    private fun decode83(str: String, from: Int, to: Int): Int {
+    private fun decode83(
+        str: String,
+        from: Int,
+        to: Int,
+    ): Int {
         var value = 0
         for (i in from until to) {
             val index = CHARS.indexOf(str[i])
@@ -90,7 +102,10 @@ object BlurHashCore {
         return floatArrayOf(sRGBToLinear(r), sRGBToLinear(g), sRGBToLinear(b))
     }
 
-    private fun decodeAC(value: Int, maximumValue: Float): FloatArray {
+    private fun decodeAC(
+        value: Int,
+        maximumValue: Float,
+    ): FloatArray {
         val quantR = value / (19 * 19)
         val quantG = (value / 19) % 19
         val quantB = value % 19
@@ -101,8 +116,10 @@ object BlurHashCore {
         )
     }
 
-    private fun signPow(value: Float, exp: Float): Float =
-        sign(value) * abs(value).pow(exp)
+    private fun signPow(
+        value: Float,
+        exp: Float,
+    ): Float = sign(value) * abs(value).pow(exp)
 
     private fun sRGBToLinear(value: Int): Float {
         val v = value / 255f

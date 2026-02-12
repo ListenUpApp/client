@@ -22,10 +22,12 @@ import platform.Foundation.NSUserDomainMask
 actual val platformDatabaseModule: Module =
     module {
         single {
-            val urls = NSFileManager.defaultManager.URLsForDirectory(
-                NSDocumentDirectory,
-                NSUserDomainMask,
-            )
+            val urls =
+                NSFileManager.defaultManager.URLsForDirectory(
+                    NSDocumentDirectory,
+                    NSUserDomainMask,
+                )
+
             @Suppress("UNCHECKED_CAST")
             val documentsUrl = (urls as List<NSURL>).first()
             val dbFile = documentsUrl.path + "/listenup.db"
