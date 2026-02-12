@@ -139,8 +139,10 @@ fun WideBookDetail(
                 }
             },
             actions = {
-                IconButton(onClick = onShareClick) {
-                    Icon(Icons.Default.Share, contentDescription = "Share")
+                if (!deviceContext.isLeanback) {
+                    IconButton(onClick = onShareClick) {
+                        Icon(Icons.Default.Share, contentDescription = "Share")
+                    }
                 }
                 if (deviceContext.canEdit) {
                     var showMenu by remember { mutableStateOf(false) }
@@ -236,6 +238,7 @@ fun WideBookDetail(
                                 narrators = state.book?.narrators ?: emptyList(),
                                 allContributors = state.book?.allContributors ?: emptyList(),
                                 onContributorClick = onContributorClick,
+                                horizontalAlignment = Alignment.Start,
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -248,6 +251,7 @@ fun WideBookDetail(
                                     onDownloadClick = onDownloadClick,
                                     onCancelClick = onCancelClick,
                                     onDeleteClick = onDeleteClick,
+                                    modifier = Modifier.widthIn(max = 400.dp),
                                     isWaitingForWifi = isWaitingForWifi,
                                     playEnabled = playEnabled,
                                     onPlayDisabledClick = onPlayDisabledClick,

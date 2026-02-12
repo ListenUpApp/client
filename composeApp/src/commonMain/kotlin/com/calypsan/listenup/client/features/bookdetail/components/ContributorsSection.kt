@@ -110,6 +110,7 @@ fun TalentSectionWithRoles(
     allContributors: List<BookContributor>,
     onContributorClick: (contributorId: String) -> Unit,
     modifier: Modifier = Modifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally,
 ) {
     if (authors.isEmpty() && narrators.isEmpty() && allContributors.isEmpty()) return
 
@@ -128,7 +129,7 @@ fun TalentSectionWithRoles(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        horizontalAlignment = horizontalAlignment,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         // Authors line
