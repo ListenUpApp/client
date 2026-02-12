@@ -122,7 +122,6 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.palette.ktx)
             implementation(libs.androidx.work.runtime.ktx)
-            implementation(libs.blurhash)
         }
 
         // Apple (iOS + macOS) shared dependencies

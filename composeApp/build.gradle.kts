@@ -85,7 +85,6 @@ kotlin {
             implementation(libs.androidx.palette.ktx)
 
             // BlurHash for image placeholders
-            implementation(libs.blurhash)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
