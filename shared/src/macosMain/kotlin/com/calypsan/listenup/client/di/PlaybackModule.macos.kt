@@ -9,6 +9,8 @@ import com.calypsan.listenup.client.download.AppleDownloadService
 import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 import com.calypsan.listenup.client.playback.AppleAudioTokenProvider
+import com.calypsan.listenup.client.playback.AudioPlayer
+import com.calypsan.listenup.client.playback.AvFoundationAudioPlayer
 import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
@@ -108,6 +110,15 @@ val macosPlaybackModule: Module =
                 capabilityDetector = null, // macOS doesn't need codec detection
                 syncApi = get(),
                 deviceContext = get(),
+                scope = get(qualifier = named("playbackScope")),
+            )
+        }
+
+
+        // Audio player
+        single<AudioPlayer> {
+            AvFoundationAudioPlayer(
+                tokenProvider = get(),
                 scope = get(qualifier = named("playbackScope")),
             )
         }
