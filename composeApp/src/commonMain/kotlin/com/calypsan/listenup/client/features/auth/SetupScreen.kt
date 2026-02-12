@@ -155,23 +155,30 @@ private fun SetupContent(
                 }
 
                 // Right pane: form
-                Column(
+                Box(
                     modifier =
                         Modifier
                             .weight(0.6f)
                             .fillMaxHeight()
-                            .imePadding()
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 32.dp, vertical = 24.dp),
-                    verticalArrangement = Arrangement.Center,
+                            .imePadding(),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    SetupForm(
-                        state = state,
-                        onSubmit = onSubmit,
-                        modifier = Modifier.widthIn(max = 480.dp),
-                    )
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 32.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        SetupForm(
+                            state = state,
+                            onSubmit = onSubmit,
+                            modifier = Modifier.widthIn(max = 480.dp),
+                        )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
                 }
             }
         } else {

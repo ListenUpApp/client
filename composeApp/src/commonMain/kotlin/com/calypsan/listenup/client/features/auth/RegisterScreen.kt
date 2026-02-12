@@ -146,23 +146,30 @@ fun RegisterScreen(
                 }
 
                 // Right pane: form
-                Column(
+                Box(
                     modifier =
                         Modifier
                             .weight(0.6f)
                             .fillMaxHeight()
-                            .imePadding()
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 32.dp, vertical = 24.dp),
-                    verticalArrangement = Arrangement.Center,
+                            .imePadding(),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    RegisterForm(
-                        state = state,
-                        onSubmit = viewModel::onRegisterSubmit,
-                        modifier = Modifier.widthIn(max = 480.dp),
-                    )
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 32.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        RegisterForm(
+                            state = state,
+                            onSubmit = viewModel::onRegisterSubmit,
+                            modifier = Modifier.widthIn(max = 480.dp),
+                        )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
                 }
             }
         } else {

@@ -125,31 +125,38 @@ private fun ServerSetupContent(
                 }
 
                 // Right pane: form
-                Column(
+                Box(
                     modifier =
                         Modifier
                             .weight(0.6f)
                             .fillMaxHeight()
-                            .imePadding()
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 32.dp, vertical = 24.dp),
-                    verticalArrangement = Arrangement.Center,
+                            .imePadding(),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    FormContent(
-                        state = state,
-                        onEvent = onEvent,
-                        modifier = Modifier.widthIn(max = 480.dp),
-                    )
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 32.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        FormContent(
+                            state = state,
+                            onEvent = onEvent,
+                            modifier = Modifier.widthIn(max = 480.dp),
+                        )
 
-                    if (onBack != null) {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        if (onBack != null) {
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                        TextButton(onClick = onBack) {
-                            Text(stringResource(Res.string.connect_back_to_server_list))
+                            TextButton(onClick = onBack) {
+                                Text(stringResource(Res.string.connect_back_to_server_list))
+                            }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
                 }
             }
         } else {

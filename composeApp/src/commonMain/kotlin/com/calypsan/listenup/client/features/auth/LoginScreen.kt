@@ -167,16 +167,22 @@ private fun LoginContent(
                 }
 
                 // Right pane: form
-                Column(
+                Box(
                     modifier =
                         Modifier
                             .weight(0.6f)
                             .fillMaxHeight()
-                            .imePadding()
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 32.dp, vertical = 24.dp),
-                    verticalArrangement = Arrangement.Center,
+                            .imePadding(),
+                    contentAlignment = Alignment.Center,
                 ) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 32.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                     LoginForm(
                         state = state,
                         onSubmit = onSubmit,
@@ -191,8 +197,9 @@ private fun LoginContent(
                         }
                     }
 
-                    TextButton(onClick = onChangeServer) {
-                        Text(stringResource(Res.string.auth_change_server))
+                        TextButton(onClick = onChangeServer) {
+                            Text(stringResource(Res.string.auth_change_server))
+                        }
                     }
                 }
             }
