@@ -10,38 +10,22 @@ import Shared
 /// No callbacks needed.
 struct ServerFlowCoordinator: View {
 
-    /// Navigation state - simple enum, not NavigationPath
-    @State private var destination: Destination = .select
-
-    enum Destination: Hashable {
-        case select
-        case manualEntry
-    }
+    @State private var showManualEntry = false
 
     var body: some View {
         NavigationStack {
             ServerSelectView(
                 onManualEntryRequested: {
-                    destination = .manualEntry
+                    showManualEntry = true
                 }
             )
-            .navigationDestination(for: Destination.self) { dest in
-                switch dest {
-                case .select:
-                    EmptyView() // Never pushed, it's the root
-
-                case .manualEntry:
-                    ServerManualEntryView(
-                        onBack: {
-                            destination = .select
-                        }
-                    )
-                }
+            .navigationDestination(isPresented: $showManualEntry) {
+                ServerManualEntryView(
+                    onBack: {
+                        showManualEntry = false
+                    }
+                )
             }
-        }
-        .onChange(of: destination) { _, newValue in
-            // This could use a NavigationPath if we need deeper navigation
-            // For now, simple enum works perfectly
         }
     }
 }
