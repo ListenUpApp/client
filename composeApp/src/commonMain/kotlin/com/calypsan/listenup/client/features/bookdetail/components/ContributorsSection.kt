@@ -63,10 +63,11 @@ private fun TalentLine(
     prefix: String,
     contributors: List<BookContributor>,
     onContributorClick: (contributorId: String) -> Unit,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.Center,
 ) {
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
+        horizontalArrangement = horizontalArrangement,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
@@ -114,6 +115,8 @@ fun TalentSectionWithRoles(
 ) {
     if (authors.isEmpty() && narrators.isEmpty() && allContributors.isEmpty()) return
 
+    val talentArrangement = if (horizontalAlignment == Alignment.Start) Arrangement.Start else Arrangement.Center
+
     // Known primary roles to exclude from "additional roles"
     val primaryRoles = setOf(ContributorRole.AUTHOR.apiValue, ContributorRole.NARRATOR.apiValue, "writer")
 
@@ -138,6 +141,7 @@ fun TalentSectionWithRoles(
                 prefix = "By ",
                 contributors = authors,
                 onContributorClick = onContributorClick,
+                horizontalArrangement = talentArrangement,
             )
         }
 
@@ -147,6 +151,7 @@ fun TalentSectionWithRoles(
                 prefix = "Narrated by ",
                 contributors = narrators,
                 onContributorClick = onContributorClick,
+                horizontalArrangement = talentArrangement,
             )
         }
 
@@ -157,6 +162,7 @@ fun TalentSectionWithRoles(
                     prefix = formatRolePrefix(role),
                     contributors = contributors,
                     onContributorClick = onContributorClick,
+                    horizontalArrangement = talentArrangement,
                 )
             }
         }

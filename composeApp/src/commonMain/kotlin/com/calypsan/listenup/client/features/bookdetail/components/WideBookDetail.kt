@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -186,7 +188,9 @@ fun WideBookDetail(
                         .padding(horizontal = 32.dp, vertical = 24.dp),
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
                         horizontalArrangement = Arrangement.spacedBy(24.dp),
                     ) {
                         // Cover
@@ -208,42 +212,45 @@ fun WideBookDetail(
 
                         // Metadata + actions
                         Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            verticalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            // Title
-                            Text(
-                                text = state.book?.title ?: "",
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontFamily = DisplayFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-
-                            // Subtitle
-                            state.subtitle?.let {
+                            // Top: metadata
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                // Title
                                 Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    text = state.book?.title ?: "",
+                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                        fontFamily = DisplayFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+
+                                // Subtitle
+                                state.subtitle?.let {
+                                    Text(
+                                        text = it,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+
+                                // Talent
+                                TalentSectionWithRoles(
+                                    authors = state.book?.authors ?: emptyList(),
+                                    narrators = state.book?.narrators ?: emptyList(),
+                                    allContributors = state.book?.allContributors ?: emptyList(),
+                                    onContributorClick = onContributorClick,
+                                    horizontalAlignment = Alignment.Start,
                                 )
                             }
 
-                            // Talent
-                            TalentSectionWithRoles(
-                                authors = state.book?.authors ?: emptyList(),
-                                narrators = state.book?.narrators ?: emptyList(),
-                                allContributors = state.book?.allContributors ?: emptyList(),
-                                onContributorClick = onContributorClick,
-                                horizontalAlignment = Alignment.Start,
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Actions
+                            // Bottom: actions (flush with cover bottom)
                             if (showPlaybackActions) {
                                 PrimaryActionsSection(
                                     downloadStatus = downloadStatus,
