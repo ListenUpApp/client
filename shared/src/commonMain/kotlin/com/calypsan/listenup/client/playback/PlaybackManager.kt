@@ -26,6 +26,7 @@ import com.calypsan.listenup.client.domain.playback.StreamPrepareResult
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
+import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.download.DownloadService
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
@@ -59,6 +60,7 @@ class PlaybackManager(
     private val imageStorage: ImageStorage,
     private val progressTracker: ProgressTracker,
     private val tokenProvider: AudioTokenProvider,
+    private val deviceContext: DeviceContext,
     private val downloadService: DownloadService,
     private val playbackApi: PlaybackApi?,
     private val capabilityDetector: AudioCapabilityDetector?,
@@ -305,8 +307,11 @@ class PlaybackManager(
 
         // 7. Trigger background download if not fully downloaded
         // Skip if user explicitly deleted - they chose to stream only
+        // Skip on devices that don't support downloads (TV, Auto) - stream only
         // Result ignored intentionally - this is best-effort caching, user can still stream
-        if (!timeline.isFullyDownloaded && !downloadService.wasExplicitlyDeleted(bookId)) {
+        if (!deviceContext.supportsDownloads) {
+            logger.info { "Device does not support downloads, streaming only" }
+        } else if (!timeline.isFullyDownloaded && !downloadService.wasExplicitlyDeleted(bookId)) {
             logger.info { "Book not fully downloaded, triggering background download" }
             scope.launch {
                 downloadService.downloadBook(bookId) // Result logged in DownloadManager
