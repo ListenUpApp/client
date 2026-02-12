@@ -13,13 +13,12 @@ struct ServerSelectView: View {
 
     // MARK: - Navigation
 
-    /// Only callback needed: navigate to manual entry within the server flow
-    var onManualEntryRequested: (() -> Void)?
+    @Binding var showManualEntry: Bool
 
     // MARK: - Initialization
 
-    init(onManualEntryRequested: (() -> Void)? = nil) {
-        self.onManualEntryRequested = onManualEntryRequested
+    init(showManualEntry: Binding<Bool>) {
+        self._showManualEntry = showManualEntry
         _viewModel = State(initialValue: ServerSelectViewModelWrapper(
             viewModel: Dependencies.shared.serverSelectViewModel
         ))
@@ -32,8 +31,9 @@ struct ServerSelectView: View {
             content
         }
         .onAppear {
-            // Wire up the manual entry callback
-            viewModel.onManualEntryRequested = onManualEntryRequested
+            viewModel.onManualEntryRequested = {
+                showManualEntry = true
+            }
         }
     }
 
@@ -250,5 +250,5 @@ private struct ManualEntryCard: View {
 // MARK: - Previews
 
 #Preview("Server Select") {
-    ServerSelectView()
+    ServerSelectView(showManualEntry: .constant(false))
 }

@@ -15,9 +15,7 @@ struct ServerFlowCoordinator: View {
     var body: some View {
         NavigationStack {
             ServerSelectView(
-                onManualEntryRequested: {
-                    showManualEntry = true
-                }
+                showManualEntry: $showManualEntry
             )
             .navigationDestination(isPresented: $showManualEntry) {
                 ServerManualEntryView(
