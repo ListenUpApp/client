@@ -15,24 +15,26 @@ import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.sync.BackgroundSyncScheduler
-import com.calypsan.listenup.client.sync.IosBackgroundSyncScheduler
+import com.calypsan.listenup.client.sync.MacosBackgroundSyncScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import platform.Foundation.NSProcessInfo
+import platform.Foundation.NSUUID
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 /**
- * iOS playback module.
+ * macOS playback module.
  *
- * Provides audio playback components for iOS:
+ * Provides audio playback components for macOS:
  * - AudioTokenProvider for authenticated streaming
  * - DownloadService for offline downloads
  * - PlaybackManager for playback orchestration
  * - ProgressTracker for position persistence
  * - SleepTimerManager for sleep timer functionality
  */
-val iosPlaybackModule: Module =
+val macosPlaybackModule: Module =
     module {
         // Playback-scoped coroutine scope
         single(qualifier = named("playbackScope")) {
@@ -40,11 +42,11 @@ val iosPlaybackModule: Module =
         }
 
         // Device ID for listening events
-        // iOS uses identifierForVendor which persists across app reinstalls
-        // but changes when all apps from vendor are deleted
+        // macOS uses a generated UUID persisted via secure storage
+        // TODO: Use a more stable identifier when macOS app matures
         single(qualifier = named("deviceId")) {
-            platform.UIKit.UIDevice.currentDevice.identifierForVendor
-                ?.UUIDString ?: "unknown-device"
+            val hostName = NSProcessInfo.processInfo.hostName
+            "macos-$hostName"
         }
 
         // File manager for downloads
@@ -58,9 +60,6 @@ val iosPlaybackModule: Module =
                 scope = get(qualifier = named("playbackScope")),
             )
         }
-
-        // Also expose concrete type for iOS-specific features
-        single { get<AudioTokenProvider>() as AppleAudioTokenProvider }
 
         // Download service
         single<DownloadService> {
@@ -107,8 +106,8 @@ val iosPlaybackModule: Module =
                 progressTracker = get(),
                 tokenProvider = get(),
                 downloadService = get(),
-                playbackApi = null, // iOS uses native AVPlayer, no transcoding API needed
-                capabilityDetector = null, // iOS doesn't need codec detection
+                playbackApi = null, // macOS uses native AVPlayer, no transcoding API needed
+                capabilityDetector = null, // macOS doesn't need codec detection
                 syncApi = get(),
                 deviceContext = get(),
                 scope = get(qualifier = named("playbackScope")),
@@ -123,6 +122,6 @@ val iosPlaybackModule: Module =
             )
         }
 
-        // Background sync scheduler
-        single<BackgroundSyncScheduler> { IosBackgroundSyncScheduler() }
+        // Background sync scheduler (stub for now)
+        single<BackgroundSyncScheduler> { MacosBackgroundSyncScheduler() }
     }

@@ -14,7 +14,7 @@ import platform.Foundation.NSURL
  * @param size The file size in bytes, or null if unknown
  */
 @Suppress("UnusedPrivateProperty") // fileUrl will be used when iOS streaming is implemented
-class IosFileSource(
+class AppleFileSource(
     private val fileUrl: NSURL,
     override val filename: String,
     override val size: Long?,

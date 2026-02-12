@@ -32,7 +32,7 @@ private val logger = KotlinLogging.logger {}
  * - URLSession delegates handle auth headers separately
  * - This class provides the token; iOS networking code reads it
  */
-class IosAudioTokenProvider(
+class AppleAudioTokenProvider(
     private val authSession: AuthSession,
     private val authApi: AuthApi,
     private val scope: CoroutineScope,

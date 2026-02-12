@@ -125,6 +125,7 @@ val platformModule: Module =
                 playbackApi = get(),
                 capabilityDetector = get(),
                 syncApi = get(),
+                deviceContext = get(),
                 scope = get(qualifier = named("playbackScope")),
             )
         }

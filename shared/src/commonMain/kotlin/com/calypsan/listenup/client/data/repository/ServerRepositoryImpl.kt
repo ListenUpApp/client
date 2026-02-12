@@ -13,6 +13,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
@@ -50,8 +51,8 @@ class ServerRepositoryImpl(
 ) : ServerRepository {
     override fun observeServers(): Flow<List<ServerWithStatus>> =
         combine(
-            serverDao.observeAll(),
-            discoveryService.discover().onStart { emit(emptyList()) },
+            serverDao.observeAll().distinctUntilChanged(),
+            discoveryService.discover().onStart { emit(emptyList()) }.distinctUntilChanged(),
         ) { persisted, discovered ->
             val discoveredIds = discovered.map { it.id }.toSet()
 

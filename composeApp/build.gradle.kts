@@ -85,7 +85,6 @@ kotlin {
             implementation(libs.androidx.palette.ktx)
 
             // BlurHash for image placeholders
-            implementation(libs.blurhash)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -93,7 +92,7 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
-            implementation(compose.materialIconsExtended)
+            implementation(libs.androidx.material.icons.extended)
             implementation(libs.compose.ui.tooling.preview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)

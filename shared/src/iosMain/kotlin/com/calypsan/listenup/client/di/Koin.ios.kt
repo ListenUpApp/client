@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.core.configureLogging
-import com.calypsan.listenup.client.data.discovery.IosDiscoveryService
+import com.calypsan.listenup.client.data.discovery.AppleDiscoveryService
 import com.calypsan.listenup.client.data.discovery.ServerDiscoveryService
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel
@@ -43,7 +43,7 @@ actual fun getBaseUrl(): String = "http://127.0.0.1:8080"
  */
 actual val platformDiscoveryModule: Module =
     module {
-        single { IosDiscoveryService() } bind ServerDiscoveryService::class
+        single { AppleDiscoveryService() } bind ServerDiscoveryService::class
     }
 
 /**

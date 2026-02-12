@@ -191,7 +191,7 @@ private struct EmptyDiscoveryState: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text(NSLocalizedString("common.no_items_found", comment: ""))
+                Text(String(format: NSLocalizedString("common.no_items_found", comment: ""), NSLocalizedString("connect.listenup_server", comment: "")))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Text(NSLocalizedString("connect.make_sure_your_listenup_server", comment: ""))
