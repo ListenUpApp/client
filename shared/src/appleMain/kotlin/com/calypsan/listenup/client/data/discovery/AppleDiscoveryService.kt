@@ -44,6 +44,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
     private val serviceBrowser = NSNetServiceBrowser()
     private val serversState = MutableStateFlow<Map<String, DiscoveredServer>>(emptyMap())
     private val pendingServices = mutableMapOf<String, NSNetService>()
+    private val serviceDelegates = mutableMapOf<String, ServiceDelegate>()
 
     private var browserDelegate: BrowserDelegate? = null
     private var isDiscovering = false
@@ -81,6 +82,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
         isDiscovering = false
         browserDelegate = null
         pendingServices.clear()
+        serviceDelegates.clear()
     }
 
     private fun onServiceFound(service: NSNetService) {
@@ -88,7 +90,9 @@ class AppleDiscoveryService : ServerDiscoveryService {
         logger.debug { "Service found: $serviceName" }
 
         pendingServices[serviceName] = service
-        service.delegate = ServiceDelegate()
+        val delegate = ServiceDelegate()
+        serviceDelegates[serviceName] = delegate
+        service.delegate = delegate
         service.resolveWithTimeout(RESOLVE_TIMEOUT)
     }
 
@@ -97,6 +101,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
         logger.debug { "Service removed: $serviceName" }
 
         pendingServices.remove(serviceName)
+        serviceDelegates.remove(serviceName)
         serversState.update { current ->
             val removedId = current.entries.firstOrNull { it.value.name == serviceName }?.key
             if (removedId != null) current - removedId else current
@@ -146,6 +151,8 @@ class AppleDiscoveryService : ServerDiscoveryService {
                 remoteUrl = txtRecords["remote"],
             )
 
+        pendingServices.remove(serviceName)
+        serviceDelegates.remove(serviceName)
         serversState.update { it + (server.id to server) }
         logger.info { "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}" }
         pendingServices.remove(serviceName)
@@ -296,6 +303,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
         ) {
             logger.error { "Failed to resolve service ${sender.name}: $didNotResolve" }
             pendingServices.remove(sender.name)
+            serviceDelegates.remove(sender.name)
         }
     }
 }
