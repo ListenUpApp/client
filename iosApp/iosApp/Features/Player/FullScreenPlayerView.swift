@@ -484,14 +484,14 @@ private struct SleepTimerSheet: View {
                     Section {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Timer Active")
+                                Text(String(localized: "player.timer_active"))
                                     .font(.subheadline.bold())
                                 Text(observer.sleepTimerLabel)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Button("Cancel") {
+                            Button(String(localized: "common.cancel")) {
                                 observer.cancelSleepTimer()
                                 onDismiss()
                             }
@@ -500,7 +500,7 @@ private struct SleepTimerSheet: View {
                     }
                 }
 
-                Section("Duration") {
+                Section(String(localized: "player.duration")) {
                     ForEach(durations, id: \.self) { minutes in
                         Button(action: {
                             observer.setSleepTimer(minutes: minutes)
@@ -521,14 +521,14 @@ private struct SleepTimerSheet: View {
                         onDismiss()
                     }) {
                         HStack {
-                            Text("End of Chapter")
+                            Text(String(localized: "player.end_of_chapter"))
                                 .foregroundStyle(.primary)
                             Spacer()
                         }
                     }
                 }
             }
-            .navigationTitle("Sleep Timer")
+            .navigationTitle(String(localized: "player.sleep_timer"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -568,7 +568,7 @@ private struct SpeedPickerSheet: View {
                     }
                 }
             }
-            .navigationTitle("Playback Speed")
+            .navigationTitle(String(localized: "player.playback_speed"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -640,7 +640,7 @@ private struct ChapterListSheet: View {
                     }
                 }
             }
-            .navigationTitle("Chapters")
+            .navigationTitle(String(localized: "player.chapters"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }

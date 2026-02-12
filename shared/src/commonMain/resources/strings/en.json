@@ -543,6 +543,10 @@
     "speed": "Speed",
     "chapters": "Chapters",
     "sleep_timer": "Sleep Timer",
-    "bookmark": "Bookmark"
+    "bookmark": "Bookmark",
+    "timer_active": "Timer Active",
+    "duration": "Duration",
+    "end_of_chapter": "End of Chapter",
+    "playback_speed": "Playback Speed"
   }
 }
