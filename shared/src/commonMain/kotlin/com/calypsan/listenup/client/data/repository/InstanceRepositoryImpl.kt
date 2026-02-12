@@ -193,16 +193,17 @@ class InstanceRepositoryImpl(
      * @return The first reachable URL, or null if none work
      */
     override suspend fun findReachableUrl(urls: List<String>): String? {
-        val quickClient = HttpClient {
-            install(ContentNegotiation) {
-                json(this@InstanceRepositoryImpl.json)
+        val quickClient =
+            HttpClient {
+                install(ContentNegotiation) {
+                    json(this@InstanceRepositoryImpl.json)
+                }
+                install(HttpTimeout) {
+                    requestTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
+                    connectTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
+                    socketTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
+                }
             }
-            install(HttpTimeout) {
-                requestTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
-                connectTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
-                socketTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
-            }
-        }
 
         return try {
             for (url in urls) {

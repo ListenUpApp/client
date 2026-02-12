@@ -118,18 +118,19 @@ class AppleDiscoveryService : ServerDiscoveryService {
         val ipAddress = extractIPv4Address(service)
         val rawHostName = service.hostName
 
-        val hostName = if (ipAddress != null) {
-            logger.debug { "Resolved $serviceName to IP: $ipAddress (hostname: $rawHostName)" }
-            ipAddress
-        } else if (rawHostName != null) {
-            // Fallback to hostname if IP extraction fails
-            val normalized = normalizeHostname(rawHostName)
-            logger.warn { "Could not extract IP for $serviceName, falling back to hostname: $normalized" }
-            normalized
-        } else {
-            logger.warn { "Resolved service has no host or addresses: $serviceName" }
-            return
-        }
+        val hostName =
+            if (ipAddress != null) {
+                logger.debug { "Resolved $serviceName to IP: $ipAddress (hostname: $rawHostName)" }
+                ipAddress
+            } else if (rawHostName != null) {
+                // Fallback to hostname if IP extraction fails
+                val normalized = normalizeHostname(rawHostName)
+                logger.warn { "Could not extract IP for $serviceName, falling back to hostname: $normalized" }
+                normalized
+            } else {
+                logger.warn { "Resolved service has no host or addresses: $serviceName" }
+                return
+            }
 
         val txtData = service.TXTRecordData()
         val txtRecords = parseTxtRecords(txtData)

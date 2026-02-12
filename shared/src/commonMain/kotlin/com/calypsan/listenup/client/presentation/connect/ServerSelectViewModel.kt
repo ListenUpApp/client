@@ -187,10 +187,11 @@ class ServerSelectViewModel(
                 // Build list of URLs to try:
                 // 1. Discovered LAN IP (from mDNS)
                 // 2. Remote URL if advertised in TXT record
-                val urlsToTry = buildList {
-                    add(discovered.localUrl)
-                    discovered.remoteUrl?.let { add(it) }
-                }
+                val urlsToTry =
+                    buildList {
+                        add(discovered.localUrl)
+                        discovered.remoteUrl?.let { add(it) }
+                    }
 
                 // Quick-check which URL is actually reachable (3s timeout each)
                 val reachableUrl = instanceRepository.findReachableUrl(urlsToTry)
@@ -206,8 +207,9 @@ class ServerSelectViewModel(
                     state.update {
                         it.copy(
                             isConnecting = false,
-                            error = "Server found on network but not reachable. " +
-                                "Try adding it manually with the server's IP address.",
+                            error =
+                                "Server found on network but not reachable. " +
+                                    "Try adding it manually with the server's IP address.",
                         )
                     }
                 }
