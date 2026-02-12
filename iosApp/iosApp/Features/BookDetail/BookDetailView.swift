@@ -50,7 +50,7 @@ struct BookDetailView: View {
         .onAppear {
             if observer == nil {
                 let vm = deps.createBookDetailViewModel()
-                observer = BookDetailObserver(viewModel: vm)
+                observer = BookDetailObserver(viewModel: vm, playbackManager: deps.playbackManager, audioPlayer: deps.audioPlayer)
                 observer?.loadBook(bookId: bookId)
             }
         }
@@ -183,14 +183,13 @@ struct BookDetailView: View {
 
     private var actionButtons: some View {
         HStack(spacing: 16) {
-            Button(action: {}) {
+            Button(action: { observer?.play() }) {
                 Label(NSLocalizedString("book.detail_stream_now", comment: ""), systemImage: "play.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)
-            .tint(Color.listenUpOrange)
 
             Button(action: {}) {
                 Image(systemName: "square.and.arrow.down")

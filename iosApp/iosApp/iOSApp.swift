@@ -13,6 +13,7 @@ struct ListenUpApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .tint(Color.listenUpOrange)
         }
     }
 }

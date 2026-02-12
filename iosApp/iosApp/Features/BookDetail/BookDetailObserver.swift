@@ -94,12 +94,16 @@ final class BookDetailObserver {
     // MARK: - Private
 
     private let viewModel: BookDetailViewModel
+    private let playbackManager: PlaybackManager
+    private let audioPlayer: AudioPlayer
     private var observationTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
-    init(viewModel: BookDetailViewModel) {
+    init(viewModel: BookDetailViewModel, playbackManager: PlaybackManager, audioPlayer: AudioPlayer) {
         self.viewModel = viewModel
+        self.playbackManager = playbackManager
+        self.audioPlayer = audioPlayer
         startObserving()
     }
 
@@ -114,6 +118,29 @@ final class BookDetailObserver {
     /// Load a book by ID
     func loadBook(bookId: String) {
         viewModel.loadBook(bookId: bookId)
+    }
+
+    /// Start or resume playback for this book
+    func play() {
+        guard let book = book else {
+            
+            return
+        }
+        
+        playbackManager.activateBook(bookId: book.id)
+
+        Task {
+            print("[BookDetail] Preparing playback...")
+            guard let result = try? await playbackManager.prepareForPlayback(bookId: book.id) else {
+                return
+            }
+
+            try? await playbackManager.startPlayback(
+                player: audioPlayer,
+                resumePositionMs: result.resumePositionMs,
+                resumeSpeed: result.resumeSpeed
+            )
+        }
     }
 
     // MARK: - Private

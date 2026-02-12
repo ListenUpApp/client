@@ -69,15 +69,34 @@ final class NowPlayingObserver {
     /// Current playback speed
     private(set) var playbackSpeed: Float = 1.0
 
+    /// Sleep timer state
+    private(set) var sleepTimerActive: Bool = false
+    private(set) var sleepTimerRemainingMs: Int64 = 0
+    private(set) var sleepTimerMode: String = "" // "duration" or "endOfChapter"
+    private(set) var sleepTimerLabel: String = "" 
+
     // MARK: - Private
 
     private let playbackManager: PlaybackManager
     private let audioPlayer: AudioPlayer
     private let bookRepository: BookRepository
     private let imageStorage: ImageStorage
+    private let sleepTimerManager: SleepTimerManager
 
     private var observationTasks: [Task<Void, Never>] = []
     private var currentChapterInfo: PlaybackManager.ChapterInfo?
+
+    /// All chapters for the chapter list
+    private(set) var chapters: [Chapter] = []
+
+    /// Get chapter title by index
+    func chapterTitleForIndex(_ index: Int) -> String? {
+        guard index >= 0, index < chapters.count else { return nil }
+        return chapters[index].title
+    }
+
+    /// Exposed for seeking — returns chapter info with startMs for absolute position calculation
+    var currentChapterInfoForSeeking: PlaybackManager.ChapterInfo? { currentChapterInfo }
     private var currentBookIdValue: String?
 
     // MARK: - Initialization
@@ -86,12 +105,14 @@ final class NowPlayingObserver {
         playbackManager: PlaybackManager,
         audioPlayer: AudioPlayer,
         bookRepository: BookRepository,
-        imageStorage: ImageStorage
+        imageStorage: ImageStorage,
+        sleepTimerManager: SleepTimerManager
     ) {
         self.playbackManager = playbackManager
         self.audioPlayer = audioPlayer
         self.bookRepository = bookRepository
         self.imageStorage = imageStorage
+        self.sleepTimerManager = sleepTimerManager
         startObserving()
     }
 
@@ -101,7 +122,8 @@ final class NowPlayingObserver {
             playbackManager: deps.playbackManager,
             audioPlayer: deps.audioPlayer,
             bookRepository: deps.bookRepository,
-            imageStorage: deps.imageStorage
+            imageStorage: deps.imageStorage,
+            sleepTimerManager: deps.sleepTimerManager
         )
     }
 
@@ -152,6 +174,18 @@ final class NowPlayingObserver {
     }
 
     /// Stop all observations — call when done
+    func setSleepTimer(minutes: Int) {
+        sleepTimerManager.setTimer(mode: SleepTimerModeDuration(minutes: Int32(minutes)))
+    }
+
+    func setSleepTimerEndOfChapter() {
+        sleepTimerManager.setTimer(mode: SleepTimerModeEndOfChapter())
+    }
+
+    func cancelSleepTimer() {
+        sleepTimerManager.cancelTimer()
+    }
+
     func stop() {
         observationTasks.forEach { $0.cancel() }
         observationTasks.removeAll()
@@ -163,19 +197,23 @@ final class NowPlayingObserver {
         // Observe currentBookId
         observationTasks.append(Task { [weak self] in
             guard let self else { return }
-            for await bookId in self.playbackManager.currentBookId {
+            for await bookId in self.playbackManager.currentBookIdString {
                 guard !Task.isCancelled else { break }
-                let idValue = bookId as? String
-                self.isVisible = idValue != nil
+                let idValue = bookId
+                await MainActor.run {
+                    self.isVisible = idValue != nil
+                }
                 if idValue != self.currentBookIdValue {
                     self.currentBookIdValue = idValue
                     if let id = idValue {
                         await self.loadBookInfo(bookId: id)
                     } else {
-                        self.bookTitle = ""
-                        self.authorName = ""
-                        self.coverPath = nil
-                        self.coverBlurHash = nil
+                        await MainActor.run {
+                            self.bookTitle = ""
+                            self.authorName = ""
+                            self.coverPath = nil
+                            self.coverBlurHash = nil
+                        }
                     }
                 }
             }
@@ -186,7 +224,9 @@ final class NowPlayingObserver {
             guard let self else { return }
             for await playing in self.playbackManager.isPlaying {
                 guard !Task.isCancelled else { break }
-                self.isPlaying = playing.boolValue
+                await MainActor.run {
+                    self.isPlaying = playing.boolValue
+                }
             }
         })
 
@@ -214,6 +254,43 @@ final class NowPlayingObserver {
             for await speed in self.playbackManager.playbackSpeed {
                 guard !Task.isCancelled else { break }
                 self.playbackSpeed = speed.floatValue
+            }
+        })
+
+        // Observe sleep timer state
+        observationTasks.append(Task { [weak self] in
+            guard let self else { return }
+            for await timerState in self.sleepTimerManager.state {
+                guard !Task.isCancelled else { break }
+                await MainActor.run {
+                    if let active = timerState as? SleepTimerStateActive {
+                        self.sleepTimerActive = true
+                        self.sleepTimerRemainingMs = active.remainingMs
+                        if active.mode is SleepTimerModeDuration {
+                            self.sleepTimerMode = "duration"
+                            self.sleepTimerLabel = active.formatRemaining()
+                        } else {
+                            self.sleepTimerMode = "endOfChapter"
+                            self.sleepTimerLabel = "End of chapter"
+                        }
+                    } else {
+                        self.sleepTimerActive = false
+                        self.sleepTimerRemainingMs = 0
+                        self.sleepTimerMode = ""
+                        self.sleepTimerLabel = ""
+                    }
+                }
+            }
+        })
+
+        // Observe chapters list
+        observationTasks.append(Task { [weak self] in
+            guard let self else { return }
+            for await chapterList in self.playbackManager.chapters {
+                guard !Task.isCancelled else { break }
+                await MainActor.run {
+                    self.chapters = Array(chapterList)
+                }
             }
         })
 

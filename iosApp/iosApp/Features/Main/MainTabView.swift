@@ -34,7 +34,7 @@ struct MainTabView: View {
                 tab(.discover, icon: "sparkles") { DiscoverView() }
                 tab(.search, icon: "magnifyingglass") { SearchView() }
             }
-            .tabViewStyle(.sidebarAdaptable)
+            // .tabViewStyle(.sidebarAdaptable) // Removed: causes layout issues on some devices
 
             // Mini player overlay — floats above tab bar
             if let observer = nowPlayingObserver, observer.isVisible {
@@ -42,11 +42,11 @@ struct MainTabView: View {
                     observer: observer,
                     onTap: { showFullScreenPlayer = true }
                 )
+                .padding(.bottom, 49) // Standard tab bar height
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: nowPlayingObserver?.isVisible ?? false)
-        .tint(Color.listenUpOrange)
         .fullScreenCover(isPresented: $showFullScreenPlayer) {
             if let observer = nowPlayingObserver {
                 FullScreenPlayerView(

@@ -17,45 +17,257 @@ struct FullScreenPlayerView: View {
 
     @State private var sliderPosition: Double = 0
     @State private var isDraggingSlider: Bool = false
+    @State private var showSpeedPicker: Bool = false
+    @State private var showChapterList: Bool = false
+    @State private var showSleepTimer: Bool = false
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // MARK: - Blurred Background
-                backgroundLayer
+        VStack(spacing: 0) {
+            // Top bar
+            HStack {
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "chevron.down")
+                        .font(.title3.weight(.medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 8)
 
-                // MARK: - Content
-                VStack(spacing: 0) {
-                    // Top bar
-                    topBar
+            Spacer()
+
+            // Cover art — centered
+            BookCoverImage(
+                coverPath: observer.coverPath,
+                blurHash: observer.coverBlurHash
+            )
+            .frame(width: 250, height: 250)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 6)
+
+            Spacer()
+                .frame(height: 20)
+
+            // Chapter info
+            VStack(spacing: 6) {
+                if observer.totalChapters > 0 {
+                    Text("Chapter \(observer.chapterIndex + 1) of \(observer.totalChapters)")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                Text(observer.chapterTitle ?? observer.bookTitle)
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                Text(observer.authorName)
+                    .font(.subheadline)
+                    .foregroundStyle(.gray)
+            }
+            .padding(.horizontal, 24)
+
+            Spacer()
+
+            // Controls
+            VStack(spacing: 20) {
+                // Chapter-scoped progress
+                VStack(spacing: 8) {
+                    Slider(
+                        value: $sliderPosition,
+                        in: 0...max(Double(observer.chapterDurationMs), 1),
+                        onEditingChanged: { editing in
+                            isDraggingSlider = editing
+                            if !editing {
+                                // Seek relative to chapter start
+                                if let info = observer.currentChapterInfoForSeeking {
+                                    let absolutePosition = Int64(info.startMs) + Int64(sliderPosition)
+                                    observer.seekTo(positionMs: absolutePosition)
+                                }
+                            }
+                        }
+                    )
+
+                    HStack {
+                        Text(formatTime(isDraggingSlider ? Int64(sliderPosition) : observer.chapterPositionMs))
+                            .font(.caption)
+                            .foregroundStyle(.gray)
+                            .monospacedDigit()
+                        Spacer()
+                        let remaining = observer.chapterDurationMs - (isDraggingSlider ? Int64(sliderPosition) : observer.chapterPositionMs)
+                        Text("-" + formatTime(remaining))
+                            .font(.caption)
+                            .foregroundStyle(.gray)
+                            .monospacedDigit()
+                    }
+                }
+
+                // Overall book progress bar (thin)
+                VStack(spacing: 4) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.15))
+                                .frame(height: 3)
+                            Capsule()
+                                .fill(Color.listenUpOrange.opacity(0.6))
+                                .frame(width: geo.size.width * CGFloat(observer.bookProgress), height: 3)
+                        }
+                    }
+                    .frame(height: 3)
+                    
+                    HStack {
+                        Text(formatTime(observer.bookPositionMs))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.gray.opacity(0.6))
+                            .monospacedDigit()
+                        Spacer()
+                        Text(formatTime(observer.bookDurationMs))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.gray.opacity(0.6))
+                            .monospacedDigit()
+                    }
+                }
+
+                // Transport
+                HStack(spacing: 0) {
+                    // Previous chapter
+                    Button {
+                        if observer.chapterIndex > 0 {
+                            observer.selectChapter(index: observer.chapterIndex - 1)
+                        }
+                    } label: {
+                        Image(systemName: "backward.end.fill")
+                            .font(.body)
+                            .foregroundStyle(observer.chapterIndex > 0 ? .white : .gray.opacity(0.4))
+                            .frame(width: 44, height: 44)
+                    }
+                    .disabled(observer.chapterIndex <= 0)
 
                     Spacer()
 
-                    // Cover art
-                    coverArt(screenWidth: geometry.size.width)
+                    // Skip back
+                    Button { observer.skipBackward(seconds: 10) } label: {
+                        Image(systemName: "gobackward.10")
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                    }
 
                     Spacer()
-                        .frame(height: 24)
 
-                    // Chapter info
-                    chapterInfo
+                    // Play/Pause
+                    Button {
+                        observer.togglePlayback()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(.white)
+                                .frame(width: 64, height: 64)
+                            Image(systemName: observer.isPlaying ? "pause.fill" : "play.fill")
+                                .font(.title)
+                                .foregroundStyle(Color.listenUpOrange)
+                        }
+                    }
 
                     Spacer()
 
-                    // Controls card
-                    controlsCard
+                    // Skip forward
+                    Button { observer.skipForward(seconds: 30) } label: {
+                        Image(systemName: "goforward.30")
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                    }
+
+                    Spacer()
+
+                    // Next chapter
+                    Button {
+                        if observer.chapterIndex < observer.totalChapters - 1 {
+                            observer.selectChapter(index: observer.chapterIndex + 1)
+                        }
+                    } label: {
+                        Image(systemName: "forward.end.fill")
+                            .font(.body)
+                            .foregroundStyle(observer.chapterIndex < observer.totalChapters - 1 ? .white : .gray.opacity(0.4))
+                            .frame(width: 44, height: 44)
+                    }
+                    .disabled(observer.chapterIndex >= observer.totalChapters - 1)
+                }
+                .padding(.horizontal, 8)
+
+                // Bottom actions
+                HStack(spacing: 32) {
+                    Button(action: { showSleepTimer = true }) {
+                        Image(systemName: observer.sleepTimerActive ? "moon.zzz.fill" : "moon.zzz")
+                            .foregroundStyle(observer.sleepTimerActive ? Color.listenUpOrange : .gray)
+                    }
+                    Button(action: { showSpeedPicker = true }) {
+                        Text(formatSpeed(observer.playbackSpeed))
+                            .foregroundStyle(.gray)
+                    }
+                    Button(action: { showChapterList = true }) {
+                        Image(systemName: "list.bullet")
+                            .foregroundStyle(.gray)
+                    }
                 }
             }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 40)
         }
-        .ignoresSafeArea(.all, edges: .bottom)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            ZStack {
+                BookCoverImage(
+                    coverPath: observer.coverPath,
+                    blurHash: observer.coverBlurHash
+                )
+                .blur(radius: 50)
+                .scaleEffect(1.2)
+                .ignoresSafeArea()
+
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+            }
+        }
         .statusBarHidden(false)
-        .onChange(of: observer.bookPositionMs) { _, newValue in
+        .onChange(of: observer.chapterPositionMs) { _, newValue in
             if !isDraggingSlider {
                 sliderPosition = Double(newValue)
             }
         }
         .onAppear {
-            sliderPosition = Double(observer.bookPositionMs)
+            sliderPosition = Double(observer.chapterPositionMs)
+        }
+        .sheet(isPresented: $showSpeedPicker) {
+            SpeedPickerSheet(
+                currentSpeed: observer.playbackSpeed,
+                onSpeedSelected: { speed in
+                    observer.setSpeed(speed)
+                    showSpeedPicker = false
+                }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.regularMaterial)
+        }
+        .sheet(isPresented: $showSleepTimer) {
+            SleepTimerSheet(
+                observer: observer,
+                onDismiss: { showSleepTimer = false }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.regularMaterial)
+        }
+        .sheet(isPresented: $showChapterList) {
+            ChapterListSheet(
+                observer: observer,
+                onDismiss: { showChapterList = false }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.regularMaterial)
         }
     }
 
@@ -165,7 +377,7 @@ struct FullScreenPlayerView: View {
             bottomActions
         }
         .padding(.horizontal, 24)
-        .padding(.top, 28)
+        .padding(.top, 20)
         .padding(.bottom, 40)
         .background {
             UnevenRoundedRectangle(
@@ -208,7 +420,6 @@ struct FullScreenPlayerView: View {
                     }
                 }
             )
-            .tint(Color.listenUpOrange)
 
             HStack {
                 Text(formatTime(Int64(isDraggingSlider ? sliderPosition : Double(observer.bookPositionMs))))
@@ -294,7 +505,7 @@ struct FullScreenPlayerView: View {
             .accessibilityLabel(NSLocalizedString("player.bookmark", comment: ""))
 
             // Sleep timer
-            Button(action: { /* TODO: sleep timer */ }) {
+            Button(action: { showSleepTimer = true }) {
                 Image(systemName: "moon.zzz")
                     .font(.title3)
                     .foregroundStyle(.secondary)
@@ -303,7 +514,7 @@ struct FullScreenPlayerView: View {
             .accessibilityLabel(NSLocalizedString("player.sleep_timer", comment: ""))
 
             // Speed
-            Button(action: { /* TODO: speed picker */ }) {
+            Button(action: { showSpeedPicker = true }) {
                 Text(formatSpeed(observer.playbackSpeed))
                     .font(.callout.weight(.medium))
                     .fontDesign(.rounded)
@@ -313,7 +524,7 @@ struct FullScreenPlayerView: View {
             .accessibilityLabel(NSLocalizedString("player.speed", comment: ""))
 
             // Chapters
-            Button(action: { /* TODO: chapter list */ }) {
+            Button(action: { showChapterList = true }) {
                 Image(systemName: "list.bullet")
                     .font(.title3)
                     .foregroundStyle(.secondary)
@@ -326,7 +537,7 @@ struct FullScreenPlayerView: View {
     // MARK: - Formatting Helpers
 
     /// Format milliseconds as "H:MM:SS" or "M:SS"
-    private func formatTime(_ ms: Int64) -> String {
+    fileprivate func formatTime(_ ms: Int64) -> String {
         let totalSeconds = max(0, ms / 1000)
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
@@ -359,6 +570,183 @@ struct FullScreenPlayerView: View {
             return "\(Int(speed))x"
         } else {
             return String(format: "%.1fx", speed)
+        }
+    }
+}
+
+// MARK: - Sleep Timer Sheet
+
+private struct SleepTimerSheet: View {
+    let observer: NowPlayingObserver
+    let onDismiss: () -> Void
+
+    private let durations = [15, 30, 45, 60, 120]
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if observer.sleepTimerActive {
+                    Section {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Timer Active")
+                                    .font(.subheadline.bold())
+                                Text(observer.sleepTimerLabel)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Cancel") {
+                                observer.cancelSleepTimer()
+                                onDismiss()
+                            }
+                            .foregroundStyle(.red)
+                        }
+                    }
+                }
+
+                Section("Duration") {
+                    ForEach(durations, id: \.self) { minutes in
+                        Button(action: {
+                            observer.setSleepTimer(minutes: minutes)
+                            onDismiss()
+                        }) {
+                            HStack {
+                                Text(formatDuration(minutes))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+
+                Section {
+                    Button(action: {
+                        observer.setSleepTimerEndOfChapter()
+                        onDismiss()
+                    }) {
+                        HStack {
+                            Text("End of Chapter")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Sleep Timer")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func formatDuration(_ minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes) minutes" }
+        if minutes == 60 { return "1 hour" }
+        return "\(minutes / 60) hours"
+    }
+}
+
+// MARK: - Speed Picker Sheet
+
+private struct SpeedPickerSheet: View {
+    let currentSpeed: Float
+    let onSpeedSelected: (Float) -> Void
+
+    private let speeds: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(speeds, id: \.self) { speed in
+                    Button(action: { onSpeedSelected(speed) }) {
+                        HStack {
+                            Text(formatSpeed(speed))
+                                .foregroundStyle(.primary)
+
+                            Spacer()
+
+                            if abs(speed - currentSpeed) < 0.01 {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.listenUpOrange)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Playback Speed")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func formatSpeed(_ speed: Float) -> String {
+        if speed == Float(Int(speed)) {
+            return "\(Int(speed))x"
+        } else {
+            return String(format: "%.2gx", speed)
+        }
+    }
+}
+
+// MARK: - Chapter List Sheet
+
+private struct ChapterListSheet: View {
+    let observer: NowPlayingObserver
+    let onDismiss: () -> Void
+
+    static func formatMs(_ ms: Int64) -> String {
+        let totalSeconds = ms / 1000
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(0..<observer.totalChapters, id: \.self) { index in
+                    Button(action: {
+                        observer.selectChapter(index: index)
+                        onDismiss()
+                    }) {
+                        HStack(spacing: 12) {
+                            // Chapter number
+                            Text("\(index + 1)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24)
+
+                            // Chapter title + duration
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(observer.chapterTitleForIndex(index) ?? "Chapter \(index + 1)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(index == observer.chapterIndex ? Color.listenUpOrange : .primary)
+                                    .lineLimit(2)
+                                if index < observer.chapters.count {
+                                    let durationMs = observer.chapters[index].duration
+                                    Text(Self.formatMs(durationMs))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Spacer()
+
+                            // Now playing indicator
+                            if index == observer.chapterIndex {
+                                Image(systemName: observer.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.listenUpOrange)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Chapters")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
