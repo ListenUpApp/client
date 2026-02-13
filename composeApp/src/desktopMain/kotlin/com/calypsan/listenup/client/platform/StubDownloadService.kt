@@ -1,6 +1,9 @@
 package com.calypsan.listenup.client.platform
 
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.download.DownloadService
 
@@ -27,4 +30,7 @@ class StubDownloadService : DownloadService {
     override suspend fun deleteDownload(bookId: BookId) {
         // No-op: downloads not supported
     }
+
+    override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
+        flowOf(BookDownloadStatus.notDownloaded(bookId.value))
 }

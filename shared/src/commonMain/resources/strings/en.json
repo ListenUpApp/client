@@ -213,7 +213,6 @@
     "detail_see_all_chapters": "See All %1$d Chapters",
     "detail_server_is_unreachable_connect_to": "Server is unreachable. Connect to your server to play or download this book.",
     "detail_show_less": "Show Less",
-    "detail_stream_now": "Stream Now",
     "detail_synopsis": "Synopsis",
     "detail_tags": "Tags",
     "detail_waiting_for_wifi": "Waiting for WiFi",
@@ -243,7 +242,8 @@
     "edit_this_will_remove_contributorstoremovecount": "This will remove %1$s ",
     "edit_unsaved_changes": "Unsaved Changes",
     "edit_you_have_unsaved_changes_are": "You have unsaved changes. Are you sure you want to discard them?",
-    "delete_download": "Delete Download"
+    "delete_download": "Delete Download",
+    "detail_stream_now": "Play Now"
   },
   "series": {
     "book_sequence": "Book %1$s",
@@ -548,5 +548,10 @@
     "duration": "Duration",
     "end_of_chapter": "End of Chapter",
     "playback_speed": "Playback Speed"
-  }
+  },
+  "book_detail.download": "Download",
+  "book_detail.queued": "Queued",
+  "book_detail.downloaded": "Downloaded",
+  "book_detail.cancel_download": "Cancel Download",
+  "book_detail.delete_download": "Delete Download"
 }
