@@ -191,7 +191,6 @@ class SecurityException(
     message: String,
 ) : Exception(message)
 
-
 @OptIn(ExperimentalForeignApi::class)
 private fun ByteArray.toNSData(): NSData {
     if (isEmpty()) return NSData()

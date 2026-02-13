@@ -69,16 +69,17 @@ class AppleDownloadService(
      */
     private val sessionDelegate = DownloadSessionDelegate(downloadDao, scope)
 
-    private val urlSession: NSURLSession = run {
-        val config = NSURLSessionConfiguration.defaultSessionConfiguration
-        config.timeoutIntervalForRequest = 60.0
-        config.timeoutIntervalForResource = 3600.0 // 1 hour for large files
-        NSURLSession.sessionWithConfiguration(
-            configuration = config,
-            delegate = sessionDelegate,
-            delegateQueue = null,
-        )
-    }
+    private val urlSession: NSURLSession =
+        run {
+            val config = NSURLSessionConfiguration.defaultSessionConfiguration
+            config.timeoutIntervalForRequest = 60.0
+            config.timeoutIntervalForResource = 3600.0 // 1 hour for large files
+            NSURLSession.sessionWithConfiguration(
+                configuration = config,
+                delegate = sessionDelegate,
+                delegateQueue = null,
+            )
+        }
 
     override suspend fun getLocalPath(audioFileId: String): String? {
         val path = downloadDao.getLocalPath(audioFileId) ?: return null
@@ -88,8 +89,7 @@ class AppleDownloadService(
         return null
     }
 
-    override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean =
-        downloadDao.hasDeletedRecords(bookId.value)
+    override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean = downloadDao.hasDeletedRecords(bookId.value)
 
     @Suppress("ReturnCount")
     override suspend fun downloadBook(bookId: BookId): DownloadResult {
@@ -98,32 +98,35 @@ class AppleDownloadService(
             return DownloadResult.AlreadyDownloaded
         }
 
-        val bookEntity = bookDao.getById(bookId) ?: run {
-            logger.error { "Book not found: ${bookId.value}" }
-            return DownloadResult.Error("Book not found")
-        }
+        val bookEntity =
+            bookDao.getById(bookId) ?: run {
+                logger.error { "Book not found: ${bookId.value}" }
+                return DownloadResult.Error("Book not found")
+            }
 
         val audioFilesJson = bookEntity.audioFilesJson
         if (audioFilesJson.isNullOrBlank()) {
             return DownloadResult.Error("No audio files available")
         }
 
-        val audioFiles: List<AudioFileResponse> = try {
-            json.decodeFromString(audioFilesJson)
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to parse audio files JSON" }
-            return DownloadResult.Error("Failed to parse audio files")
-        }
+        val audioFiles: List<AudioFileResponse> =
+            try {
+                json.decodeFromString(audioFilesJson)
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to parse audio files JSON" }
+                return DownloadResult.Error("Failed to parse audio files")
+            }
 
         if (audioFiles.isEmpty()) {
             return DownloadResult.Error("No audio files available")
         }
 
         // Skip files already completed, downloading, or queued
-        val activeIds = existing
-            .filter { it.state in listOf(DownloadState.COMPLETED, DownloadState.DOWNLOADING, DownloadState.QUEUED) }
-            .map { it.audioFileId }
-            .toSet()
+        val activeIds =
+            existing
+                .filter { it.state in listOf(DownloadState.COMPLETED, DownloadState.DOWNLOADING, DownloadState.QUEUED) }
+                .map { it.audioFileId }
+                .toSet()
 
         val toDownload = audioFiles.filterNot { it.id in activeIds }
 
@@ -141,34 +144,37 @@ class AppleDownloadService(
 
         // Ensure fresh token
         tokenProvider.prepareForPlayback()
-        val token = tokenProvider.getToken() ?: run {
-            logger.error { "No auth token available" }
-            return DownloadResult.Error("Not authenticated")
-        }
+        val token =
+            tokenProvider.getToken() ?: run {
+                logger.error { "No auth token available" }
+                return DownloadResult.Error("Not authenticated")
+            }
 
-        val serverUrl = serverConfig.getServerUrl()?.value ?: run {
-            return DownloadResult.Error("No server configured")
-        }
+        val serverUrl =
+            serverConfig.getServerUrl()?.value ?: run {
+                return DownloadResult.Error("No server configured")
+            }
 
         // Create download entries
         val now = Clock.System.now().toEpochMilliseconds()
-        val entities = toDownload.map { file ->
-            DownloadEntity(
-                audioFileId = file.id,
-                bookId = bookId.value,
-                filename = file.filename,
-                fileIndex = audioFiles.indexOfFirst { it.id == file.id },
-                state = DownloadState.QUEUED,
-                localPath = null,
-                totalBytes = file.size,
-                downloadedBytes = 0,
-                queuedAt = now,
-                startedAt = null,
-                completedAt = null,
-                errorMessage = null,
-                retryCount = 0,
-            )
-        }
+        val entities =
+            toDownload.map { file ->
+                DownloadEntity(
+                    audioFileId = file.id,
+                    bookId = bookId.value,
+                    filename = file.filename,
+                    fileIndex = audioFiles.indexOfFirst { it.id == file.id },
+                    state = DownloadState.QUEUED,
+                    localPath = null,
+                    totalBytes = file.size,
+                    downloadedBytes = 0,
+                    queuedAt = now,
+                    startedAt = null,
+                    completedAt = null,
+                    errorMessage = null,
+                    retryCount = 0,
+                )
+            }
         downloadDao.insertAll(entities)
 
         // Download files concurrently in background
@@ -207,10 +213,11 @@ class AppleDownloadService(
 
         // Build URL — use Authorization header (in-process session supports headers)
         val url = "$serverUrl/api/v1/books/$bookId/audio/$audioFileId"
-        val nsUrl = NSURL.URLWithString(url) ?: run {
-            downloadDao.updateError(audioFileId, "Invalid URL")
-            return@withContext
-        }
+        val nsUrl =
+            NSURL.URLWithString(url) ?: run {
+                downloadDao.updateError(audioFileId, "Invalid URL")
+                return@withContext
+            }
 
         val request = NSMutableURLRequest.requestWithURL(nsUrl)
         request.setValue("Bearer $token", forHTTPHeaderField = "Authorization")
@@ -230,17 +237,18 @@ class AppleDownloadService(
         )
 
         // Suspend until download completes
-        val result = suspendCancellableCoroutine { continuation ->
-            val task = urlSession.downloadTaskWithRequest(request)
-            // Store metadata for delegate
-            task.taskDescription = "$bookId|$audioFileId|$filename|${destPath}"
+        val result =
+            suspendCancellableCoroutine { continuation ->
+                val task = urlSession.downloadTaskWithRequest(request)
+                // Store metadata for delegate
+                task.taskDescription = "$bookId|$audioFileId|$filename|$destPath"
 
-            // Register continuation so delegate can resume it
-            sessionDelegate.registerDownload(task.taskIdentifier, continuation, destPath.toString())
+                // Register continuation so delegate can resume it
+                sessionDelegate.registerDownload(task.taskIdentifier, continuation, destPath.toString())
 
-            continuation.invokeOnCancellation { task.cancel() }
-            task.resume()
-        }
+                continuation.invokeOnCancellation { task.cancel() }
+                task.resume()
+            }
 
         if (result) {
             downloadDao.markCompleted(audioFileId, destPath.toString(), Clock.System.now().toEpochMilliseconds())
@@ -267,8 +275,8 @@ class AppleDownloadService(
         downloadDao.markDeletedForBook(bookId.value)
     }
 
-    override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> {
-        return downloadDao.observeForBook(bookId.value).map { entities ->
+    override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
+        downloadDao.observeForBook(bookId.value).map { entities ->
             if (entities.isEmpty()) {
                 BookDownloadStatus.notDownloaded(bookId.value)
             } else {
@@ -277,14 +285,15 @@ class AppleDownloadService(
                 val totalBytes = entities.sumOf { it.totalBytes }
                 val downloadedBytes = entities.sumOf { it.downloadedBytes }
 
-                val state = when {
-                    entities.all { it.state == DownloadState.COMPLETED } -> BookDownloadState.COMPLETED
-                    entities.any { it.state == DownloadState.DOWNLOADING } -> BookDownloadState.DOWNLOADING
-                    entities.any { it.state == DownloadState.QUEUED } -> BookDownloadState.QUEUED
-                    entities.any { it.state == DownloadState.FAILED } -> BookDownloadState.FAILED
-                    entities.any { it.state == DownloadState.COMPLETED } -> BookDownloadState.PARTIAL
-                    else -> BookDownloadState.NOT_DOWNLOADED
-                }
+                val state =
+                    when {
+                        entities.all { it.state == DownloadState.COMPLETED } -> BookDownloadState.COMPLETED
+                        entities.any { it.state == DownloadState.DOWNLOADING } -> BookDownloadState.DOWNLOADING
+                        entities.any { it.state == DownloadState.QUEUED } -> BookDownloadState.QUEUED
+                        entities.any { it.state == DownloadState.FAILED } -> BookDownloadState.FAILED
+                        entities.any { it.state == DownloadState.COMPLETED } -> BookDownloadState.PARTIAL
+                        else -> BookDownloadState.NOT_DOWNLOADED
+                    }
 
                 BookDownloadStatus(
                     bookId = bookId.value,
@@ -296,7 +305,6 @@ class AppleDownloadService(
                 )
             }
         }
-    }
 }
 
 /**
@@ -308,8 +316,8 @@ class AppleDownloadService(
 private class DownloadSessionDelegate(
     private val downloadDao: DownloadDao,
     private val scope: CoroutineScope,
-) : NSObject(), NSURLSessionDownloadDelegateProtocol {
-
+) : NSObject(),
+    NSURLSessionDownloadDelegateProtocol {
     private data class PendingDownload(
         val continuation: CancellableContinuation<Boolean>,
         val destPath: String,
@@ -320,7 +328,11 @@ private class DownloadSessionDelegate(
     private val pendingDownloads = mutableMapOf<ULong, PendingDownload>()
     private val lastLoggedPct = mutableMapOf<ULong, Int>()
 
-    fun registerDownload(taskId: ULong, continuation: CancellableContinuation<Boolean>, destPath: String) {
+    fun registerDownload(
+        taskId: ULong,
+        continuation: CancellableContinuation<Boolean>,
+        destPath: String,
+    ) {
         synchronized(lock) {
             pendingDownloads[taskId] = PendingDownload(continuation, destPath)
         }
@@ -333,7 +345,10 @@ private class DownloadSessionDelegate(
         }
     }
 
-    private fun safeResume(continuation: CancellableContinuation<Boolean>, value: Boolean) {
+    private fun safeResume(
+        continuation: CancellableContinuation<Boolean>,
+        value: Boolean,
+    ) {
         if (continuation.isActive) {
             continuation.resume(value)
         }
@@ -373,8 +388,10 @@ private class DownloadSessionDelegate(
         }
 
         // Verify file size
-        val fileSize = NSFileManager.defaultManager.attributesOfItemAtPath(pending.destPath, error = null)
-            ?.get(platform.Foundation.NSFileSize) as? Long ?: 0L
+        val fileSize =
+            NSFileManager.defaultManager
+                .attributesOfItemAtPath(pending.destPath, error = null)
+                ?.get(platform.Foundation.NSFileSize) as? Long ?: 0L
         if (fileSize == 0L) {
             logger.error { "Downloaded file is empty: $filename" }
             scope.launch { downloadDao.updateError(audioFileId, "Downloaded file is empty") }
@@ -407,7 +424,9 @@ private class DownloadSessionDelegate(
                 scope.launch {
                     downloadDao.updateProgress(audioFileId, totalBytesWritten, totalBytesExpectedToWrite)
                 }
-                logger.info { "Download $pct%: $filename (${totalBytesWritten / 1_000_000}/${totalBytesExpectedToWrite / 1_000_000}MB)" }
+                logger.info {
+                    "Download $pct%: $filename (${totalBytesWritten / 1_000_000}/${totalBytesExpectedToWrite / 1_000_000}MB)"
+                }
             }
         }
     }
