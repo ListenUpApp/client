@@ -25,8 +25,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import platform.Foundation.NSError
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHTTPURLResponse
@@ -324,7 +322,16 @@ private class DownloadSessionDelegate(
     )
 
     /** Lock protecting pendingDownloads and lastLoggedPct (accessed from coroutines + delegate queue) */
-    private val lock = Any()
+    private val lock = platform.Foundation.NSRecursiveLock()
+
+    private inline fun <T> withLock(block: () -> T): T {
+        lock.lock()
+        try {
+            return block()
+        } finally {
+            lock.unlock()
+        }
+    }
     private val pendingDownloads = mutableMapOf<ULong, PendingDownload>()
     private val lastLoggedPct = mutableMapOf<ULong, Int>()
 
@@ -333,15 +340,15 @@ private class DownloadSessionDelegate(
         continuation: CancellableContinuation<Boolean>,
         destPath: String,
     ) {
-        synchronized(lock) {
+        withLock {
             pendingDownloads[taskId] = PendingDownload(continuation, destPath)
         }
     }
 
-    private fun removePending(taskId: ULong): PendingDownload? {
-        synchronized(lock) {
+    private fun removePending(taskId: ULong): PendingDownload? =
+        withLock {
             lastLoggedPct.remove(taskId)
-            return pendingDownloads.remove(taskId)
+            pendingDownloads.remove(taskId)
         }
     }
 
@@ -360,7 +367,7 @@ private class DownloadSessionDelegate(
         didFinishDownloadingToURL: NSURL,
     ) {
         val taskId = downloadTask.taskIdentifier
-        val pending = synchronized(lock) { pendingDownloads[taskId] } ?: return
+        val pending = withLock { pendingDownloads[taskId] } ?: return
         val parts = downloadTask.taskDescription?.split("|") ?: return
         val audioFileId = parts.getOrNull(1) ?: return
         val filename = parts.getOrNull(2) ?: "unknown"
@@ -418,9 +425,9 @@ private class DownloadSessionDelegate(
         // Throttle DB writes — every 1%
         if (totalBytesExpectedToWrite > 0) {
             val pct = (totalBytesWritten * 100 / totalBytesExpectedToWrite).toInt()
-            val lastPct = synchronized(lock) { lastLoggedPct[taskId] ?: -1 }
+            val lastPct = withLock { lastLoggedPct[taskId] ?: -1 }
             if (pct >= lastPct + 1) {
-                synchronized(lock) { lastLoggedPct[taskId] = pct }
+                withLock { lastLoggedPct[taskId] = pct }
                 scope.launch {
                     downloadDao.updateProgress(audioFileId, totalBytesWritten, totalBytesExpectedToWrite)
                 }
