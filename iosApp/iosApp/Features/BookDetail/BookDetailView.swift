@@ -50,7 +50,7 @@ struct BookDetailView: View {
         .onAppear {
             if observer == nil {
                 let vm = deps.createBookDetailViewModel()
-                observer = BookDetailObserver(viewModel: vm, playbackManager: deps.playbackManager, audioPlayer: deps.audioPlayer)
+                observer = BookDetailObserver(viewModel: vm, playbackManager: deps.playbackManager, audioPlayer: deps.audioPlayer, downloadService: deps.downloadService)
                 observer?.loadBook(bookId: bookId)
             }
         }
@@ -191,12 +191,15 @@ struct BookDetailView: View {
             }
             .buttonStyle(.borderedProminent)
 
-            Button(action: {}) {
-                Image(systemName: "square.and.arrow.down")
-                    .font(.title2)
-                    .padding(14)
+            if let observer {
+                DownloadButton(
+                    state: observer.downloadState,
+                    progress: observer.downloadProgress,
+                    onDownload: { observer.downloadBook() },
+                    onCancel: { observer.cancelDownload() },
+                    onDelete: { observer.deleteDownload() }
+                )
             }
-            .buttonStyle(.bordered)
         }
     }
 
@@ -245,16 +248,18 @@ struct BookDetailView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            // Make contributors tappable
-            HStack(spacing: 0) {
+            // Wrapping layout with tappable contributor names
+            FlowLayout(spacing: 0) {
                 ForEach(Array(contributors.enumerated()), id: \.element.id) { index, contributor in
-                    if index > 0 {
-                        Text(", ")
-                            .foregroundStyle(Color.listenUpOrange)
-                    }
-                    NavigationLink(value: ContributorDestination(id: contributor.id)) {
-                        Text(contributor.name)
-                            .foregroundStyle(Color.listenUpOrange)
+                    HStack(spacing: 0) {
+                        if index > 0 {
+                            Text(", ")
+                                .foregroundStyle(Color.listenUpOrange)
+                        }
+                        NavigationLink(value: ContributorDestination(id: contributor.id)) {
+                            Text(contributor.name)
+                                .foregroundStyle(Color.listenUpOrange)
+                        }
                     }
                 }
             }
