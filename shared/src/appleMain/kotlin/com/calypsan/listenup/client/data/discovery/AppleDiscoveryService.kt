@@ -166,7 +166,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
         val result = mutableMapOf<String, String>()
         try {
             val dictionary = NSNetService.dictionaryFromTXTRecordData(data)
-            dictionary?.forEach { (key, value) ->
+            dictionary.forEach { (key, value) ->
                 if (key is String && value is NSData) {
                     val string = NSString.create(value, NSUTF8StringEncoding)
                     if (string != null) {

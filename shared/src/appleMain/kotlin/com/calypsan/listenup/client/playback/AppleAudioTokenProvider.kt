@@ -95,46 +95,42 @@ class AppleAudioTokenProvider(
         // Prevent concurrent refreshes
         refreshMutex.withLock {
             try {
-                // Try to use existing token first
+                // Always try API refresh first to get a guaranteed-fresh token
+                val refreshTokenValue = authSession.getRefreshToken()
+                if (refreshTokenValue != null) {
+                    try {
+                        val response = authApi.refresh(refreshTokenValue)
+
+                        // Save new tokens
+                        val sessionId = authSession.getSessionId() ?: ""
+                        val userId = authSession.getUserId() ?: ""
+                        authSession.saveAuthTokens(
+                            access = AccessToken(response.accessToken),
+                            refresh = RefreshToken(response.refreshToken),
+                            sessionId = sessionId,
+                            userId = userId,
+                        )
+
+                        cachedToken = response.accessToken
+                        tokenExpiresAt = Clock.System.now().toEpochMilliseconds() + 50.minutes.inWholeMilliseconds
+                        logger.info { "Token refreshed successfully" }
+                        return
+                    } catch (e: Exception) {
+                        logger.warn(e) { "API token refresh failed, falling back to stored token" }
+                    }
+                }
+
+                // Fallback: use stored token (may be stale but better than nothing)
                 val currentToken = authSession.getAccessToken()
                 if (currentToken != null) {
                     cachedToken = currentToken.value
-                    // Estimate expiry (PASETO tokens are typically 15 min - 1 hour)
-                    // Use 50 minutes as safe buffer
                     tokenExpiresAt = Clock.System.now().toEpochMilliseconds() + 50.minutes.inWholeMilliseconds
-                    logger.debug { "Token loaded from storage" }
+                    logger.debug { "Token loaded from storage (fallback)" }
                     return
                 }
 
-                // No token in storage - try refresh
-                val refreshToken = authSession.getRefreshToken()
-                if (refreshToken == null) {
-                    logger.warn { "No refresh token available" }
-                    cachedToken = null
-                    return
-                }
-
-                try {
-                    val response = authApi.refresh(refreshToken)
-
-                    // Save new tokens
-                    val sessionId = authSession.getSessionId() ?: ""
-                    val userId = authSession.getUserId() ?: ""
-                    authSession.saveAuthTokens(
-                        access = AccessToken(response.accessToken),
-                        refresh = RefreshToken(response.refreshToken),
-                        sessionId = sessionId,
-                        userId = userId,
-                    )
-
-                    cachedToken = response.accessToken
-                    tokenExpiresAt = Clock.System.now().toEpochMilliseconds() + 50.minutes.inWholeMilliseconds
-                    logger.info { "Token refreshed successfully" }
-                } catch (e: Exception) {
-                    // Refresh failed - user needs to re-authenticate
-                    logger.error(e) { "Token refresh failed" }
-                    cachedToken = null
-                }
+                logger.warn { "No token available" }
+                cachedToken = null
             } catch (e: Exception) {
                 logger.error(e) { "Error during token refresh" }
             }

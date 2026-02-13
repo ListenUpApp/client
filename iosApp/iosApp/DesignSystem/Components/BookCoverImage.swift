@@ -2,12 +2,34 @@ import SwiftUI
 import Shared
 import UIKit
 
-/// Reusable book cover image component with fallback chain.
+/// In-memory image cache shared across all BookCoverImage instances.
+/// Uses NSCache for automatic memory pressure eviction.
+private final class CoverImageCache {
+    static let shared = CoverImageCache()
+    private let cache = NSCache<NSString, UIImage>()
+
+    init() {
+        cache.countLimit = 200
+    }
+
+    func image(forKey key: String) -> UIImage? {
+        cache.object(forKey: key as NSString)
+    }
+
+    func setImage(_ image: UIImage, forKey key: String) {
+        cache.setObject(image, forKey: key as NSString)
+    }
+}
+
+/// Reusable book cover image component with async loading and BlurHash placeholders.
 ///
 /// Display priority:
-/// 1. Local file image (if coverPath exists and is valid)
-/// 2. BlurHash placeholder (if blurHash exists)
-/// 3. Gradient placeholder with book icon
+/// 1. Cached in-memory image (instant)
+/// 2. BlurHash placeholder while loading from disk
+/// 3. Gradient placeholder with book icon (no blurHash available)
+///
+/// Images are loaded off the main thread and cached in memory via NSCache
+/// (auto-evicts under memory pressure).
 ///
 /// Usage:
 /// ```swift
@@ -18,6 +40,9 @@ import UIKit
 struct BookCoverImage: View {
     let coverPath: String?
     let blurHash: String?
+
+    @State private var loadedImage: UIImage?
+    @State private var loadTask: Task<Void, Never>?
 
     /// Convenience initializer from a Book object
     init(book: Book) {
@@ -32,19 +57,53 @@ struct BookCoverImage: View {
     }
 
     var body: some View {
-        if let path = coverPath,
-           let uiImage = UIImage(contentsOfFile: path) {
-            Image(uiImage: uiImage)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } else if let blurHash {
-            BlurHashView(blurHash: blurHash)
-        } else {
-            placeholder
+        ZStack {
+            // Layer 1: Placeholder (always behind)
+            if blurHash != nil {
+                BlurHashView(blurHash: blurHash)
+            } else {
+                gradientPlaceholder
+            }
+
+            // Layer 2: Loaded image (fades in on top)
+            if let loadedImage {
+                Image(uiImage: loadedImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeIn(duration: 0.2), value: loadedImage != nil)
+        .onAppear { loadImage() }
+        .onDisappear { loadTask?.cancel() }
+        .onChange(of: coverPath) {
+            loadedImage = nil
+            loadImage()
         }
     }
 
-    private var placeholder: some View {
+    private func loadImage() {
+        guard let path = coverPath else { return }
+
+        // Check cache first (instant, no async needed)
+        if let cached = CoverImageCache.shared.image(forKey: path) {
+            loadedImage = cached
+            return
+        }
+
+        // Load from disk on background thread
+        loadTask?.cancel()
+        loadTask = Task.detached(priority: .utility) {
+            guard let image = UIImage(contentsOfFile: path) else { return }
+            CoverImageCache.shared.setImage(image, forKey: path)
+            await MainActor.run {
+                guard !Task.isCancelled else { return }
+                loadedImage = image
+            }
+        }
+    }
+
+    private var gradientPlaceholder: some View {
         ZStack {
             LinearGradient(
                 colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],

@@ -146,7 +146,7 @@ class InstanceRepositoryImpl(
                 }
 
                 is Failure -> {
-                    val errorMessage = result.message.lowercase() ?: ""
+                    val errorMessage = result.message.lowercase()
                     val isSslError =
                         errorMessage.contains("ssl") ||
                             errorMessage.contains("tls") ||

@@ -4,6 +4,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.TimeSource
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
@@ -24,7 +26,8 @@ import platform.Foundation.NSData
 import platform.Foundation.NSString
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.create
-import platform.Foundation.dataUsingEncoding
+import platform.posix.memcpy
+import platform.Foundation.create
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
@@ -63,9 +66,8 @@ internal class AppleSecureStorage : SecureStorage {
         logger.debug { "Keychain save started: $key" }
         val startMark = TimeSource.Monotonic.markNow()
 
-        val data =
-            (value as NSString).dataUsingEncoding(NSUTF8StringEncoding)
-                ?: throw IllegalArgumentException("Failed to encode value to UTF-8")
+        val bytes = value.encodeToByteArray()
+        val data = bytes.toNSData()
 
         // Delete existing item first
         val deleteQuery =
@@ -188,3 +190,11 @@ internal class AppleSecureStorage : SecureStorage {
 class SecurityException(
     message: String,
 ) : Exception(message)
+
+@OptIn(ExperimentalForeignApi::class)
+private fun ByteArray.toNSData(): NSData {
+    if (isEmpty()) return NSData()
+    return usePinned { pinned ->
+        NSData.create(bytes = pinned.addressOf(0), length = size.toULong())
+    }
+}

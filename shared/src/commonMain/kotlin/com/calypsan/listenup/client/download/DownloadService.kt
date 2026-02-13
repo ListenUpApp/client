@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.download
 
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Result of a download operation.
@@ -60,4 +62,10 @@ interface DownloadService {
      * Called when book is deleted (access revoked) to clean up local storage.
      */
     suspend fun deleteDownload(bookId: BookId)
+
+    /**
+     * Observe download status for a book as a Flow.
+     * Emits new status whenever download state changes.
+     */
+    fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus>
 }

@@ -66,6 +66,7 @@ final class Dependencies {
     var bookRepository: BookRepository { resolve { KoinHelper.shared.getBookRepository() } }
     var imageStorage: ImageStorage { resolve { KoinHelper.shared.getImageStorage() } }
     var sleepTimerManager: SleepTimerManager { resolve { KoinHelper.shared.getSleepTimerManager() } }
+    var downloadService: DownloadService { resolve { KoinHelper.shared.getDownloadService() } }
     // MARK: - Detail ViewModels (factory - new instance each time)
 
     /// Creates a new BookDetailViewModel instance (not cached - each screen gets its own)

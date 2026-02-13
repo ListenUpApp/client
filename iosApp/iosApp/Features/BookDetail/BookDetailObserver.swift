@@ -1,6 +1,11 @@
 import SwiftUI
 import Shared
 
+/// Download state for the UI layer, mapped from Kotlin's BookDownloadState.
+enum DownloadUIState {
+    case notDownloaded, queued, downloading, completed, partial, failed
+}
+
 /// Observes BookDetailViewModel's state StateFlow for SwiftUI consumption.
 ///
 /// Maps Kotlin's BookDetailUiState to Swift-native properties that drive
@@ -96,21 +101,29 @@ final class BookDetailObserver {
     private let viewModel: BookDetailViewModel
     private let playbackManager: PlaybackManager
     private let audioPlayer: AudioPlayer
+    private let downloadService: DownloadService
+    private(set) var downloadState: DownloadUIState = .notDownloaded
+    private(set) var downloadProgress: Float = 0
+    private(set) var isDownloaded: Bool = false
     private var observationTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
-    init(viewModel: BookDetailViewModel, playbackManager: PlaybackManager, audioPlayer: AudioPlayer) {
+    init(viewModel: BookDetailViewModel, playbackManager: PlaybackManager, audioPlayer: AudioPlayer, downloadService: DownloadService) {
         self.viewModel = viewModel
         self.playbackManager = playbackManager
         self.audioPlayer = audioPlayer
+        self.downloadService = downloadService
         startObserving()
     }
 
     /// Call this to stop observation when done.
+
     func stopObserving() {
         observationTask?.cancel()
         observationTask = nil
+        downloadObservationTask?.cancel()
+        downloadObservationTask = nil
     }
 
     // MARK: - Actions
@@ -121,6 +134,38 @@ final class BookDetailObserver {
     }
 
     /// Start or resume playback for this book
+    /// Error message from last download action, cleared on next attempt.
+    private(set) var downloadError: String?
+
+    func downloadBook() {
+        guard let book else { return }
+        downloadError = nil
+        Task {
+            do {
+                let result = try await downloadService.downloadBook(bookId: book.id)
+                if let error = result as? DownloadResultError {
+                    self.downloadError = error.message
+                }
+            } catch {
+                self.downloadError = error.localizedDescription
+            }
+        }
+    }
+
+    func cancelDownload() {
+        guard let book else { return }
+        Task {
+            try? await downloadService.cancelDownload(bookId: book.id)
+        }
+    }
+
+    func deleteDownload() {
+        guard let book else { return }
+        Task {
+            try? await downloadService.deleteDownload(bookId: book.id)
+        }
+    }
+
     func play() {
         guard let book = book else {
             
@@ -145,13 +190,40 @@ final class BookDetailObserver {
 
     // MARK: - Private
 
+    private var downloadObservationTask: Task<Void, Never>?
+
+    private func observeDownloadStatus(bookId: String) {
+        downloadObservationTask?.cancel()
+        downloadObservationTask = Task {
+            for await status in self.downloadService.observeBookStatus(bookId: bookId) {
+                guard !Task.isCancelled else { break }
+                await MainActor.run {
+                    self.downloadProgress = status.progress
+                    self.isDownloaded = status.isFullyDownloaded
+                    let s = status.state
+                    if s == BookDownloadState.completed { self.downloadState = .completed }
+                    else if s == BookDownloadState.downloading { self.downloadState = .downloading }
+                    else if s == BookDownloadState.queued { self.downloadState = .queued }
+                    else if s == BookDownloadState.failed { self.downloadState = .failed }
+                    else if s == BookDownloadState.partial { self.downloadState = .partial }
+                    else { self.downloadState = .notDownloaded }
+                }
+            }
+        }
+    }
+
     private func startObserving() {
-        observationTask = Task { [weak self] in
-            guard let self else { return }
+        observationTask = Task {
 
             for await state in self.viewModel.state {
                 guard !Task.isCancelled else { break }
-                self.uiState = state
+                await MainActor.run {
+                    self.uiState = state
+                    // Start observing download status when book is loaded
+                    if let bookId = state.book?.idString, self.downloadObservationTask == nil {
+                        self.observeDownloadStatus(bookId: bookId)
+                    }
+                }
             }
         }
     }
