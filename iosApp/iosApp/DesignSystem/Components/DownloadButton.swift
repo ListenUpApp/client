@@ -11,7 +11,7 @@ import SwiftUI
 ///
 /// Liquid Glass: Uses `.regularMaterial` background with gradient stroke.
 struct DownloadButton: View {
-    let state: String // notDownloaded, queued, downloading, completed, partial, failed
+    let state: DownloadUIState
     let progress: Float
     let onDownload: () -> Void
     let onCancel: () -> Void
@@ -48,7 +48,7 @@ struct DownloadButton: View {
         }
         .buttonStyle(.plain)
         .onChange(of: state) { oldValue, newValue in
-            if newValue == "completed" && oldValue != "completed" {
+            if newValue == .completed && oldValue != .completed {
                 showTrash = false
                 withAnimation(.easeInOut.delay(2.0)) {
                     showTrash = true
@@ -59,7 +59,7 @@ struct DownloadButton: View {
         }
         .onAppear {
             // If already completed on appear, show trash immediately
-            if state == "completed" {
+            if state == .completed {
                 showTrash = true
             }
         }
@@ -67,9 +67,9 @@ struct DownloadButton: View {
 
     private var action: () -> Void {
         switch state {
-        case "queued", "downloading":
+        case .queued, "downloading":
             return onCancel
-        case "completed":
+        case .completed:
             return onDelete
         default:
             return onDownload
@@ -79,16 +79,16 @@ struct DownloadButton: View {
     @ViewBuilder
     private var iconView: some View {
         switch state {
-        case "notDownloaded":
+        case .notDownloaded:
             Image(systemName: "arrow.down.circle")
                 .font(.title3)
                 .foregroundStyle(Color.listenUpOrange)
 
-        case "queued":
+        case .queued:
             ProgressView()
                 .scaleEffect(0.8)
 
-        case "downloading":
+        case .downloading:
             ZStack {
                 Circle()
                     .stroke(Color.listenUpOrange.opacity(0.3), lineWidth: 3)
@@ -103,7 +103,7 @@ struct DownloadButton: View {
                     .foregroundStyle(.secondary)
             }
 
-        case "completed":
+        case .completed:
             Group {
                 if showTrash {
                     Image(systemName: "trash")
@@ -119,7 +119,7 @@ struct DownloadButton: View {
             }
             .animation(.easeInOut(duration: 0.3), value: showTrash)
 
-        case "partial", "failed":
+        case .partial, .failed:
             Image(systemName: "arrow.clockwise.circle")
                 .font(.title3)
                 .foregroundStyle(.red)
@@ -134,7 +134,7 @@ struct DownloadButton: View {
 
 /// Expanded download button with label for wider layouts.
 struct DownloadButtonExpanded: View {
-    let state: String
+    let state: DownloadUIState
     let progress: Float
     let onDownload: () -> Void
     let onCancel: () -> Void
@@ -170,8 +170,8 @@ struct DownloadButtonExpanded: View {
 
     private var action: () -> Void {
         switch state {
-        case "queued", "downloading": return onCancel
-        case "completed": return onDelete
+        case .queued, "downloading": return onCancel
+        case .completed: return onDelete
         default: return onDownload
         }
     }
@@ -179,13 +179,13 @@ struct DownloadButtonExpanded: View {
     @ViewBuilder
     private var iconView: some View {
         switch state {
-        case "notDownloaded":
+        case .notDownloaded:
             Image(systemName: "arrow.down.circle")
                 .foregroundStyle(Color.listenUpOrange)
-        case "queued":
+        case .queued:
             ProgressView()
                 .scaleEffect(0.7)
-        case "downloading":
+        case .downloading:
             ZStack {
                 Circle()
                     .trim(from: 0, to: CGFloat(progress))
@@ -193,10 +193,10 @@ struct DownloadButtonExpanded: View {
                     .frame(width: 18, height: 18)
                     .rotationEffect(.degrees(-90))
             }
-        case "completed":
+        case .completed:
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-        case "partial", "failed":
+        case .partial, .failed:
             Image(systemName: "arrow.clockwise.circle")
                 .foregroundStyle(.red)
         default:
@@ -208,20 +208,20 @@ struct DownloadButtonExpanded: View {
     @ViewBuilder
     private var labelText: some View {
         switch state {
-        case "notDownloaded":
+        case .notDownloaded:
             Text(String(localized: "book_detail.download"))
                 .foregroundStyle(.primary)
-        case "queued":
+        case .queued:
             Text(String(localized: "book_detail.queued"))
                 .foregroundStyle(.secondary)
-        case "downloading":
+        case .downloading:
             Text("\(Int(progress * 100))%")
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
-        case "completed":
+        case .completed:
             Text(String(localized: "book_detail.downloaded"))
                 .foregroundStyle(.primary)
-        case "partial", "failed":
+        case .partial, .failed:
             Text(String(localized: "common.retry"))
                 .foregroundStyle(.red)
         default:
@@ -234,18 +234,18 @@ struct DownloadButtonExpanded: View {
 #Preview("Download States") {
     VStack(spacing: 20) {
         HStack(spacing: 16) {
-            DownloadButton(state: "notDownloaded", progress: 0, onDownload: {}, onCancel: {}, onDelete: {})
-            DownloadButton(state: "queued", progress: 0, onDownload: {}, onCancel: {}, onDelete: {})
-            DownloadButton(state: "downloading", progress: 0.65, onDownload: {}, onCancel: {}, onDelete: {})
-            DownloadButton(state: "completed", progress: 1, onDownload: {}, onCancel: {}, onDelete: {})
-            DownloadButton(state: "failed", progress: 0.3, onDownload: {}, onCancel: {}, onDelete: {})
+            DownloadButton(state: .notDownloaded, progress: 0, onDownload: {}, onCancel: {}, onDelete: {})
+            DownloadButton(state: .queued, progress: 0, onDownload: {}, onCancel: {}, onDelete: {})
+            DownloadButton(state: .downloading, progress: 0.65, onDownload: {}, onCancel: {}, onDelete: {})
+            DownloadButton(state: .completed, progress: 1, onDownload: {}, onCancel: {}, onDelete: {})
+            DownloadButton(state: .failed, progress: 0.3, onDownload: {}, onCancel: {}, onDelete: {})
         }
 
-        DownloadButtonExpanded(state: "notDownloaded", progress: 0, onDownload: {}, onCancel: {}, onDelete: {})
+        DownloadButtonExpanded(state: .notDownloaded, progress: 0, onDownload: {}, onCancel: {}, onDelete: {})
             .padding(.horizontal)
-        DownloadButtonExpanded(state: "downloading", progress: 0.65, onDownload: {}, onCancel: {}, onDelete: {})
+        DownloadButtonExpanded(state: .downloading, progress: 0.65, onDownload: {}, onCancel: {}, onDelete: {})
             .padding(.horizontal)
-        DownloadButtonExpanded(state: "completed", progress: 1, onDownload: {}, onCancel: {}, onDelete: {})
+        DownloadButtonExpanded(state: .completed, progress: 1, onDownload: {}, onCancel: {}, onDelete: {})
             .padding(.horizontal)
     }
     .padding()

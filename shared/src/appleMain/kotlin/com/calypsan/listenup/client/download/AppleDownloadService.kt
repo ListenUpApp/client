@@ -174,11 +174,14 @@ class AppleDownloadService(
         // Download files concurrently in background
         for (file in toDownload) {
             scope.launch {
+                // Refresh token per file to avoid 401 on long-running batches
+                tokenProvider.prepareForPlayback()
+                val fileToken = tokenProvider.getToken() ?: token
                 downloadFile(
                     bookId = bookId.value,
                     audioFile = file,
                     serverUrl = serverUrl,
-                    token = token,
+                    token = fileToken,
                 )
             }
         }
