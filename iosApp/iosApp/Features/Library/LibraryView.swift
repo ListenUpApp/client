@@ -114,7 +114,7 @@ struct LibraryView: View {
         .scrollContentBackground(.hidden)
         .background(.clear)
         .ignoresSafeArea(edges: .bottom)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedTab)
+        // Animation removed — conflicts with .page TabView programmatic selection
         // Glass chip row overlaid at top
         .safeAreaInset(edge: .top) {
             LibraryChipRow(selectedTab: $selectedTab)
