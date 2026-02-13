@@ -64,7 +64,7 @@ internal class AppleSecureStorage : SecureStorage {
         val startMark = TimeSource.Monotonic.markNow()
 
         val data =
-            value.dataUsingEncoding(NSUTF8StringEncoding)
+            (value as NSString).dataUsingEncoding(NSUTF8StringEncoding)
                 ?: throw IllegalArgumentException("Failed to encode value to UTF-8")
 
         // Delete existing item first
