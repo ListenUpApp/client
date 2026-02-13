@@ -332,6 +332,7 @@ private class DownloadSessionDelegate(
             lock.unlock()
         }
     }
+
     private val pendingDownloads = mutableMapOf<ULong, PendingDownload>()
     private val lastLoggedPct = mutableMapOf<ULong, Int>()
 
@@ -350,7 +351,6 @@ private class DownloadSessionDelegate(
             lastLoggedPct.remove(taskId)
             pendingDownloads.remove(taskId)
         }
-    }
 
     private fun safeResume(
         continuation: CancellableContinuation<Boolean>,
