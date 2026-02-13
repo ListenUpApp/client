@@ -53,7 +53,7 @@ struct DownloadButton: View {
                 withAnimation(.easeInOut.delay(2.0)) {
                     showTrash = true
                 }
-            } else if newValue != "completed" {
+            } else if newValue != .completed {
                 showTrash = false
             }
         }
@@ -67,11 +67,11 @@ struct DownloadButton: View {
 
     private var action: () -> Void {
         switch state {
-        case .queued, "downloading":
+        case .queued, .downloading:
             return onCancel
         case .completed:
             return onDelete
-        default:
+        case .notDownloaded, .partial, .failed:
             return onDownload
         }
     }
@@ -124,10 +124,6 @@ struct DownloadButton: View {
                 .font(.title3)
                 .foregroundStyle(.red)
 
-        default:
-            Image(systemName: "arrow.down.circle")
-                .font(.title3)
-                .foregroundStyle(Color.listenUpOrange)
         }
     }
 }
@@ -170,9 +166,9 @@ struct DownloadButtonExpanded: View {
 
     private var action: () -> Void {
         switch state {
-        case .queued, "downloading": return onCancel
+        case .queued, .downloading: return onCancel
         case .completed: return onDelete
-        default: return onDownload
+        case .notDownloaded, .partial, .failed: return onDownload
         }
     }
 
@@ -199,9 +195,6 @@ struct DownloadButtonExpanded: View {
         case .partial, .failed:
             Image(systemName: "arrow.clockwise.circle")
                 .foregroundStyle(.red)
-        default:
-            Image(systemName: "arrow.down.circle")
-                .foregroundStyle(Color.listenUpOrange)
         }
     }
 
@@ -224,9 +217,6 @@ struct DownloadButtonExpanded: View {
         case .partial, .failed:
             Text(String(localized: "common.retry"))
                 .foregroundStyle(.red)
-        default:
-            Text(String(localized: "book_detail.download"))
-                .foregroundStyle(.primary)
         }
     }
 }

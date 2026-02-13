@@ -118,7 +118,6 @@ final class BookDetailObserver {
     }
 
     /// Call this to stop observation when done.
-    deinit { stopObserving() }
 
     func stopObserving() {
         observationTask?.cancel()
@@ -142,9 +141,13 @@ final class BookDetailObserver {
         guard let book else { return }
         downloadError = nil
         Task {
-            let result = await downloadService.downloadBook(bookId: book.id)
-            if let error = result as? DownloadResultError {
-                self.downloadError = error.message
+            do {
+                let result = try await downloadService.downloadBook(bookId: book.id)
+                if let error = result as? DownloadResultError {
+                    self.downloadError = error.message
+                }
+            } catch {
+                self.downloadError = error.localizedDescription
             }
         }
     }
@@ -152,14 +155,14 @@ final class BookDetailObserver {
     func cancelDownload() {
         guard let book else { return }
         Task {
-            await downloadService.cancelDownload(bookId: book.id)
+            try? await downloadService.cancelDownload(bookId: book.id)
         }
     }
 
     func deleteDownload() {
         guard let book else { return }
         Task {
-            await downloadService.deleteDownload(bookId: book.id)
+            try? await downloadService.deleteDownload(bookId: book.id)
         }
     }
 
