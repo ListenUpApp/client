@@ -13,6 +13,7 @@ import org.koin.dsl.bind
 import org.koin.dsl.module
 import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.AudioPlayer
+import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
@@ -133,6 +134,11 @@ object KoinHelper : KoinComponent {
 
     fun getImageStorage(): ImageStorage {
         val instance: ImageStorage by inject()
+        return instance
+    }
+
+    fun getDownloadService(): DownloadService {
+        val instance: DownloadService by inject()
         return instance
     }
 
