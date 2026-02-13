@@ -15,6 +15,8 @@ struct MainTabView: View {
     @State private var selectedTab: Tab = .home
     @State private var showFullScreenPlayer = false
     @State private var nowPlayingObserver: NowPlayingObserver?
+    @State private var infoCenterManager: NowPlayingInfoCenterManager?
+    // @State private var liveActivityManager: LiveActivityManager? // Disabled: lock screen banner redundant with Now Playing controls
 
     init() {
         // Configure tab bar appearance for glass effect with good contrast
@@ -57,7 +59,10 @@ struct MainTabView: View {
         }
         .onAppear {
             if nowPlayingObserver == nil {
-                nowPlayingObserver = NowPlayingObserver(deps: deps)
+                let observer = NowPlayingObserver(deps: deps)
+                nowPlayingObserver = observer
+                infoCenterManager = NowPlayingInfoCenterManager(observer: observer)
+                // liveActivityManager = LiveActivityManager(observer: observer)
             }
         }
     }
