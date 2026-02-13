@@ -21,6 +21,10 @@ data class VerifiedServer(
  * Implementations handle data fetching, caching, and error handling.
  */
 interface InstanceRepository {
+    // Try multiple URLs to find one that's reachable.
+    // Returns the first URL that responds, or null if none work.
+    suspend fun findReachableUrl(urls: List<String>): String?
+
     /**
      * Retrieves the current server instance information.
      *

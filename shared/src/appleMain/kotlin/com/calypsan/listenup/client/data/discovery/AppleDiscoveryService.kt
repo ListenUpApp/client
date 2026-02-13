@@ -20,6 +20,10 @@ import platform.Foundation.NSString
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.create
 import platform.darwin.NSObject
+import platform.posix.AF_INET
+import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.get
+import kotlinx.cinterop.reinterpret
 
 private val logger = KotlinLogging.logger {}
 
@@ -40,6 +44,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
     private val serviceBrowser = NSNetServiceBrowser()
     private val serversState = MutableStateFlow<Map<String, DiscoveredServer>>(emptyMap())
     private val pendingServices = mutableMapOf<String, NSNetService>()
+    private val serviceDelegates = mutableMapOf<String, ServiceDelegate>()
 
     private var browserDelegate: BrowserDelegate? = null
     private var isDiscovering = false
@@ -77,6 +82,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
         isDiscovering = false
         browserDelegate = null
         pendingServices.clear()
+        serviceDelegates.clear()
     }
 
     private fun onServiceFound(service: NSNetService) {
@@ -84,7 +90,9 @@ class AppleDiscoveryService : ServerDiscoveryService {
         logger.debug { "Service found: $serviceName" }
 
         pendingServices[serviceName] = service
-        service.delegate = ServiceDelegate()
+        val delegate = ServiceDelegate()
+        serviceDelegates[serviceName] = delegate
+        service.delegate = delegate
         service.resolveWithTimeout(RESOLVE_TIMEOUT)
     }
 
@@ -93,6 +101,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
         logger.debug { "Service removed: $serviceName" }
 
         pendingServices.remove(serviceName)
+        serviceDelegates.remove(serviceName)
         serversState.update { current ->
             val removedId = current.entries.firstOrNull { it.value.name == serviceName }?.key
             if (removedId != null) current - removedId else current
@@ -100,22 +109,28 @@ class AppleDiscoveryService : ServerDiscoveryService {
     }
 
     private fun onServiceResolved(service: NSNetService) {
-        val rawHostName = service.hostName
         val port = service.port.toInt()
         val serviceName = service.name
 
-        logger.debug { "Resolved: $serviceName at $rawHostName:$port" }
+        // Extract IPv4 address directly from resolved addresses.
+        // Using the IP avoids slow mDNS hostname resolution on every HTTP request.
+        // NSNetService.addresses contains sockaddr structs with actual IPs.
+        val ipAddress = extractIPv4Address(service)
+        val rawHostName = service.hostName
 
-        if (rawHostName == null) {
-            logger.warn { "Resolved service has no host: $serviceName" }
-            return
-        }
-
-        // Normalize hostname for mDNS resolution
-        // NSNetService returns hostname with trailing dot (e.g., "omarchy.local.")
-        // If hostname doesn't include ".local", iOS can't resolve it via mDNS
-        val hostName = normalizeHostname(rawHostName)
-        logger.debug { "Normalized hostname: $rawHostName -> $hostName" }
+        val hostName =
+            if (ipAddress != null) {
+                logger.debug { "Resolved $serviceName to IP: $ipAddress (hostname: $rawHostName)" }
+                ipAddress
+            } else if (rawHostName != null) {
+                // Fallback to hostname if IP extraction fails
+                val normalized = normalizeHostname(rawHostName)
+                logger.warn { "Could not extract IP for $serviceName, falling back to hostname: $normalized" }
+                normalized
+            } else {
+                logger.warn { "Resolved service has no host or addresses: $serviceName" }
+                return
+            }
 
         val txtData = service.TXTRecordData()
         val txtRecords = parseTxtRecords(txtData)
@@ -137,6 +152,8 @@ class AppleDiscoveryService : ServerDiscoveryService {
                 remoteUrl = txtRecords["remote"],
             )
 
+        pendingServices.remove(serviceName)
+        serviceDelegates.remove(serviceName)
         serversState.update { it + (server.id to server) }
         logger.info { "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}" }
         pendingServices.remove(serviceName)
@@ -148,7 +165,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
 
         val result = mutableMapOf<String, String>()
         try {
-            val dictionary = NSNetService.dictionaryFromTXTRecordData(data) as? Map<Any?, Any?>
+            val dictionary = NSNetService.dictionaryFromTXTRecordData(data)
             dictionary?.forEach { (key, value) ->
                 if (key is String && value is NSData) {
                     val string = NSString.create(value, NSUTF8StringEncoding)
@@ -161,6 +178,44 @@ class AppleDiscoveryService : ServerDiscoveryService {
             logger.error(e) { "Failed to parse TXT records" }
         }
         return result
+    }
+
+    /**
+     * Extract the first IPv4 address from NSNetService resolved addresses.
+     *
+     * NSNetService.addresses contains NSData objects wrapping sockaddr structs.
+     * We parse these to find the first AF_INET (IPv4) address and format it
+     * as a dotted-quad string. This avoids mDNS resolution on every HTTP
+     * request, which can add 5-25 seconds of latency on iOS.
+     */
+    @Suppress("MagicNumber")
+    private fun extractIPv4Address(service: NSNetService): String? {
+        val addresses = service.addresses ?: return null
+
+        for (i in 0 until addresses.count().toInt()) {
+            val data = addresses[i] as? NSData ?: continue
+
+            // sockaddr_in is 16 bytes: sa_len(1) + sa_family(1) + sin_port(2) + sin_addr(4) + sin_zero(8)
+            if (data.length < 16u) continue
+
+            val len = data.length.toInt()
+            val ptr = data.bytes ?: continue
+            val bytePtr = ptr.reinterpret<kotlinx.cinterop.ByteVar>()
+            val bytes = ByteArray(len) { bytePtr[it] }
+
+            // Check address family (offset 1 on Darwin — sa_family is second byte after sa_len)
+            val family = bytes[1].toInt() and 0xFF
+            if (family != AF_INET) continue
+
+            // IPv4 address is at offset 4-7 (sin_addr, after sa_len + sa_family + sin_port)
+            val a = bytes[4].toInt() and 0xFF
+            val b = bytes[5].toInt() and 0xFF
+            val c = bytes[6].toInt() and 0xFF
+            val d = bytes[7].toInt() and 0xFF
+            return "$a.$b.$c.$d"
+        }
+
+        return null
     }
 
     /**
@@ -249,6 +304,7 @@ class AppleDiscoveryService : ServerDiscoveryService {
         ) {
             logger.error { "Failed to resolve service ${sender.name}: $didNotResolve" }
             pendingServices.remove(sender.name)
+            serviceDelegates.remove(sender.name)
         }
     }
 }

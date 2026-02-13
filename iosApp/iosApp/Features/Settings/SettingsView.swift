@@ -15,14 +15,14 @@ struct SettingsView: View {
     var body: some View {
         List {
             // Interface section
-            Section(NSLocalizedString("settings.interface", comment: "")) {
-                Toggle(NSLocalizedString("settings.use_bookshelf_view", comment: ""), isOn: $useBookshelfView)
-                Toggle(NSLocalizedString("settings.lock_orientation", comment: ""), isOn: $lockOrientation)
+            Section(String(localized: "settings.interface")) {
+                Toggle(String(localized: "settings.use_bookshelf_view"), isOn: $useBookshelfView)
+                Toggle(String(localized: "settings.lock_orientation"), isOn: $lockOrientation)
 
                 HStack {
-                    Text(NSLocalizedString("settings.theme", comment: ""))
+                    Text(String(localized: "settings.theme"))
                     Spacer()
-                    Picker(NSLocalizedString("settings.theme", comment: ""), selection: $darkMode) {
+                    Picker(String(localized: "settings.theme"), selection: $darkMode) {
                         Image(systemName: "sun.max.fill").tag(false)
                         Image(systemName: "moon.fill").tag(true)
                     }
@@ -31,33 +31,33 @@ struct SettingsView: View {
                 }
 
                 HStack {
-                    Text(NSLocalizedString("settings.haptic_feedback", comment: ""))
+                    Text(String(localized: "settings.haptic_feedback"))
                     Spacer()
-                    Text(NSLocalizedString("settings.haptic_light", comment: ""))
+                    Text(String(localized: "settings.haptic_light"))
                         .foregroundStyle(.secondary)
                 }
 
                 HStack {
-                    Text(NSLocalizedString("settings.language", comment: ""))
+                    Text(String(localized: "settings.language"))
                     Spacer()
-                    Text(NSLocalizedString("settings.language_english", comment: ""))
+                    Text(String(localized: "settings.language_english"))
                         .foregroundStyle(.secondary)
                 }
             }
 
             // Playback section
-            Section(NSLocalizedString("settings.playback", comment: "")) {
-                Toggle(NSLocalizedString("settings.auto_rewind_label", comment: ""), isOn: $autoRewind)
+            Section(String(localized: "settings.playback")) {
+                Toggle(String(localized: "settings.auto_rewind_label"), isOn: $autoRewind)
 
                 HStack {
-                    Text(NSLocalizedString("settings.jump_forward", comment: ""))
+                    Text(String(localized: "settings.jump_forward"))
                     Spacer()
                     Image(systemName: "goforward.10")
                         .foregroundStyle(.secondary)
                 }
 
                 HStack {
-                    Text(NSLocalizedString("settings.jump_backward", comment: ""))
+                    Text(String(localized: "settings.jump_backward"))
                     Spacer()
                     Image(systemName: "gobackward.10")
                         .foregroundStyle(.secondary)
@@ -65,37 +65,37 @@ struct SettingsView: View {
             }
 
             // Server section
-            Section(NSLocalizedString("settings.server", comment: "")) {
+            Section(String(localized: "settings.server")) {
                 HStack {
-                    Text(NSLocalizedString("settings.connected_to", comment: ""))
+                    Text(String(localized: "settings.connected_to"))
                     Spacer()
                     Text("myserver.local")
                         .foregroundStyle(.secondary)
                 }
 
-                Button(NSLocalizedString("common.disconnect", comment: ""), role: .destructive) {
+                Button(String(localized: "common.disconnect"), role: .destructive) {
                     // TODO: Handle disconnect
                 }
             }
 
             // Account section
-            Section(NSLocalizedString("settings.account", comment: "")) {
-                Button(NSLocalizedString("common.sign_out", comment: ""), role: .destructive) {
+            Section(String(localized: "settings.account")) {
+                Button(String(localized: "common.sign_out"), role: .destructive) {
                     // TODO: Handle sign out
                 }
             }
 
             // About section
-            Section(NSLocalizedString("common.about", comment: "")) {
+            Section(String(localized: "common.about")) {
                 HStack {
-                    Text(NSLocalizedString("common.version", comment: ""))
+                    Text(String(localized: "common.version"))
                     Spacer()
                     Text("1.0.0")
                         .foregroundStyle(.secondary)
                 }
             }
         }
-        .navigationTitle(NSLocalizedString("common.settings", comment: ""))
+        .navigationTitle(String(localized: "common.settings"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

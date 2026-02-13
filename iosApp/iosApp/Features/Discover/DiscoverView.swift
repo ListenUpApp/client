@@ -22,7 +22,7 @@ struct DiscoverView: View {
             .padding()
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("common.discover", comment: ""))
+        .navigationTitle(String(localized: "common.discover"))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -45,10 +45,10 @@ struct DiscoverView: View {
                 .font(.system(size: 64))
                 .foregroundStyle(Color.listenUpOrange)
 
-            Text(NSLocalizedString("discover.discover_screen", comment: ""))
+            Text(String(localized: "discover.discover_screen"))
                 .font(.title2.bold())
 
-            Text(NSLocalizedString("discover.find_next_favorite", comment: ""))
+            Text(String(localized: "discover.find_next_favorite"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 

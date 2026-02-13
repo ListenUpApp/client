@@ -134,10 +134,10 @@ struct AuthorsContent: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text(String(format: NSLocalizedString("common.no_items_yet", comment: ""), "authors"))
+            Text(String(format: String(localized: "common.no_items_yet"), "authors"))
                 .font(.title2.bold())
 
-            Text(String(format: NSLocalizedString("library.empty_tab_description", comment: ""), "Authors"))
+            Text(String(format: String(localized: "library.empty_tab_description"), "Authors"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

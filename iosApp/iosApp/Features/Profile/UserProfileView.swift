@@ -23,7 +23,7 @@ struct UserProfileView: View {
             .padding()
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("common.profile", comment: ""))
+        .navigationTitle(String(localized: "common.profile"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -34,7 +34,7 @@ struct UserProfileView: View {
             UserAvatarView(user: user, size: 100)
 
             VStack(spacing: 4) {
-                Text(user?.displayName ?? NSLocalizedString("common.loading", comment: ""))
+                Text(user?.displayName ?? String(localized: "common.loading"))
                     .font(.title2.bold())
 
                 if let email = user?.email {
@@ -58,9 +58,9 @@ struct UserProfileView: View {
 
     private var statsSection: some View {
         HStack(spacing: 24) {
-            statItem(value: "--", label: NSLocalizedString("profile.hours_listened", comment: ""))
-            statItem(value: "--", label: NSLocalizedString("profile.books_finished", comment: ""))
-            statItem(value: "--", label: NSLocalizedString("profile.in_progress", comment: ""))
+            statItem(value: "--", label: String(localized: "profile.hours_listened"))
+            statItem(value: "--", label: String(localized: "profile.books_finished"))
+            statItem(value: "--", label: String(localized: "profile.in_progress"))
         }
         .padding()
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
@@ -83,13 +83,13 @@ struct UserProfileView: View {
     private var actionsSection: some View {
         VStack(spacing: 0) {
             NavigationLink(value: SettingsDestination()) {
-                actionRow(icon: "gearshape", title: NSLocalizedString("common.settings", comment: ""))
+                actionRow(icon: "gearshape", title: String(localized: "common.settings"))
             }
             .buttonStyle(.plain)
 
             Divider()
 
-            actionRow(icon: "arrow.down.circle", title: NSLocalizedString("common.downloads", comment: ""))
+            actionRow(icon: "arrow.down.circle", title: String(localized: "common.downloads"))
         }
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
     }

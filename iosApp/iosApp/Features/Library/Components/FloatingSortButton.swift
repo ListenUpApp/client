@@ -43,7 +43,7 @@ struct FloatingSortButton: View {
                 onDirectionToggle()
             } label: {
                 HStack {
-                    Text(NSLocalizedString("common.direction", comment: ""))
+                    Text(String(localized: "common.direction"))
                     Spacer()
                     Text(sortState.directionLabel)
                         .foregroundStyle(.secondary)
@@ -88,8 +88,6 @@ struct FloatingSortButton: View {
             "arrow.up"
         case .descending:
             "arrow.down"
-        default:
-            "arrow.up.arrow.down"
         }
     }
 }

@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.model.Server
 import com.calypsan.listenup.client.domain.model.ServerWithStatus
+import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.ServerRepository
 import dev.mokkery.answering.returns
@@ -73,10 +74,11 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
 
             assertTrue(viewModel.state.value.isDiscovering)
         }
@@ -86,10 +88,11 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
 
-            ServerSelectViewModel(serverRepository, serverConfig)
+            ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
 
             verify { serverRepository.startDiscovery() }
         }
@@ -99,11 +102,12 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             val serversFlow = MutableStateFlow<List<ServerWithStatus>>(emptyList())
             every { serverRepository.observeServers() } returns serversFlow
             every { serverRepository.startDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
 
             val servers = listOf(createServerWithStatus())
@@ -119,10 +123,11 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
@@ -136,11 +141,12 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             every { serverRepository.stopDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.RefreshClicked)
@@ -155,13 +161,14 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             val server = createServer()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             everySuspend { serverRepository.setActiveServer(server.id) } returns Unit
             everySuspend { serverConfig.setServerUrl(any()) } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
@@ -177,12 +184,13 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             val server = createServer()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
 
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
@@ -197,12 +205,13 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             val server = createServer()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
 
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
             viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
             advanceUntilIdle()
@@ -218,10 +227,11 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
             viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
             advanceUntilIdle()
@@ -237,11 +247,12 @@ class ServerSelectViewModelTest {
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
+            val instanceRepository: InstanceRepository = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             every { serverRepository.stopDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
 
             // Simulate onCleared by calling the method directly (it's protected but we test behavior)

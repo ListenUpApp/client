@@ -52,10 +52,10 @@ struct RegisterView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("auth.create_account", comment: ""))
+            Text(String(localized: "auth.create_account"))
                 .font(.largeTitle.bold())
 
-            Text(NSLocalizedString("auth.join_listenup", comment: ""))
+            Text(String(localized: "auth.join_listenup"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -65,16 +65,16 @@ struct RegisterView: View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 GlassTextField(
-                    label: NSLocalizedString("auth.first_name", comment: ""),
-                    placeholder: NSLocalizedString("auth.first_name_placeholder", comment: ""),
+                    label: String(localized: "auth.first_name"),
+                    placeholder: String(localized: "auth.first_name_placeholder"),
                     text: $firstName,
                     textContentType: .givenName,
                     autocapitalization: .words
                 )
 
                 GlassTextField(
-                    label: NSLocalizedString("auth.last_name", comment: ""),
-                    placeholder: NSLocalizedString("auth.last_name_placeholder", comment: ""),
+                    label: String(localized: "auth.last_name"),
+                    placeholder: String(localized: "auth.last_name_placeholder"),
                     text: $lastName,
                     textContentType: .familyName,
                     autocapitalization: .words
@@ -82,24 +82,24 @@ struct RegisterView: View {
             }
 
             GlassTextField(
-                label: NSLocalizedString("common.email", comment: ""),
-                placeholder: NSLocalizedString("auth.email_placeholder", comment: ""),
+                label: String(localized: "common.email"),
+                placeholder: String(localized: "auth.email_placeholder"),
                 text: $email,
                 keyboardType: .emailAddress,
                 textContentType: .emailAddress
             )
 
             GlassSecureField(
-                label: NSLocalizedString("auth.password_label", comment: ""),
-                placeholder: NSLocalizedString("auth.create_password_placeholder", comment: ""),
+                label: String(localized: "auth.password_label"),
+                placeholder: String(localized: "auth.create_password_placeholder"),
                 text: $password
             )
 
             GlassSecureField(
-                label: NSLocalizedString("auth.confirm_password", comment: ""),
-                placeholder: NSLocalizedString("auth.confirm_password_placeholder", comment: ""),
+                label: String(localized: "auth.confirm_password"),
+                placeholder: String(localized: "auth.confirm_password_placeholder"),
                 text: $confirmPassword,
-                error: passwordMismatch ? NSLocalizedString("auth.passwords_dont_match", comment: "") : nil
+                error: passwordMismatch ? String(localized: "auth.passwords_dont_match") : nil
             )
             .onChange(of: confirmPassword) { _, newValue in
                 passwordMismatch = !newValue.isEmpty && newValue != password
@@ -119,7 +119,7 @@ struct RegisterView: View {
 
     private var registerButton: some View {
         ListenUpButton(
-            title: NSLocalizedString("auth.create_account", comment: ""),
+            title: String(localized: "auth.create_account"),
             isLoading: viewModel.isLoading
         ) {
             if validateForm() {
@@ -136,10 +136,10 @@ struct RegisterView: View {
 
     private var loginLink: some View {
         HStack(spacing: 4) {
-            Text(NSLocalizedString("auth.already_have_account", comment: ""))
+            Text(String(localized: "auth.already_have_account"))
                 .foregroundStyle(.secondary)
 
-            Button(NSLocalizedString("auth.sign_in", comment: "")) {
+            Button(String(localized: "auth.sign_in")) {
                 navigateBack()
             }
             .fontWeight(.semibold)
@@ -171,22 +171,6 @@ struct RegisterView: View {
 }
 
 // MARK: - Error Banner (shared component, could be extracted)
-
-private struct ErrorBanner: View {
-    let message: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-            Text(message)
-        }
-        .font(.subheadline)
-        .foregroundStyle(.red)
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
-    }
-}
 
 // MARK: - Previews
 

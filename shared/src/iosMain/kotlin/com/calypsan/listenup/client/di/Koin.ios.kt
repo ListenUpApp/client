@@ -11,6 +11,11 @@ import org.koin.core.context.startKoin
 import org.koin.core.module.Module
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import com.calypsan.listenup.client.playback.PlaybackManager
+import com.calypsan.listenup.client.playback.AudioPlayer
+import com.calypsan.listenup.client.playback.SleepTimerManager
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 
 /**
  * iOS-specific Koin initialization.
@@ -109,6 +114,31 @@ object KoinHelper : KoinComponent {
     fun getContributorDetailViewModel(): ContributorDetailViewModel {
         val viewModel: ContributorDetailViewModel by inject()
         return viewModel
+    }
+
+    fun getPlaybackManager(): PlaybackManager {
+        val instance: PlaybackManager by inject()
+        return instance
+    }
+
+    fun getAudioPlayer(): AudioPlayer {
+        val instance: AudioPlayer by inject()
+        return instance
+    }
+
+    fun getBookRepository(): BookRepository {
+        val instance: BookRepository by inject()
+        return instance
+    }
+
+    fun getImageStorage(): ImageStorage {
+        val instance: ImageStorage by inject()
+        return instance
+    }
+
+    fun getSleepTimerManager(): SleepTimerManager {
+        val instance: SleepTimerManager by inject()
+        return instance
     }
 }
 

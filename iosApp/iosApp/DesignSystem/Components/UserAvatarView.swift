@@ -50,7 +50,7 @@ struct UserAvatarView: View {
     }
 
     private func avatarColor(for user: User) -> Color {
-        Color(hex: user.avatarColor) ?? avatarColorForUserId(user.idString)
+        Color(hex: user.avatarColor)
     }
 }
 
