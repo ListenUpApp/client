@@ -64,7 +64,7 @@ internal class AppleSecureStorage : SecureStorage {
         val startMark = TimeSource.Monotonic.markNow()
 
         val data =
-            (value as NSString).dataUsingEncoding(NSUTF8StringEncoding)
+            value.dataUsingEncoding(NSUTF8StringEncoding)
                 ?: throw IllegalArgumentException("Failed to encode value to UTF-8")
 
         // Delete existing item first
@@ -76,8 +76,8 @@ internal class AppleSecureStorage : SecureStorage {
                 kCFTypeDictionaryValueCallBacks.ptr,
             )!!
         CFDictionarySetValue(deleteQuery, kSecClass, kSecClassGenericPassword)
-        CFDictionarySetValue(deleteQuery, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
-        CFDictionarySetValue(deleteQuery, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
+        CFDictionarySetValue(deleteQuery, kSecAttrService, CFBridgingRetain(serviceName))
+        CFDictionarySetValue(deleteQuery, kSecAttrAccount, CFBridgingRetain(key))
 
         SecItemDelete(deleteQuery)
 
@@ -90,10 +90,10 @@ internal class AppleSecureStorage : SecureStorage {
                 kCFTypeDictionaryValueCallBacks.ptr,
             )!!
         CFDictionarySetValue(addQuery, kSecClass, kSecClassGenericPassword)
-        CFDictionarySetValue(addQuery, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
-        CFDictionarySetValue(addQuery, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
+        CFDictionarySetValue(addQuery, kSecAttrService, CFBridgingRetain(serviceName))
+        CFDictionarySetValue(addQuery, kSecAttrAccount, CFBridgingRetain(key))
         CFDictionarySetValue(addQuery, kSecAttrAccessible, kSecAttrAccessibleAfterFirstUnlock)
-        CFDictionarySetValue(addQuery, kSecValueData, CFBridgingRetain(data) as CFTypeRef?)
+        CFDictionarySetValue(addQuery, kSecValueData, CFBridgingRetain(data))
 
         val status = SecItemAdd(addQuery, null)
         val elapsed = startMark.elapsedNow()
@@ -114,14 +114,14 @@ internal class AppleSecureStorage : SecureStorage {
                     kCFTypeDictionaryValueCallBacks.ptr,
                 )!!
             CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
-            CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
-            CFDictionarySetValue(query, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
+            CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName))
+            CFDictionarySetValue(query, kSecAttrAccount, CFBridgingRetain(key))
             CFDictionarySetValue(query, kSecReturnData, kCFBooleanTrue)
             CFDictionarySetValue(query, kSecMatchLimit, kSecMatchLimitOne)
 
             memScoped {
                 val result = alloc<CFTypeRefVar>()
-                val status = SecItemCopyMatching(query as CFDictionaryRef, result.ptr)
+                val status = SecItemCopyMatching(query, result.ptr)
 
                 if (status == errSecSuccess) {
                     // Bridge the CFTypeRef to NSData using toll-free bridging
@@ -130,7 +130,7 @@ internal class AppleSecureStorage : SecureStorage {
                         val nativePtr = cfData.rawValue
                         val data = kotlinx.cinterop.interpretObjCPointerOrNull<NSData>(nativePtr)
                         return@withContext data?.let {
-                            NSString.create(it, NSUTF8StringEncoding) as? String
+                            NSString.create(it, NSUTF8StringEncoding)?.toString()
                         }
                     }
                     return@withContext null
@@ -154,8 +154,8 @@ internal class AppleSecureStorage : SecureStorage {
                     kCFTypeDictionaryValueCallBacks.ptr,
                 )!!
             CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
-            CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
-            CFDictionarySetValue(query, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
+            CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName))
+            CFDictionarySetValue(query, kSecAttrAccount, CFBridgingRetain(key))
 
             val status = SecItemDelete(query)
             if (status != errSecSuccess && status != errSecItemNotFound) {
@@ -173,7 +173,7 @@ internal class AppleSecureStorage : SecureStorage {
                     kCFTypeDictionaryValueCallBacks.ptr,
                 )!!
             CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
-            CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
+            CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName))
 
             val status = SecItemDelete(query)
             if (status != errSecSuccess && status != errSecItemNotFound) {
