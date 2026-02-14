@@ -125,11 +125,11 @@ class BookReadersViewModel(
                 eventStreamRepository.bookEvents
                     .mapNotNull { event ->
                         when (event) {
-                            is BookEvent.ReadingSessionUpdated ->
+                            is BookEvent.ReadingSessionUpdated -> {
                                 if (event.bookId == bookId) event else null
+                            }
                         }
-                    }
-                    .debounce(2000)
+                    }.debounce(2000)
                     .collect {
                         logger.debug { "SSE: Reading session updated for book $bookId, refreshing cache (debounced)" }
                         sessionRepository.refreshBookReaders(bookId)

@@ -182,7 +182,6 @@ class ProgressTracker(
             } else {
                 logger.debug { "🎧 No playback session to record activity for" }
             }
-
         }
     }
 

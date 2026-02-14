@@ -354,6 +354,7 @@ private class DownloadSessionDelegate(
 
     private val pendingDownloads = mutableMapOf<ULong, PendingDownload>()
     private val lastLoggedPct = mutableMapOf<ULong, Int>()
+
     /** Maps taskIdentifier to bookId for cancellation support */
     private val taskToBookId = mutableMapOf<ULong, String>()
 
@@ -376,9 +377,10 @@ private class DownloadSessionDelegate(
      * Returns the number of tasks cancelled.
      */
     fun cancelTasksForBook(bookId: String): Int {
-        val taskIds = withLock {
-            taskToBookId.filterValues { it == bookId }.keys.toList()
-        }
+        val taskIds =
+            withLock {
+                taskToBookId.filterValues { it == bookId }.keys.toList()
+            }
         return taskIds.size
     }
 

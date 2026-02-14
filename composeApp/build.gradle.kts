@@ -137,7 +137,9 @@ kotlin {
                 // Platform-specific native libraries
                 // macOS uses AVFoundation natively (appleMain), no javacpp needed
                 val javacppVersion = libs.versions.javacpp.get()
-                val ffmpegVersion = libs.versions.ffmpeg.javacpp.get()
+                val ffmpegVersion =
+                    libs.versions.ffmpeg.javacpp
+                        .get()
                 listOf("linux-x86_64", "windows-x86_64").forEach { platform ->
                     implementation("org.bytedeco:javacpp:\$javacppVersion:\$platform")
                     implementation("org.bytedeco:ffmpeg:\$ffmpegVersion:\$platform")

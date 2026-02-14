@@ -93,7 +93,12 @@ class SSEManager(
     private val serverConfig: ServerConfig,
     private val scope: CoroutineScope,
 ) : SSEManagerContract {
-    private val _eventFlow = MutableSharedFlow<SSEEventType>(replay = 0, extraBufferCapacity = 256, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    private val _eventFlow =
+        MutableSharedFlow<SSEEventType>(
+            replay = 0,
+            extraBufferCapacity = 256,
+            onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST,
+        )
     override val eventFlow: SharedFlow<SSEEventType> = _eventFlow.asSharedFlow()
 
     private val _isConnected = MutableStateFlow(false)
