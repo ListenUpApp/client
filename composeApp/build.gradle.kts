@@ -134,19 +134,14 @@ kotlin {
                 implementation(libs.javacpp)
                 implementation(libs.ffmpeg)
 
-                // Platform-specific native libraries (bundled in JARs)
+                // Platform-specific native libraries
+                // macOS uses AVFoundation natively (appleMain), no javacpp needed
                 val javacppVersion = libs.versions.javacpp.get()
-                val ffmpegVersion =
-                    libs.versions.ffmpeg.javacpp
-                        .get()
-                implementation("org.bytedeco:javacpp:$javacppVersion:linux-x86_64")
-                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:linux-x86_64")
-                implementation("org.bytedeco:javacpp:$javacppVersion:macosx-x86_64")
-                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:macosx-x86_64")
-                implementation("org.bytedeco:javacpp:$javacppVersion:macosx-arm64")
-                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:macosx-arm64")
-                implementation("org.bytedeco:javacpp:$javacppVersion:windows-x86_64")
-                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:windows-x86_64")
+                val ffmpegVersion = libs.versions.ffmpeg.javacpp.get()
+                listOf("linux-x86_64", "windows-x86_64").forEach { platform ->
+                    implementation("org.bytedeco:javacpp:\$javacppVersion:\$platform")
+                    implementation("org.bytedeco:ffmpeg:\$ffmpegVersion:\$platform")
+                }
             }
         }
         // Note: Android tests use androidHostTest/androidDeviceTest source sets
