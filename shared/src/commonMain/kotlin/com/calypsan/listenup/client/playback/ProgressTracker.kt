@@ -183,8 +183,6 @@ class ProgressTracker(
                 logger.debug { "🎧 No playback session to record activity for" }
             }
 
-            currentSession = null
-            playbackSessionStart = null
         }
     }
 
@@ -439,22 +437,25 @@ class ProgressTracker(
         bookId: BookId,
         finalPositionMs: Long,
     ) {
-        // Capture before launching coroutine
+        // Capture and clear atomically before launching coroutine
+        val session = currentSession
         val playbackStart = playbackSessionStart
+        currentSession = null
+        playbackSessionStart = null
 
         scope.launch {
             logger.info { "Book finished: ${bookId.value}, finalPosition=$finalPositionMs" }
 
             // Record completion event
-            currentSession?.let { session ->
-                if (session.bookId == bookId) {
+            session?.let {
+                if (it.bookId == bookId) {
                     queueListeningEvent(
                         bookId = bookId,
-                        startPositionMs = session.startPositionMs,
+                        startPositionMs = it.startPositionMs,
                         endPositionMs = finalPositionMs,
-                        startedAt = session.startedAt,
+                        startedAt = it.startedAt,
                         endedAt = Clock.System.now().toEpochMilliseconds(),
-                        playbackSpeed = session.playbackSpeed,
+                        playbackSpeed = it.playbackSpeed,
                     )
                 }
             }
@@ -471,9 +472,6 @@ class ProgressTracker(
                     }
                 }
             }
-
-            currentSession = null
-            playbackSessionStart = null
 
             // Clear any DELETED download records so future playback will auto-download again
             // This means that the next time a user wants to listen to the same book. We assume

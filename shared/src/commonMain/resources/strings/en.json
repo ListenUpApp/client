@@ -548,10 +548,5 @@
     "duration": "Duration",
     "end_of_chapter": "End of Chapter",
     "playback_speed": "Playback Speed"
-  },
-  "book_detail.download": "Download",
-  "book_detail.queued": "Queued",
-  "book_detail.downloaded": "Downloaded",
-  "book_detail.cancel_download": "Cancel Download",
-  "book_detail.delete_download": "Delete Download"
+  }
 }

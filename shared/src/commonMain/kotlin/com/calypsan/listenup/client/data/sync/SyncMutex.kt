@@ -32,4 +32,15 @@ class SyncMutex {
      * Useful for logging and debugging sync coordination.
      */
     val isLocked: Boolean get() = mutex.isLocked
+
+    /**
+     * Try to acquire the lock without suspending.
+     * Returns true if the lock was acquired, false if already held.
+     */
+    fun tryLock(): Boolean = mutex.tryLock()
+
+    /**
+     * Release the lock. Only call after a successful tryLock().
+     */
+    fun unlock() = mutex.unlock()
 }

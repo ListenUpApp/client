@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -30,6 +32,7 @@ private val logger = KotlinLogging.logger {}
  * - Repository triggers background API refresh automatically
  * - SSE events update the cache for real-time updates
  */
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 class BookReadersViewModel(
     private val sessionRepository: SessionRepository,
     private val eventStreamRepository: EventStreamRepository,
@@ -119,18 +122,18 @@ class BookReadersViewModel(
     private fun observeSSEEvents(bookId: String) {
         sseJob =
             viewModelScope.launch {
-                eventStreamRepository.bookEvents.collect { event ->
-                    when (event) {
-                        is BookEvent.ReadingSessionUpdated -> {
-                            // Only refresh if the event is for the current book
-                            if (event.bookId == bookId) {
-                                logger.debug { "SSE: Reading session updated for book $bookId, refreshing cache" }
-                                // Repository refresh will update Room, which will emit new data
-                                sessionRepository.refreshBookReaders(bookId)
-                            }
+                eventStreamRepository.bookEvents
+                    .mapNotNull { event ->
+                        when (event) {
+                            is BookEvent.ReadingSessionUpdated ->
+                                if (event.bookId == bookId) event else null
                         }
                     }
-                }
+                    .debounce(2000)
+                    .collect {
+                        logger.debug { "SSE: Reading session updated for book $bookId, refreshing cache (debounced)" }
+                        sessionRepository.refreshBookReaders(bookId)
+                    }
             }
     }
 

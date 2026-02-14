@@ -91,7 +91,8 @@ class PushSyncOrchestrator(
             return
         }
 
-        if (_isFlushing.value) {
+        // Use tryLock to avoid TOCTOU race on _isFlushing
+        if (!syncMutex.tryLock()) {
             logger.info { "🔄 PUSH SYNC: Already flushing - skipping" }
             return
         }
@@ -153,6 +154,7 @@ class PushSyncOrchestrator(
             logger.error(e) { "Push sync flush failed" }
         } finally {
             _isFlushing.value = false
+            syncMutex.unlock()
         }
     }
 

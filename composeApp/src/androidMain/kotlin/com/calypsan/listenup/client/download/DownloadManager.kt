@@ -53,7 +53,7 @@ class DownloadManager(
     /**
      * Observe download status for a specific book.
      */
-    fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
+    override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
         downloadDao
             .observeForBook(bookId.value)
             .map { downloads -> aggregateStatus(bookId.value, downloads) }

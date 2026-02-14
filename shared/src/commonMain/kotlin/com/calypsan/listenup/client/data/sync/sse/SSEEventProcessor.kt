@@ -709,6 +709,15 @@ class SSEEventProcessor(
         }
 
         val bookId = BookId(event.bookId)
+
+        // Skip if this book is currently playing locally — local playback is authoritative
+        if (playbackStateProvider.currentBookId.value == bookId) {
+            logger.info {
+                "SSE: Skipping progress update for ${event.bookId} — book is currently playing locally"
+            }
+            return
+        }
+
         val lastPlayedAtMs = parseTimestamp(event.lastPlayedAt).epochMillis
 
         try {
