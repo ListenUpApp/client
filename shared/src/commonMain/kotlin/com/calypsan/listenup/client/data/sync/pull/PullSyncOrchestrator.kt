@@ -2,10 +2,13 @@ package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
+import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.SyncCoordinator
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -14,6 +17,10 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * Coordinates parallel entity pulls with retry logic and progress reporting.
+ *
+ * Fetches the sync manifest first to determine total item counts, then
+ * reports real progress as each entity is synced: "Syncing books: 50 of 131"
+ * and aggregate: "Syncing: 180 of 350 items".
  */
 @Suppress("LongParameterList")
 class PullSyncOrchestrator(
@@ -29,33 +36,89 @@ class PullSyncOrchestrator(
     private val readingSessionsPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
+    private val syncApi: SyncApiContract,
 ) {
     /**
      * Pull all entities from server with retry logic.
      *
-     * Runs pulls for Books, Series, and Contributors in parallel for performance.
-     * Tags are pulled sequentially after books (since they depend on book data).
-     * Uses proper cancellation if any job fails.
+     * Fetches the manifest first to know total counts, then pulls each entity
+     * type while reporting real per-item progress.
      *
      * @param onProgress Callback for progress updates
      */
+    @Suppress("CognitiveComplexMethod")
     suspend fun pull(onProgress: (SyncStatus) -> Unit) =
         coroutineScope {
             logger.debug { "Pulling changes from server" }
 
-            // Get last sync time for delta sync
             val lastSyncTime = syncDao.getLastSyncTime()
             val updatedAfter = lastSyncTime?.toIsoString()
-
             val syncType = if (updatedAfter != null) "delta" else "full"
-            logger.debug { "Pull sync strategy: $syncType" }
+            logger.info { "Pull sync strategy: $syncType" }
+
+            // Fetch manifest to get total counts for progress reporting
+            val manifest =
+                try {
+                    val result = syncApi.getManifest()
+                    if (result is Result.Success) {
+                        result.data
+                    } else {
+                        null
+                    }
+                } catch (e: Exception) {
+                    logger.warn(e) { "Failed to fetch sync manifest, progress will be approximate" }
+                    null
+                }
+
+            val totalBooks = manifest?.counts?.books ?: -1
+            val totalSeries = manifest?.counts?.series ?: -1
+            val totalContributors = manifest?.counts?.contributors ?: -1
+            // We don't know totals for tags, genres, shelves, events, etc.
+            // but we can count what we know
+            val knownTotal =
+                if (manifest != null) {
+                    totalBooks + totalSeries + totalContributors
+                } else {
+                    -1
+                }
+
+            logger.info {
+                "Sync manifest: $totalBooks books, $totalSeries series, $totalContributors contributors"
+            }
+
+            // Atomic counter for aggregate progress across parallel pulls
+            val itemsSynced = atomic(0)
+
+            // Helper to create progress callbacks that track per-phase AND aggregate
+            fun phaseProgress(
+                phase: SyncPhase,
+                phaseTotal: Int,
+                phaseName: String,
+            ): (Int) -> Unit =
+                { phaseItemsSynced ->
+                    val aggregate = itemsSynced.value
+                    onProgress(
+                        SyncStatus.Progress(
+                            phase = phase,
+                            phaseItemsSynced = phaseItemsSynced,
+                            phaseTotalItems = phaseTotal,
+                            totalItemsSynced = aggregate,
+                            totalItems = knownTotal,
+                            message =
+                                if (phaseTotal > 0) {
+                                    "Syncing $phaseName: $phaseItemsSynced of $phaseTotal"
+                                } else {
+                                    "Syncing $phaseName..."
+                                },
+                        ),
+                    )
+                }
 
             onProgress(
                 SyncStatus.Progress(
                     phase = SyncPhase.FETCHING_METADATA,
-                    current = 0,
-                    total = 5,
                     message = "Preparing sync...",
+                    totalItems = knownTotal,
                 ),
             )
 
@@ -65,12 +128,35 @@ class PullSyncOrchestrator(
                     onProgress(SyncStatus.Retrying(attempt = attempt, maxAttempts = max))
                 },
             ) {
-                // Phase 1: Pull series + contributors in parallel (no deps on each other)
-                // These MUST complete before books, because book cross-ref tables
-                // (BookContributorEntity, BookSeriesEntity) have FK constraints
-                // on the contributor/series tables.
-                val seriesJob = async { seriesPuller.pull(updatedAfter, onProgress) }
-                val contributorsJob = async { contributorPuller.pull(updatedAfter, onProgress) }
+                // Phase 1: Series + Contributors in parallel
+                val seriesJob =
+                    async {
+                        seriesPuller.pull(updatedAfter) { status ->
+                            if (status is SyncStatus.Progress) {
+                                val count = status.phaseItemsSynced
+                                itemsSynced.value = count // series contributes to aggregate
+                                onProgress(
+                                    status.copy(
+                                        totalItemsSynced = itemsSynced.value,
+                                        totalItems = knownTotal,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                val contributorsJob =
+                    async {
+                        contributorPuller.pull(updatedAfter) { status ->
+                            if (status is SyncStatus.Progress) {
+                                onProgress(
+                                    status.copy(
+                                        totalItemsSynced = itemsSynced.value,
+                                        totalItems = knownTotal,
+                                    ),
+                                )
+                            }
+                        }
+                    }
 
                 try {
                     awaitAll(seriesJob, contributorsJob)
@@ -80,39 +166,33 @@ class PullSyncOrchestrator(
                     throw e
                 }
 
-                // Phase 2: Pull books (depends on series + contributors for cross-refs)
-                bookPuller.pull(updatedAfter, onProgress)
+                // Phase 2: Books
+                bookPuller.pull(updatedAfter) { status ->
+                    if (status is SyncStatus.Progress) {
+                        onProgress(
+                            status.copy(
+                                totalItemsSynced = itemsSynced.value,
+                                totalItems = knownTotal,
+                            ),
+                        )
+                    }
+                }
 
-                // Pull tags after books are synced (tags need book data)
+                // Remaining phases — no known totals, just pass through
                 tagPuller.pull(updatedAfter, onProgress)
-
-                // Pull genres after books (genres are book categorization)
                 genrePuller.pull(updatedAfter, onProgress)
-
-                // Pull user's shelves (non-critical metadata)
                 shelfPuller.pull(updatedAfter, onProgress)
-
-                // Pull progress FIRST - creates positions with correct isFinished
-                // This must run before listening events so positions exist with
-                // authoritative isFinished values before events update them
                 progressPuller.pull(updatedAfter, onProgress)
-
-                // Pull listening events (from other devices) for offline stats
-                // Uses .copy() on existing positions, preserving isFinished from progress
                 listeningEventPuller.pull(updatedAfter, onProgress)
-
-                // Pull active sessions for "What Others Are Listening To" discovery section
                 activeSessionsPuller.pull(updatedAfter, onProgress)
-
-                // Pull reading sessions for offline-first "Readers" section on book detail pages
                 readingSessionsPuller.pull(updatedAfter, onProgress)
             }
 
             onProgress(
                 SyncStatus.Progress(
                     phase = SyncPhase.FINALIZING,
-                    current = 5,
-                    total = 5,
+                    totalItemsSynced = itemsSynced.value,
+                    totalItems = knownTotal,
                     message = "Finalizing sync...",
                 ),
             )
@@ -120,19 +200,10 @@ class PullSyncOrchestrator(
 
     /**
      * Refresh all listening events and playback positions.
-     *
-     * Fetches ALL events from the server (ignoring delta sync cursor)
-     * and rebuilds playback positions from them.
-     *
-     * Used after importing historical data (e.g., from Audiobookshelf).
      */
     suspend fun refreshListeningHistory() {
         logger.info { "Refreshing all listening history..." }
-
-        // Pull progress FIRST to get authoritative isFinished values
         progressPuller.pull(null) {}
-
-        // Then pull listening events (preserves isFinished via .copy())
         listeningEventPuller.pullAll()
     }
 }

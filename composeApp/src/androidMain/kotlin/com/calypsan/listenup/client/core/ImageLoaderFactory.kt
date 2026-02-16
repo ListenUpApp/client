@@ -18,36 +18,27 @@ import okio.Path.Companion.toOkioPath
  * - Memory cache for fast repeated access (25% of available memory)
  * - Disk cache for decoded bitmaps (50 MB, separate from source images)
  * - Crossfade animation for smooth UX
+ *
+ * Note: Server URL fallback for missing covers is handled directly in
+ * BookCoverImage via produceState, not through Coil interceptors.
  */
 object ImageLoaderFactory {
-    /**
-     * Create and configure an ImageLoader for the application.
-     *
-     * Since covers are stored locally by ImageStorage, Coil loads directly
-     * from file paths (e.g., file:///data/user/0/.../covers/book123.jpg).
-     *
-     * @param context Android application context
-     * @param debug Enable debug logging (default: false)
-     * @return Configured ImageLoader instance
-     */
     fun create(
         context: Context,
         debug: Boolean = false,
     ): ImageLoader =
         ImageLoader
             .Builder(context)
-            .components {
-                // No special components needed - Coil handles file:// URIs natively
-            }.memoryCache {
+            .memoryCache {
                 MemoryCache
                     .Builder()
-                    .maxSizePercent(context, percent = 0.25) // 25% of app memory
+                    .maxSizePercent(context, percent = 0.25)
                     .build()
             }.diskCache {
                 DiskCache
                     .Builder()
                     .directory(context.cacheDir.resolve("image_cache").toOkioPath())
-                    .maxSizeBytes(50 * 1024 * 1024) // 50 MB for decoded bitmaps
+                    .maxSizeBytes(50 * 1024 * 1024)
                     .build()
             }.crossfade(enable = true)
             .apply {

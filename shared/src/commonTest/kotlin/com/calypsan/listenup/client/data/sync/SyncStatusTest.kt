@@ -42,8 +42,8 @@ class SyncStatusTest {
         val status =
             SyncStatus.Progress(
                 phase = SyncPhase.SYNCING_BOOKS,
-                current = 5,
-                total = 10,
+                totalItemsSynced = 5,
+                totalItems = 10,
                 message = "Syncing books...",
             )
 
@@ -55,8 +55,8 @@ class SyncStatusTest {
         val status =
             SyncStatus.Progress(
                 phase = SyncPhase.SYNCING_SERIES,
-                current = 3,
-                total = 20,
+                totalItemsSynced = 3,
+                totalItems = 20,
                 message = "Progress message",
             )
 
@@ -69,8 +69,8 @@ class SyncStatusTest {
         val status =
             SyncStatus.Progress(
                 phase = SyncPhase.SYNCING_CONTRIBUTORS,
-                current = 1,
-                total = -1, // Unknown total
+                totalItemsSynced = 1,
+                totalItems = -1, // Unknown total
                 message = "Syncing...",
             )
 
@@ -83,8 +83,8 @@ class SyncStatusTest {
         val status =
             SyncStatus.Progress(
                 phase = SyncPhase.SYNCING_BOOKS,
-                current = 3,
-                total = 10,
+                totalItemsSynced = 3,
+                totalItems = 10,
                 message = message,
             )
 
@@ -207,8 +207,8 @@ class SyncStatusTest {
         states.add(
             SyncStatus.Progress(
                 phase = SyncPhase.FETCHING_METADATA,
-                current = 0,
-                total = 3,
+                totalItemsSynced = 0,
+                totalItems = 3,
                 message = "Preparing...",
             ),
         )
@@ -216,8 +216,8 @@ class SyncStatusTest {
         states.add(
             SyncStatus.Progress(
                 phase = SyncPhase.SYNCING_BOOKS,
-                current = 1,
-                total = 3,
+                totalItemsSynced = 1,
+                totalItems = 3,
                 message = "Syncing books...",
             ),
         )

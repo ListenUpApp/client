@@ -107,6 +107,7 @@ class KoinModuleVerifyTest {
                     PlaybackPositionDao::class,
                     PendingOperationDao::class,
                     DownloadDao::class,
+                    com.calypsan.listenup.client.data.local.db.CoverDownloadDao::class,
                     SearchDao::class,
                     ServerDao::class,
                     // Playback and download services

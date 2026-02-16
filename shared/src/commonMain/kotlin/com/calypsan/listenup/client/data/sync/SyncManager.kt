@@ -136,6 +136,7 @@ class SyncManager(
     private val libraryResetHelper: LibraryResetHelperContract,
     private val syncDao: SyncDao,
     private val bookDao: BookDao,
+    private val coverDownloadWorker: CoverDownloadWorker,
     private val ftsPopulator: FtsPopulatorContract,
     private val syncMutex: SyncMutex,
     private val scope: CoroutineScope,
@@ -358,6 +359,18 @@ class SyncManager(
 
             // Phase 6: Connect to SSE stream for real-time updates
             sseManager.connect()
+
+            // Phase 6.5: Process cover download queue in background
+            // Queue was populated by BookPuller during Phase 1.
+            // Runs in a background coroutine so it doesn't block sync completion.
+            scope.launch {
+                try {
+                    coverDownloadWorker.recoverInterrupted()
+                    coverDownloadWorker.processQueue()
+                } catch (e: Exception) {
+                    logger.warn(e) { "Cover download worker failed, covers will retry on next launch" }
+                }
+            }
 
             // Phase 7: Initialize scan state from library status API
             // This handles the case where a scan started before SSE connected

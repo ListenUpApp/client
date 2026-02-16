@@ -57,8 +57,8 @@ class ActiveSessionsPuller(
         onProgress(
             SyncStatus.Progress(
                 phase = SyncPhase.SYNCING_LISTENING_EVENTS,
-                current = 0,
-                total = -1,
+                phaseItemsSynced = 0,
+                phaseTotalItems = -1,
                 message = "Syncing active sessions...",
             ),
         )

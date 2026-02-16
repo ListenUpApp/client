@@ -43,6 +43,7 @@ class PullSyncOrchestratorTest {
         val activeSessionsPuller: Puller = mock()
         val readingSessionsPuller: Puller = mock()
         val syncDao: SyncDao = mock()
+        val syncApi: com.calypsan.listenup.client.data.remote.SyncApiContract = mock()
 
         // Use real coordinator for simpler testing
         val coordinator = SyncCoordinator()
@@ -60,6 +61,9 @@ class PullSyncOrchestratorTest {
             everySuspend { activeSessionsPuller.pull(any(), any()) } returns Unit
             everySuspend { readingSessionsPuller.pull(any(), any()) } returns Unit
             everySuspend { syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns null
+            everySuspend { syncApi.getManifest() } returns
+                com.calypsan.listenup.client.core.Result
+                    .Failure(message = "no manifest")
         }
 
         fun build(): PullSyncOrchestrator =
@@ -75,6 +79,7 @@ class PullSyncOrchestratorTest {
                 activeSessionsPuller = activeSessionsPuller,
                 readingSessionsPuller = readingSessionsPuller,
                 coordinator = coordinator,
+                syncApi = syncApi,
                 syncDao = syncDao,
             )
     }

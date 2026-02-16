@@ -124,6 +124,7 @@ class BookPullerTest {
         val tagDao: TagDao = mock()
         val conflictDetector: ConflictDetectorContract = mock()
         val imageDownloader: ImageDownloaderContract = mock()
+        val coverDownloadDao: com.calypsan.listenup.client.data.local.db.CoverDownloadDao = mock()
 
         init {
             // Default stubs
@@ -143,6 +144,7 @@ class BookPullerTest {
             everySuspend { conflictDetector.shouldPreserveLocalChanges(any()) } returns false
             everySuspend { imageDownloader.deleteCover(any()) } returns Result.Success(Unit)
             everySuspend { imageDownloader.downloadCovers(any()) } returns Result.Success(emptyList())
+            everySuspend { coverDownloadDao.enqueueAll(any()) } returns Unit
         }
 
         fun build(): BookPuller =
@@ -155,7 +157,7 @@ class BookPullerTest {
                 tagDao = tagDao,
                 conflictDetector = conflictDetector,
                 imageDownloader = imageDownloader,
-                scope = scope,
+                coverDownloadDao = coverDownloadDao,
             )
     }
 
@@ -478,7 +480,7 @@ class BookPullerTest {
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.imageDownloader.downloadCovers(any()) }
+            verifySuspend { fixture.coverDownloadDao.enqueueAll(any()) }
         }
 
     // ========== Progress Reporting Tests ==========
