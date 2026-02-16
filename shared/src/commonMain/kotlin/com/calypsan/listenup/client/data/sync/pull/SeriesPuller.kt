@@ -36,7 +36,7 @@ class SeriesPuller(
         var cursor: String? = null
         var hasMore = true
         val limit = 100
-        var pageCount = 0
+        var itemsSynced = 0
         var totalDeleted = 0
 
         val seriesWithCovers =
@@ -45,9 +45,9 @@ class SeriesPuller(
                     onProgress(
                         SyncStatus.Progress(
                             phase = SyncPhase.SYNCING_SERIES,
-                            current = pageCount,
-                            total = -1,
-                            message = "Syncing series (page ${pageCount + 1})...",
+                            phaseItemsSynced = itemsSynced,
+                            phaseTotalItems = -1,
+                            message = "Syncing series: $itemsSynced synced...",
                         ),
                     )
 
@@ -56,7 +56,6 @@ class SeriesPuller(
                             val response = result.data
                             cursor = response.nextCursor
                             hasMore = response.hasMore
-                            pageCount++
 
                             val serverSeries = response.series.map { it.toEntity() }
                             val deletedSeriesIds = response.deletedSeriesIds
@@ -67,7 +66,7 @@ class SeriesPuller(
                                 .forEach { add(it.id) }
 
                             logger.debug {
-                                "Fetched page $pageCount: ${serverSeries.size} series, ${deletedSeriesIds.size} deletions"
+                                "Fetched batch: ${serverSeries.size} series, ${deletedSeriesIds.size} deletions"
                             }
 
                             // Handle deletions
@@ -80,6 +79,16 @@ class SeriesPuller(
                             if (serverSeries.isNotEmpty()) {
                                 seriesDao.upsertAll(serverSeries)
                             }
+
+                            itemsSynced += serverSeries.size + deletedSeriesIds.size
+                            onProgress(
+                                SyncStatus.Progress(
+                                    phase = SyncPhase.SYNCING_SERIES,
+                                    phaseItemsSynced = itemsSynced,
+                                    phaseTotalItems = -1,
+                                    message = "Syncing series: $itemsSynced synced...",
+                                ),
+                            )
                         }
 
                         is Result.Failure -> {
@@ -89,7 +98,7 @@ class SeriesPuller(
                 }
             }
 
-        logger.info { "Series sync complete: $pageCount pages processed, $totalDeleted deleted" }
+        logger.info { "Series sync complete: $itemsSynced items processed" }
 
         // Download series covers in background
         if (seriesWithCovers.isNotEmpty()) {

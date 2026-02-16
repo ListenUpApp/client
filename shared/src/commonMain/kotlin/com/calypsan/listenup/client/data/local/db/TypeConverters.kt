@@ -169,3 +169,15 @@ class StringListConverter {
     @TypeConverter
     fun toStringList(value: String): List<String> = if (value.isEmpty()) emptyList() else value.split("|||")
 }
+
+/**
+ * Room type converter for [CoverDownloadStatus] enum.
+ * Uses string names (not ordinals) for readable queries and forward compatibility.
+ */
+class CoverDownloadStatusConverter {
+    @TypeConverter
+    fun fromStatus(value: CoverDownloadStatus): String = value.name
+
+    @TypeConverter
+    fun toStatus(value: String): CoverDownloadStatus = CoverDownloadStatus.valueOf(value)
+}

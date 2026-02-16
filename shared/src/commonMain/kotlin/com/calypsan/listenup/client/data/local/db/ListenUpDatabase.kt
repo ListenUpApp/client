@@ -43,6 +43,7 @@ import androidx.room.TypeConverters
         ActivityEntity::class,
         UserStatsEntity::class,
         ReadingSessionEntity::class,
+        CoverDownloadTaskEntity::class,
     ],
     version = 1,
     exportSchema = true,
@@ -52,8 +53,10 @@ import androidx.room.TypeConverters
     Converters::class,
     PendingOperationConverters::class,
     StringListConverter::class,
+    CoverDownloadStatusConverter::class,
 )
 @ConstructedBy(ListenUpDatabaseConstructor::class)
+@Suppress("TooManyFunctions")
 abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
 
@@ -102,6 +105,8 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun userStatsDao(): UserStatsDao
 
     abstract fun readingSessionDao(): ReadingSessionDao
+
+    abstract fun coverDownloadDao(): CoverDownloadDao
 }
 
 /**

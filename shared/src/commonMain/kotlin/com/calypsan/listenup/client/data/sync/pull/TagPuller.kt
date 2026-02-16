@@ -35,8 +35,8 @@ class TagPuller(
         onProgress(
             SyncStatus.Progress(
                 phase = SyncPhase.SYNCING_TAGS,
-                current = 0,
-                total = -1,
+                phaseItemsSynced = 0,
+                phaseTotalItems = -1,
                 message = "Syncing tags...",
             ),
         )

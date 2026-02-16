@@ -103,9 +103,9 @@ class ListenUpApi(
 
             // Request timeout configuration
             install(HttpTimeout) {
-                requestTimeoutMillis = 30_000
+                requestTimeoutMillis = 90_000
                 connectTimeoutMillis = 10_000
-                socketTimeoutMillis = 30_000
+                socketTimeoutMillis = 90_000
             }
 
             // Default request configuration

@@ -36,21 +36,12 @@ class ContributorPuller(
         var cursor: String? = null
         var hasMore = true
         val limit = 100
-        var pageCount = 0
+        var itemsSynced = 0
         var totalDeleted = 0
 
         val contributorsWithImages =
             buildList {
                 while (hasMore) {
-                    onProgress(
-                        SyncStatus.Progress(
-                            phase = SyncPhase.SYNCING_CONTRIBUTORS,
-                            current = pageCount,
-                            total = -1,
-                            message = "Syncing contributors (page ${pageCount + 1})...",
-                        ),
-                    )
-
                     when (
                         val result =
                             syncApi.getContributors(
@@ -63,7 +54,6 @@ class ContributorPuller(
                             val response = result.data
                             cursor = response.nextCursor
                             hasMore = response.hasMore
-                            pageCount++
 
                             val serverContributors = response.contributors.map { it.toEntity() }
                             val deletedContributorIds = response.deletedContributorIds
@@ -74,7 +64,7 @@ class ContributorPuller(
                                 .forEach { add(it.id) }
 
                             logger.debug {
-                                "Fetched page $pageCount: ${serverContributors.size} contributors, ${deletedContributorIds.size} deletions"
+                                "Fetched batch: ${serverContributors.size} contributors, ${deletedContributorIds.size} deletions"
                             }
 
                             // Handle deletions
@@ -107,6 +97,16 @@ class ContributorPuller(
 
                                 contributorDao.upsertAll(merged)
                             }
+
+                            itemsSynced += serverContributors.size + deletedContributorIds.size
+                            onProgress(
+                                SyncStatus.Progress(
+                                    phase = SyncPhase.SYNCING_CONTRIBUTORS,
+                                    phaseItemsSynced = itemsSynced,
+                                    phaseTotalItems = -1,
+                                    message = "Syncing contributors: $itemsSynced synced...",
+                                ),
+                            )
                         }
 
                         is Result.Failure -> {
@@ -116,7 +116,7 @@ class ContributorPuller(
                 }
             }
 
-        logger.info { "Contributors sync complete: $pageCount pages processed, $totalDeleted deleted" }
+        logger.info { "Contributors sync complete: $itemsSynced items processed" }
 
         // Download contributor images in background
         if (contributorsWithImages.isNotEmpty()) {

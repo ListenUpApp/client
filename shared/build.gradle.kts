@@ -112,6 +112,7 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.collections.immutable)
             implementation(libs.kotlinx.io.core)
+            implementation(libs.atomicfu)
 
             api(libs.koin.core)
             implementation(libs.kotlin.logging)

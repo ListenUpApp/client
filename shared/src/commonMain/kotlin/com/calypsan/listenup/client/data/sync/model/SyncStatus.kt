@@ -36,17 +36,29 @@ sealed interface SyncStatus {
     /**
      * Sync in progress with detailed progress information.
      *
+     * Reports both per-phase and aggregate progress. The aggregate values
+     * let UI show "Syncing: 180 of 350 items" across all phases, while
+     * phase-specific values enable "Syncing books: 50 of 131".
+     *
      * @property phase Current sync phase
-     * @property current Current progress within phase
-     * @property total Total items in phase (-1 if unknown)
+     * @property phaseItemsSynced Items completed in current phase
+     * @property phaseTotalItems Total items expected in current phase (-1 if unknown)
+     * @property totalItemsSynced Items completed across ALL phases so far
+     * @property totalItems Total items expected across ALL phases (-1 if unknown)
      * @property message Human-readable progress message
      */
     data class Progress(
         val phase: SyncPhase,
-        val current: Int,
-        val total: Int,
+        val phaseItemsSynced: Int = 0,
+        val phaseTotalItems: Int = -1,
+        val totalItemsSynced: Int = 0,
+        val totalItems: Int = -1,
         val message: String,
-    ) : SyncStatus
+    ) : SyncStatus {
+        /** For backward compatibility with old current/total pattern */
+        val current: Int get() = totalItemsSynced
+        val total: Int get() = totalItems
+    }
 
     /**
      * Retrying after a transient failure.

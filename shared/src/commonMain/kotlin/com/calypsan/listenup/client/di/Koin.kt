@@ -352,6 +352,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().playbackPositionDao() }
         single { get<ListenUpDatabase>().pendingOperationDao() }
         single { get<ListenUpDatabase>().downloadDao() }
+        single { get<ListenUpDatabase>().coverDownloadDao() }
         single { get<ListenUpDatabase>().searchDao() }
         single { get<ListenUpDatabase>().serverDao() }
         single { get<ListenUpDatabase>().collectionDao() }
@@ -890,7 +891,7 @@ val syncModule =
                     .named("bookPuller"),
         ) {
             BookPuller(
-                syncApi = get(),
+                syncApi = get<SyncApiContract>(),
                 bookDao = get(),
                 chapterDao = get(),
                 bookContributorDao = get(),
@@ -898,12 +899,7 @@ val syncModule =
                 tagDao = get(),
                 imageDownloader = get(),
                 conflictDetector = get(),
-                scope =
-                    get(
-                        qualifier =
-                            org.koin.core.qualifier
-                                .named("appScope"),
-                    ),
+                coverDownloadDao = get(),
             )
         }
 
@@ -913,7 +909,7 @@ val syncModule =
                     .named("seriesPuller"),
         ) {
             SeriesPuller(
-                syncApi = get(),
+                syncApi = get<SyncApiContract>(),
                 seriesDao = get(),
                 imageDownloader = get(),
                 scope =
@@ -931,7 +927,7 @@ val syncModule =
                     .named("contributorPuller"),
         ) {
             ContributorPuller(
-                syncApi = get(),
+                syncApi = get<SyncApiContract>(),
                 contributorDao = get(),
                 imageDownloader = get(),
                 scope =
@@ -982,7 +978,7 @@ val syncModule =
         // PullSyncOrchestrator needs to call pullAll() for refreshListeningHistory()
         single<ListeningEventPullerContract> {
             ListeningEventPuller(
-                syncApi = get(),
+                syncApi = get<SyncApiContract>(),
                 listeningEventDao = get(),
                 playbackPositionDao = get(),
             )
@@ -996,7 +992,7 @@ val syncModule =
                     .named("activeSessionsPuller"),
         ) {
             ActiveSessionsPuller(
-                syncApi = get(),
+                syncApi = get<SyncApiContract>(),
                 activeSessionDao = get(),
                 userProfileDao = get(),
                 imageDownloader = get(),
@@ -1010,7 +1006,7 @@ val syncModule =
                     .named("readingSessionsPuller"),
         ) {
             ReadingSessionPuller(
-                syncApi = get(),
+                syncApi = get<SyncApiContract>(),
                 readingSessionDao = get(),
             )
         }
@@ -1023,7 +1019,7 @@ val syncModule =
                     .named("progressPuller"),
         ) {
             ProgressPuller(
-                syncApi = get(),
+                syncApi = get<SyncApiContract>(),
                 playbackPositionDao = get(),
             )
         }
@@ -1087,6 +1083,7 @@ val syncModule =
                                 .named("readingSessionsPuller"),
                     ),
                 coordinator = get(),
+                syncApi = get<SyncApiContract>(),
                 syncDao = get(),
             )
         }
@@ -1191,6 +1188,14 @@ val syncModule =
             )
         } bind LibraryResetHelperContract::class
 
+        // Cover Download Worker — processes the persistent cover download queue
+        single {
+            com.calypsan.listenup.client.data.sync.CoverDownloadWorker(
+                coverDownloadDao = get(),
+                imageDownloader = get(),
+            )
+        }
+
         // SyncManager - thin orchestrator coordinating sync phases
         single {
             SyncManager(
@@ -1210,6 +1215,7 @@ val syncModule =
                 libraryResetHelper = get(),
                 syncDao = get(),
                 bookDao = get(),
+                coverDownloadWorker = get(),
                 ftsPopulator = get(),
                 syncMutex = get(),
                 scope =

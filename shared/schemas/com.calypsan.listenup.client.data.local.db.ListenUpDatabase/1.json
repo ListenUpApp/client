@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "8dc4f812c1ff90cdb9c5aef5bfa130d3",
+    "identityHash": "4eedb11d2de9bd8f1c0dc2f800074eda",
     "entities": [
       {
         "tableName": "users",
@@ -2075,11 +2075,57 @@
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_reading_sessions_bookId_oduserId` ON `${TABLE_NAME}` (`bookId`, `oduserId`)"
           }
         ]
+      },
+      {
+        "tableName": "cover_download_queue",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`bookId` TEXT NOT NULL, `status` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `lastAttemptAt` INTEGER, `error` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`bookId`))",
+        "fields": [
+          {
+            "fieldPath": "bookId",
+            "columnName": "bookId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastAttemptAt",
+            "columnName": "lastAttemptAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "error",
+            "columnName": "error",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "bookId"
+          ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8dc4f812c1ff90cdb9c5aef5bfa130d3')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4eedb11d2de9bd8f1c0dc2f800074eda')"
     ]
   }
 }

@@ -20,8 +20,6 @@ import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
@@ -37,7 +35,7 @@ class BookPuller(
     private val tagDao: TagDao,
     private val conflictDetector: ConflictDetectorContract,
     private val imageDownloader: ImageDownloaderContract,
-    private val scope: CoroutineScope,
+    private val coverDownloadDao: com.calypsan.listenup.client.data.local.db.CoverDownloadDao,
 ) : Puller {
     /**
      * Pull all books from server with pagination.
@@ -52,30 +50,29 @@ class BookPuller(
         var cursor: String? = null
         var hasMore = true
         val limit = 100
-        var pageCount = 0
+        var itemsSynced = 0
 
         while (hasMore) {
-            onProgress(
-                SyncStatus.Progress(
-                    phase = SyncPhase.SYNCING_BOOKS,
-                    current = pageCount,
-                    total = -1,
-                    message = "Syncing books (page ${pageCount + 1})...",
-                ),
-            )
-
             when (val result = syncApi.getBooks(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
                 is Result.Success -> {
                     val response = result.data
                     cursor = response.nextCursor
                     hasMore = response.hasMore
-                    pageCount++
-
                     val serverBooks = response.books.map { it.toEntity() }
                     val deletedBookIds = response.deletedBookIds
+                    itemsSynced += serverBooks.size + deletedBookIds.size
+
+                    onProgress(
+                        SyncStatus.Progress(
+                            phase = SyncPhase.SYNCING_BOOKS,
+                            phaseItemsSynced = itemsSynced,
+                            phaseTotalItems = -1,
+                            message = "Syncing books: $itemsSynced synced...",
+                        ),
+                    )
 
                     logger.debug {
-                        "Fetched page $pageCount: ${serverBooks.size} books, ${deletedBookIds.size} deletions"
+                        "Fetched batch: ${serverBooks.size} books, ${deletedBookIds.size} deletions"
                     }
 
                     // Handle deletions
@@ -95,7 +92,7 @@ class BookPuller(
             }
         }
 
-        logger.info { "Books sync complete: $pageCount pages processed" }
+        logger.info { "Books sync complete: $itemsSynced items processed" }
     }
 
     /**
@@ -140,8 +137,8 @@ class BookPuller(
         syncBookSeries(response, booksToUpsert)
         syncBookTags(response, booksToUpsert)
 
-        // Download cover images in background
-        downloadCovers(booksToUpsert)
+        // Enqueue cover downloads to persistent queue
+        enqueueCoverDownloads(booksToUpsert)
     }
 
     /**
@@ -295,42 +292,23 @@ class BookPuller(
         }
     }
 
-    private fun downloadCovers(books: List<BookEntity>) {
-        val updatedBookIds = books.map { it.id }
-        logger.info { "processServerBooks: scheduling cover downloads for ${updatedBookIds.size} books" }
-
-        if (updatedBookIds.isEmpty()) return
-
-        scope.launch {
-            logger.info { "Starting cover downloads for ${updatedBookIds.size} books..." }
-            val downloadResults = imageDownloader.downloadCovers(updatedBookIds)
-
-            if (downloadResults is Result.Success) {
-                val now = Timestamp.now()
-                downloadResults.data.forEach { result ->
-                    try {
-                        if (result.colors != null) {
-                            bookDao.updateCoverColors(
-                                id = result.bookId,
-                                dominantColor = result.colors.dominant,
-                                darkMutedColor = result.colors.darkMuted,
-                                vibrantColor = result.colors.vibrant,
-                                timestamp = now,
-                            )
-                        } else {
-                            bookDao.touchUpdatedAt(result.bookId, now)
-                        }
-                    } catch (e: Exception) {
-                        logger.warn(e) { "Failed to update book ${result.bookId} after cover download" }
-                    }
-                }
-                if (downloadResults.data.isNotEmpty()) {
-                    val withColors = downloadResults.data.count { it.colors != null }
-                    logger.debug {
-                        "Updated ${downloadResults.data.size} books after cover downloads ($withColors with colors)"
-                    }
-                }
+    /**
+     * Enqueue cover downloads for the given books into the persistent queue.
+     *
+     * Replaces the old fire-and-forget scope.launch approach. Tasks are persisted
+     * in Room and processed by CoverDownloadWorker, surviving app backgrounding
+     * and crashes.
+     */
+    private suspend fun enqueueCoverDownloads(books: List<BookEntity>) {
+        val tasks =
+            books.map { book ->
+                com.calypsan.listenup.client.data.local.db
+                    .CoverDownloadTaskEntity(bookId = book.id)
             }
-        }
+
+        if (tasks.isEmpty()) return
+
+        coverDownloadDao.enqueueAll(tasks)
+        logger.info { "Enqueued ${tasks.size} cover downloads to persistent queue" }
     }
 }

@@ -338,39 +338,14 @@ private fun BookCardCover(
                     ),
             contentAlignment = Alignment.Center,
         ) {
-            if (coverPath != null || blurHash != null) {
-                BookCoverImage(
-                    bookId = bookId,
-                    coverPath = coverPath,
-                    blurHash = blurHash,
-                    contentDescription = contentDescription,
-                    modifier = Modifier.matchParentSize(),
-                )
-            } else {
-                // Gradient placeholder
-                Box(
-                    modifier =
-                        Modifier
-                            .matchParentSize()
-                            .background(
-                                Brush.linearGradient(
-                                    colors =
-                                        listOf(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            MaterialTheme.colorScheme.surfaceContainer,
-                                        ),
-                                ),
-                            ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Book,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(24.dp),
-                    )
-                }
-            }
+            // Always render BookCoverImage — handles server URL fallback for missing local files
+            BookCoverImage(
+                bookId = bookId,
+                coverPath = coverPath,
+                blurHash = blurHash,
+                contentDescription = contentDescription,
+                modifier = Modifier.matchParentSize(),
+            )
 
             // Progress overlay
             if (progress != null && progress > 0f) {

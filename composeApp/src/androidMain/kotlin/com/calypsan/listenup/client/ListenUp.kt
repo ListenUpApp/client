@@ -290,11 +290,7 @@ class ListenUp :
      * Called once by Coil to initialize the app-wide ImageLoader.
      * Configured to load book covers from local file storage.
      */
-    override fun newImageLoader(context: PlatformContext): ImageLoader =
-        ImageLoaderFactory.create(
-            context = this,
-            debug = false, // TODO: Enable in debug builds when BuildConfig is available
-        )
+    override fun newImageLoader(context: PlatformContext): ImageLoader = ImageLoaderFactory.create(context = this)
 
     /**
      * Verify that all critical Koin singletons can be resolved.

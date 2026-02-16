@@ -10,7 +10,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
 
-private const val BATCH_SIZE = 10
+private const val BATCH_SIZE = 3
 
 /**
  * Orchestrates downloading and storing book cover images during sync.
