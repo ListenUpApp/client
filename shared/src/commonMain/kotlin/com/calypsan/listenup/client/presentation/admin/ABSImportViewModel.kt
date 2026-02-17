@@ -20,6 +20,7 @@ import com.calypsan.listenup.client.data.remote.model.AnalyzeABSRequest
 import com.calypsan.listenup.client.data.remote.model.ImportABSRequest
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -132,6 +133,9 @@ data class ABSImportState(
     val backupPath: String = "",
     val isAnalyzing: Boolean = false,
     val analysisComplete: Boolean = false,
+    val analyzePhase: String = "",
+    val analyzeCurrent: Int = 0,
+    val analyzeTotal: Int = 0,
     // Analysis results
     val summary: String = "",
     val totalUsers: Int = 0,
@@ -375,13 +379,24 @@ class ABSImportViewModel(
 
     // === Analysis ===
 
+    @Suppress("CyclomaticComplexMethod")
     private fun analyzeBackup(path: String) {
         viewModelScope.launch {
-            state.update { it.copy(step = ABSImportStep.ANALYZING, isAnalyzing = true, error = null) }
+            state.update {
+                it.copy(
+                    step = ABSImportStep.ANALYZING,
+                    isAnalyzing = true,
+                    error = null,
+                    analyzePhase = "",
+                    analyzeCurrent = 0,
+                    analyzeTotal = 0,
+                )
+            }
 
             try {
-                val result =
-                    backupApi.analyzeABSBackup(
+                // Start async analysis
+                val asyncResponse =
+                    backupApi.analyzeABSBackupAsync(
                         AnalyzeABSRequest(
                             backupPath = path,
                             matchByEmail = true,
@@ -390,6 +405,29 @@ class ABSImportViewModel(
                             fuzzyThreshold = 0.85,
                         ),
                     )
+
+                // Poll for status
+                val analysisId = asyncResponse.analysisId
+                var statusResponse = backupApi.getAnalysisStatus(analysisId)
+
+                while (statusResponse.status == "running") {
+                    state.update {
+                        it.copy(
+                            analyzePhase = statusResponse.phase,
+                            analyzeCurrent = statusResponse.current,
+                            analyzeTotal = statusResponse.total,
+                        )
+                    }
+                    @Suppress("MagicNumber")
+                    delay(1500)
+                    statusResponse = backupApi.getAnalysisStatus(analysisId)
+                }
+
+                if (statusResponse.status == "failed") {
+                    error(statusResponse.error ?: "Analysis failed")
+                }
+
+                val result = statusResponse.result!!
 
                 // Build initial mappings from server-matched items
                 // All items with listenupId are auto-matched; users can review and change
