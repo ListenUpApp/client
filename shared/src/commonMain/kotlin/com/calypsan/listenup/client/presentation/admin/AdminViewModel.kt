@@ -112,33 +112,43 @@ class AdminViewModel(
             val deferredPending = async { loadPendingUsersUseCase() }
             val deferredInvites = async { loadInvitesUseCase() }
 
-            val openRegistration = when (val result = deferredInstance.await()) {
-                is Success -> result.data.openRegistration
-                is Failure -> false
-            }
-
-            val users = when (val result = deferredUsers.await()) {
-                is Success -> result.data
-                is Failure -> {
-                    state.value = state.value.copy(error = "Failed to load users: ${result.message}")
-                    emptyList()
+            val openRegistration =
+                when (val result = deferredInstance.await()) {
+                    is Success -> result.data.openRegistration
+                    is Failure -> false
                 }
-            }
 
-            val pendingUsers = when (val result = deferredPending.await()) {
-                is Success -> result.data
-                is Failure -> emptyList()
-            }
-
-            val pendingInvites = when (val result = deferredInvites.await()) {
-                is Success -> result.data.filter { it.claimedAt == null }
-                is Failure -> {
-                    if (state.value.error == null) {
-                        state.value = state.value.copy(error = "Failed to load invites: ${result.message}")
+            val users =
+                when (val result = deferredUsers.await()) {
+                    is Success -> {
+                        result.data
                     }
-                    emptyList()
+
+                    is Failure -> {
+                        state.value = state.value.copy(error = "Failed to load users: ${result.message}")
+                        emptyList()
+                    }
                 }
-            }
+
+            val pendingUsers =
+                when (val result = deferredPending.await()) {
+                    is Success -> result.data
+                    is Failure -> emptyList()
+                }
+
+            val pendingInvites =
+                when (val result = deferredInvites.await()) {
+                    is Success -> {
+                        result.data.filter { it.claimedAt == null }
+                    }
+
+                    is Failure -> {
+                        if (state.value.error == null) {
+                            state.value = state.value.copy(error = "Failed to load invites: ${result.message}")
+                        }
+                        emptyList()
+                    }
+                }
 
             // Sort users: root user first, then by creation date (oldest first)
             val sortedUsers =

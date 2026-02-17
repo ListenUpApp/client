@@ -124,21 +124,24 @@ class SyncIndicatorViewModel(
                 }
 
             // Pull sync is active when library sync is in progress
-            val isPullSyncing = pullSyncState is SyncState.Syncing ||
-                pullSyncState is SyncState.Progress ||
-                pullSyncState is SyncState.Retrying
+            val isPullSyncing =
+                pullSyncState is SyncState.Syncing ||
+                    pullSyncState is SyncState.Progress ||
+                    pullSyncState is SyncState.Retrying
 
-            val pullSyncDescription = when (pullSyncState) {
-                is SyncState.Progress -> pullSyncState.message
-                is SyncState.Syncing -> "Syncing library…"
-                is SyncState.Retrying -> "Retrying sync (${pullSyncState.attempt}/${pullSyncState.maxAttempts})…"
-                else -> null
-            }
+            val pullSyncDescription =
+                when (pullSyncState) {
+                    is SyncState.Progress -> pullSyncState.message
+                    is SyncState.Syncing -> "Syncing library…"
+                    is SyncState.Retrying -> "Retrying sync (${pullSyncState.attempt}/${pullSyncState.maxAttempts})…"
+                    else -> null
+                }
 
             SyncIndicatorUiState(
                 isSyncing = inProgress != null || isPullSyncing,
-                currentOperationDescription = pullSyncDescription
-                    ?: inProgress?.let { describeOperation(it) },
+                currentOperationDescription =
+                    pullSyncDescription
+                        ?: inProgress?.let { describeOperation(it) },
                 pendingCount = pendingCount,
                 failedOperations = failedUi,
                 hasErrors = failedOps.isNotEmpty(),
