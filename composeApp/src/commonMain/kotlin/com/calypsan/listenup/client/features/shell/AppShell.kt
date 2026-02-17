@@ -96,7 +96,7 @@ private val logger = KotlinLogging.logger {}
  * @param libraryContent Content composable for Library destination
  * @param discoverContent Content composable for Discover destination
  */
-@Suppress("LongMethod")
+@Suppress("LongMethod", "LongParameterList", "CyclomaticComplexMethod", "CognitiveComplexMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppShell(
