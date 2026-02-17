@@ -651,22 +651,24 @@ class ABSUploadSheetState {
             val cacheFile = copyToCache(context, uri, filename)
 
             // Enqueue background worker
-            val workId = ABSUploadWorker.enqueue(
-                context = context,
-                cacheFilePath = cacheFile.absolutePath,
-                filename = filename,
-                fileSize = cacheFile.length(),
-            )
+            val workId =
+                ABSUploadWorker.enqueue(
+                    context = context,
+                    cacheFilePath = cacheFile.absolutePath,
+                    filename = filename,
+                    fileSize = cacheFile.length(),
+                )
 
             activeWorkId = workId
             logger.info { "Enqueued ABS upload worker: workId=$workId, file=${cacheFile.absolutePath}" }
             workId
         } catch (e: Exception) {
             logger.error(e) { "Failed to enqueue upload" }
-            uploadState = ABSUploadState.Error(
-                message = e.message ?: "Failed to prepare upload",
-                filename = filename,
-            )
+            uploadState =
+                ABSUploadState.Error(
+                    message = e.message ?: "Failed to prepare upload",
+                    filename = filename,
+                )
             null
         }
     }
@@ -715,7 +717,8 @@ class ABSUploadSheetState {
      */
     fun getWorkInfoFlow(context: Context): Flow<WorkInfo?>? {
         val workId = activeWorkId ?: return null
-        return WorkManager.getInstance(context)
+        return WorkManager
+            .getInstance(context)
             .getWorkInfoByIdFlow(workId)
     }
 
@@ -747,7 +750,11 @@ class ABSUploadSheetState {
      * This must be called in the foreground because SAF URIs may not persist
      * after the app is backgrounded.
      */
-    private fun copyToCache(context: Context, uri: Uri, filename: String): File {
+    private fun copyToCache(
+        context: Context,
+        uri: Uri,
+        filename: String,
+    ): File {
         val cacheDir = File(context.cacheDir, "abs_uploads")
         cacheDir.mkdirs()
 

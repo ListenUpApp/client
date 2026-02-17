@@ -38,23 +38,31 @@ class ListenUpWorkerFactory(
         workerParameters: WorkerParameters,
     ): ListenableWorker? =
         when (workerClassName) {
-            DownloadWorker::class.java.name -> DownloadWorker(
-                appContext,
-                workerParameters,
-                downloadDao,
-                fileManager,
-                tokenProvider,
-                serverConfig,
-                playbackPreferences,
-                playbackApi,
-                capabilityDetector,
-            )
-            ABSUploadWorker::class.java.name -> ABSUploadWorker(
-                appContext,
-                workerParameters,
-                backupApi,
-                absImportApi,
-            )
-            else -> null
+            DownloadWorker::class.java.name -> {
+                DownloadWorker(
+                    appContext,
+                    workerParameters,
+                    downloadDao,
+                    fileManager,
+                    tokenProvider,
+                    serverConfig,
+                    playbackPreferences,
+                    playbackApi,
+                    capabilityDetector,
+                )
+            }
+
+            ABSUploadWorker::class.java.name -> {
+                ABSUploadWorker(
+                    appContext,
+                    workerParameters,
+                    backupApi,
+                    absImportApi,
+                )
+            }
+
+            else -> {
+                null
+            }
         }
 }

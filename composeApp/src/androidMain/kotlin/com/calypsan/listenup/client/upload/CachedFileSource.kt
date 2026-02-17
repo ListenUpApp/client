@@ -22,6 +22,5 @@ class CachedFileSource(
     override val filename: String get() = name
     override val size: Long? get() = file.length()
 
-    override fun openChannel(): ByteReadChannel =
-        FileInputStream(file).toByteReadChannel()
+    override fun openChannel(): ByteReadChannel = FileInputStream(file).toByteReadChannel()
 }

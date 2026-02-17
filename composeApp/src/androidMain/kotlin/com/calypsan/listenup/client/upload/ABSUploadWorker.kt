@@ -47,7 +47,6 @@ class ABSUploadWorker(
     private val backupApi: BackupApiContract,
     private val absImportApi: ABSImportApiContract,
 ) : CoroutineWorker(context, params) {
-
     companion object {
         const val KEY_CACHE_FILE_PATH = "cache_file_path"
         const val KEY_FILENAME = "filename"
@@ -69,15 +68,17 @@ class ABSUploadWorker(
             filename: String,
             fileSize: Long,
         ): UUID {
-            val data = workDataOf(
-                KEY_CACHE_FILE_PATH to cacheFilePath,
-                KEY_FILENAME to filename,
-                KEY_FILE_SIZE to fileSize,
-            )
+            val data =
+                workDataOf(
+                    KEY_CACHE_FILE_PATH to cacheFilePath,
+                    KEY_FILENAME to filename,
+                    KEY_FILE_SIZE to fileSize,
+                )
 
-            val request = OneTimeWorkRequestBuilder<ABSUploadWorker>()
-                .setInputData(data)
-                .build()
+            val request =
+                OneTimeWorkRequestBuilder<ABSUploadWorker>()
+                    .setInputData(data)
+                    .build()
 
             WorkManager.getInstance(context).enqueue(request)
             return request.id
@@ -85,10 +86,12 @@ class ABSUploadWorker(
     }
 
     override suspend fun doWork(): Result {
-        val cacheFilePath = inputData.getString(KEY_CACHE_FILE_PATH)
-            ?: return Result.failure(workDataOf("error" to "Missing cache file path"))
-        val filename = inputData.getString(KEY_FILENAME)
-            ?: return Result.failure(workDataOf("error" to "Missing filename"))
+        val cacheFilePath =
+            inputData.getString(KEY_CACHE_FILE_PATH)
+                ?: return Result.failure(workDataOf("error" to "Missing cache file path"))
+        val filename =
+            inputData.getString(KEY_FILENAME)
+                ?: return Result.failure(workDataOf("error" to "Missing filename"))
 
         val cacheFile = File(cacheFilePath)
 
@@ -114,6 +117,7 @@ class ABSUploadWorker(
                     logger.info { "Import created: id=$importId" }
                     Result.success(workDataOf(KEY_IMPORT_ID to importId))
                 }
+
                 is Failure -> {
                     val error = importResult.exception?.message ?: "Failed to create import"
                     logger.error { "Import creation failed: $error" }
@@ -146,21 +150,24 @@ class ABSUploadWorker(
 
         // Create notification channel (required for Android 8+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW,
-            )
+            val channel =
+                NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_LOW,
+                )
             notificationManager.createNotificationChannel(channel)
         }
 
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setContentTitle("Uploading ABS Backup")
-            .setContentText("Importing Audiobookshelf backup…")
-            .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setProgress(0, 0, true)
-            .setOngoing(true)
-            .build()
+        val notification =
+            NotificationCompat
+                .Builder(applicationContext, CHANNEL_ID)
+                .setContentTitle("Uploading ABS Backup")
+                .setContentText("Importing Audiobookshelf backup…")
+                .setSmallIcon(android.R.drawable.stat_sys_upload)
+                .setProgress(0, 0, true)
+                .setOngoing(true)
+                .build()
 
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
