@@ -18,6 +18,7 @@ import com.calypsan.listenup.client.domain.usecase.admin.LoadUsersUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.RevokeInviteUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.SetOpenRegistrationUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -105,16 +106,20 @@ class AdminViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(isLoading = true, error = null)
 
-            // Load instance info first for open registration status
+            // Load all data in parallel — no dependencies between these calls
+            val deferredInstance = async { instanceRepository.getInstance() }
+            val deferredUsers = async { loadUsersUseCase() }
+            val deferredPending = async { loadPendingUsersUseCase() }
+            val deferredInvites = async { loadInvitesUseCase() }
+
             val openRegistration =
-                when (val result = instanceRepository.getInstance()) {
+                when (val result = deferredInstance.await()) {
                     is Success -> result.data.openRegistration
                     is Failure -> false
                 }
 
-            // Load users and invites independently so one failure doesn't block the other
             val users =
-                when (val result = loadUsersUseCase()) {
+                when (val result = deferredUsers.await()) {
                     is Success -> {
                         result.data
                     }
@@ -126,13 +131,13 @@ class AdminViewModel(
                 }
 
             val pendingUsers =
-                when (val result = loadPendingUsersUseCase()) {
+                when (val result = deferredPending.await()) {
                     is Success -> result.data
-                    is Failure -> emptyList() // Don't overwrite other errors
+                    is Failure -> emptyList()
                 }
 
             val pendingInvites =
-                when (val result = loadInvitesUseCase()) {
+                when (val result = deferredInvites.await()) {
                     is Success -> {
                         result.data.filter { it.claimedAt == null }
                     }

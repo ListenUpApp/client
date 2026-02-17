@@ -354,8 +354,16 @@ class ABSImportHubViewModel(
             when (val result = absImportApi.mapUser(importId, absUserId, listenUpId)) {
                 is Success -> {
                     deactivateUserSearch()
-                    loadUsers()
-                    refreshImport() // Update counts
+                    // Optimistic update — replace user in list with server response
+                    hubState.update { state ->
+                        state.copy(
+                            users =
+                                state.users.map { user ->
+                                    if (user.absUserId == absUserId) result.data else user
+                                },
+                        )
+                    }
+                    refreshImport()
                 }
 
                 is Failure -> {
@@ -373,7 +381,14 @@ class ABSImportHubViewModel(
         viewModelScope.launch {
             when (val result = absImportApi.clearUserMapping(importId, absUserId)) {
                 is Success -> {
-                    loadUsers()
+                    hubState.update { state ->
+                        state.copy(
+                            users =
+                                state.users.map { user ->
+                                    if (user.absUserId == absUserId) result.data else user
+                                },
+                        )
+                    }
                     refreshImport()
                 }
 
@@ -479,7 +494,14 @@ class ABSImportHubViewModel(
             when (val result = absImportApi.mapBook(importId, absMediaId, listenUpId)) {
                 is Success -> {
                     deactivateBookSearch()
-                    loadBooks()
+                    hubState.update { state ->
+                        state.copy(
+                            books =
+                                state.books.map { book ->
+                                    if (book.absMediaId == absMediaId) result.data else book
+                                },
+                        )
+                    }
                     refreshImport()
                 }
 
@@ -498,7 +520,14 @@ class ABSImportHubViewModel(
         viewModelScope.launch {
             when (val result = absImportApi.clearBookMapping(importId, absMediaId)) {
                 is Success -> {
-                    loadBooks()
+                    hubState.update { state ->
+                        state.copy(
+                            books =
+                                state.books.map { book ->
+                                    if (book.absMediaId == absMediaId) result.data else book
+                                },
+                        )
+                    }
                     refreshImport()
                 }
 

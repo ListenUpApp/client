@@ -17,14 +17,17 @@ import com.calypsan.listenup.client.domain.usecase.admin.LoadPendingUsersUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.LoadUsersUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.RevokeInviteUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.SetOpenRegistrationUseCase
+import dev.mokkery.answering.calls
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.mock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -393,5 +396,60 @@ class AdminViewModelTest {
             viewModel.clearError()
 
             assertNull(viewModel.state.value.error)
+        }
+
+    @Test
+    fun `loadData fetches all data in parallel`() =
+        runTest {
+            val instanceRepo: InstanceRepository = mock()
+            everySuspend { instanceRepo.getInstance() } calls {
+                delay(100)
+                Success(createMockInstance())
+            }
+
+            val loadUsersUseCase: LoadUsersUseCase = mock()
+            val loadPendingUsersUseCase: LoadPendingUsersUseCase = mock()
+            val loadInvitesUseCase: LoadInvitesUseCase = mock()
+            val deleteUserUseCase: DeleteUserUseCase = mock()
+            val revokeInviteUseCase: RevokeInviteUseCase = mock()
+            val approveUserUseCase: ApproveUserUseCase = mock()
+            val denyUserUseCase: DenyUserUseCase = mock()
+            val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
+
+            everySuspend { loadUsersUseCase() } calls {
+                delay(100)
+                Success(listOf(createUser()))
+            }
+            everySuspend { loadPendingUsersUseCase() } calls {
+                delay(100)
+                Success(emptyList())
+            }
+            everySuspend { loadInvitesUseCase() } calls {
+                delay(100)
+                Success(listOf(createInvite()))
+            }
+
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
+
+            // If parallel, all 4 calls start at t=0 and complete at t=100ms.
+            // If sequential, they'd complete at t=400ms.
+            // Advance 150ms — enough for parallel, not enough for sequential.
+            advanceTimeBy(150)
+
+            assertFalse(viewModel.state.value.isLoading)
+            assertEquals(1, viewModel.state.value.users.size)
+            assertEquals(1, viewModel.state.value.pendingInvites.size)
         }
 }

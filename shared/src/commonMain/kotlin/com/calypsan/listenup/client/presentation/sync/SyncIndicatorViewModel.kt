@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.domain.model.PendingOperation
 import com.calypsan.listenup.client.domain.model.PendingOperationStatus
 import com.calypsan.listenup.client.domain.model.PendingOperationType
+import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.repository.PendingOperationRepository
+import com.calypsan.listenup.client.domain.repository.SyncRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -95,6 +97,7 @@ sealed interface SyncIndicatorUiEvent {
  */
 class SyncIndicatorViewModel(
     private val pendingOperationRepository: PendingOperationRepository,
+    private val syncRepository: SyncRepository,
 ) : ViewModel() {
     val isExpanded: StateFlow<Boolean>
         field = MutableStateFlow(false)
@@ -104,7 +107,8 @@ class SyncIndicatorViewModel(
             pendingOperationRepository.observeVisibleOperations(),
             pendingOperationRepository.observeInProgressOperation(),
             pendingOperationRepository.observeFailedOperations(),
-        ) { visibleOps, inProgress, failedOps ->
+            syncRepository.syncState,
+        ) { visibleOps, inProgress, failedOps, pullSyncState ->
             val pendingCount =
                 visibleOps.count {
                     it.status == PendingOperationStatus.PENDING
@@ -119,9 +123,25 @@ class SyncIndicatorViewModel(
                     )
                 }
 
+            // Pull sync is active when library sync is in progress
+            val isPullSyncing =
+                pullSyncState is SyncState.Syncing ||
+                    pullSyncState is SyncState.Progress ||
+                    pullSyncState is SyncState.Retrying
+
+            val pullSyncDescription =
+                when (pullSyncState) {
+                    is SyncState.Progress -> pullSyncState.message
+                    is SyncState.Syncing -> "Syncing library…"
+                    is SyncState.Retrying -> "Retrying sync (${pullSyncState.attempt}/${pullSyncState.maxAttempts})…"
+                    else -> null
+                }
+
             SyncIndicatorUiState(
-                isSyncing = inProgress != null,
-                currentOperationDescription = inProgress?.let { describeOperation(it) },
+                isSyncing = inProgress != null || isPullSyncing,
+                currentOperationDescription =
+                    pullSyncDescription
+                        ?: inProgress?.let { describeOperation(it) },
                 pendingCount = pendingCount,
                 failedOperations = failedUi,
                 hasErrors = failedOps.isNotEmpty(),
