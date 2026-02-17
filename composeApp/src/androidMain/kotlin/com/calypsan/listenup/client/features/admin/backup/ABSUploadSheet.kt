@@ -52,6 +52,9 @@ import com.calypsan.listenup.client.util.DocumentPickerResult
 import kotlinx.coroutines.delay
 import com.calypsan.listenup.client.core.Result as AppResult
 
+/** Delay before auto-navigating after successful upload. */
+private const val SUCCESS_ANIMATION_DELAY_MS = 1500L
+
 /**
  * State for the ABS upload flow.
  */
@@ -122,7 +125,7 @@ fun ABSUploadSheet(
     // Auto-navigate to import hub when upload completes
     LaunchedEffect(state) {
         if (state is ABSUploadState.Complete) {
-            delay(1500) // Brief pause to show success animation
+            delay(SUCCESS_ANIMATION_DELAY_MS)
             onNavigateToImport(state.importId)
         }
     }
