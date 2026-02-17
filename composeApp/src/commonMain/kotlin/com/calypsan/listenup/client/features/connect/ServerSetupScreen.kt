@@ -245,7 +245,7 @@ private fun FormContent(
             supportingText = state.error?.message,
             keyboardOptions =
                 KeyboardOptions(
-                    autoCorrect = false,
+                    autoCorrectEnabled = false,
                     keyboardType = KeyboardType.Uri,
                     imeAction = ImeAction.Done,
                 ),
