@@ -21,6 +21,8 @@ import com.calypsan.listenup.client.data.remote.SessionStatusFilter
 import com.calypsan.listenup.client.data.remote.UserSearchResult
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -101,6 +103,9 @@ class ABSImportHubViewModel(
 
     val hubState: StateFlow<ABSImportHubState>
         field = MutableStateFlow(ABSImportHubState())
+
+    private var userSearchJob: Job? = null
+    private var bookSearchJob: Job? = null
 
     init {
         loadImports()
@@ -306,6 +311,7 @@ class ABSImportHubViewModel(
     }
 
     fun deactivateUserSearch() {
+        userSearchJob?.cancel()
         hubState.update {
             it.copy(
                 activeSearchAbsUserId = null,
@@ -316,31 +322,35 @@ class ABSImportHubViewModel(
         }
     }
 
+    @Suppress("MagicNumber")
     fun updateUserSearchQuery(query: String) {
         hubState.update { it.copy(userSearchQuery = query) }
+        userSearchJob?.cancel()
 
         if (query.length < 2) {
             hubState.update { it.copy(userSearchResults = emptyList(), isSearchingUsers = false) }
             return
         }
 
-        viewModelScope.launch {
-            hubState.update { it.copy(isSearchingUsers = true) }
-            when (val result = absImportApi.searchUsers(query, limit = 10)) {
-                is Success -> {
-                    hubState.update {
-                        it.copy(userSearchResults = result.data, isSearchingUsers = false)
+        userSearchJob =
+            viewModelScope.launch {
+                delay(300)
+                hubState.update { it.copy(isSearchingUsers = true) }
+                when (val result = absImportApi.searchUsers(query, limit = 10)) {
+                    is Success -> {
+                        hubState.update {
+                            it.copy(userSearchResults = result.data, isSearchingUsers = false)
+                        }
                     }
-                }
 
-                is Failure -> {
-                    logger.error { "User search failed: ${result.exception}" }
-                    hubState.update {
-                        it.copy(userSearchResults = emptyList(), isSearchingUsers = false)
+                    is Failure -> {
+                        logger.error { "User search failed: ${result.exception}" }
+                        hubState.update {
+                            it.copy(userSearchResults = emptyList(), isSearchingUsers = false)
+                        }
                     }
                 }
             }
-        }
     }
 
     fun mapUser(
@@ -438,6 +448,7 @@ class ABSImportHubViewModel(
     }
 
     fun deactivateBookSearch() {
+        bookSearchJob?.cancel()
         hubState.update {
             it.copy(
                 activeSearchAbsMediaId = null,
@@ -448,39 +459,43 @@ class ABSImportHubViewModel(
         }
     }
 
+    @Suppress("MagicNumber")
     fun updateBookSearchQuery(query: String) {
         hubState.update { it.copy(bookSearchQuery = query) }
+        bookSearchJob?.cancel()
 
         if (query.length < 2) {
             hubState.update { it.copy(bookSearchResults = emptyList(), isSearchingBooks = false) }
             return
         }
 
-        viewModelScope.launch {
-            hubState.update { it.copy(isSearchingBooks = true) }
-            try {
-                val response =
-                    searchApi.search(
-                        query = query,
-                        types = "book",
-                        genres = null,
-                        genrePath = null,
-                        minDuration = null,
-                        maxDuration = null,
-                        limit = 10,
-                        offset = 0,
-                    )
-                hubState.update {
-                    it.copy(bookSearchResults = response.hits, isSearchingBooks = false)
-                }
-            } catch (e: Exception) {
-                ErrorBus.emit(e)
-                logger.error(e) { "Book search failed" }
-                hubState.update {
-                    it.copy(bookSearchResults = emptyList(), isSearchingBooks = false)
+        bookSearchJob =
+            viewModelScope.launch {
+                delay(300)
+                hubState.update { it.copy(isSearchingBooks = true) }
+                try {
+                    val response =
+                        searchApi.search(
+                            query = query,
+                            types = "book",
+                            genres = null,
+                            genrePath = null,
+                            minDuration = null,
+                            maxDuration = null,
+                            limit = 10,
+                            offset = 0,
+                        )
+                    hubState.update {
+                        it.copy(bookSearchResults = response.hits, isSearchingBooks = false)
+                    }
+                } catch (e: Exception) {
+                    ErrorBus.emit(e)
+                    logger.error(e) { "Book search failed" }
+                    hubState.update {
+                        it.copy(bookSearchResults = emptyList(), isSearchingBooks = false)
+                    }
                 }
             }
-        }
     }
 
     fun mapBook(
