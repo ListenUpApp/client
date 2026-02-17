@@ -37,6 +37,7 @@ actual val platformDatabaseModule: Module =
                     name = dbFile,
                 ).setDriver(BundledSQLiteDriver())
                 .setQueryCoroutineContext(Dispatchers.Default)
+                .addMigrations(Migrations.MIGRATION_1_2)
                 .fallbackToDestructiveMigration(false)
                 .build()
         }
