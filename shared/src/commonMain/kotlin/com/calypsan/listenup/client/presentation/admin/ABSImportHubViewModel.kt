@@ -6,6 +6,7 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.FileSource
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.data.remote.ABSImportApiContract
 import com.calypsan.listenup.client.data.remote.ABSImportBook
 import com.calypsan.listenup.client.data.remote.ABSImportResponse
@@ -458,6 +459,7 @@ class ABSImportHubViewModel(
                     it.copy(bookSearchResults = response.hits, isSearchingBooks = false)
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Book search failed" }
                 hubState.update {
                     it.copy(bookSearchResults = emptyList(), isSearchingBooks = false)

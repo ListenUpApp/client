@@ -556,7 +556,7 @@ private fun RecentBookCard(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
         ) {
-            if (book.coverPath != null) {
+            if (true) { // Always render — BookCoverImage handles server URL fallback
                 ListenUpAsyncImage(
                     path = book.coverPath,
                     contentDescription = book.title,

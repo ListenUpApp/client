@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.ProfileShelfSummary
 import com.calypsan.listenup.client.domain.model.ProfileRecentBook
 import com.calypsan.listenup.client.domain.model.User
@@ -189,6 +190,7 @@ class UserProfileViewModel(
                                     }
                                     logger.info { "Downloaded and cached avatar for user ${profile.userId}" }
                                 } catch (e: Exception) {
+                                    ErrorBus.emit(e)
                                     logger.warn(e) { "Failed to download avatar for user ${profile.userId}" }
                                 }
                             }

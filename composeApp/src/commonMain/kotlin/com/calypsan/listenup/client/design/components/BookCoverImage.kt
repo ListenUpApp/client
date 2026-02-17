@@ -24,9 +24,9 @@ import com.calypsan.listenup.client.design.util.decodeBlurHash
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.koin.compose.koinInject
 import androidx.compose.runtime.produceState
 
@@ -36,13 +36,12 @@ private val logger = KotlinLogging.logger {}
  * Smart book cover image with server URL fallback.
  *
  * Loading strategy:
- * 1. If cover exists locally -> display from disk (fast, works offline)
- * 2. If missing locally -> load directly from server URL via Coil with auth
- * 3. Once the download queue saves the cover to disk, subsequent renders use disk
+ * 1. If coverPath is provided -> pass directly to Coil (zero overhead, instant)
+ * 2. If coverPath is null -> async check: local file exists? use disk. Otherwise server URL.
+ * 3. Once the download queue saves the cover to disk, subsequent renders use disk.
  *
  * Covers are NEVER blank when online.
  */
-@Suppress("CognitiveComplexMethod")
 @Composable
 fun BookCoverImage(
     bookId: String,
@@ -53,27 +52,52 @@ fun BookCoverImage(
     contentScale: ContentScale = ContentScale.Crop,
     onState: ((AsyncImagePainter.State) -> Unit)? = null,
 ) {
-    val imageRepository: ImageRepository = koinInject()
-    val serverConfig: ServerConfig = koinInject()
-    val authSession: AuthSession = koinInject()
     val context = LocalPlatformContext.current
 
-    var imageLoaded by remember(bookId) { mutableStateOf(false) }
+    // Fast path: coverPath provided means the file exists locally.
+    // Build the request synchronously — no IO dispatch, no frame delay.
+    val syncRequest =
+        remember(bookId, coverPath) {
+            if (coverPath != null) {
+                ImageRequest
+                    .Builder(context)
+                    .data(coverPath)
+                    .memoryCacheKey("$bookId:cover")
+                    .diskCacheKey("$bookId:cover")
+                    .build()
+            } else {
+                null
+            }
+        }
 
-    // Resolve: local file or server URL
-    val imageRequest by produceState<ImageRequest?>(
+    // Slow path: no coverPath, need async resolution (check disk, fallback to server)
+    val asyncRequest by produceState<ImageRequest?>(
         initialValue = null,
         key1 = bookId,
         key2 = coverPath,
     ) {
+        // Skip async if we already have a sync request
+        if (coverPath != null) return@produceState
+
+        val imageRepository: ImageRepository =
+            org.koin.core.context.GlobalContext
+                .get()
+                .get()
+        val serverConfig: ServerConfig =
+            org.koin.core.context.GlobalContext
+                .get()
+                .get()
+        val authSession: AuthSession =
+            org.koin.core.context.GlobalContext
+                .get()
+                .get()
+
         value =
             withContext(Dispatchers.IO) {
-                val localPath = coverPath ?: imageRepository.getBookCoverPath(BookId(bookId))
-
+                val localPath = imageRepository.getBookCoverPath(BookId(bookId))
                 val exists = imageRepository.bookCoverExists(BookId(bookId))
-                logger.info { "BookCoverImage: bookId=$bookId, exists=$exists" }
+
                 if (exists) {
-                    // Local file — load from disk
                     ImageRequest
                         .Builder(context)
                         .data(localPath)
@@ -81,10 +105,9 @@ fun BookCoverImage(
                         .diskCacheKey("$bookId:cover")
                         .build()
                 } else {
-                    // No local file — server URL fallback
                     val baseUrl = serverConfig.getActiveUrl()?.value
                     val token = authSession.getAccessToken()?.value
-                    logger.info { "BookCoverImage: FALLBACK bookId=$bookId, url=$baseUrl/api/v1/covers/$bookId" }
+                    logger.debug { "BookCoverImage: fallback bookId=$bookId, url=$baseUrl/api/v1/covers/$bookId" }
                     if (baseUrl != null) {
                         ImageRequest
                             .Builder(context)
@@ -109,7 +132,11 @@ fun BookCoverImage(
             }
     }
 
+    val imageRequest = syncRequest ?: asyncRequest
+
     if (blurHash != null) {
+        var imageLoaded by remember(bookId) { mutableStateOf(false) }
+
         Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
             if (!imageLoaded) {
                 val bitmap: ImageBitmap? =

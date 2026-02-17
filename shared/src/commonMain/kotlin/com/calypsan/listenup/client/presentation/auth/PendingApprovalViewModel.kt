@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.repository.AuthRepository
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.RegistrationStatusStream
@@ -62,6 +63,7 @@ class PendingApprovalViewModel(
                         handleStatusUpdate(status)
                     }
                 } catch (e: Exception) {
+                    ErrorBus.emit(e)
                     logger.warn(e) { "SSE connection failed, falling back to polling" }
                     // Fall back to polling
                     startPolling()
@@ -115,6 +117,7 @@ class PendingApprovalViewModel(
                             }
                         }
                     } catch (e: Exception) {
+                        ErrorBus.emit(e)
                         logger.warn(e) { "Failed to check registration status" }
                         // Continue polling
                     }
@@ -145,6 +148,7 @@ class PendingApprovalViewModel(
             logger.info { "Auto-login successful!" }
             state.value = state.value.copy(status = PendingApprovalStatus.LoginSuccess)
         } catch (e: Exception) {
+            ErrorBus.emit(e)
             logger.error(e) { "Auto-login failed" }
             // Clear pending and let user log in manually
             authSession.clearPendingRegistration()

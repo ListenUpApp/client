@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.AccessMode
 import com.calypsan.listenup.client.domain.model.Library
 import com.calypsan.listenup.client.data.remote.DirectoryEntryResponse
@@ -48,6 +49,7 @@ class LibrarySettingsViewModel(
                         skipInbox = library.skipInbox,
                     )
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to load library: $libraryId" }
                 state.value =
                     state.value.copy(
@@ -87,6 +89,7 @@ class LibrarySettingsViewModel(
                         accessMode = updatedLibrary.accessMode,
                     )
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to update access mode for library: $libraryId" }
                 // Revert to previous value
                 state.value =
@@ -127,6 +130,7 @@ class LibrarySettingsViewModel(
                         skipInbox = updatedLibrary.skipInbox,
                     )
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to update skip inbox for library: $libraryId" }
                 // Revert to previous value
                 state.value =
@@ -155,6 +159,7 @@ class LibrarySettingsViewModel(
                         library = updatedLibrary,
                     )
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to remove scan path from library: $libraryId" }
                 state.value =
                     state.value.copy(
@@ -181,6 +186,7 @@ class LibrarySettingsViewModel(
                         library = updatedLibrary,
                     )
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to add scan path to library: $libraryId" }
                 state.value =
                     state.value.copy(
@@ -203,6 +209,7 @@ class LibrarySettingsViewModel(
                 logger.info { "Triggered scan for library $libraryId" }
                 state.value = state.value.copy(isScanning = false)
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to trigger scan for library: $libraryId" }
                 state.value =
                     state.value.copy(
@@ -247,6 +254,7 @@ class LibrarySettingsViewModel(
                         browserIsRoot = response.isRoot,
                     )
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to browse directory: $path" }
                 state.value =
                     state.value.copy(

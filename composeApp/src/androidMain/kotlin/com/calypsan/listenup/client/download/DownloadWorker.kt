@@ -6,6 +6,8 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.calypsan.listenup.client.core.error.DownloadError
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadState
@@ -89,6 +91,7 @@ class DownloadWorker(
                     message.contains("storage")
 
             if (isStorageError) {
+                ErrorBus.emit(DownloadError.InsufficientStorage(debugInfo = e.message))
                 logger.error { "Download failed due to insufficient storage: $audioFileId" }
                 downloadDao.updateError(audioFileId, "Insufficient storage space")
                 downloadDao.updateState(audioFileId, DownloadState.FAILED)
@@ -106,6 +109,7 @@ class DownloadWorker(
         audioFileId: String,
         e: Exception,
     ): Result {
+        ErrorBus.emit(DownloadError.DownloadFailed(debugInfo = e.message))
         logger.error(e) { "Download failed: $audioFileId" }
         downloadDao.updateError(audioFileId, e.message ?: "Unknown error")
 

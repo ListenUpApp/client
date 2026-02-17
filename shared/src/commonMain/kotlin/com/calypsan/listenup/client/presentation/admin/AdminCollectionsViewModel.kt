@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.Collection
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import com.calypsan.listenup.client.domain.usecase.collection.CreateCollectionUseCase
@@ -67,6 +68,7 @@ class AdminCollectionsViewModel(
                 collectionRepository.refreshFromServer()
                 logger.debug { "Refreshed collections from server" }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.warn(e) { "Failed to refresh collections from server" }
                 // Don't update error state - local data is still usable
             }

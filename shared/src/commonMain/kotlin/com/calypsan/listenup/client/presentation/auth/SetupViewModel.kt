@@ -4,6 +4,7 @@ package com.calypsan.listenup.client.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.repository.AuthRepository
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.UserRepository
@@ -125,6 +126,7 @@ class SetupViewModel(
 
                 state.value = SetupUiState(status = SetupStatus.Success)
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 val errorType = e.toSetupErrorType()
 
                 // If server is already configured, refresh auth state to navigate to login.

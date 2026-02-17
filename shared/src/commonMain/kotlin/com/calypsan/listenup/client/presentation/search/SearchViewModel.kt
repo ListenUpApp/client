@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.domain.model.SearchResult
@@ -300,6 +301,7 @@ class SearchViewModel(
                 )
             SearchFlowResult.Success(query, result)
         } catch (e: Exception) {
+            ErrorBus.emit(e)
             SearchFlowResult.Error(query, e)
         }
 

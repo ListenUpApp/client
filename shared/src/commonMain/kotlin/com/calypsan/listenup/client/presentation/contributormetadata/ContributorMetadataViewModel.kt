@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.ContributorMetadataCandidate
 import com.calypsan.listenup.client.domain.repository.ContributorMetadataProfile
@@ -161,6 +162,7 @@ class ContributorMetadataViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Contributor metadata search failed" }
                 state.update {
                     it.copy(
@@ -203,6 +205,7 @@ class ContributorMetadataViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to load contributor profile" }
                 state.update {
                     it.copy(
@@ -257,6 +260,7 @@ class ContributorMetadataViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to load contributor profile by ASIN" }
                 state.update {
                     it.copy(

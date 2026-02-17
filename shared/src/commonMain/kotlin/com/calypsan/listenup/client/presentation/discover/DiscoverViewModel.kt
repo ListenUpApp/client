@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.ActiveSession
 import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.repository.ActiveSessionRepository
@@ -247,6 +248,7 @@ class DiscoverViewModel(
                 val count = shelfRepository.fetchAndCacheDiscoverShelves()
                 logger.info { "Fetched and stored $count discover shelves" }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to fetch discover shelves" }
                 // Not fatal - Room Flow will show empty state, SSE will populate over time
             }
@@ -262,6 +264,7 @@ class DiscoverViewModel(
                 val count = shelfRepository.fetchAndCacheDiscoverShelves()
                 logger.debug { "Refreshed $count discover shelves from API" }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to refresh discover shelves" }
             }
         }
