@@ -421,7 +421,7 @@ val settingsPresentationModule =
             )
         }
         // SyncIndicatorViewModel as singleton for app-wide sync status
-        single { SyncIndicatorViewModel(pendingOperationRepository = get()) }
+        single { SyncIndicatorViewModel(pendingOperationRepository = get(), syncRepository = get()) }
         // StorageViewModel for storage management screen
         factory {
             StorageViewModel(
