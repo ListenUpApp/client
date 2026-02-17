@@ -47,6 +47,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.BrandLogo
@@ -253,6 +254,7 @@ private fun RegisterForm(
             enabled = !isLoading,
             keyboardOptions =
                 KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Next,
                 ),
@@ -271,6 +273,7 @@ private fun RegisterForm(
             enabled = !isLoading,
             keyboardOptions =
                 KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Next,
                 ),
