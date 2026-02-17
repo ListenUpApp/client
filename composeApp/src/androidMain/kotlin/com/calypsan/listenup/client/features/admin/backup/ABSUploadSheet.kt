@@ -34,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -118,7 +119,13 @@ fun ABSUploadSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // No auto-navigation - let user tap the button to continue
+    // Auto-navigate to import hub when upload completes
+    LaunchedEffect(state) {
+        if (state is ABSUploadState.Complete) {
+            delay(1500) // Brief pause to show success animation
+            onNavigateToImport(state.importId)
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
