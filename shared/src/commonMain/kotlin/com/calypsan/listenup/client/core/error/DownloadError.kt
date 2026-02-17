@@ -8,7 +8,6 @@ package com.calypsan.listenup.client.core.error
  * is waiting for content to be available offline.
  */
 sealed interface DownloadError : AppError {
-
     /**
      * Download of an audiobook failed.
      *

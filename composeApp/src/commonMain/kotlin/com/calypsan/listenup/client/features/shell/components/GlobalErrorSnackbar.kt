@@ -34,15 +34,17 @@ fun GlobalErrorSnackbar(
                 logger.debug { "Debug: ${error.debugInfo}" }
             }
 
-            val result = snackbarHostState.showSnackbar(
-                message = error.message,
-                actionLabel = if (error.isRetryable) "Retry" else null,
-                duration = if (error.isRetryable) {
-                    SnackbarDuration.Long
-                } else {
-                    SnackbarDuration.Short
-                },
-            )
+            val result =
+                snackbarHostState.showSnackbar(
+                    message = error.message,
+                    actionLabel = if (error.isRetryable) "Retry" else null,
+                    duration =
+                        if (error.isRetryable) {
+                            SnackbarDuration.Long
+                        } else {
+                            SnackbarDuration.Short
+                        },
+                )
 
             if (result == SnackbarResult.ActionPerformed && error.isRetryable) {
                 onRetry?.invoke(error)

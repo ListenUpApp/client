@@ -8,7 +8,6 @@ package com.calypsan.listenup.client.core.error
  * step failed so they can take appropriate action.
  */
 sealed interface ImportError : AppError {
-
     /**
      * Backup file upload failed.
      *

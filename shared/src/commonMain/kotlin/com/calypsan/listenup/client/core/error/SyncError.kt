@@ -11,7 +11,6 @@ package com.calypsan.listenup.client.core.error
  * Only top-level sync failures and persistent connection issues use these.
  */
 sealed interface SyncError : AppError {
-
     /**
      * Top-level sync operation failed.
      *
