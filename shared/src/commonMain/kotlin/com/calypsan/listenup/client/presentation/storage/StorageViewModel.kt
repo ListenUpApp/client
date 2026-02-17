@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.presentation.storage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadState
@@ -174,6 +175,7 @@ class StorageViewModel(
                     }
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to delete download(s)" }
             } finally {
                 internalState.update { it.copy(isDeleting = false) }

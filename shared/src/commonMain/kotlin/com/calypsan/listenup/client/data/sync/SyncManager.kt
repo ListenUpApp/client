@@ -1,5 +1,7 @@
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.core.error.ErrorBus
+import com.calypsan.listenup.client.core.error.SyncError
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
@@ -385,6 +387,7 @@ class SyncManager(
             _syncState.value = SyncStatus.Idle
             throw e
         } catch (e: Exception) {
+            ErrorBus.emit(SyncError.SyncFailed(debugInfo = e.message))
             logger.error(e) { "Sync failed after retries" }
             _syncState.value = SyncStatus.Error(exception = e)
 

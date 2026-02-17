@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.model.RestoreError
 import com.calypsan.listenup.client.data.remote.model.RestoreRequest
@@ -126,6 +127,7 @@ class RestoreBackupViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to validate backup" }
                 state.update {
                     it.copy(
@@ -246,6 +248,7 @@ class RestoreBackupViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to perform dry run" }
                 state.update {
                     it.copy(
@@ -300,6 +303,7 @@ class RestoreBackupViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to restore backup" }
                 state.update {
                     it.copy(

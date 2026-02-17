@@ -2,7 +2,7 @@
 # https://detekt.dev/docs/rules/
 
 build:
-  maxIssues: 90  # Ratcheted from 170 on 2026-01-07. Remaining issues are structural (complex methods, long methods).
+  maxIssues: 0  # Ratcheted from 170 on 2026-01-07. Remaining issues are structural (complex methods, long methods).
 
 config:
   validation: true

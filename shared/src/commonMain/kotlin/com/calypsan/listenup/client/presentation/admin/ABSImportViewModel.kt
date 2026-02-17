@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.FileSource
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.data.remote.ABSImportApiContract
 import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.DirectoryEntryResponse
@@ -291,6 +292,7 @@ class ABSImportViewModel(
                 }
                 analyzeBackup(uploadResult.path)
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to upload ABS backup" }
                 state.update {
                     it.copy(
@@ -324,6 +326,7 @@ class ABSImportViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to browse filesystem" }
                 state.update {
                     it.copy(
@@ -466,6 +469,7 @@ class ABSImportViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to analyze ABS backup" }
                 state.update {
                     it.copy(
@@ -586,6 +590,7 @@ class ABSImportViewModel(
                     }
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "User search failed: ${e.message}" }
                 state.update {
                     it.copy(
@@ -723,6 +728,7 @@ class ABSImportViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Book search failed: ${e.message}" }
                 state.update {
                     it.copy(
@@ -950,6 +956,7 @@ class ABSImportViewModel(
                 logger.info { "Import complete, refreshing listening history" }
                 syncRepository.refreshListeningHistory()
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to import ABS backup" }
                 state.update {
                     it.copy(

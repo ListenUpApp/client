@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.repository.AdminRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -45,6 +46,7 @@ class UserDetailViewModel(
                         isProtected = user.isProtected,
                     )
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to load user: $userId" }
                 state.value =
                     state.value.copy(
@@ -85,6 +87,7 @@ class UserDetailViewModel(
                         canShare = updatedUser.permissions.canShare,
                     )
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to update canShare for user: $userId" }
                 // Revert to previous value
                 state.value =

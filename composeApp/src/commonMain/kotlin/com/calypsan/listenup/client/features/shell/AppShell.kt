@@ -4,6 +4,7 @@ package com.calypsan.listenup.client.features.shell
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,6 +54,9 @@ import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiEvent
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import com.calypsan.listenup.client.features.shell.components.GlobalErrorSnackbar
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -92,7 +96,7 @@ private val logger = KotlinLogging.logger {}
  * @param libraryContent Content composable for Library destination
  * @param discoverContent Content composable for Discover destination
  */
-@Suppress("LongMethod")
+@Suppress("LongMethod", "LongParameterList", "CyclomaticComplexMethod", "CognitiveComplexMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppShell(
@@ -118,6 +122,7 @@ fun AppShell(
     val authSession: AuthSession = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
     val syncIndicatorViewModel: SyncIndicatorViewModel = koinViewModel()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Trigger sync on shell entry (not just when Library is visible)
     val scope = rememberCoroutineScope()
@@ -216,6 +221,9 @@ fun AppShell(
             onDismiss = { libraryMismatchToShow = null },
         )
     }
+
+    // Global error snackbar — collects from ErrorBus and displays
+    GlobalErrorSnackbar(snackbarHostState = snackbarHostState)
 
     // Scroll behavior for collapsing top bar
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -347,8 +355,9 @@ fun AppShell(
             Scaffold(
                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                 topBar = topBar,
+                snackbarHost = { SnackbarHost(snackbarHostState) },
                 bottomBar = {
-                    Column {
+                    Column(modifier = Modifier.navigationBarsPadding()) {
                         // TODO: NowPlayingBar will be inserted here
                         AppNavigationBar(
                             currentDestination = currentDestination,
@@ -380,6 +389,7 @@ fun AppShell(
                             .weight(1f)
                             .nestedScroll(scrollBehavior.nestedScrollConnection),
                     topBar = topBar,
+                    snackbarHost = { SnackbarHost(snackbarHostState) },
                     content = shellContent,
                 )
             }
@@ -401,6 +411,7 @@ fun AppShell(
                 Scaffold(
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                     topBar = topBar,
+                    snackbarHost = { SnackbarHost(snackbarHostState) },
                     content = shellContent,
                 )
             }

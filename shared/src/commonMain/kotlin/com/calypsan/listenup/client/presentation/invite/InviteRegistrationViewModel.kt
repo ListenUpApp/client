@@ -5,6 +5,7 @@ package com.calypsan.listenup.client.presentation.invite
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InviteRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
@@ -64,6 +65,7 @@ class InviteRegistrationViewModel(
                         )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 val message =
                     when {
                         e.message?.contains("404") == true ||
@@ -140,6 +142,7 @@ class InviteRegistrationViewModel(
 
                 state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Success)
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 val errorType = e.toInviteErrorType()
                 state.value =
                     state.value.copy(

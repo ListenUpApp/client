@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
 import com.calypsan.listenup.client.domain.usecase.shelf.DeleteShelfUseCase
@@ -75,6 +76,7 @@ class CreateEditShelfViewModel(
                     }
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to load shelf for edit: $shelfId" }
                 state.update {
                     it.copy(

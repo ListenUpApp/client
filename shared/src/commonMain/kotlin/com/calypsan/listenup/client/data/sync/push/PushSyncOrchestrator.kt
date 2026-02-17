@@ -1,5 +1,7 @@
 package com.calypsan.listenup.client.data.sync.push
 
+import com.calypsan.listenup.client.core.error.ErrorBus
+import com.calypsan.listenup.client.core.error.SyncError
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.sync.SyncMutex
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
@@ -151,6 +153,7 @@ class PushSyncOrchestrator(
                 logger.debug { "Push sync completed: no operations to sync" }
             }
         } catch (e: Exception) {
+            ErrorBus.emit(SyncError.PushFailed(debugInfo = e.message))
             logger.error(e) { "Push sync flush failed" }
         } finally {
             _isFlushing.value = false

@@ -7,6 +7,8 @@
 
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.core.error.ErrorBus
+import com.calypsan.listenup.client.core.error.SyncError
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.model.SSEActivityCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookDeletedEvent
@@ -174,6 +176,7 @@ class SSEManager(
                             }
                         }
 
+                        ErrorBus.emit(SyncError.RealtimeDisconnected(debugInfo = e.message))
                         logger.warn(e) { "Connection error" }
 
                         if (!isActive) {

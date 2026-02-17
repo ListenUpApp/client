@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.currentHourOfDay
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.repository.HomeRepository
@@ -154,6 +155,7 @@ class HomeViewModel(
                     try {
                         shelfRepository.fetchAndCacheMyShelves()
                     } catch (e: Exception) {
+                        ErrorBus.emit(e)
                         logger.warn(e) { "Failed to fetch shelves from network" }
                     }
                 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.usecase.admin.LoadServerSettingsUseCase
 import com.calypsan.listenup.client.domain.repository.AdminRepository
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
@@ -198,6 +199,7 @@ class AdminSettingsViewModel(
                     )
                 updateDirty()
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to save settings" }
                 state.value =
                     state.value.copy(

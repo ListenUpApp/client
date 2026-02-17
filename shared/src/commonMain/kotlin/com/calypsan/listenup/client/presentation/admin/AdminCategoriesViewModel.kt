@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.repository.GenreRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -98,6 +99,7 @@ class AdminCategoriesViewModel(
                     state.value = state.value.copy(expandedIds = expanded)
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to create genre" }
                 state.value = state.value.copy(error = e.message ?: "Failed to create genre")
             } finally {
@@ -118,6 +120,7 @@ class AdminCategoriesViewModel(
             try {
                 genreRepository.updateGenre(id, name)
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to rename genre" }
                 state.value = state.value.copy(error = e.message ?: "Failed to rename genre")
             } finally {
@@ -135,6 +138,7 @@ class AdminCategoriesViewModel(
             try {
                 genreRepository.deleteGenre(id)
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to delete genre" }
                 state.value = state.value.copy(error = e.message ?: "Failed to delete genre")
             } finally {
@@ -161,6 +165,7 @@ class AdminCategoriesViewModel(
                     state.value = state.value.copy(expandedIds = expanded)
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to move genre" }
                 state.value = state.value.copy(error = e.message ?: "Failed to move genre")
             } finally {

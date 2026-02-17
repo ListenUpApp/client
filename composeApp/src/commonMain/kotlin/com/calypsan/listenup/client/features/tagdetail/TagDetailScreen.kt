@@ -266,7 +266,7 @@ private fun TagBookItem(
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                 contentAlignment = Alignment.Center,
             ) {
-                if (book.coverPath != null) {
+                if (true) { // Always render — BookCoverImage handles server URL fallback
                     BookCoverImage(
                         bookId = book.id.value,
                         coverPath = book.coverPath,

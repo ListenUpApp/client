@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.bookdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Shelf
@@ -240,6 +241,7 @@ class BookDetailViewModel(
                 tagRepository.addTagToBook(bookId, slug)
                 // Observer will update UI automatically
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to add tag '$slug' to book $bookId" }
             }
         }
@@ -261,6 +263,7 @@ class BookDetailViewModel(
                 tagRepository.removeTagFromBook(bookId, slug, tag.id)
                 // Observer will update UI automatically
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to remove tag '$slug' from book $bookId" }
             }
         }
@@ -285,6 +288,7 @@ class BookDetailViewModel(
                 // Observer will update UI automatically
                 hideTagPicker()
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to add tag '$rawInput' to book $bookId" }
             }
         }

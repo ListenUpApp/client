@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.presentation.connect
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.model.DiscoveredServer
 import com.calypsan.listenup.client.domain.model.ServerWithStatus
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
@@ -160,6 +161,7 @@ class ServerSelectViewModel(
                 state.update { it.copy(isConnecting = false) }
                 navigationEvents.value = NavigationEvent.ServerActivated
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to activate server" }
                 state.update {
                     it.copy(
@@ -214,6 +216,7 @@ class ServerSelectViewModel(
                     }
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to activate discovered server" }
                 state.update {
                     it.copy(

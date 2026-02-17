@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.repository.CoverOption
 import com.calypsan.listenup.client.domain.repository.MetadataBook
 import com.calypsan.listenup.client.domain.repository.MetadataContributor
@@ -203,6 +204,7 @@ class MetadataViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Metadata search failed" }
                 state.update {
                     it.copy(
@@ -263,6 +265,7 @@ class MetadataViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to load metadata preview" }
 
                 // Only use fallback if we have meaningful search result data
@@ -418,6 +421,7 @@ class MetadataViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 // Non-fatal - just show Audible cover from preview only
                 logger.warn(e) { "Cover search failed, will use Audible cover only" }
                 state.update { it.copy(isLoadingCovers = false) }

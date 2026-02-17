@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.setup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.data.remote.DirectoryEntryResponse
 import com.calypsan.listenup.client.data.remote.SetupApiContract
 import com.calypsan.listenup.client.data.remote.SetupLibraryRequest
@@ -56,6 +57,7 @@ class LibrarySetupViewModel(
                     loadDirectory("/")
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to check library status" }
                 state.update {
                     it.copy(
@@ -89,6 +91,7 @@ class LibrarySetupViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to load directory: $path" }
                 state.update {
                     it.copy(
@@ -197,6 +200,7 @@ class LibrarySetupViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to create library" }
                 state.update {
                     it.copy(

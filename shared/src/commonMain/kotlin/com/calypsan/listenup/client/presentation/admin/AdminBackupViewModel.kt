@@ -4,6 +4,7 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.domain.model.BackupInfo
 import com.calypsan.listenup.client.domain.model.BackupValidation
@@ -59,6 +60,7 @@ class AdminBackupViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to load backups" }
                 state.update {
                     it.copy(
@@ -86,6 +88,7 @@ class AdminBackupViewModel(
                 loadBackups()
                 state.update { it.copy(isCreating = false) }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to create backup" }
                 state.update {
                     it.copy(
@@ -118,6 +121,7 @@ class AdminBackupViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to delete backup" }
                 state.update {
                     it.copy(
@@ -150,6 +154,7 @@ class AdminBackupViewModel(
                     )
                 }
             } catch (e: Exception) {
+                ErrorBus.emit(e)
                 logger.error(e) { "Failed to validate backup" }
                 state.update {
                     it.copy(
@@ -178,6 +183,7 @@ class AdminBackupViewModel(
                 try {
                     Instant.parse(createdAt)
                 } catch (e: Exception) {
+                    ErrorBus.emit(e)
                     Instant.DISTANT_PAST
                 },
             checksum = checksum,
