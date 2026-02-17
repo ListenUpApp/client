@@ -181,6 +181,27 @@ data class AnalyzeABSResponse(
 )
 
 /**
+ * Response from starting an async ABS analysis.
+ */
+@Serializable
+data class AsyncAnalyzeResponse(
+    @SerialName("analysis_id") val analysisId: String,
+)
+
+/**
+ * Response from polling async ABS analysis status.
+ */
+@Serializable
+data class AnalysisStatusResponse(
+    val status: String, // "running", "completed", "failed"
+    val phase: String, // "parsing", "matching_users", "matching_books", etc.
+    val current: Int = 0,
+    val total: Int = 0,
+    val result: AnalyzeABSResponse? = null,
+    val error: String? = null,
+)
+
+/**
  * Request to import from an ABS backup.
  */
 @Serializable

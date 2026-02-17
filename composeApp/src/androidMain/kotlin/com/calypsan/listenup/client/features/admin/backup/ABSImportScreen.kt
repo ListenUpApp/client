@@ -38,10 +38,12 @@ import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -171,6 +173,9 @@ fun ABSImportScreen(
 
             ABSImportStep.ANALYZING -> {
                 AnalyzingContent(
+                    phase = state.analyzePhase,
+                    current = state.analyzeCurrent,
+                    total = state.analyzeTotal,
                     modifier = Modifier.padding(paddingValues),
                 )
             }
@@ -699,11 +704,49 @@ private fun UploadingContent(
 // === Analyzing ===
 
 @Composable
-private fun AnalyzingContent(modifier: Modifier = Modifier) {
-    FullScreenLoadingIndicator(
-        modifier = modifier,
-        message = "Analyzing Backup...",
-    )
+private fun AnalyzingContent(
+    phase: String,
+    current: Int,
+    total: Int,
+    modifier: Modifier = Modifier,
+) {
+    val phaseText =
+        when (phase) {
+            "parsing" -> "Parsing backup..."
+            "matching_users" -> "Matching users..."
+            "matching_books" -> "Matching books..."
+            "matching_sessions" -> "Analyzing sessions..."
+            "matching_progress" -> "Analyzing progress..."
+            "done" -> "Finishing up..."
+            else -> "Analyzing..."
+        }
+
+    Column(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircularProgressIndicator()
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = phaseText,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        if (total > 0) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "$current / $total",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            @Suppress("MagicNumber")
+            LinearProgressIndicator(
+                progress = { current.toFloat() / total.toFloat() },
+                modifier = Modifier.fillMaxWidth(0.6f),
+            )
+        }
+    }
 }
 
 // === User Mapping ===

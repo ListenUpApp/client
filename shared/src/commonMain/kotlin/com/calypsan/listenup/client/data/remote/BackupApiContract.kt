@@ -1,8 +1,10 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.FileSource
+import com.calypsan.listenup.client.data.remote.model.AnalysisStatusResponse
 import com.calypsan.listenup.client.data.remote.model.AnalyzeABSRequest
 import com.calypsan.listenup.client.data.remote.model.AnalyzeABSResponse
+import com.calypsan.listenup.client.data.remote.model.AsyncAnalyzeResponse
 import com.calypsan.listenup.client.data.remote.model.BackupResponse
 import com.calypsan.listenup.client.data.remote.model.ImportABSRequest
 import com.calypsan.listenup.client.data.remote.model.ImportABSResponse
@@ -87,6 +89,16 @@ interface BackupApiContract {
      * Analyze an Audiobookshelf backup.
      */
     suspend fun analyzeABSBackup(request: AnalyzeABSRequest): AnalyzeABSResponse
+
+    /**
+     * Start an async analysis of an Audiobookshelf backup.
+     */
+    suspend fun analyzeABSBackupAsync(request: AnalyzeABSRequest): AsyncAnalyzeResponse
+
+    /**
+     * Poll the status of an async analysis.
+     */
+    suspend fun getAnalysisStatus(analysisId: String): AnalysisStatusResponse
 
     /**
      * Import from an Audiobookshelf backup.

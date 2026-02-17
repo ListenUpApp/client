@@ -4,8 +4,10 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.FileSource
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.exceptionOrFromMessage
+import com.calypsan.listenup.client.data.remote.model.AnalysisStatusResponse
 import com.calypsan.listenup.client.data.remote.model.AnalyzeABSRequest
 import com.calypsan.listenup.client.data.remote.model.AnalyzeABSResponse
+import com.calypsan.listenup.client.data.remote.model.AsyncAnalyzeResponse
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.BackupResponse
 import com.calypsan.listenup.client.data.remote.model.CreateBackupRequest
@@ -25,8 +27,10 @@ import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
 
 /**
  * Implementation of backup API using Ktor.
@@ -201,6 +205,32 @@ class BackupApi(
                         socketTimeoutMillis = 5 * 60 * 1000
                     }
                 }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    override suspend fun analyzeABSBackupAsync(request: AnalyzeABSRequest): AsyncAnalyzeResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<AsyncAnalyzeResponse> =
+            client
+                .post("/api/v1/admin/abs/analyze/async") {
+                    contentType(ContentType.Application.Json)
+                    setBody(request)
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    override suspend fun getAnalysisStatus(analysisId: String): AnalysisStatusResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<AnalysisStatusResponse> =
+            client.get("/api/v1/admin/abs/analyze/$analysisId/status").body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
