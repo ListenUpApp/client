@@ -10,6 +10,7 @@ import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -53,6 +54,22 @@ class HomeViewModel(
         observeUser()
         observeContinueListening()
         observeScanProgress()
+        observeSyncState()
+    }
+
+    /**
+     * Observe sync state to keep loading indicator active during initial sync.
+     *
+     * When the library is syncing (e.g., first connection), the local Room database
+     * is empty and would show an empty state. This keeps isLoading=true until
+     * sync completes, so the user sees a loading indicator instead.
+     */
+    private fun observeSyncState() {
+        syncRepository.syncState
+            .onEach { syncState ->
+                val isSyncing = syncState is SyncState.Syncing || syncState is SyncState.Progress
+                state.update { it.copy(isSyncing = isSyncing) }
+            }.launchIn(viewModelScope)
     }
 
     /**
@@ -79,7 +96,7 @@ class HomeViewModel(
                     logger.error(e) { "Error observing continue listening" }
                     state.update {
                         it.copy(
-                            isLoading = false,
+                            isDataLoading = false,
                             error = "Failed to load continue listening",
                         )
                     }
@@ -91,7 +108,7 @@ class HomeViewModel(
                     }
                     state.update {
                         it.copy(
-                            isLoading = false,
+                            isDataLoading = false,
                             continueListening = books,
                             error = null,
                         )
@@ -194,7 +211,8 @@ class HomeViewModel(
  * Immutable data class that represents the complete UI state.
  */
 data class HomeUiState(
-    val isLoading: Boolean = true,
+    val isDataLoading: Boolean = true,
+    val isSyncing: Boolean = false,
     val userName: String = "",
     val timeGreeting: String = "Good morning",
     val continueListening: List<ContinueListeningBook> = emptyList(),
@@ -202,6 +220,12 @@ data class HomeUiState(
     val scanProgress: ScanProgressState? = null,
     val error: String? = null,
 ) {
+    /**
+     * Combined loading state — true if data is loading or initial sync is in progress.
+     */
+    val isLoading: Boolean
+        get() = isDataLoading || isSyncing
+
     /**
      * Full greeting combining time-based greeting with user name.
      *
