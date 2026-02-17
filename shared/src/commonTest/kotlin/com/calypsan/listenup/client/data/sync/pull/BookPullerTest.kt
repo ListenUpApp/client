@@ -143,7 +143,6 @@ class BookPullerTest {
             everySuspend { conflictDetector.detectBookConflicts(any()) } returns emptyList()
             everySuspend { conflictDetector.shouldPreserveLocalChanges(any()) } returns false
             everySuspend { imageDownloader.deleteCover(any()) } returns Result.Success(Unit)
-            everySuspend { imageDownloader.downloadCovers(any()) } returns Result.Success(emptyList())
             everySuspend { coverDownloadDao.enqueueAll(any()) } returns Unit
         }
 

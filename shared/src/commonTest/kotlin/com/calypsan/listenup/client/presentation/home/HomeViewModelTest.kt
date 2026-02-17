@@ -53,10 +53,12 @@ class HomeViewModelTest {
         val userFlow = MutableStateFlow<User?>(null)
         val continueListeningFlow = MutableStateFlow<List<ContinueListeningBook>>(emptyList())
         val scanProgressFlow = MutableStateFlow<com.calypsan.listenup.client.data.sync.sse.ScanProgressState?>(null)
+        val syncStateFlow = MutableStateFlow<com.calypsan.listenup.client.domain.model.SyncState>(com.calypsan.listenup.client.domain.model.SyncState.Idle)
         var currentHour: Int = 10 // Default to morning
 
         fun build(): HomeViewModel {
             dev.mokkery.every { syncRepository.scanProgress } returns scanProgressFlow
+            dev.mokkery.every { syncRepository.syncState } returns syncStateFlow
             return HomeViewModel(
                 homeRepository = homeRepository,
                 userRepository = userRepository,

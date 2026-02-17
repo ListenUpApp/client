@@ -43,16 +43,6 @@ interface ImageDownloaderContract {
     suspend fun downloadCover(bookId: BookId): Result<Boolean>
 
     /**
-     * Download covers for multiple books in batch.
-     *
-     * Extracts color palette from each downloaded cover for caching.
-     *
-     * @param bookIds List of book identifiers to download covers for
-     * @return Result containing list of download results with extracted colors
-     */
-    suspend fun downloadCovers(bookIds: List<BookId>): Result<List<CoverDownloadResult>>
-
-    /**
      * Download and save a single contributor image.
      *
      * @param contributorId Unique identifier for the contributor
