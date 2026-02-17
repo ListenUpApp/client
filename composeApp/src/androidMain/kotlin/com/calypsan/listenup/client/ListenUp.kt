@@ -17,7 +17,7 @@ import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.features.bookdetail.AndroidBookDetailPlatformActions
 import com.calypsan.listenup.client.features.bookdetail.BookDetailPlatformActions
 import com.calypsan.listenup.client.download.DownloadService
-import com.calypsan.listenup.client.download.DownloadWorkerFactory
+import com.calypsan.listenup.client.download.ListenUpWorkerFactory
 import com.calypsan.listenup.client.automotive.BrowseTreeProvider
 import com.calypsan.listenup.client.shortcuts.ListenUpShortcutManager
 import com.calypsan.listenup.client.playback.AndroidAudioCapabilityDetector
@@ -257,7 +257,7 @@ class ListenUp :
         // Configure WorkManager with custom factory for dependency injection.
         // Must be done before verifyCriticalKoinBindings() because DownloadManager needs WorkManager.
         val workerFactory =
-            DownloadWorkerFactory(
+            ListenUpWorkerFactory(
                 downloadDao = get(),
                 fileManager = get(),
                 tokenProvider = get<AndroidAudioTokenProvider>(),
@@ -265,6 +265,8 @@ class ListenUp :
                 playbackPreferences = get(),
                 playbackApi = get(),
                 capabilityDetector = get(),
+                backupApi = get(),
+                absImportApi = get(),
             )
 
         val workManagerConfig =

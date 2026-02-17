@@ -43,15 +43,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.remote.ABSImportSummary
@@ -63,7 +65,6 @@ import com.calypsan.listenup.client.presentation.admin.ABSImportHubViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminBackupState
 import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
-import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
@@ -80,7 +81,7 @@ fun AdminBackupScreen(
 ) {
     val backupState by backupViewModel.state.collectAsStateWithLifecycle()
     val absImportListState by absImportViewModel.listState.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // Upload sheet state
     var showUploadSheet by remember { mutableStateOf(false) }
@@ -91,6 +92,14 @@ fun AdminBackupScreen(
         rememberABSBackupPicker { result ->
             uploadSheetState.onDocumentSelected(result)
         }
+
+    // Observe WorkManager work info when an upload is active
+    LaunchedEffect(uploadSheetState.activeWorkId) {
+        val flow = uploadSheetState.getWorkInfoFlow(context) ?: return@LaunchedEffect
+        flow.collect { workInfo ->
+            uploadSheetState.observeWorkInfo(workInfo)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -137,11 +146,7 @@ fun AdminBackupScreen(
             state = uploadSheetState.uploadState,
             onPickFile = { documentPicker.launch() },
             onUpload = {
-                scope.launch {
-                    uploadSheetState.startUpload { fileSource, name ->
-                        absImportViewModel.createImportAndGetId(fileSource, name)
-                    }
-                }
+                uploadSheetState.enqueueUpload(context)
             },
             onNavigateToImport = { importId ->
                 showUploadSheet = false

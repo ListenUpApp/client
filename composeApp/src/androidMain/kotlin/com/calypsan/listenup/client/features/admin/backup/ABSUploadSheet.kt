@@ -1,5 +1,7 @@
 package com.calypsan.listenup.client.features.admin.backup
 
+import android.content.Context
+import android.net.Uri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -44,13 +46,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.FileSource
-import com.calypsan.listenup.client.core.Success
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.calypsan.listenup.client.design.components.ListenUpButton
+import com.calypsan.listenup.client.upload.ABSUploadWorker
 import com.calypsan.listenup.client.util.DocumentPickerResult
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
-import com.calypsan.listenup.client.core.Result as AppResult
+import kotlinx.coroutines.flow.Flow
+import java.io.File
+import java.util.UUID
+
+private val logger = KotlinLogging.logger {}
 
 /** Delay before auto-navigating after successful upload. */
 private const val SUCCESS_ANIMATION_DELAY_MS = 1500L
@@ -575,21 +582,34 @@ private fun formatFileSize(bytes: Long): String =
 /**
  * State holder for the ABS upload sheet.
  *
- * Manages the upload flow lifecycle and coordinates with the document picker.
+ * Manages the upload flow lifecycle, coordinates with the document picker,
+ * and enqueues background upload via WorkManager for background-safe operation.
  */
 class ABSUploadSheetState {
     var uploadState by mutableStateOf<ABSUploadState>(ABSUploadState.SelectFile)
         private set
 
-    private var pendingFileSource: FileSource? = null
+    /** Content URI of the selected file (kept for cache copy). */
+    private var pendingUri: Uri? = null
+    private var pendingFilename: String? = null
+    private var pendingSize: Long = 0L
+
+    /** UUID of the currently enqueued work request, if any. */
+    var activeWorkId: UUID? by mutableStateOf(null)
+        private set
 
     /**
      * Handle document picker result.
+     *
+     * The [DocumentPickerResult.Success] includes the raw content URI,
+     * which is needed to copy the file to cache before background upload.
      */
     fun onDocumentSelected(result: DocumentPickerResult) {
         when (result) {
             is DocumentPickerResult.Success -> {
-                pendingFileSource = result.fileSource
+                pendingUri = result.uri
+                pendingFilename = result.filename
+                pendingSize = result.size
                 uploadState =
                     ABSUploadState.FileSelected(
                         filename = result.filename,
@@ -612,47 +632,101 @@ class ABSUploadSheetState {
     }
 
     /**
-     * Start the upload process.
+     * Copy the selected file to cache and enqueue the background upload worker.
+     *
+     * The file copy **must** happen in the foreground because SAF content URIs
+     * may not survive app backgrounding.
+     *
+     * @param context Android context for cache dir and WorkManager
+     * @return The work request UUID, or null if no file is pending
      */
-    @Suppress("MagicNumber")
-    suspend fun startUpload(createImport: suspend (FileSource, String) -> AppResult<String>) {
-        val fileSource = pendingFileSource ?: return
-        val filename = (uploadState as? ABSUploadState.FileSelected)?.filename ?: return
+    fun enqueueUpload(context: Context): UUID? {
+        val uri = pendingUri ?: return null
+        val filename = pendingFilename ?: return null
 
         uploadState = ABSUploadState.Uploading(filename, UploadPhase.UPLOADING)
 
-        try {
-            // Simulate phase transition (the actual API call handles both upload and analysis)
-            delay(500)
-            uploadState = ABSUploadState.Uploading(filename, UploadPhase.ANALYZING)
+        return try {
+            // Copy content URI to cache file (must happen in foreground)
+            val cacheFile = copyToCache(context, uri, filename)
 
-            when (val result = createImport(fileSource, filename)) {
-                is Success -> {
-                    uploadState = ABSUploadState.Complete(result.data, filename)
-                }
+            // Enqueue background worker
+            val workId = ABSUploadWorker.enqueue(
+                context = context,
+                cacheFilePath = cacheFile.absolutePath,
+                filename = filename,
+                fileSize = cacheFile.length(),
+            )
 
-                is Failure -> {
-                    uploadState =
-                        ABSUploadState.Error(
-                            message = result.message,
-                            filename = filename,
-                        )
-                }
-            }
+            activeWorkId = workId
+            logger.info { "Enqueued ABS upload worker: workId=$workId, file=${cacheFile.absolutePath}" }
+            workId
         } catch (e: Exception) {
-            uploadState =
-                ABSUploadState.Error(
-                    message = e.message ?: "Upload failed",
-                    filename = filename,
-                )
+            logger.error(e) { "Failed to enqueue upload" }
+            uploadState = ABSUploadState.Error(
+                message = e.message ?: "Failed to prepare upload",
+                filename = filename,
+            )
+            null
         }
+    }
+
+    /**
+     * Observe [WorkInfo] and update upload state accordingly.
+     *
+     * Call this from a `LaunchedEffect` keyed on [activeWorkId].
+     */
+    fun observeWorkInfo(workInfo: WorkInfo?) {
+        if (workInfo == null) return
+        val filename = pendingFilename ?: "backup"
+
+        when (workInfo.state) {
+            WorkInfo.State.ENQUEUED,
+            WorkInfo.State.BLOCKED,
+            -> {
+                uploadState = ABSUploadState.Uploading(filename, UploadPhase.UPLOADING)
+            }
+
+            WorkInfo.State.RUNNING -> {
+                uploadState = ABSUploadState.Uploading(filename, UploadPhase.ANALYZING)
+            }
+
+            WorkInfo.State.SUCCEEDED -> {
+                val importId = workInfo.outputData.getString(ABSUploadWorker.KEY_IMPORT_ID) ?: ""
+                uploadState = ABSUploadState.Complete(importId, filename)
+                activeWorkId = null
+            }
+
+            WorkInfo.State.FAILED -> {
+                val error = workInfo.outputData.getString("error") ?: "Upload failed"
+                uploadState = ABSUploadState.Error(message = error, filename = filename)
+                activeWorkId = null
+            }
+
+            WorkInfo.State.CANCELLED -> {
+                uploadState = ABSUploadState.Error(message = "Upload cancelled", filename = filename)
+                activeWorkId = null
+            }
+        }
+    }
+
+    /**
+     * Get a [Flow] of [WorkInfo] for the active work request.
+     */
+    fun getWorkInfoFlow(context: Context): Flow<WorkInfo?>? {
+        val workId = activeWorkId ?: return null
+        return WorkManager.getInstance(context)
+            .getWorkInfoByIdFlow(workId)
     }
 
     /**
      * Reset to file selection state.
      */
     fun retry() {
-        pendingFileSource = null
+        pendingUri = null
+        pendingFilename = null
+        pendingSize = 0L
+        activeWorkId = null
         uploadState = ABSUploadState.SelectFile
     }
 
@@ -660,8 +734,33 @@ class ABSUploadSheetState {
      * Reset state completely.
      */
     fun reset() {
-        pendingFileSource = null
+        pendingUri = null
+        pendingFilename = null
+        pendingSize = 0L
+        activeWorkId = null
         uploadState = ABSUploadState.SelectFile
+    }
+
+    /**
+     * Copy a content URI to the app's cache directory.
+     *
+     * This must be called in the foreground because SAF URIs may not persist
+     * after the app is backgrounded.
+     */
+    private fun copyToCache(context: Context, uri: Uri, filename: String): File {
+        val cacheDir = File(context.cacheDir, "abs_uploads")
+        cacheDir.mkdirs()
+
+        val cacheFile = File(cacheDir, "${System.currentTimeMillis()}_$filename")
+
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            cacheFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        } ?: error("Could not open input stream for URI: $uri")
+
+        logger.debug { "Copied ${cacheFile.length()} bytes to cache: ${cacheFile.absolutePath}" }
+        return cacheFile
     }
 }
 
