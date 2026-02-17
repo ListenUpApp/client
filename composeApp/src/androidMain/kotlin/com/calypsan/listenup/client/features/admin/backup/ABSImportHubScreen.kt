@@ -1058,7 +1058,7 @@ private fun HubUserMappingCard(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Mapped to: ${user.listenUpId}",
+                                text = "Mapped to: ${user.listenUpDisplayName ?: user.listenUpEmail ?: user.listenUpId}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f),
                             )
@@ -1330,7 +1330,7 @@ private fun HubBookMappingCard(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Mapped to: ${book.listenUpId}",
+                                text = "Mapped to: ${book.listenUpTitle ?: book.listenUpId}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f),
                                 maxLines = 1,
