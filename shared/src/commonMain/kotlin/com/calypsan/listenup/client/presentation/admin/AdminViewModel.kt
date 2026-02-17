@@ -18,6 +18,7 @@ import com.calypsan.listenup.client.domain.usecase.admin.LoadUsersUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.RevokeInviteUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.SetOpenRegistrationUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -105,45 +106,39 @@ class AdminViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(isLoading = true, error = null)
 
-            // Load instance info first for open registration status
-            val openRegistration =
-                when (val result = instanceRepository.getInstance()) {
-                    is Success -> result.data.openRegistration
-                    is Failure -> false
+            // Load all data in parallel — no dependencies between these calls
+            val deferredInstance = async { instanceRepository.getInstance() }
+            val deferredUsers = async { loadUsersUseCase() }
+            val deferredPending = async { loadPendingUsersUseCase() }
+            val deferredInvites = async { loadInvitesUseCase() }
+
+            val openRegistration = when (val result = deferredInstance.await()) {
+                is Success -> result.data.openRegistration
+                is Failure -> false
+            }
+
+            val users = when (val result = deferredUsers.await()) {
+                is Success -> result.data
+                is Failure -> {
+                    state.value = state.value.copy(error = "Failed to load users: ${result.message}")
+                    emptyList()
                 }
+            }
 
-            // Load users and invites independently so one failure doesn't block the other
-            val users =
-                when (val result = loadUsersUseCase()) {
-                    is Success -> {
-                        result.data
-                    }
+            val pendingUsers = when (val result = deferredPending.await()) {
+                is Success -> result.data
+                is Failure -> emptyList()
+            }
 
-                    is Failure -> {
-                        state.value = state.value.copy(error = "Failed to load users: ${result.message}")
-                        emptyList()
+            val pendingInvites = when (val result = deferredInvites.await()) {
+                is Success -> result.data.filter { it.claimedAt == null }
+                is Failure -> {
+                    if (state.value.error == null) {
+                        state.value = state.value.copy(error = "Failed to load invites: ${result.message}")
                     }
+                    emptyList()
                 }
-
-            val pendingUsers =
-                when (val result = loadPendingUsersUseCase()) {
-                    is Success -> result.data
-                    is Failure -> emptyList() // Don't overwrite other errors
-                }
-
-            val pendingInvites =
-                when (val result = loadInvitesUseCase()) {
-                    is Success -> {
-                        result.data.filter { it.claimedAt == null }
-                    }
-
-                    is Failure -> {
-                        if (state.value.error == null) {
-                            state.value = state.value.copy(error = "Failed to load invites: ${result.message}")
-                        }
-                        emptyList()
-                    }
-                }
+            }
 
             // Sort users: root user first, then by creation date (oldest first)
             val sortedUsers =
