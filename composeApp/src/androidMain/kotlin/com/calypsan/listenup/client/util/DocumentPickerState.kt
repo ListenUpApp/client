@@ -33,6 +33,7 @@ sealed interface DocumentPickerResult {
         val filename: String,
         val mimeType: String,
         val size: Long,
+        val uri: Uri,
     ) : DocumentPickerResult
 
     /** User cancelled the picker. */
@@ -131,6 +132,7 @@ class DocumentPickerState(
             filename = filename,
             mimeType = mimeType,
             size = size ?: 0L,
+            uri = uri,
         )
     }
 }
