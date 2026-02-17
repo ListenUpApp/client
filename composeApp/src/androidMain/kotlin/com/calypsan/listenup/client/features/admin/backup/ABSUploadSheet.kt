@@ -700,7 +700,7 @@ class ABSUploadSheetState {
             }
 
             WorkInfo.State.FAILED -> {
-                val error = workInfo.outputData.getString("error") ?: "Upload failed"
+                val error = workInfo.outputData.getString(ABSUploadWorker.KEY_ERROR) ?: "Upload failed"
                 uploadState = ABSUploadState.Error(message = error, filename = filename)
                 activeWorkId = null
             }

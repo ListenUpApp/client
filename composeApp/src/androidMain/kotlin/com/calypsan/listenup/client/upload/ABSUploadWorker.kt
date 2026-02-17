@@ -52,6 +52,7 @@ class ABSUploadWorker(
         const val KEY_FILENAME = "filename"
         const val KEY_FILE_SIZE = "file_size"
         const val KEY_IMPORT_ID = "import_id"
+        const val KEY_ERROR = "error"
 
         /**
          * Enqueue an upload work request.
@@ -88,10 +89,10 @@ class ABSUploadWorker(
     override suspend fun doWork(): Result {
         val cacheFilePath =
             inputData.getString(KEY_CACHE_FILE_PATH)
-                ?: return Result.failure(workDataOf("error" to "Missing cache file path"))
+                ?: return Result.failure(workDataOf(KEY_ERROR to "Missing cache file path"))
         val filename =
             inputData.getString(KEY_FILENAME)
-                ?: return Result.failure(workDataOf("error" to "Missing filename"))
+                ?: return Result.failure(workDataOf(KEY_ERROR to "Missing filename"))
 
         val cacheFile = File(cacheFilePath)
 
@@ -100,7 +101,7 @@ class ABSUploadWorker(
 
             if (!cacheFile.exists()) {
                 logger.error { "Cache file does not exist: $cacheFilePath" }
-                return Result.failure(workDataOf("error" to "Cache file not found"))
+                return Result.failure(workDataOf(KEY_ERROR to "Cache file not found"))
             }
 
             logger.info { "Starting ABS upload: filename=$filename, size=${cacheFile.length()}" }
@@ -141,7 +142,7 @@ class ABSUploadWorker(
             logger.info { "Retrying upload (attempt ${runAttemptCount + 1}/$MAX_RUN_ATTEMPTS)" }
             Result.retry()
         } else {
-            Result.failure(workDataOf("error" to errorMessage))
+            Result.failure(workDataOf(KEY_ERROR to errorMessage))
         }
 
     private fun createForegroundInfo(): ForegroundInfo {
