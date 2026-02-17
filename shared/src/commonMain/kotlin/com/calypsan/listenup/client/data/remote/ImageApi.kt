@@ -14,6 +14,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
@@ -65,7 +66,10 @@ class ImageApi(
     override suspend fun downloadCover(bookId: BookId): Result<ByteArray> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            client.get("/api/v1/covers/${bookId.value}").body<ByteArray>()
+            client
+                .get("/api/v1/covers/${bookId.value}") {
+                    timeout { requestTimeoutMillis = 60_000 }
+                }.body<ByteArray>()
         }
 
     /**
@@ -292,28 +296,6 @@ class ImageApi(
                     throw result.exceptionOrFromMessage()
                 }
             }
-        }
-
-    /**
-     * Download multiple covers in a single request.
-     *
-     * Server returns a TAR stream containing all requested covers.
-     * Missing covers are silently skipped by the server.
-     * Each entry in the TAR is named `{bookId}.jpg`.
-     *
-     * Endpoint: GET /api/v1/covers/batch?ids=book_1,book_2
-     * Auth: Not required (public access)
-     * Response: application/x-tar (TAR archive)
-     *
-     * @param bookIds List of book IDs to download covers for (max 100)
-     * @return Result containing map of bookId to cover bytes for successfully downloaded covers
-     */
-    override suspend fun downloadCoverBatch(bookIds: List<String>): Result<Map<String, ByteArray>> =
-        suspendRunCatching {
-            val client = clientFactory.getClient()
-            val idsParam = bookIds.joinToString(",")
-            val tarData = client.get("/api/v1/covers/batch?ids=$idsParam").body<ByteArray>()
-            parseTar(tarData)
         }
 
     /**

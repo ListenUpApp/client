@@ -711,7 +711,6 @@ val syncModule =
             ImageDownloader(
                 imageApi = get(),
                 imageStorage = get(),
-                colorExtractor = get(),
             )
         } bind ImageDownloaderContract::class
 
