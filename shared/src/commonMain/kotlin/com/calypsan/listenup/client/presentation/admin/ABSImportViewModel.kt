@@ -461,11 +461,12 @@ class ABSImportViewModel(
                                         durationMs = suggestion.durationMs,
                                     )
                                 } else {
-                                    // No suggestions available — use ABS metadata for display
+                                    // Last resort: create display with match reason as subtitle
+                                    // This ensures the book shows as matched even without full details
                                     SelectedBookDisplay(
                                         bookId = listenupId,
-                                        title = match.absTitle,
-                                        author = match.absAuthor,
+                                        title = "Matched book",
+                                        author = match.matchReason,
                                         durationMs = null,
                                     )
                                 }
