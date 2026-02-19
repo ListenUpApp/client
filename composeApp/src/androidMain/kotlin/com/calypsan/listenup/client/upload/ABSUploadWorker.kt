@@ -5,10 +5,12 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -79,6 +81,7 @@ class ABSUploadWorker(
             val request =
                 OneTimeWorkRequestBuilder<ABSUploadWorker>()
                     .setInputData(data)
+                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                     .build()
 
             WorkManager.getInstance(context).enqueue(request)
@@ -95,6 +98,15 @@ class ABSUploadWorker(
                 ?: return Result.failure(workDataOf(KEY_ERROR to "Missing filename"))
 
         val cacheFile = File(cacheFilePath)
+
+        // Hold a partial wakelock for the duration of the upload + import creation.
+        // CoroutineWorker does NOT hold a wakelock automatically, so without this the CPU
+        // can enter doze mode mid-upload and kill the network connection even though the
+        // foreground service is still running.
+        val wakeLock =
+            (applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager)
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ListenUp:ABSUpload")
+                .apply { acquire(15 * 60 * 1000L) } // 15 min max
 
         return try {
             setForeground(createForegroundInfo())
@@ -132,6 +144,7 @@ class ABSUploadWorker(
             logger.error(e) { "ABS upload failed" }
             retryOrFail(e.message ?: "Upload failed")
         } finally {
+            if (wakeLock.isHeld) wakeLock.release()
             // Clean up cache file
             if (cacheFile.exists()) {
                 val deleted = cacheFile.delete()
