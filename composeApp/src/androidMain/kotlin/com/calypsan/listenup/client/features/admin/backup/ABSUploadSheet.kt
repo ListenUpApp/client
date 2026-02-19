@@ -690,7 +690,9 @@ class ABSUploadSheetState {
             }
 
             WorkInfo.State.RUNNING -> {
-                uploadState = ABSUploadState.Uploading(filename, UploadPhase.ANALYZING)
+                val phase = workInfo.progress.getString("phase")
+                val uploadPhase = if (phase == "analyzing") UploadPhase.ANALYZING else UploadPhase.UPLOADING
+                uploadState = ABSUploadState.Uploading(filename, uploadPhase)
             }
 
             WorkInfo.State.SUCCEEDED -> {

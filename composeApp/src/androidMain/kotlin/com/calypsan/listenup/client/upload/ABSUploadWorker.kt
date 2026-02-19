@@ -111,6 +111,9 @@ class ABSUploadWorker(
             val uploadResponse = backupApi.uploadABSBackup(fileSource)
             logger.info { "Upload complete, server path: ${uploadResponse.path}" }
 
+            // Signal to the UI that upload is done and analysis is starting
+            setProgress(workDataOf("phase" to "analyzing"))
+
             // Create the import from the uploaded file
             when (val importResult = absImportApi.createImportFromPath(uploadResponse.path, filename)) {
                 is Success -> {
