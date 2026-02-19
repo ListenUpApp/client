@@ -120,8 +120,10 @@ fun AutocompleteResultItem(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable { keyboardController?.hide(); onClick() }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .clickable {
+                    keyboardController?.hide()
+                    onClick()
+                }.padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         leadingIcon()
