@@ -106,6 +106,7 @@ class ABSImportHubViewModel(
 
     private var userSearchJob: Job? = null
     private var bookSearchJob: Job? = null
+    private var analysisPollingJob: Job? = null
 
     init {
         loadImports()
@@ -141,6 +142,9 @@ class ABSImportHubViewModel(
                 is Success -> {
                     listState.update { it.copy(isCreating = false) }
                     loadImports() // Refresh list
+                    if (result.data.status == "analyzing") {
+                        startAnalysisPolling(result.data.id)
+                    }
                 }
 
                 is Failure -> {
@@ -167,6 +171,9 @@ class ABSImportHubViewModel(
         when (val result = absImportApi.createImport(fileSource, name)) {
             is Success -> {
                 loadImports() // Refresh list in background
+                if (result.data.status == "analyzing") {
+                    startAnalysisPolling(result.data.id)
+                }
                 Success(result.data.id)
             }
 
@@ -190,6 +197,9 @@ class ABSImportHubViewModel(
                 is Success -> {
                     listState.update { it.copy(isCreating = false) }
                     loadImports() // Refresh list
+                    if (result.data.status == "analyzing") {
+                        startAnalysisPolling(result.data.id)
+                    }
                 }
 
                 is Failure -> {
@@ -637,4 +647,60 @@ class ABSImportHubViewModel(
     fun clearImportResult() {
         hubState.update { it.copy(importResult = null) }
     }
+
+    private fun startAnalysisPolling(importId: String) {
+        analysisPollingJob?.cancel()
+        analysisPollingJob = viewModelScope.launch {
+            while (true) {
+                delay(3000)
+                when (val result = absImportApi.getImport(importId)) {
+                    is Success -> {
+                        val imp = result.data
+                        // Update hub state if we're viewing this import
+                        if (hubState.value.importId == importId) {
+                            hubState.update { it.copy(import = imp) }
+                        }
+                        // Update list state
+                        listState.update { state ->
+                            state.copy(
+                                imports = state.imports.map { summary ->
+                                    if (summary.id == importId) {
+                                        ABSImportSummary(
+                                            id = imp.id,
+                                            name = imp.name,
+                                            status = imp.status,
+                                            createdAt = imp.createdAt,
+                                            updatedAt = imp.updatedAt,
+                                            totalUsers = imp.totalUsers,
+                                            totalBooks = imp.totalBooks,
+                                            totalSessions = imp.totalSessions,
+                                            usersMapped = imp.usersMapped,
+                                            booksMapped = imp.booksMapped,
+                                            sessionsImported = imp.sessionsImported,
+                                        )
+                                    } else {
+                                        summary
+                                    }
+                                },
+                            )
+                        }
+                        if (imp.status != "analyzing") {
+                            logger.info { "Import $importId analysis complete: ${imp.status}" }
+                            break
+                        }
+                    }
+                    is Failure -> {
+                        logger.error { "Failed to poll import status: ${result.exception}" }
+                        break
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        analysisPollingJob?.cancel()
+    }
+
 }

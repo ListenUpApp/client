@@ -480,8 +480,8 @@ class ABSImportApi(
                 client.post("/api/v1/admin/abs/imports") {
                     setBody(CreateImportRequest(backupPath = backupPath, name = name))
                     timeout {
-                        requestTimeoutMillis = 5 * 60 * 1000
-                        socketTimeoutMillis = 5 * 60 * 1000
+                        requestTimeoutMillis = 30 * 1000
+                        socketTimeoutMillis = 30 * 1000
                     }
                 }.body()
 
@@ -724,8 +724,8 @@ class ABSImportApi(
             val response: ApiResponse<ImportSessionsResult> =
                 client.post("/api/v1/admin/abs/imports/$importId/sessions/import") {
                     timeout {
-                        requestTimeoutMillis = 5 * 60 * 1000
-                        socketTimeoutMillis = 5 * 60 * 1000
+                        requestTimeoutMillis = 30 * 1000
+                        socketTimeoutMillis = 30 * 1000
                     }
                 }.body()
 
