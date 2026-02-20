@@ -220,7 +220,11 @@ data class ABSImportResults(
  * Supports two source types:
  * - LOCAL: User picks file from device, uploads to server, then analyzes
  * - REMOTE: User browses server filesystem, selects file, then analyzes
+ *
+ * TODO: Split into smaller pieces — e.g. extract UserMappingHandler and BookMappingHandler
+ *  delegate classes to reduce class size below the detekt LargeClass threshold.
  */
+@Suppress("LargeClass")
 class ABSImportViewModel(
     private val backupApi: BackupApiContract,
     private val searchApi: SearchApiContract,
