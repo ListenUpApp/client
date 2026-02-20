@@ -6,12 +6,15 @@ import com.calypsan.listenup.client.data.local.db.CoverDownloadDao
 import com.calypsan.listenup.client.data.local.db.CoverDownloadStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 private val logger = KotlinLogging.logger {}
+
+private const val COVER_DOWNLOAD_DELAY_MS = 500L
 
 /**
  * Processes the persistent cover download queue.
@@ -118,6 +121,8 @@ class CoverDownloadWorker(
                         coverDownloadDao.markFailed(task.bookId, e.message)
                         logger.warn(e) { "Cover download error: ${task.bookId.value}" }
                     }
+
+                    delay(COVER_DOWNLOAD_DELAY_MS)
                 }
             }
 
