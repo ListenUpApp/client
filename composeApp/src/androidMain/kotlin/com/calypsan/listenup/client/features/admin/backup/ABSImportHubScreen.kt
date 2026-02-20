@@ -1,7 +1,6 @@
 @file:Suppress("LongMethod", "LongParameterList", "CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.admin.backup
-
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +46,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -84,6 +84,7 @@ import com.calypsan.listenup.client.presentation.admin.ImportHubTab
 import com.calypsan.listenup.client.util.DocumentPickerResult
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import org.koin.compose.koinInject
+private const val IMPORT_STATUS_ANALYZING = "analyzing"
 
 // ============================================================
 // Import List Screen
@@ -335,7 +336,18 @@ private fun ImportSummaryCard(
                 )
             }
 
-            if (import.totalSessions > 0) {
+            if (import.status == IMPORT_STATUS_ANALYZING) {
+                Spacer(modifier = Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Analyzing backup…",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (import.totalSessions > 0) {
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
                     progress = { progress },
@@ -419,6 +431,22 @@ private fun StatusBadge(
                     MaterialTheme.colorScheme.surfaceContainerHighest,
                     MaterialTheme.colorScheme.onSurfaceVariant,
                     "Archived",
+                )
+            }
+
+            IMPORT_STATUS_ANALYZING -> {
+                Triple(
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    MaterialTheme.colorScheme.onSecondaryContainer,
+                    "Analyzing…",
+                )
+            }
+
+            "failed" -> {
+                Triple(
+                    MaterialTheme.colorScheme.errorContainer,
+                    MaterialTheme.colorScheme.onErrorContainer,
+                    "Failed",
                 )
             }
 
@@ -609,12 +637,35 @@ private fun ImportHubContent(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
+        // Analyzing banner
+        if (state.import?.status == IMPORT_STATUS_ANALYZING) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "Analysis in progress…",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+
         // Tab row
+        val tabsEnabled = state.import?.status != IMPORT_STATUS_ANALYZING
         PrimaryTabRow(selectedTabIndex = state.activeTab.ordinal) {
             ImportHubTab.entries.forEach { tab ->
                 Tab(
                     selected = state.activeTab == tab,
-                    onClick = { onTabChange(tab) },
+                    onClick = { if (tabsEnabled || tab == ImportHubTab.OVERVIEW) onTabChange(tab) },
+                    enabled = tabsEnabled || tab == ImportHubTab.OVERVIEW,
                     text = { Text(tab.name.lowercase().replaceFirstChar { it.uppercase() }) },
                 )
             }
