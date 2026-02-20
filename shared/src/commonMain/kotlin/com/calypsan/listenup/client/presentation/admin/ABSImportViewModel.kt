@@ -164,6 +164,8 @@ data class ABSImportState(
     val userSearchQuery: String = "",
     val userSearchResults: List<UserSearchResult> = emptyList(),
     val isSearchingUsers: Boolean = false,
+    // ID of the user result item currently being processed (shows loading spinner)
+    val loadingUserItemId: String? = null,
     // Book mapping UI state
     val bookMappingTab: BookMappingTab = BookMappingTab.NEEDS_REVIEW,
     // Display info for selected books (absItemId -> display info)
@@ -173,6 +175,8 @@ data class ABSImportState(
     val bookSearchQuery: String = "",
     val bookSearchResults: List<SearchHitResponse> = emptyList(),
     val isSearchingBooks: Boolean = false,
+    // ID of the book result item currently being processed (shows loading spinner)
+    val loadingBookItemId: String? = null,
     // Import options
     val importSessions: Boolean = true,
     val importProgress: Boolean = true,
@@ -648,29 +652,35 @@ class ABSImportViewModel(
         email: String,
         displayName: String?,
     ) {
-        // Store display info for the selected user
-        val displayInfo =
-            SelectedUserDisplay(
-                userId = userId,
-                email = email,
-                displayName = displayName,
-            )
+        viewModelScope.launch {
+            // Show loading spinner on the tapped result while state propagates
+            state.update { it.copy(loadingUserItemId = userId) }
 
-        state.update { s ->
-            val newDisplays = s.selectedUserDisplays.toMutableMap()
-            newDisplays[absUserId] = displayInfo
+            // Store display info for the selected user
+            val displayInfo =
+                SelectedUserDisplay(
+                    userId = userId,
+                    email = email,
+                    displayName = displayName,
+                )
 
-            val newMappings = s.userMappings.toMutableMap()
-            newMappings[absUserId] = userId
+            state.update { s ->
+                val newDisplays = s.selectedUserDisplays.toMutableMap()
+                newDisplays[absUserId] = displayInfo
 
-            s.copy(
-                selectedUserDisplays = newDisplays,
-                userMappings = newMappings,
-                // Clear search state
-                activeSearchAbsUserId = null,
-                userSearchQuery = "",
-                userSearchResults = emptyList(),
-            )
+                val newMappings = s.userMappings.toMutableMap()
+                newMappings[absUserId] = userId
+
+                s.copy(
+                    selectedUserDisplays = newDisplays,
+                    userMappings = newMappings,
+                    // Clear search state
+                    activeSearchAbsUserId = null,
+                    userSearchQuery = "",
+                    userSearchResults = emptyList(),
+                    loadingUserItemId = null,
+                )
+            }
         }
     }
 
@@ -787,30 +797,36 @@ class ABSImportViewModel(
         author: String?,
         durationMs: Long?,
     ) {
-        // Store display info for the selected book
-        val displayInfo =
-            SelectedBookDisplay(
-                bookId = bookId,
-                title = title,
-                author = author,
-                durationMs = durationMs,
-            )
+        viewModelScope.launch {
+            // Show loading spinner on the tapped result while state propagates
+            state.update { it.copy(loadingBookItemId = bookId) }
 
-        state.update { s ->
-            val newDisplays = s.selectedBookDisplays.toMutableMap()
-            newDisplays[absItemId] = displayInfo
+            // Store display info for the selected book
+            val displayInfo =
+                SelectedBookDisplay(
+                    bookId = bookId,
+                    title = title,
+                    author = author,
+                    durationMs = durationMs,
+                )
 
-            val newMappings = s.bookMappings.toMutableMap()
-            newMappings[absItemId] = bookId
+            state.update { s ->
+                val newDisplays = s.selectedBookDisplays.toMutableMap()
+                newDisplays[absItemId] = displayInfo
 
-            s.copy(
-                selectedBookDisplays = newDisplays,
-                bookMappings = newMappings,
-                // Clear search state
-                activeSearchAbsItemId = null,
-                bookSearchQuery = "",
-                bookSearchResults = emptyList(),
-            )
+                val newMappings = s.bookMappings.toMutableMap()
+                newMappings[absItemId] = bookId
+
+                s.copy(
+                    selectedBookDisplays = newDisplays,
+                    bookMappings = newMappings,
+                    // Clear search state
+                    activeSearchAbsItemId = null,
+                    bookSearchQuery = "",
+                    bookSearchResults = emptyList(),
+                    loadingBookItemId = null,
+                )
+            }
         }
     }
 
