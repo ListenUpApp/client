@@ -68,6 +68,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 
+private const val LABEL_DELETE = "Delete"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminBackupScreen(
@@ -81,6 +83,9 @@ fun AdminBackupScreen(
     val backupState by backupViewModel.state.collectAsStateWithLifecycle()
     val absImportListState by absImportViewModel.listState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    // Delete import confirmation state
+    var deleteConfirmImport by remember { mutableStateOf<ABSImportSummary?>(null) }
 
     // Upload sheet state
     var showUploadSheet by remember { mutableStateOf(false) }
@@ -130,6 +135,7 @@ fun AdminBackupScreen(
             onDeleteClick = { backupViewModel.showDeleteConfirmation(it) },
             onValidateClick = { backupViewModel.validateBackup(it) },
             onABSImportClick = onABSImportHubClick,
+            onDeleteImportClick = { deleteConfirmImport = it },
             onUploadABSBackup = {
                 uploadSheetState.reset() // Ensure clean state
                 showUploadSheet = true
@@ -163,20 +169,36 @@ fun AdminBackupScreen(
         )
     }
 
-    // Delete confirmation dialog
+    // Delete backup confirmation dialog
     backupState.deleteConfirmBackup?.let { backup ->
+        DeleteBackupDialog(
+            backup = backup,
+            onConfirm = { backupViewModel.deleteBackup(backup) },
+            onDismiss = { backupViewModel.dismissDeleteConfirmation() },
+        )
+    }
+
+    // Delete import confirmation dialog
+    deleteConfirmImport?.let { import ->
         AlertDialog(
-            onDismissRequest = { backupViewModel.dismissDeleteConfirmation() },
+            onDismissRequest = { deleteConfirmImport = null },
             shape = MaterialTheme.shapes.large,
-            title = { Text("Delete Backup") },
-            text = { Text("Are you sure you want to delete ${backup.id}? This cannot be undone.") },
+            title = { Text("Delete Import") },
+            text = {
+                Text("Are you sure you want to delete \"${import.name}\"? This cannot be undone.")
+            },
             confirmButton = {
-                TextButton(onClick = { backupViewModel.deleteBackup(backup) }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                TextButton(
+                    onClick = {
+                        absImportViewModel.deleteImport(import.id)
+                        deleteConfirmImport = null
+                    },
+                ) {
+                    Text(LABEL_DELETE, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { backupViewModel.dismissDeleteConfirmation() }) {
+                TextButton(onClick = { deleteConfirmImport = null }) {
                     Text("Cancel")
                 }
             },
@@ -193,6 +215,30 @@ fun AdminBackupScreen(
 }
 
 @Composable
+private fun DeleteBackupDialog(
+    backup: BackupInfo,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.large,
+        title = { Text("Delete Backup") },
+        text = { Text("Are you sure you want to delete ${backup.id}? This cannot be undone.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(LABEL_DELETE, color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
 private fun AdminBackupContent(
     backupState: AdminBackupState,
     absImports: List<ABSImportSummary>,
@@ -202,6 +248,7 @@ private fun AdminBackupContent(
     onDeleteClick: (BackupInfo) -> Unit,
     onValidateClick: (BackupInfo) -> Unit,
     onABSImportClick: (String) -> Unit,
+    onDeleteImportClick: (ABSImportSummary) -> Unit,
     onUploadABSBackup: () -> Unit,
 ) {
     when {
@@ -269,6 +316,7 @@ private fun AdminBackupContent(
                         ABSImportSummaryCard(
                             import = import,
                             onClick = { onABSImportClick(import.id) },
+                            onDeleteClick = { onDeleteImportClick(import) },
                         )
                     }
                 }
@@ -354,7 +402,7 @@ private fun BackupCard(
                             leadingIcon = { Icon(Icons.Default.Verified, contentDescription = null) },
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete") },
+                            text = { Text(LABEL_DELETE) },
                             onClick = {
                                 showMenu = false
                                 onDeleteClick()
@@ -444,6 +492,7 @@ private fun UploadABSBackupCard(onClick: () -> Unit) {
 private fun ABSImportSummaryCard(
     import: ABSImportSummary,
     onClick: () -> Unit,
+    onDeleteClick: () -> Unit,
 ) {
     val isActive = import.status.lowercase() == "active"
     val progress =
@@ -452,6 +501,7 @@ private fun ABSImportSummaryCard(
         } else {
             0f
         }
+    var showMenu by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -474,7 +524,40 @@ private fun ABSImportSummaryCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                StatusBadge(status = import.status)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StatusBadge(status = import.status)
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Open") },
+                                onClick = {
+                                    showMenu = false
+                                    onClick()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(LABEL_DELETE) },
+                                onClick = {
+                                    showMenu = false
+                                    onDeleteClick()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
