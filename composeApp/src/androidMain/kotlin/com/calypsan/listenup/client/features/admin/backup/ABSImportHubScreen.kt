@@ -1,7 +1,6 @@
 @file:Suppress("LongMethod", "LongParameterList", "CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.admin.backup
-
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -85,6 +84,7 @@ import com.calypsan.listenup.client.presentation.admin.ImportHubTab
 import com.calypsan.listenup.client.util.DocumentPickerResult
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import org.koin.compose.koinInject
+private const val IMPORT_STATUS_ANALYZING = "analyzing"
 
 // ============================================================
 // Import List Screen
@@ -336,7 +336,7 @@ private fun ImportSummaryCard(
                 )
             }
 
-            if (import.status == "analyzing") {
+            if (import.status == IMPORT_STATUS_ANALYZING) {
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
@@ -434,7 +434,7 @@ private fun StatusBadge(
                 )
             }
 
-            "analyzing" -> {
+            IMPORT_STATUS_ANALYZING -> {
                 Triple(
                     MaterialTheme.colorScheme.secondaryContainer,
                     MaterialTheme.colorScheme.onSecondaryContainer,
@@ -638,7 +638,7 @@ private fun ImportHubContent(
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         // Analyzing banner
-        if (state.import?.status == "analyzing") {
+        if (state.import?.status == IMPORT_STATUS_ANALYZING) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.secondaryContainer,
@@ -659,7 +659,7 @@ private fun ImportHubContent(
         }
 
         // Tab row
-        val tabsEnabled = state.import?.status != "analyzing"
+        val tabsEnabled = state.import?.status != IMPORT_STATUS_ANALYZING
         PrimaryTabRow(selectedTabIndex = state.activeTab.ordinal) {
             ImportHubTab.entries.forEach { tab ->
                 Tab(

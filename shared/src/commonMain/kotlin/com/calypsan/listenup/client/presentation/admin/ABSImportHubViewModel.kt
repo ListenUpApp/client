@@ -30,6 +30,9 @@ import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
+private const val IMPORT_STATUS_ANALYZING = "analyzing"
+private const val ANALYSIS_POLL_INTERVAL_MS = 3_000L
+
 /**
  * Tab in the import hub detail view.
  */
@@ -142,7 +145,7 @@ class ABSImportHubViewModel(
                 is Success -> {
                     listState.update { it.copy(isCreating = false) }
                     loadImports() // Refresh list
-                    if (result.data.status == "analyzing") {
+                    if (result.data.status == IMPORT_STATUS_ANALYZING) {
                         startAnalysisPolling(result.data.id)
                     }
                 }
@@ -171,7 +174,7 @@ class ABSImportHubViewModel(
         when (val result = absImportApi.createImport(fileSource, name)) {
             is Success -> {
                 loadImports() // Refresh list in background
-                if (result.data.status == "analyzing") {
+                if (result.data.status == IMPORT_STATUS_ANALYZING) {
                     startAnalysisPolling(result.data.id)
                 }
                 Success(result.data.id)
@@ -197,7 +200,7 @@ class ABSImportHubViewModel(
                 is Success -> {
                     listState.update { it.copy(isCreating = false) }
                     loadImports() // Refresh list
-                    if (result.data.status == "analyzing") {
+                    if (result.data.status == IMPORT_STATUS_ANALYZING) {
                         startAnalysisPolling(result.data.id)
                     }
                 }
@@ -653,7 +656,7 @@ class ABSImportHubViewModel(
         analysisPollingJob =
             viewModelScope.launch {
                 while (true) {
-                    delay(3000)
+                    delay(ANALYSIS_POLL_INTERVAL_MS)
                     when (val result = absImportApi.getImport(importId)) {
                         is Success -> {
                             val imp = result.data
@@ -686,7 +689,7 @@ class ABSImportHubViewModel(
                                         },
                                 )
                             }
-                            if (imp.status != "analyzing") {
+                            if (imp.status != IMPORT_STATUS_ANALYZING) {
                                 logger.info { "Import $importId analysis complete: ${imp.status}" }
                                 break
                             }
