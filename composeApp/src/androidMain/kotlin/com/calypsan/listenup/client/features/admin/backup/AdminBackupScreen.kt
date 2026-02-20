@@ -68,6 +68,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 
+private const val LABEL_DELETE = "Delete"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminBackupScreen(
@@ -169,21 +171,10 @@ fun AdminBackupScreen(
 
     // Delete backup confirmation dialog
     backupState.deleteConfirmBackup?.let { backup ->
-        AlertDialog(
-            onDismissRequest = { backupViewModel.dismissDeleteConfirmation() },
-            shape = MaterialTheme.shapes.large,
-            title = { Text("Delete Backup") },
-            text = { Text("Are you sure you want to delete ${backup.id}? This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = { backupViewModel.deleteBackup(backup) }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { backupViewModel.dismissDeleteConfirmation() }) {
-                    Text("Cancel")
-                }
-            },
+        DeleteBackupDialog(
+            backup = backup,
+            onConfirm = { backupViewModel.deleteBackup(backup) },
+            onDismiss = { backupViewModel.dismissDeleteConfirmation() },
         )
     }
 
@@ -203,7 +194,7 @@ fun AdminBackupScreen(
                         deleteConfirmImport = null
                     },
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(LABEL_DELETE, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -221,6 +212,30 @@ fun AdminBackupScreen(
             onDismiss = { backupViewModel.dismissValidation() },
         )
     }
+}
+
+@Composable
+private fun DeleteBackupDialog(
+    backup: BackupInfo,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.large,
+        title = { Text("Delete Backup") },
+        text = { Text("Are you sure you want to delete ${backup.id}? This cannot be undone.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(LABEL_DELETE, color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable
@@ -387,7 +402,7 @@ private fun BackupCard(
                             leadingIcon = { Icon(Icons.Default.Verified, contentDescription = null) },
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete") },
+                            text = { Text(LABEL_DELETE) },
                             onClick = {
                                 showMenu = false
                                 onDeleteClick()
@@ -527,7 +542,7 @@ private fun ABSImportSummaryCard(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Delete") },
+                                text = { Text(LABEL_DELETE) },
                                 onClick = {
                                     showMenu = false
                                     onDeleteClick()
