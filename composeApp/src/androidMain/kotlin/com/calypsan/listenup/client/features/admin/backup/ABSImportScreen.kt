@@ -820,6 +820,7 @@ private fun UserMappingContent(
                         onSearchQueryChange = onSearchQueryChange,
                         onSelectUser = onSelectUser,
                         onClearMapping = onClearMapping,
+                        loadingUserItemId = state.loadingUserItemId,
                     )
                 }
 
@@ -835,6 +836,7 @@ private fun UserMappingContent(
                         onSearchQueryChange = onSearchQueryChange,
                         onSelectUser = onSelectUser,
                         onClearMapping = onClearMapping,
+                        loadingUserItemId = state.loadingUserItemId,
                     )
                 }
             }
@@ -870,6 +872,7 @@ private fun UserNeedsReviewTabContent(
     onSearchQueryChange: (String) -> Unit,
     onSelectUser: (String, String, String, String?) -> Unit,
     onClearMapping: (String) -> Unit,
+    loadingUserItemId: String? = null,
 ) {
     if (users.isEmpty()) {
         Card(
@@ -914,6 +917,7 @@ private fun UserNeedsReviewTabContent(
                         onSelectUser(userMatch.absUserId, id, email, displayName)
                     },
                     onClearMapping = { onClearMapping(userMatch.absUserId) },
+                    loadingUserItemId = loadingUserItemId,
                 )
             }
         }
@@ -932,6 +936,7 @@ private fun UserAutoMatchedTabContent(
     onSearchQueryChange: (String) -> Unit,
     onSelectUser: (String, String, String, String?) -> Unit,
     onClearMapping: (String) -> Unit,
+    loadingUserItemId: String? = null,
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -950,6 +955,7 @@ private fun UserAutoMatchedTabContent(
                     onSelectUser(userMatch.absUserId, id, email, displayName)
                 },
                 onClearMapping = { onClearMapping(userMatch.absUserId) },
+                loadingUserItemId = loadingUserItemId,
             )
         }
     }
@@ -968,6 +974,7 @@ private fun UserMappingCard(
     onSelectUser: (String, String, String?) -> Unit,
     onClearMapping: () -> Unit,
     modifier: Modifier = Modifier,
+    loadingUserItemId: String? = null,
 ) {
     val hasSelection = selectedDisplay != null
 
@@ -1045,6 +1052,7 @@ private fun UserMappingCard(
                         onActivate = onActivateSearch,
                         onQueryChange = onSearchQueryChange,
                         onSelectUser = onSelectUser,
+                        loadingItemId = loadingUserItemId,
                     )
                 }
             }
@@ -1124,6 +1132,7 @@ private fun UserSearchField(
     onQueryChange: (String) -> Unit,
     onSelectUser: (String, String, String?) -> Unit,
     modifier: Modifier = Modifier,
+    loadingItemId: String? = null,
 ) {
     // Combine suggestions with search results
     // Show suggestions when query is empty, search results when typing
@@ -1169,6 +1178,7 @@ private fun UserSearchField(
                 UserSearchResultItem(
                     item = item,
                     onClick = { onSelectUser(item.id, item.email, item.displayName) },
+                    isLoading = loadingItemId == item.id,
                 )
             },
             placeholder =
@@ -1211,12 +1221,14 @@ private fun UserSearchResultItem(
     item: UserSearchItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
 ) {
     AutocompleteResultItem(
         name = item.displayName ?: item.email,
         subtitle = item.displayName?.let { item.email },
         onClick = onClick,
         modifier = modifier,
+        isLoading = isLoading,
         leadingIcon = {
             Icon(
                 Icons.Outlined.Person,
@@ -1304,6 +1316,7 @@ private fun BookMappingContent(
                         onSearchQueryChange = onSearchQueryChange,
                         onSelectBook = onSelectBook,
                         onClearMapping = onClearMapping,
+                        loadingBookItemId = state.loadingBookItemId,
                     )
                 }
 
@@ -1319,6 +1332,7 @@ private fun BookMappingContent(
                         onSearchQueryChange = onSearchQueryChange,
                         onSelectBook = onSelectBook,
                         onClearMapping = onClearMapping,
+                        loadingBookItemId = state.loadingBookItemId,
                     )
                 }
             }
@@ -1354,6 +1368,7 @@ private fun NeedsReviewTabContent(
     onSearchQueryChange: (String) -> Unit,
     onSelectBook: (String, String, String, String?, Long?) -> Unit,
     onClearMapping: (String) -> Unit,
+    loadingBookItemId: String? = null,
 ) {
     if (books.isEmpty()) {
         Card(
@@ -1398,6 +1413,7 @@ private fun NeedsReviewTabContent(
                         onSelectBook(bookMatch.absItemId, id, title, author, duration)
                     },
                     onClearMapping = { onClearMapping(bookMatch.absItemId) },
+                    loadingBookItemId = loadingBookItemId,
                 )
             }
         }
@@ -1416,6 +1432,7 @@ private fun AutoMatchedTabContent(
     onSearchQueryChange: (String) -> Unit,
     onSelectBook: (String, String, String, String?, Long?) -> Unit,
     onClearMapping: (String) -> Unit,
+    loadingBookItemId: String? = null,
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1434,6 +1451,7 @@ private fun AutoMatchedTabContent(
                     onSelectBook(bookMatch.absItemId, id, title, author, duration)
                 },
                 onClearMapping = { onClearMapping(bookMatch.absItemId) },
+                loadingBookItemId = loadingBookItemId,
             )
         }
     }
@@ -1452,6 +1470,7 @@ private fun BookMappingCard(
     onSelectBook: (String, String, String?, Long?) -> Unit,
     onClearMapping: () -> Unit,
     modifier: Modifier = Modifier,
+    loadingBookItemId: String? = null,
 ) {
     val hasSelection = selectedDisplay != null
 
@@ -1522,6 +1541,7 @@ private fun BookMappingCard(
                         onActivate = onActivateSearch,
                         onQueryChange = onSearchQueryChange,
                         onSelectBook = onSelectBook,
+                        loadingItemId = loadingBookItemId,
                     )
                 }
             }
@@ -1601,6 +1621,7 @@ private fun BookSearchField(
     onQueryChange: (String) -> Unit,
     onSelectBook: (String, String, String?, Long?) -> Unit,
     modifier: Modifier = Modifier,
+    loadingItemId: String? = null,
 ) {
     // Combine suggestions with search results
     // Show suggestions when query is empty, search results when typing
@@ -1648,6 +1669,7 @@ private fun BookSearchField(
                 BookSearchResultItem(
                     item = item,
                     onClick = { onSelectBook(item.id, item.title, item.author, item.durationMs) },
+                    isLoading = loadingItemId == item.id,
                 )
             },
             placeholder =
@@ -1691,6 +1713,7 @@ private fun BookSearchResultItem(
     item: BookSearchItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
 ) {
     val durationText =
         item.durationMs?.let { ms ->
@@ -1704,6 +1727,7 @@ private fun BookSearchResultItem(
         subtitle = listOfNotNull(item.author, durationText).joinToString(" · "),
         onClick = onClick,
         modifier = modifier,
+        isLoading = isLoading,
         leadingIcon = {
             Icon(
                 Icons.AutoMirrored.Outlined.MenuBook,

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -106,6 +107,7 @@ fun AutocompleteResultItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    isLoading: Boolean = false,
     leadingIcon: @Composable () -> Unit = {
         Icon(
             imageVector = Icons.Default.Person,
@@ -142,10 +144,17 @@ fun AutocompleteResultItem(
                 )
             }
         }
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = stringResource(Res.string.common_add_name, name),
-            tint = MaterialTheme.colorScheme.primary,
-        )
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = stringResource(Res.string.common_add_name, name),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
