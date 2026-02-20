@@ -650,57 +650,59 @@ class ABSImportHubViewModel(
 
     private fun startAnalysisPolling(importId: String) {
         analysisPollingJob?.cancel()
-        analysisPollingJob = viewModelScope.launch {
-            while (true) {
-                delay(3000)
-                when (val result = absImportApi.getImport(importId)) {
-                    is Success -> {
-                        val imp = result.data
-                        // Update hub state if we're viewing this import
-                        if (hubState.value.importId == importId) {
-                            hubState.update { it.copy(import = imp) }
+        analysisPollingJob =
+            viewModelScope.launch {
+                while (true) {
+                    delay(3000)
+                    when (val result = absImportApi.getImport(importId)) {
+                        is Success -> {
+                            val imp = result.data
+                            // Update hub state if we're viewing this import
+                            if (hubState.value.importId == importId) {
+                                hubState.update { it.copy(import = imp) }
+                            }
+                            // Update list state
+                            listState.update { state ->
+                                state.copy(
+                                    imports =
+                                        state.imports.map { summary ->
+                                            if (summary.id == importId) {
+                                                ABSImportSummary(
+                                                    id = imp.id,
+                                                    name = imp.name,
+                                                    status = imp.status,
+                                                    createdAt = imp.createdAt,
+                                                    updatedAt = imp.updatedAt,
+                                                    totalUsers = imp.totalUsers,
+                                                    totalBooks = imp.totalBooks,
+                                                    totalSessions = imp.totalSessions,
+                                                    usersMapped = imp.usersMapped,
+                                                    booksMapped = imp.booksMapped,
+                                                    sessionsImported = imp.sessionsImported,
+                                                )
+                                            } else {
+                                                summary
+                                            }
+                                        },
+                                )
+                            }
+                            if (imp.status != "analyzing") {
+                                logger.info { "Import $importId analysis complete: ${imp.status}" }
+                                break
+                            }
                         }
-                        // Update list state
-                        listState.update { state ->
-                            state.copy(
-                                imports = state.imports.map { summary ->
-                                    if (summary.id == importId) {
-                                        ABSImportSummary(
-                                            id = imp.id,
-                                            name = imp.name,
-                                            status = imp.status,
-                                            createdAt = imp.createdAt,
-                                            updatedAt = imp.updatedAt,
-                                            totalUsers = imp.totalUsers,
-                                            totalBooks = imp.totalBooks,
-                                            totalSessions = imp.totalSessions,
-                                            usersMapped = imp.usersMapped,
-                                            booksMapped = imp.booksMapped,
-                                            sessionsImported = imp.sessionsImported,
-                                        )
-                                    } else {
-                                        summary
-                                    }
-                                },
-                            )
-                        }
-                        if (imp.status != "analyzing") {
-                            logger.info { "Import $importId analysis complete: ${imp.status}" }
+
+                        is Failure -> {
+                            logger.error { "Failed to poll import status: ${result.exception}" }
                             break
                         }
                     }
-                    is Failure -> {
-                        logger.error { "Failed to poll import status: ${result.exception}" }
-                        break
-                    }
                 }
             }
-        }
     }
 
     override fun onCleared() {
         super.onCleared()
         analysisPollingJob?.cancel()
     }
-
 }
