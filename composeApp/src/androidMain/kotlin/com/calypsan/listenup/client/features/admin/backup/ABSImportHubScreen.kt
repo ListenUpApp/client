@@ -99,6 +99,7 @@ fun ABSImportListScreen(
 ) {
     val state by viewModel.listState.collectAsStateWithLifecycle()
     var showCreateDialog by remember { mutableStateOf(false) }
+    var deleteConfirmImport by remember { mutableStateOf<ABSImportSummary?>(null) }
 
     // Document picker for local file selection
     val documentPicker =
@@ -145,8 +146,36 @@ fun ABSImportListScreen(
         ImportListContent(
             state = state,
             onImportClick = onImportClick,
-            onDeleteClick = { viewModel.deleteImport(it) },
+            onDeleteClick = { importId ->
+                deleteConfirmImport = state.imports.find { it.id == importId }
+            },
             modifier = Modifier.padding(paddingValues),
+        )
+    }
+
+    deleteConfirmImport?.let { import ->
+        AlertDialog(
+            onDismissRequest = { deleteConfirmImport = null },
+            shape = MaterialTheme.shapes.large,
+            title = { Text("Delete Import") },
+            text = {
+                Text("Are you sure you want to delete \"${import.name}\"? This cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteImport(import.id)
+                        deleteConfirmImport = null
+                    },
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteConfirmImport = null }) {
+                    Text("Cancel")
+                }
+            },
         )
     }
 
