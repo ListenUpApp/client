@@ -79,8 +79,17 @@ class AndroidAudioTokenProvider(
 
     /**
      * Called before starting playback to ensure fresh token.
+     *
+     * Fast-path: if a cached token exists and is more than 2 minutes from
+     * expiry, return immediately without acquiring the refresh mutex.
+     * This prevents blocking on a slow proactive refresh in progress.
      */
     override suspend fun prepareForPlayback() {
+        val token = cachedToken
+        val expiresAt = tokenExpiresAt
+        if (token != null && expiresAt - Clock.System.now().toEpochMilliseconds() > 2.minutes.inWholeMilliseconds) {
+            return
+        }
         refreshToken()
     }
 
