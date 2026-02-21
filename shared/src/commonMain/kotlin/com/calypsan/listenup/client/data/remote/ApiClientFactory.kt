@@ -27,6 +27,8 @@ import io.ktor.client.plugins.plugin
 import kotlinx.serialization.json.Json
 
 private const val SERVER_URL_NOT_CONFIGURED_MESSAGE = "Server URL not configured"
+private const val HTTP_UNAUTHORIZED = 401
+private const val HTTP_FORBIDDEN = 403
 private val logger = KotlinLogging.logger {}
 
 /**
@@ -334,7 +336,7 @@ internal suspend fun refreshAuthTokens(
         )
     } catch (e: ResponseException) {
         val status = e.response.status.value
-        if (status == 401 || status == 403) {
+        if (status == HTTP_UNAUTHORIZED || status == HTTP_FORBIDDEN) {
             logger.warn(e) { "Token refresh rejected ($status), clearing auth state" }
             authSession.clearAuthTokens()
         } else {
