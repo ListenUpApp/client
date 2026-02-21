@@ -75,29 +75,7 @@ internal actual suspend fun createStreamingHttpClient(
                 }
 
                 refreshTokens {
-                    val currentRefreshToken =
-                        authSession.getRefreshToken()
-                            ?: error("No refresh token available")
-
-                    try {
-                        val response = authApi.refresh(currentRefreshToken)
-
-                        authSession.saveAuthTokens(
-                            access = AccessToken(response.accessToken),
-                            refresh = RefreshToken(response.refreshToken),
-                            sessionId = response.sessionId,
-                            userId = response.userId,
-                        )
-
-                        BearerTokens(
-                            accessToken = response.accessToken,
-                            refreshToken = response.refreshToken,
-                        )
-                    } catch (e: Exception) {
-                        logger.warn(e) { "Token refresh failed, clearing auth state" }
-                        authSession.clearAuthTokens()
-                        null
-                    }
+                    refreshAuthTokens(authSession, authApi)
                 }
 
                 sendWithoutRequest { request ->
