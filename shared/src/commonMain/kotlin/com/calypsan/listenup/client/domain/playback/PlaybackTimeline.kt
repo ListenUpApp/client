@@ -198,54 +198,35 @@ data class PlaybackTimeline(
         }
 
         /**
-         * Build timeline with codec negotiation for transcoding support.
+         * Build timeline with local path resolution and direct streaming URLs.
          *
-         * Only blocks on preparing the FIRST non-local file (waits for transcode).
-         * Subsequent files are prepared without blocking to allow playback to start.
+         * Non-local files use the direct URL pattern immediately -- ExoPlayer
+         * buffers naturally so playback starts without waiting for transcoding.
          *
          * @param bookId The book being played
          * @param audioFiles List of audio files from server
          * @param baseUrl Server base URL for building streaming URLs
          * @param resolveLocalPath Function to resolve local file paths for downloaded files
-         * @param prepareStream Function to negotiate streaming URL for a file
-         * @return Constructed timeline with negotiated streaming URLs
+         * @param prepareStream Unused, kept for API compatibility
+         * @return Constructed timeline with direct streaming URLs
          */
         suspend fun buildWithTranscodeSupport(
             bookId: BookId,
             audioFiles: List<AudioFile>,
             baseUrl: String,
             resolveLocalPath: suspend (String) -> String?,
+            @Suppress("UNUSED_PARAMETER")
             prepareStream: suspend (audioFileId: String, codec: String) -> StreamPrepareResult,
         ): PlaybackTimeline {
             var cumulativeOffset = 0L
-            var firstNonLocalPrepared = false
 
             val segments =
                 buildList {
                     for ((index, file) in audioFiles.withIndex()) {
                         val localPath = resolveLocalPath(file.id)
 
-                        // For downloaded files, use local path directly
-                        // For streaming, negotiate the correct URL
                         val streamingUrl =
-                            if (localPath != null) {
-                                // Not used when local, but keep for fallback
-                                "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}"
-                            } else if (!firstNonLocalPrepared) {
-                                // First non-local file: prepare with polling (blocks until ready)
-                                firstNonLocalPrepared = true
-                                val prepareResult = prepareStream(file.id, file.codec)
-                                // Use full URL from server or construct from relative path
-                                if (prepareResult.streamUrl.startsWith("/")) {
-                                    "$baseUrl${prepareResult.streamUrl}"
-                                } else {
-                                    prepareResult.streamUrl
-                                }
-                            } else {
-                                // Subsequent non-local files: use default URL, don't block
-                                // These will trigger their own transcode jobs when accessed
-                                "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}?variant=transcoded"
-                            }
+                            "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}"
 
                         add(
                             FileSegment(

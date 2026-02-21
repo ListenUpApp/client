@@ -23,6 +23,9 @@ kotlin {
         // Enable Android resources (opt-in required with new KMP plugin)
         androidResources { enable = true }
 
+        // Enable Android host tests (JVM-based unit tests)
+        withHostTest {}
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
             freeCompilerArgs.addAll(
@@ -146,8 +149,12 @@ kotlin {
                 }
             }
         }
-        // Note: Android tests use androidHostTest/androidDeviceTest source sets
-        // with the new KMP plugin. Add test dependencies there when needed.
+        val androidHostTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
     }
 }
 
