@@ -1,7 +1,5 @@
 package com.calypsan.listenup.client.data.remote
 
-import com.calypsan.listenup.client.core.AccessToken
-import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -75,29 +73,7 @@ internal actual suspend fun createStreamingHttpClient(
                 }
 
                 refreshTokens {
-                    val currentRefreshToken =
-                        authSession.getRefreshToken()
-                            ?: error("No refresh token available")
-
-                    try {
-                        val response = authApi.refresh(currentRefreshToken)
-
-                        authSession.saveAuthTokens(
-                            access = AccessToken(response.accessToken),
-                            refresh = RefreshToken(response.refreshToken),
-                            sessionId = response.sessionId,
-                            userId = response.userId,
-                        )
-
-                        BearerTokens(
-                            accessToken = response.accessToken,
-                            refreshToken = response.refreshToken,
-                        )
-                    } catch (e: Exception) {
-                        logger.warn(e) { "Token refresh failed, clearing auth state" }
-                        authSession.clearAuthTokens()
-                        null
-                    }
+                    refreshAuthTokens(authSession, authApi)
                 }
 
                 sendWithoutRequest { request ->

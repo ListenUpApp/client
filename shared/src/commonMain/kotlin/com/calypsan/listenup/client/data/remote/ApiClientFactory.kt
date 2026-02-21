@@ -20,12 +20,15 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.plugins.HttpSend
 import kotlinx.io.IOException
 import io.ktor.client.plugins.plugin
 import kotlinx.serialization.json.Json
 
 private const val SERVER_URL_NOT_CONFIGURED_MESSAGE = "Server URL not configured"
+private const val HTTP_UNAUTHORIZED = 401
+private const val HTTP_FORBIDDEN = 403
 private val logger = KotlinLogging.logger {}
 
 /**
@@ -301,3 +304,47 @@ internal expect suspend fun createStreamingHttpClient(
  * @return HttpClient with streaming configuration, no auth
  */
 internal expect fun createUnauthenticatedStreamingHttpClient(serverUrl: ServerUrl): HttpClient
+
+/**
+ * Refreshes auth tokens using the provided refresh token.
+ *
+ * On success, saves the new tokens and returns them as [BearerTokens].
+ * On failure, returns null. Only clears the auth session for definitive
+ * auth rejections (HTTP 401/403).
+ */
+internal suspend fun refreshAuthTokens(
+    authSession: AuthSession,
+    authApi: AuthApiContract,
+): BearerTokens? {
+    val currentRefreshToken =
+        authSession.getRefreshToken()
+            ?: error("No refresh token available")
+
+    return try {
+        val response = authApi.refresh(currentRefreshToken)
+
+        authSession.saveAuthTokens(
+            access = AccessToken(response.accessToken),
+            refresh = RefreshToken(response.refreshToken),
+            sessionId = response.sessionId,
+            userId = response.userId,
+        )
+
+        BearerTokens(
+            accessToken = response.accessToken,
+            refreshToken = response.refreshToken,
+        )
+    } catch (e: ResponseException) {
+        val status = e.response.status.value
+        if (status == HTTP_UNAUTHORIZED || status == HTTP_FORBIDDEN) {
+            logger.warn(e) { "Token refresh rejected ($status), clearing auth state" }
+            authSession.clearAuthTokens()
+        } else {
+            logger.warn(e) { "Token refresh failed with HTTP $status, preserving auth state" }
+        }
+        null
+    } catch (e: Exception) {
+        logger.warn(e) { "Token refresh failed due to network error, preserving auth state" }
+        null
+    }
+}
