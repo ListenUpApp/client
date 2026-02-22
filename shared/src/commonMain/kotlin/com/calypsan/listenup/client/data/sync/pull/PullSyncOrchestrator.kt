@@ -1,5 +1,8 @@
 package com.calypsan.listenup.client.data.sync.pull
 
+import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.ContributorDao
+import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.core.Result
@@ -37,6 +40,9 @@ class PullSyncOrchestrator(
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
     private val syncApi: SyncApiContract,
+    private val bookDao: BookDao,
+    private val seriesDao: SeriesDao,
+    private val contributorDao: ContributorDao,
 ) {
     /**
      * Pull all entities from server with retry logic.
@@ -186,6 +192,23 @@ class PullSyncOrchestrator(
                 listeningEventPuller.pull(updatedAfter, onProgress)
                 activeSessionsPuller.pull(updatedAfter, onProgress)
                 readingSessionsPuller.pull(updatedAfter, onProgress)
+            }
+
+            // Self-healing: if local count < manifest count, the delta sync filtered out entities
+            // whose updated_at predates the client checkpoint. Re-pull those entity types in full.
+            if (manifest != null) {
+                if (totalBooks > 0 && bookDao.count() < totalBooks) {
+                    logger.warn { "Book count mismatch: local=${bookDao.count()}, server=$totalBooks — re-pulling books in full" }
+                    bookPuller.pull(null) {}
+                }
+                if (totalSeries > 0 && seriesDao.count() < totalSeries) {
+                    logger.warn { "Series count mismatch: local=${seriesDao.count()}, server=$totalSeries — re-pulling series in full" }
+                    seriesPuller.pull(null) {}
+                }
+                if (totalContributors > 0 && contributorDao.count() < totalContributors) {
+                    logger.warn { "Contributor count mismatch: local=${contributorDao.count()}, server=$totalContributors — re-pulling contributors in full" }
+                    contributorPuller.pull(null) {}
+                }
             }
 
             onProgress(
