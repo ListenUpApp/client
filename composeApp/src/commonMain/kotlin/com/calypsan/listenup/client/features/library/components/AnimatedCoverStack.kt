@@ -48,7 +48,6 @@ import kotlinx.coroutines.delay
  * @param modifier Optional modifier
  * @param coverHeight Height of the cover area
  * @param cycleDurationMs Duration of each animation cycle (3+ books only)
- * @param maxVisibleCovers Maximum covers to show in the animated stack
  */
 @Composable
 fun AnimatedCoverStack(
@@ -56,10 +55,8 @@ fun AnimatedCoverStack(
     modifier: Modifier = Modifier,
     coverHeight: Dp = 120.dp,
     cycleDurationMs: Long = 3000L,
-    maxVisibleCovers: Int = 4,
 ) {
-    val visibleCovers = coverPaths.take(maxVisibleCovers)
-    val coverCount = visibleCovers.size
+    val coverCount = coverPaths.size
 
     when {
         coverCount == 0 -> {
@@ -73,7 +70,7 @@ fun AnimatedCoverStack(
         coverCount == 1 -> {
             // Single book - full width cropped
             FullWidthCover(
-                coverPath = visibleCovers[0],
+                coverPath = coverPaths[0],
                 modifier = modifier.height(coverHeight),
             )
         }
@@ -81,7 +78,7 @@ fun AnimatedCoverStack(
         coverCount == 2 -> {
             // Two books - side by side
             TwoUpCoverLayout(
-                coverPaths = visibleCovers,
+                coverPaths = coverPaths,
                 modifier = modifier.height(coverHeight),
             )
         }
@@ -89,7 +86,7 @@ fun AnimatedCoverStack(
         else -> {
             // 3+ books - animated stack
             AnimatedStackLayout(
-                coverPaths = visibleCovers,
+                coverPaths = coverPaths,
                 coverHeight = coverHeight,
                 cycleDurationMs = cycleDurationMs,
                 modifier = modifier,
@@ -208,10 +205,12 @@ private fun AnimatedStackLayout(
         val coverHeightPx = with(density) { coverHeight.toPx() }
         val coverWidthPx = coverHeightPx // Square covers (1:1 aspect ratio)
 
-        // Calculate overlap so stack fills the width
-        // totalWidth = coverWidth + (n-1) * offset = containerWidth
-        // offset = (containerWidth - coverWidth) / (n - 1)
-        val overlapOffsetPx = (containerWidthPx - coverWidthPx) / (coverCount - 1).coerceAtLeast(1)
+        // Calculate overlap so stack fills the width, capped to maintain overlap for small counts
+        val overlapOffsetPx =
+            minOf(
+                (containerWidthPx - coverWidthPx) / (coverCount - 1).coerceAtLeast(1),
+                coverWidthPx * 0.35f,
+            )
 
         coverPaths.forEachIndexed { index, coverPath ->
             // visualPosition: 0 = back, coverCount-1 = front (for z-ordering)
