@@ -39,24 +39,25 @@ class ABSImportViewModelAnalysisCountsTest {
     private lateinit var absImportApi: ABSImportApiContract
     private lateinit var syncRepository: SyncRepository
 
-    private fun completedAnalysisResponse() = AnalyzeABSResponse(
-        backupPath = "/tmp/backup.audiobookshelf",
-        analyzedAt = "2025-01-01T00:00:00Z",
-        summary = "Test",
-        totalUsers = 5,
-        totalBooks = 1011,
-        totalSessions = 200,
-        usersMatched = 5,
-        usersPending = 0,
-        booksMatched = 900,
-        booksPending = 111,
-        sessionsReady = 150,
-        sessionsPending = 50,
-        progressReady = 100,
-        progressPending = 100,
-        userMatches = emptyList(),
-        bookMatches = emptyList(),
-    )
+    private fun completedAnalysisResponse() =
+        AnalyzeABSResponse(
+            backupPath = "/tmp/backup.audiobookshelf",
+            analyzedAt = "2025-01-01T00:00:00Z",
+            summary = "Test",
+            totalUsers = 5,
+            totalBooks = 1011,
+            totalSessions = 200,
+            usersMatched = 5,
+            usersPending = 0,
+            booksMatched = 900,
+            booksPending = 111,
+            sessionsReady = 150,
+            sessionsPending = 50,
+            progressReady = 100,
+            progressPending = 100,
+            userMatches = emptyList(),
+            bookMatches = emptyList(),
+        )
 
     @BeforeTest
     fun setup() {
@@ -72,133 +73,140 @@ class ABSImportViewModelAnalysisCountsTest {
         Dispatchers.resetMain()
     }
 
-    private fun createViewModel() = ABSImportViewModel(
-        backupApi = backupApi,
-        searchApi = searchApi,
-        absImportApi = absImportApi,
-        syncRepository = syncRepository,
-    )
-
-    @Test
-    fun `analyzing state shows totalBooks and totalUsers when server provides counts`() = runTest {
-        val analysisResult = completedAnalysisResponse()
-
-        everySuspend { backupApi.analyzeABSBackupAsync(any()) } returns
-            AsyncAnalyzeResponse(analysisId = "a1")
-
-        everySuspend { backupApi.getAnalysisStatus("a1") } sequentiallyReturns listOf(
-            AnalysisStatusResponse(
-                status = "running",
-                phase = "matching_books",
-                current = 100,
-                total = 1011,
-                totalBooks = 1011,
-                totalUsers = 5,
-            ),
-            AnalysisStatusResponse(
-                status = "completed",
-                phase = "done",
-                result = analysisResult,
-            ),
+    private fun createViewModel() =
+        ABSImportViewModel(
+            backupApi = backupApi,
+            searchApi = searchApi,
+            absImportApi = absImportApi,
+            syncRepository = syncRepository,
         )
 
-        val viewModel = createViewModel()
-        viewModel.setFullRemotePath("/tmp/backup.audiobookshelf")
+    @Test
+    fun `analyzing state shows totalBooks and totalUsers when server provides counts`() =
+        runTest {
+            val analysisResult = completedAnalysisResponse()
 
-        // Advance past the first poll (launch + analyzeABSBackupAsync + first getAnalysisStatus)
-        advanceTimeBy(100)
+            everySuspend { backupApi.analyzeABSBackupAsync(any()) } returns
+                AsyncAnalyzeResponse(analysisId = "a1")
 
-        val stateAfterFirstPoll = viewModel.state.value
-        assertEquals(ABSImportStep.ANALYZING, stateAfterFirstPoll.step)
-        assertEquals(1011, stateAfterFirstPoll.totalBooks)
-        assertEquals(5, stateAfterFirstPoll.totalUsers)
+            everySuspend { backupApi.getAnalysisStatus("a1") } sequentiallyReturns
+                listOf(
+                    AnalysisStatusResponse(
+                        status = "running",
+                        phase = "matching_books",
+                        current = 100,
+                        total = 1011,
+                        totalBooks = 1011,
+                        totalUsers = 5,
+                    ),
+                    AnalysisStatusResponse(
+                        status = "completed",
+                        phase = "done",
+                        result = analysisResult,
+                    ),
+                )
 
-        // Advance past the delay(1500) and second poll to complete analysis
-        advanceUntilIdle()
+            val viewModel = createViewModel()
+            viewModel.setFullRemotePath("/tmp/backup.audiobookshelf")
 
-        // After completion, counts should still be populated
-        val finalState = viewModel.state.value
-        assertEquals(1011, finalState.totalBooks)
-        assertEquals(5, finalState.totalUsers)
-    }
+            // Advance past the first poll (launch + analyzeABSBackupAsync + first getAnalysisStatus)
+            advanceTimeBy(100)
+
+            val stateAfterFirstPoll = viewModel.state.value
+            assertEquals(ABSImportStep.ANALYZING, stateAfterFirstPoll.step)
+            assertEquals(1011, stateAfterFirstPoll.totalBooks)
+            assertEquals(5, stateAfterFirstPoll.totalUsers)
+
+            // Advance past the delay(1500) and second poll to complete analysis
+            advanceUntilIdle()
+
+            // After completion, counts should still be populated
+            val finalState = viewModel.state.value
+            assertEquals(1011, finalState.totalBooks)
+            assertEquals(5, finalState.totalUsers)
+        }
 
     @Test
-    fun `analyzing state has zero counts when server does not provide them`() = runTest {
-        val analysisResult = completedAnalysisResponse()
+    fun `analyzing state has zero counts when server does not provide them`() =
+        runTest {
+            val analysisResult = completedAnalysisResponse()
 
-        everySuspend { backupApi.analyzeABSBackupAsync(any()) } returns
-            AsyncAnalyzeResponse(analysisId = "a2")
+            everySuspend { backupApi.analyzeABSBackupAsync(any()) } returns
+                AsyncAnalyzeResponse(analysisId = "a2")
 
-        everySuspend { backupApi.getAnalysisStatus("a2") } sequentiallyReturns listOf(
-            AnalysisStatusResponse(
-                status = "running",
-                phase = "parsing",
-                current = 0,
-                total = 0,
-                totalBooks = 0,
-                totalUsers = 0,
-            ),
-            AnalysisStatusResponse(
-                status = "completed",
-                phase = "done",
-                result = analysisResult,
-            ),
-        )
+            everySuspend { backupApi.getAnalysisStatus("a2") } sequentiallyReturns
+                listOf(
+                    AnalysisStatusResponse(
+                        status = "running",
+                        phase = "parsing",
+                        current = 0,
+                        total = 0,
+                        totalBooks = 0,
+                        totalUsers = 0,
+                    ),
+                    AnalysisStatusResponse(
+                        status = "completed",
+                        phase = "done",
+                        result = analysisResult,
+                    ),
+                )
 
-        val viewModel = createViewModel()
-        viewModel.setFullRemotePath("/tmp/backup.audiobookshelf")
+            val viewModel = createViewModel()
+            viewModel.setFullRemotePath("/tmp/backup.audiobookshelf")
 
-        // Advance past the first poll
-        advanceTimeBy(100)
+            // Advance past the first poll
+            advanceTimeBy(100)
 
-        val stateAfterFirstPoll = viewModel.state.value
-        assertEquals(ABSImportStep.ANALYZING, stateAfterFirstPoll.step)
-        assertEquals(0, stateAfterFirstPoll.totalBooks)
-        assertEquals(0, stateAfterFirstPoll.totalUsers)
-    }
+            val stateAfterFirstPoll = viewModel.state.value
+            assertEquals(ABSImportStep.ANALYZING, stateAfterFirstPoll.step)
+            assertEquals(0, stateAfterFirstPoll.totalBooks)
+            assertEquals(0, stateAfterFirstPoll.totalUsers)
+        }
 
     @Test
-    fun `counts use max value across polling responses`() = runTest {
-        val analysisResult = completedAnalysisResponse()
+    fun `counts use max value across polling responses`() =
+        runTest {
+            val analysisResult = completedAnalysisResponse()
 
-        everySuspend { backupApi.analyzeABSBackupAsync(any()) } returns
-            AsyncAnalyzeResponse(analysisId = "a3")
+            everySuspend { backupApi.analyzeABSBackupAsync(any()) } returns
+                AsyncAnalyzeResponse(analysisId = "a3")
 
-        everySuspend { backupApi.getAnalysisStatus("a3") } sequentiallyReturns listOf(
-            // First poll: only users known
-            AnalysisStatusResponse(
-                status = "running",
-                phase = "matching_users",
-                totalBooks = 0,
-                totalUsers = 5,
-            ),
-            // Second poll: books now known too
-            AnalysisStatusResponse(
-                status = "running",
-                phase = "matching_books",
-                current = 50,
-                total = 1011,
-                totalBooks = 1011,
-                totalUsers = 5,
-            ),
-            AnalysisStatusResponse(
-                status = "completed",
-                phase = "done",
-                result = analysisResult,
-            ),
-        )
+            everySuspend { backupApi.getAnalysisStatus("a3") } sequentiallyReturns
+                listOf(
+                    // First poll: only users known
+                    AnalysisStatusResponse(
+                        status = "running",
+                        phase = "matching_users",
+                        totalBooks = 0,
+                        totalUsers = 5,
+                    ),
+                    // Second poll: books now known too
+                    AnalysisStatusResponse(
+                        status = "running",
+                        phase = "matching_books",
+                        current = 50,
+                        total = 1011,
+                        totalBooks = 1011,
+                        totalUsers = 5,
+                    ),
+                    AnalysisStatusResponse(
+                        status = "completed",
+                        phase = "done",
+                        result = analysisResult,
+                    ),
+                )
 
-        val viewModel = createViewModel()
-        viewModel.setFullRemotePath("/tmp/backup.audiobookshelf")
+            val viewModel = createViewModel()
+            viewModel.setFullRemotePath("/tmp/backup.audiobookshelf")
 
-        // First poll sees users only
-        advanceTimeBy(100)
-        assertEquals(5, viewModel.state.value.totalUsers)
-        assertEquals(0, viewModel.state.value.totalBooks)
+            // First poll sees users only
+            advanceTimeBy(100)
+            assertEquals(5, viewModel.state.value.totalUsers)
+            assertEquals(0, viewModel.state.value.totalBooks)
 
-        // Second poll sees both
-        advanceTimeBy(1600)
-        assertEquals(5, viewModel.state.value.totalUsers)
-        assertEquals(1011, viewModel.state.value.totalBooks)
-    }
+            // Second poll sees both
+            advanceTimeBy(1600)
+            assertEquals(5, viewModel.state.value.totalUsers)
+            assertEquals(1011, viewModel.state.value.totalBooks)
+        }
 }

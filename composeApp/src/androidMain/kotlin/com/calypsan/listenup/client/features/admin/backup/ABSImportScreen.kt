@@ -716,16 +716,33 @@ private fun AnalyzingContent(
 ) {
     val phaseText =
         when (phase) {
-            "parsing" -> "Parsing backup..."
-            "matching_users" ->
+            "parsing" -> {
+                "Parsing backup..."
+            }
+
+            "matching_users" -> {
                 if (totalUsers > 0) "Matching $totalUsers users\u2026" else "Matching users..."
-            "matching_books" ->
+            }
+
+            "matching_books" -> {
                 if (totalBooks > 0) "Matching $totalBooks books\u2026" else "Matching books..."
-            "matching_sessions" -> "Analyzing sessions..."
-            "matching_progress" -> "Analyzing progress..."
-            "done" -> "Finishing up..."
-            else ->
+            }
+
+            "matching_sessions" -> {
+                "Analyzing sessions..."
+            }
+
+            "matching_progress" -> {
+                "Analyzing progress..."
+            }
+
+            "done" -> {
+                "Finishing up..."
+            }
+
+            else -> {
                 if (totalBooks > 0) "Analyzing $totalBooks books\u2026" else "Analyzing..."
+            }
         }
 
     Column(
@@ -742,10 +759,11 @@ private fun AnalyzingContent(
         if (totalBooks > 0 || totalUsers > 0) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = listOfNotNull(
-                    if (totalBooks > 0) "$totalBooks books" else null,
-                    if (totalUsers > 0) "$totalUsers users" else null,
-                ).joinToString(" \u00b7 "),
+                text =
+                    listOfNotNull(
+                        if (totalBooks > 0) "$totalBooks books" else null,
+                        if (totalUsers > 0) "$totalUsers users" else null,
+                    ).joinToString(" \u00b7 "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
