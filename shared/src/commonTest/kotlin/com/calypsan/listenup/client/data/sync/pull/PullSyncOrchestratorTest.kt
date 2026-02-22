@@ -1,6 +1,9 @@
 package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.ContributorDao
+import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.sync.SyncCoordinator
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
@@ -44,6 +47,9 @@ class PullSyncOrchestratorTest {
         val readingSessionsPuller: Puller = mock()
         val syncDao: SyncDao = mock()
         val syncApi: com.calypsan.listenup.client.data.remote.SyncApiContract = mock()
+        val bookDao: BookDao = mock()
+        val seriesDao: SeriesDao = mock()
+        val contributorDao: ContributorDao = mock()
 
         // Use real coordinator for simpler testing
         val coordinator = SyncCoordinator()
@@ -64,6 +70,9 @@ class PullSyncOrchestratorTest {
             everySuspend { syncApi.getManifest() } returns
                 com.calypsan.listenup.client.core.Result
                     .Failure(message = "no manifest")
+            everySuspend { bookDao.count() } returns 0
+            everySuspend { seriesDao.count() } returns 0
+            everySuspend { contributorDao.count() } returns 0
         }
 
         fun build(): PullSyncOrchestrator =
@@ -81,6 +90,9 @@ class PullSyncOrchestratorTest {
                 coordinator = coordinator,
                 syncApi = syncApi,
                 syncDao = syncDao,
+                bookDao = bookDao,
+                seriesDao = seriesDao,
+                contributorDao = contributorDao,
             )
     }
 
