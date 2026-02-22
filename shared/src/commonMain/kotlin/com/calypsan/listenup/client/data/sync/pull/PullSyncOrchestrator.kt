@@ -1,5 +1,8 @@
 package com.calypsan.listenup.client.data.sync.pull
 
+import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.ContributorDao
+import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.core.Result
@@ -37,6 +40,9 @@ class PullSyncOrchestrator(
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
     private val syncApi: SyncApiContract,
+    private val bookDao: BookDao,
+    private val seriesDao: SeriesDao,
+    private val contributorDao: ContributorDao,
 ) {
     /**
      * Pull all entities from server with retry logic.
@@ -46,7 +52,7 @@ class PullSyncOrchestrator(
      *
      * @param onProgress Callback for progress updates
      */
-    @Suppress("CognitiveComplexMethod")
+    @Suppress("CognitiveComplexMethod", "LongMethod", "CyclomaticComplexMethod")
     suspend fun pull(onProgress: (SyncStatus) -> Unit) =
         coroutineScope {
             logger.debug { "Pulling changes from server" }
@@ -186,6 +192,34 @@ class PullSyncOrchestrator(
                 listeningEventPuller.pull(updatedAfter, onProgress)
                 activeSessionsPuller.pull(updatedAfter, onProgress)
                 readingSessionsPuller.pull(updatedAfter, onProgress)
+            }
+
+            // Self-healing: if local count < manifest count, the delta sync filtered out entities
+            // whose updated_at predates the client checkpoint. Re-pull those entity types in full.
+            if (manifest != null) {
+                val localBookCount = bookDao.count()
+                if (totalBooks > 0 && localBookCount < totalBooks) {
+                    logger.warn {
+                        "Book count mismatch: local=$localBookCount, server=$totalBooks — re-pulling books in full"
+                    }
+                    bookPuller.pull(null) {}
+                }
+                val localSeriesCount = seriesDao.count()
+                if (totalSeries > 0 && localSeriesCount < totalSeries) {
+                    logger.warn {
+                        "Series count mismatch: local=$localSeriesCount, " +
+                            "server=$totalSeries — re-pulling series in full"
+                    }
+                    seriesPuller.pull(null) {}
+                }
+                val localContributorCount = contributorDao.count()
+                if (totalContributors > 0 && localContributorCount < totalContributors) {
+                    logger.warn {
+                        "Contributor count mismatch: local=$localContributorCount, " +
+                            "server=$totalContributors — re-pulling contributors in full"
+                    }
+                    contributorPuller.pull(null) {}
+                }
             }
 
             onProgress(

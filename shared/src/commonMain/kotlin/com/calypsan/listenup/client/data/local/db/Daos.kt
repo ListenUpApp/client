@@ -140,6 +140,9 @@ interface SeriesDao {
     @Query("SELECT * FROM series WHERE id = :id")
     fun observeByIdWithBooks(id: String): Flow<SeriesWithBooks?>
 
+    @Query("SELECT COUNT(*) FROM series")
+    suspend fun count(): Int
+
     @Query("DELETE FROM series")
     suspend fun deleteAll()
 }
@@ -298,6 +301,9 @@ interface ContributorDao {
         contributorId: String,
         imagePath: String?,
     )
+
+    @Query("SELECT COUNT(*) FROM contributors")
+    suspend fun count(): Int
 
     @Query("DELETE FROM contributors")
     suspend fun deleteAll()

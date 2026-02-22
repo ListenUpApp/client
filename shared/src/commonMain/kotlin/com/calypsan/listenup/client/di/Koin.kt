@@ -1084,6 +1084,9 @@ val syncModule =
                 coordinator = get(),
                 syncApi = get<SyncApiContract>(),
                 syncDao = get(),
+                bookDao = get(),
+                seriesDao = get(),
+                contributorDao = get(),
             )
         }
 
