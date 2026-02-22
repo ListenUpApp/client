@@ -57,6 +57,8 @@ import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiEvent
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import com.calypsan.listenup.client.core.error.SyncError
+import com.calypsan.listenup.client.data.sync.SSEManagerContract
 import com.calypsan.listenup.client.features.shell.components.GlobalErrorSnackbar
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.launch
@@ -120,6 +122,7 @@ fun AppShell(
     val syncRepository: SyncRepository = koinInject()
     val userRepository: UserRepository = koinInject()
     val syncStatusRepository: SyncStatusRepository = koinInject()
+    val sseManager: SSEManagerContract = koinInject()
     val authSession: AuthSession = koinInject()
     val downloadService: DownloadService = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
@@ -230,7 +233,12 @@ fun AppShell(
     }
 
     // Global error snackbar — collects from ErrorBus and displays
-    GlobalErrorSnackbar(snackbarHostState = snackbarHostState)
+    GlobalErrorSnackbar(
+        snackbarHostState = snackbarHostState,
+        onRetry = { error ->
+            if (error is SyncError.RealtimeDisconnected) sseManager.connect()
+        },
+    )
 
     // Scroll behavior for collapsing top bar
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
