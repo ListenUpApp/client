@@ -77,6 +77,9 @@ data class ABSImportHubState(
     val bookSearchQuery: String = "",
     val bookSearchResults: List<SearchHitResponse> = emptyList(),
     val isSearchingBooks: Boolean = false,
+    // In-flight mapping tracking (#140)
+    val mappingInFlightUsers: Set<String> = emptySet(),
+    val mappingInFlightBooks: Set<String> = emptySet(),
     // Sessions tab
     val sessionsResponse: ABSSessionsResponse? = null,
     val sessionsFilter: SessionStatusFilter = SessionStatusFilter.ALL,
@@ -373,17 +376,18 @@ class ABSImportHubViewModel(
         val importId = hubState.value.importId
         if (importId.isEmpty()) return
 
+        hubState.update { it.copy(mappingInFlightUsers = it.mappingInFlightUsers + absUserId) }
         viewModelScope.launch {
             when (val result = absImportApi.mapUser(importId, absUserId, listenUpId)) {
                 is Success -> {
                     deactivateUserSearch()
-                    // Optimistic update — replace user in list with server response
                     hubState.update { state ->
                         state.copy(
                             users =
                                 state.users.map { user ->
                                     if (user.absUserId == absUserId) result.data else user
                                 },
+                            mappingInFlightUsers = state.mappingInFlightUsers - absUserId,
                         )
                     }
                     refreshImport()
@@ -391,7 +395,12 @@ class ABSImportHubViewModel(
 
                 is Failure -> {
                     logger.error { "Failed to map user: ${result.exception}" }
-                    hubState.update { it.copy(error = "Failed to map user") }
+                    hubState.update {
+                        it.copy(
+                            error = "Failed to map user",
+                            mappingInFlightUsers = it.mappingInFlightUsers - absUserId,
+                        )
+                    }
                 }
             }
         }
@@ -518,6 +527,7 @@ class ABSImportHubViewModel(
         val importId = hubState.value.importId
         if (importId.isEmpty()) return
 
+        hubState.update { it.copy(mappingInFlightBooks = it.mappingInFlightBooks + absMediaId) }
         viewModelScope.launch {
             when (val result = absImportApi.mapBook(importId, absMediaId, listenUpId)) {
                 is Success -> {
@@ -528,6 +538,7 @@ class ABSImportHubViewModel(
                                 state.books.map { book ->
                                     if (book.absMediaId == absMediaId) result.data else book
                                 },
+                            mappingInFlightBooks = state.mappingInFlightBooks - absMediaId,
                         )
                     }
                     refreshImport()
@@ -535,7 +546,12 @@ class ABSImportHubViewModel(
 
                 is Failure -> {
                     logger.error { "Failed to map book: ${result.exception}" }
-                    hubState.update { it.copy(error = "Failed to map book") }
+                    hubState.update {
+                        it.copy(
+                            error = "Failed to map book",
+                            mappingInFlightBooks = it.mappingInFlightBooks - absMediaId,
+                        )
+                    }
                 }
             }
         }

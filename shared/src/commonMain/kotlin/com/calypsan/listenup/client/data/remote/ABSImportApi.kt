@@ -296,6 +296,7 @@ data class ABSImportBook(
     @SerialName("abs_media_id") val absMediaId: String,
     @SerialName("abs_title") val absTitle: String,
     @SerialName("abs_author") val absAuthor: String = "",
+    @SerialName("abs_narrator") val absNarrator: String = "",
     @SerialName("abs_duration_ms") val absDurationMs: Long = 0,
     @SerialName("listenup_id") val listenUpId: String? = null,
     @SerialName("listenup_title") val listenUpTitle: String? = null,
