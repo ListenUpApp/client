@@ -411,7 +411,12 @@ class ProgressTracker(
                 val serverTimestamp = server.lastPlayedAtMillis()
                 if (serverTimestamp > local!!.updatedAt) {
                     // Server is newer (listened on another device)
-                    val entity = server.toEntity()
+                    // Preserve local speed settings — server doesn't track per-position speed
+                    val entity =
+                        server.toEntity().copy(
+                            playbackSpeed = local.playbackSpeed,
+                            hasCustomSpeed = local.hasCustomSpeed,
+                        )
                     positionDao.save(entity)
                     logger.info {
                         "Using server position: ${server.currentPositionMs}ms " +

@@ -311,19 +311,24 @@ class PlaybackService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        // Always save position when the user swipes the app away — if the system
+        // later kills the process, onDestroy may not get a chance to run
+        saveCurrentPosition()
+
         val player = mediaLibrarySession?.player
         // Don't stop immediately - keep the idle timer running
         // User can still resume from notification
         if (player == null || (!player.playWhenReady && idleJob == null)) {
-            serviceScope.launch {
-                saveCurrentPosition()
-                stopSelf()
-            }
+            stopSelf()
         }
     }
 
     override fun onDestroy() {
         logger.info { "PlaybackService destroying" }
+
+        // Save position before releasing player — player.release() does not fire
+        // onIsPlayingChanged, so without this the position would be lost
+        saveCurrentPosition()
 
         idleJob?.cancel()
         positionUpdateJob?.cancel()
