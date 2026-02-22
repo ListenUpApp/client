@@ -451,6 +451,9 @@ class PlaybackManager(
         val positionMs = currentPositionMs.value
         playbackSpeed.value = speed
         progressTracker.onSpeedChanged(bookId, positionMs, speed)
+
+        // Persist as the universal default so it survives app restarts
+        scope.launch { playbackPreferences.setDefaultPlaybackSpeed(speed) }
     }
 
     /**
