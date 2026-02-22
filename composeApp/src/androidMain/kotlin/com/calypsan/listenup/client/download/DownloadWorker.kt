@@ -81,6 +81,11 @@ class DownloadWorker(
             logger.info { "Download cancelled: $audioFileId" }
             downloadDao.updateState(audioFileId, DownloadState.PAUSED)
             Result.failure()
+        } catch (e: AuthenticationException) {
+            // Auth failure after token refresh — pause instead of wasting retry budget
+            logger.warn(e) { "Download paused due to auth failure: $audioFileId" }
+            downloadDao.updateState(audioFileId, DownloadState.PAUSED)
+            Result.failure()
         } catch (e: IOException) {
             // Check if this is a storage-related error (no retry for these)
             val message = e.message?.lowercase() ?: ""
@@ -171,7 +176,35 @@ class DownloadWorker(
             logger.debug { "Resuming download from byte $startByte" }
         }
 
-        client.newCall(requestBuilder.build()).execute().use { response ->
+        val initialResponse = client.newCall(requestBuilder.build()).execute()
+        val finalResponse =
+            if (initialResponse.code == 401) {
+                initialResponse.close()
+                logger.warn { "Got 401 for $audioFileId, refreshing token and retrying" }
+                tokenProvider.prepareForPlayback()
+                val newToken =
+                    tokenProvider.getToken()
+                        ?: throw AuthenticationException("No token available after refresh")
+
+                val retryRequest =
+                    Request
+                        .Builder()
+                        .url(url)
+                        .addHeader("Authorization", "Bearer $newToken")
+                if (startByte > 0) {
+                    retryRequest.addHeader("Range", "bytes=$startByte-")
+                }
+                val retryResponse = client.newCall(retryRequest.build()).execute()
+                if (retryResponse.code == 401) {
+                    retryResponse.close()
+                    throw AuthenticationException("Still unauthorized after token refresh")
+                }
+                retryResponse
+            } else {
+                initialResponse
+            }
+
+        finalResponse.use { response ->
             if (!response.isSuccessful && response.code != 206) {
                 throw IOException("Download failed: HTTP ${response.code}")
             }
@@ -334,3 +367,7 @@ class DownloadWorker(
             "$serverUrl/$streamUrl"
         }
 }
+
+private class AuthenticationException(
+    message: String,
+) : Exception(message)

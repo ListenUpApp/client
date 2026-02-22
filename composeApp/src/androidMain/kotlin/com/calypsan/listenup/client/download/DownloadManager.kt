@@ -295,6 +295,54 @@ class DownloadManager(
     }
 
     /**
+     * Resume any incomplete downloads (e.g. after re-authentication or app restart).
+     * Resets stalled states to QUEUED and re-enqueues via WorkManager with KEEP policy
+     * so already-running work is not restarted.
+     */
+    override suspend fun resumeIncompleteDownloads() {
+        val incomplete = downloadDao.getIncomplete()
+        if (incomplete.isEmpty()) return
+
+        logger.info { "Resuming ${incomplete.size} incomplete downloads" }
+
+        val wifiOnly = localPreferences.wifiOnlyDownloads.value
+        val requiredNetworkType = if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
+
+        for (download in incomplete) {
+            // Reset stalled states to QUEUED
+            if (download.state != DownloadState.QUEUED) {
+                downloadDao.updateState(download.audioFileId, DownloadState.QUEUED)
+            }
+
+            val workRequest =
+                OneTimeWorkRequestBuilder<DownloadWorker>()
+                    .setInputData(
+                        workDataOf(
+                            DownloadWorker.KEY_AUDIO_FILE_ID to download.audioFileId,
+                            DownloadWorker.KEY_BOOK_ID to download.bookId,
+                            DownloadWorker.KEY_FILENAME to download.filename,
+                            DownloadWorker.KEY_FILE_SIZE to download.totalBytes,
+                        ),
+                    ).setConstraints(
+                        Constraints
+                            .Builder()
+                            .setRequiredNetworkType(requiredNetworkType)
+                            .build(),
+                    ).addTag("download_${download.bookId}")
+                    .addTag("download_file_${download.audioFileId}")
+                    .build()
+
+            workManager.enqueueUniqueWork(
+                "download_${download.audioFileId}",
+                ExistingWorkPolicy.KEEP,
+                workRequest,
+            )
+        }
+
+        logger.info { "Re-enqueued ${incomplete.size} incomplete downloads" }
+    }
+
+    /**
      * Check if a book is fully downloaded.
      */
     suspend fun isBookDownloaded(bookId: BookId): Boolean {
