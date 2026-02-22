@@ -37,6 +37,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import com.calypsan.listenup.client.design.components.ListenUpFab
@@ -706,6 +707,7 @@ private fun ImportHubContent(
                         searchQuery = state.userSearchQuery,
                         searchResults = state.userSearchResults,
                         isSearching = state.isSearchingUsers,
+                        mappingInFlight = state.mappingInFlightUsers,
                         onFilterChange = onUsersFilterChange,
                         onActivateSearch = onActivateUserSearch,
                         onSearchQueryChange = onUserSearchQueryChange,
@@ -724,6 +726,7 @@ private fun ImportHubContent(
                         searchQuery = state.bookSearchQuery,
                         searchResults = state.bookSearchResults,
                         isSearching = state.isSearchingBooks,
+                        mappingInFlight = state.mappingInFlightBooks,
                         onFilterChange = onBooksFilterChange,
                         onActivateSearch = onActivateBookSearch,
                         onSearchQueryChange = onBookSearchQueryChange,
@@ -981,6 +984,7 @@ private fun UsersTabContent(
     searchQuery: String,
     searchResults: List<UserSearchResult>,
     isSearching: Boolean,
+    mappingInFlight: Set<String>,
     onFilterChange: (MappingFilter) -> Unit,
     onActivateSearch: (String) -> Unit,
     onSearchQueryChange: (String) -> Unit,
@@ -1031,6 +1035,7 @@ private fun UsersTabContent(
                         searchQuery = if (activeSearchAbsUserId == user.absUserId) searchQuery else "",
                         searchResults = if (activeSearchAbsUserId == user.absUserId) searchResults else emptyList(),
                         isSearching = activeSearchAbsUserId == user.absUserId && isSearching,
+                        isMappingInFlight = user.absUserId in mappingInFlight,
                         onActivateSearch = { onActivateSearch(user.absUserId) },
                         onSearchQueryChange = onSearchQueryChange,
                         onMapUser = { listenUpId -> onMapUser(user.absUserId, listenUpId) },
@@ -1049,6 +1054,7 @@ private fun HubUserMappingCard(
     searchQuery: String,
     searchResults: List<UserSearchResult>,
     isSearching: Boolean,
+    isMappingInFlight: Boolean,
     onActivateSearch: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onMapUser: (String) -> Unit,
@@ -1121,6 +1127,15 @@ private fun HubUserMappingCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             when {
+                isMappingInFlight -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    }
+                }
+
                 user.isMapped -> {
                     // STATE 1: Already mapped - show with clear option
                     Card(
@@ -1251,6 +1266,7 @@ private fun BooksTabContent(
     searchQuery: String,
     searchResults: List<SearchHitResponse>,
     isSearching: Boolean,
+    mappingInFlight: Set<String>,
     onFilterChange: (MappingFilter) -> Unit,
     onActivateSearch: (String) -> Unit,
     onSearchQueryChange: (String) -> Unit,
@@ -1301,6 +1317,7 @@ private fun BooksTabContent(
                         searchQuery = if (activeSearchAbsMediaId == book.absMediaId) searchQuery else "",
                         searchResults = if (activeSearchAbsMediaId == book.absMediaId) searchResults else emptyList(),
                         isSearching = activeSearchAbsMediaId == book.absMediaId && isSearching,
+                        isMappingInFlight = book.absMediaId in mappingInFlight,
                         onActivateSearch = { onActivateSearch(book.absMediaId) },
                         onSearchQueryChange = onSearchQueryChange,
                         onMapBook = { listenUpId -> onMapBook(book.absMediaId, listenUpId) },
@@ -1319,6 +1336,7 @@ private fun HubBookMappingCard(
     searchQuery: String,
     searchResults: List<SearchHitResponse>,
     isSearching: Boolean,
+    isMappingInFlight: Boolean,
     onActivateSearch: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onMapBook: (String) -> Unit,
@@ -1379,6 +1397,22 @@ private fun HubBookMappingCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    if (book.absNarrator.isNotBlank()) {
+                        Text(
+                            text = "Narr. ${book.absNarrator}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (book.absDurationMs > 0) {
+                        val hours = book.absDurationMs / 3_600_000
+                        val minutes = (book.absDurationMs % 3_600_000) / 60_000
+                        Text(
+                            text = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 if (book.isMapped) {
                     Icon(
@@ -1393,8 +1427,21 @@ private fun HubBookMappingCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             when {
+                isMappingInFlight -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    }
+                }
+
                 book.isMapped -> {
                     // STATE 1: Already mapped - show with clear option
+                    val mappedDisplay = book.listenUpTitle
+                        ?: book.listenUpAuthor?.let { "by $it" }
+                        ?: book.listenUpId
+                        ?: "Unknown"
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors =
@@ -1410,7 +1457,7 @@ private fun HubBookMappingCard(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Mapped to: ${book.listenUpTitle ?: book.listenUpId}",
+                                text = "Mapped to: $mappedDisplay",
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f),
                                 maxLines = 1,
@@ -1492,9 +1539,22 @@ private fun HubBookMappingCard(
                         onResultSelected = { result -> onMapBook(result.id) },
                         onSubmit = { searchResults.firstOrNull()?.let { onMapBook(it.id) } },
                         resultContent = { result ->
+                            val resultSubtitle = buildString {
+                                result.author?.let { append(it) }
+                                result.narrator?.let {
+                                    if (isNotEmpty()) append(" · ")
+                                    append("Narr. $it")
+                                }
+                                result.duration?.let { durationMs ->
+                                    if (isNotEmpty()) append(" · ")
+                                    val h = durationMs / 3_600_000
+                                    val m = (durationMs % 3_600_000) / 60_000
+                                    append(if (h > 0) "${h}h ${m}m" else "${m}m")
+                                }
+                            }.takeIf { it.isNotBlank() }
                             AutocompleteResultItem(
                                 name = result.name,
-                                subtitle = result.author,
+                                subtitle = resultSubtitle,
                                 onClick = { onMapBook(result.id) },
                                 leadingIcon = {
                                     Icon(
