@@ -31,20 +31,21 @@ import kotlin.test.assertTrue
 class ABSImportHubViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
-    private val testImport = ABSImportResponse(
-        id = "import-1",
-        name = "Test Import",
-        backupPath = "/test/backup.zip",
-        status = "active",
-        createdAt = "2024-01-01T00:00:00Z",
-        updatedAt = "2024-01-01T00:00:00Z",
-        totalUsers = 1,
-        totalBooks = 1,
-        totalSessions = 0,
-        usersMapped = 0,
-        booksMapped = 0,
-        sessionsImported = 0,
-    )
+    private val testImport =
+        ABSImportResponse(
+            id = "import-1",
+            name = "Test Import",
+            backupPath = "/test/backup.zip",
+            status = "active",
+            createdAt = "2024-01-01T00:00:00Z",
+            updatedAt = "2024-01-01T00:00:00Z",
+            totalUsers = 1,
+            totalBooks = 1,
+            totalSessions = 0,
+            usersMapped = 0,
+            booksMapped = 0,
+            sessionsImported = 0,
+        )
 
     private fun createUser(
         absUserId: String = "abs-user-1",
@@ -90,93 +91,121 @@ class ABSImportHubViewModelTest {
     // ========== mapBook in-flight state ==========
 
     @Test
-    fun `mapBook adds absMediaId to mappingInFlightBooks during request`() = runTest {
-        val api = createMockedApi()
-        val mappedBook = createBook(isMapped = true)
-        everySuspend { api.mapBook("import-1", "abs-book-1", "lu-book-1") } returns Success(mappedBook)
+    fun `mapBook adds absMediaId to mappingInFlightBooks during request`() =
+        runTest {
+            val api = createMockedApi()
+            val mappedBook = createBook(isMapped = true)
+            everySuspend { api.mapBook("import-1", "abs-book-1", "lu-book-1") } returns Success(mappedBook)
 
-        val vm = ABSImportHubViewModel(api, mock(), mock())
-        advanceUntilIdle()
+            val vm = ABSImportHubViewModel(api, mock(), mock())
+            advanceUntilIdle()
 
-        // Open import to set importId
-        vm.openImport("import-1")
-        advanceUntilIdle()
+            // Open import to set importId
+            vm.openImport("import-1")
+            advanceUntilIdle()
 
-        // Switch to books tab to load books
-        vm.setBooksFilter(MappingFilter.ALL)
-        advanceUntilIdle()
+            // Switch to books tab to load books
+            vm.setBooksFilter(MappingFilter.ALL)
+            advanceUntilIdle()
 
-        // Trigger mapBook — in-flight set should be populated synchronously
-        vm.mapBook("abs-book-1", "lu-book-1")
-        assertTrue(vm.hubState.value.mappingInFlightBooks.contains("abs-book-1"))
+            // Trigger mapBook — in-flight set should be populated synchronously
+            vm.mapBook("abs-book-1", "lu-book-1")
+            assertTrue(
+                vm.hubState.value.mappingInFlightBooks
+                    .contains("abs-book-1"),
+            )
 
-        advanceUntilIdle()
+            advanceUntilIdle()
 
-        // After completion, in-flight set should be cleared
-        assertFalse(vm.hubState.value.mappingInFlightBooks.contains("abs-book-1"))
-    }
+            // After completion, in-flight set should be cleared
+            assertFalse(
+                vm.hubState.value.mappingInFlightBooks
+                    .contains("abs-book-1"),
+            )
+        }
 
     @Test
-    fun `mapBook clears in-flight on failure`() = runTest {
-        val api = createMockedApi()
-        everySuspend { api.mapBook("import-1", "abs-book-1", "lu-book-1") } returns
-            Failure(Exception("Server error"))
+    fun `mapBook clears in-flight on failure`() =
+        runTest {
+            val api = createMockedApi()
+            everySuspend { api.mapBook("import-1", "abs-book-1", "lu-book-1") } returns
+                Failure(Exception("Server error"))
 
-        val vm = ABSImportHubViewModel(api, mock(), mock())
-        advanceUntilIdle()
+            val vm = ABSImportHubViewModel(api, mock(), mock())
+            advanceUntilIdle()
 
-        vm.openImport("import-1")
-        advanceUntilIdle()
+            vm.openImport("import-1")
+            advanceUntilIdle()
 
-        vm.mapBook("abs-book-1", "lu-book-1")
-        assertTrue(vm.hubState.value.mappingInFlightBooks.contains("abs-book-1"))
+            vm.mapBook("abs-book-1", "lu-book-1")
+            assertTrue(
+                vm.hubState.value.mappingInFlightBooks
+                    .contains("abs-book-1"),
+            )
 
-        advanceUntilIdle()
+            advanceUntilIdle()
 
-        assertFalse(vm.hubState.value.mappingInFlightBooks.contains("abs-book-1"))
-        assertEquals("Failed to map book", vm.hubState.value.error)
-    }
+            assertFalse(
+                vm.hubState.value.mappingInFlightBooks
+                    .contains("abs-book-1"),
+            )
+            assertEquals("Failed to map book", vm.hubState.value.error)
+        }
 
     // ========== mapUser in-flight state ==========
 
     @Test
-    fun `mapUser adds absUserId to mappingInFlightUsers during request`() = runTest {
-        val api = createMockedApi()
-        val mappedUser = createUser(isMapped = true)
-        everySuspend { api.mapUser("import-1", "abs-user-1", "lu-user-1") } returns Success(mappedUser)
+    fun `mapUser adds absUserId to mappingInFlightUsers during request`() =
+        runTest {
+            val api = createMockedApi()
+            val mappedUser = createUser(isMapped = true)
+            everySuspend { api.mapUser("import-1", "abs-user-1", "lu-user-1") } returns Success(mappedUser)
 
-        val vm = ABSImportHubViewModel(api, mock(), mock())
-        advanceUntilIdle()
+            val vm = ABSImportHubViewModel(api, mock(), mock())
+            advanceUntilIdle()
 
-        vm.openImport("import-1")
-        advanceUntilIdle()
+            vm.openImport("import-1")
+            advanceUntilIdle()
 
-        vm.mapUser("abs-user-1", "lu-user-1")
-        assertTrue(vm.hubState.value.mappingInFlightUsers.contains("abs-user-1"))
+            vm.mapUser("abs-user-1", "lu-user-1")
+            assertTrue(
+                vm.hubState.value.mappingInFlightUsers
+                    .contains("abs-user-1"),
+            )
 
-        advanceUntilIdle()
+            advanceUntilIdle()
 
-        assertFalse(vm.hubState.value.mappingInFlightUsers.contains("abs-user-1"))
-    }
+            assertFalse(
+                vm.hubState.value.mappingInFlightUsers
+                    .contains("abs-user-1"),
+            )
+        }
 
     @Test
-    fun `mapUser clears in-flight on failure`() = runTest {
-        val api = createMockedApi()
-        everySuspend { api.mapUser("import-1", "abs-user-1", "lu-user-1") } returns
-            Failure(Exception("Server error"))
+    fun `mapUser clears in-flight on failure`() =
+        runTest {
+            val api = createMockedApi()
+            everySuspend { api.mapUser("import-1", "abs-user-1", "lu-user-1") } returns
+                Failure(Exception("Server error"))
 
-        val vm = ABSImportHubViewModel(api, mock(), mock())
-        advanceUntilIdle()
+            val vm = ABSImportHubViewModel(api, mock(), mock())
+            advanceUntilIdle()
 
-        vm.openImport("import-1")
-        advanceUntilIdle()
+            vm.openImport("import-1")
+            advanceUntilIdle()
 
-        vm.mapUser("abs-user-1", "lu-user-1")
-        assertTrue(vm.hubState.value.mappingInFlightUsers.contains("abs-user-1"))
+            vm.mapUser("abs-user-1", "lu-user-1")
+            assertTrue(
+                vm.hubState.value.mappingInFlightUsers
+                    .contains("abs-user-1"),
+            )
 
-        advanceUntilIdle()
+            advanceUntilIdle()
 
-        assertFalse(vm.hubState.value.mappingInFlightUsers.contains("abs-user-1"))
-        assertEquals("Failed to map user", vm.hubState.value.error)
-    }
+            assertFalse(
+                vm.hubState.value.mappingInFlightUsers
+                    .contains("abs-user-1"),
+            )
+            assertEquals("Failed to map user", vm.hubState.value.error)
+        }
 }
