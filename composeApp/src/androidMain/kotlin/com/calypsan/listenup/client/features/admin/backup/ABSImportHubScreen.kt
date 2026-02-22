@@ -85,6 +85,7 @@ import com.calypsan.listenup.client.presentation.admin.ImportHubTab
 import com.calypsan.listenup.client.util.DocumentPickerResult
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import org.koin.compose.koinInject
+
 private const val IMPORT_STATUS_ANALYZING = "analyzing"
 
 // ============================================================
@@ -1126,131 +1127,162 @@ private fun HubUserMappingCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            when {
-                isMappingInFlight -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                    }
-                }
+            HubUserMappingCardState(
+                user = user,
+                isMappingInFlight = isMappingInFlight,
+                isSearchActive = isSearchActive,
+                searchQuery = searchQuery,
+                searchResults = searchResults,
+                isSearching = isSearching,
+                hasConfidentSuggestion = hasConfidentSuggestion,
+                showSearchOverride = showSearchOverride,
+                onShowSearchOverride = { showSearchOverride = true },
+                onSearchQueryChange = { query ->
+                    if (!isSearchActive) onActivateSearch()
+                    onSearchQueryChange(query)
+                },
+                onMapUser = onMapUser,
+                onClearMapping = onClearMapping,
+            )
+        }
+    }
+}
 
-                user.isMapped -> {
-                    // STATE 1: Already mapped - show with clear option
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                    ) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Mapped to: ${user.listenUpDisplayName ?: user.listenUpEmail ?: user.listenUpId}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(
-                                onClick = onClearMapping,
-                                modifier = Modifier.size(32.dp),
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Clear",
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        }
-                    }
-                }
+@Composable
+private fun HubUserMappingCardState(
+    user: ABSImportUser,
+    isMappingInFlight: Boolean,
+    isSearchActive: Boolean,
+    searchQuery: String,
+    searchResults: List<UserSearchResult>,
+    isSearching: Boolean,
+    hasConfidentSuggestion: Boolean,
+    showSearchOverride: Boolean,
+    onShowSearchOverride: () -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onMapUser: (String) -> Unit,
+    onClearMapping: () -> Unit,
+) {
+    when {
+        isMappingInFlight -> {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            }
+        }
 
-                hasConfidentSuggestion && !showSearchOverride -> {
-                    // STATE 2: Definitive/strong match - show suggestion with confirm
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            ),
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Icon(
-                                    Icons.Outlined.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Text(
-                                    text =
-                                        user.matchReason.ifBlank {
-                                            "${user.confidence.replaceFirstChar { it.uppercase() }} match found"
-                                        },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                ListenUpButton(
-                                    onClick = { onMapUser(user.suggestions.first()) },
-                                    text = "Confirm",
-                                    modifier = Modifier.weight(1f),
-                                )
-                                OutlinedButton(
-                                    onClick = { showSearchOverride = true },
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Text("Search Instead")
-                                }
-                            }
-                        }
-                    }
-                }
-
-                else -> {
-                    // STATE 3: No confident match - show search field
-                    ListenUpAutocompleteField(
-                        value = searchQuery,
-                        onValueChange = { query ->
-                            if (!isSearchActive) onActivateSearch()
-                            onSearchQueryChange(query)
-                        },
-                        results = searchResults,
-                        onResultSelected = { result -> onMapUser(result.id) },
-                        onSubmit = { searchResults.firstOrNull()?.let { onMapUser(it.id) } },
-                        resultContent = { result ->
-                            AutocompleteResultItem(
-                                name = result.displayName.takeIf { it.isNotBlank() } ?: result.email,
-                                subtitle = if (result.displayName.isNotBlank()) result.email else null,
-                                onClick = { onMapUser(result.id) },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Outlined.Person,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                },
-                            )
-                        },
-                        placeholder = "Search users...",
-                        isLoading = isSearching,
+        user.isMapped -> {
+            // STATE 1: Already mapped - show with clear option
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
+            ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Mapped to: ${user.listenUpDisplayName ?: user.listenUpEmail ?: user.listenUpId}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
                     )
+                    IconButton(
+                        onClick = onClearMapping,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Clear",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
+        }
+
+        hasConfidentSuggestion && !showSearchOverride -> {
+            // STATE 2: Definitive/strong match - show suggestion with confirm
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    ),
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text =
+                                user.matchReason.ifBlank {
+                                    "${user.confidence.replaceFirstChar { it.uppercase() }} match found"
+                                },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ListenUpButton(
+                            onClick = { onMapUser(user.suggestions.first()) },
+                            text = "Confirm",
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedButton(
+                            onClick = onShowSearchOverride,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Search Instead")
+                        }
+                    }
+                }
+            }
+        }
+
+        else -> {
+            // STATE 3: No confident match - show search field
+            ListenUpAutocompleteField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                results = searchResults,
+                onResultSelected = { result -> onMapUser(result.id) },
+                onSubmit = { searchResults.firstOrNull()?.let { onMapUser(it.id) } },
+                resultContent = { result ->
+                    AutocompleteResultItem(
+                        name = result.displayName.takeIf { it.isNotBlank() } ?: result.email,
+                        subtitle = if (result.displayName.isNotBlank()) result.email else null,
+                        onClick = { onMapUser(result.id) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Outlined.Person,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        },
+                    )
+                },
+                placeholder = "Search users...",
+                isLoading = isSearching,
+            )
         }
     }
 }
@@ -1406,7 +1438,7 @@ private fun HubBookMappingCard(
                     }
                     if (book.absDurationMs > 0) {
                         val hours = book.absDurationMs / 3_600_000
-                        val minutes = (book.absDurationMs % 3_600_000) / 60_000
+                        val minutes = book.absDurationMs % 3_600_000 / 60_000
                         Text(
                             text = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m",
                             style = MaterialTheme.typography.bodySmall,
@@ -1426,150 +1458,183 @@ private fun HubBookMappingCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            when {
-                isMappingInFlight -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                    }
-                }
+            HubBookMappingCardState(
+                book = book,
+                isMappingInFlight = isMappingInFlight,
+                isSearchActive = isSearchActive,
+                searchQuery = searchQuery,
+                searchResults = searchResults,
+                isSearching = isSearching,
+                hasConfidentSuggestion = hasConfidentSuggestion,
+                showSearchOverride = showSearchOverride,
+                onShowSearchOverride = { showSearchOverride = true },
+                onSearchQueryChange = { query ->
+                    if (!isSearchActive) onActivateSearch()
+                    onSearchQueryChange(query)
+                },
+                onMapBook = onMapBook,
+                onClearMapping = onClearMapping,
+            )
+        }
+    }
+}
 
-                book.isMapped -> {
-                    // STATE 1: Already mapped - show with clear option
-                    val mappedDisplay = book.listenUpTitle
-                        ?: book.listenUpAuthor?.let { "by $it" }
-                        ?: book.listenUpId
-                        ?: "Unknown"
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                    ) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Mapped to: $mappedDisplay",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            IconButton(
-                                onClick = onClearMapping,
-                                modifier = Modifier.size(32.dp),
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Clear",
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        }
-                    }
-                }
+@Composable
+private fun HubBookMappingCardState(
+    book: ABSImportBook,
+    isMappingInFlight: Boolean,
+    isSearchActive: Boolean,
+    searchQuery: String,
+    searchResults: List<SearchHitResponse>,
+    isSearching: Boolean,
+    hasConfidentSuggestion: Boolean,
+    showSearchOverride: Boolean,
+    onShowSearchOverride: () -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onMapBook: (String) -> Unit,
+    onClearMapping: () -> Unit,
+) {
+    when {
+        isMappingInFlight -> {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            }
+        }
 
-                hasConfidentSuggestion && !showSearchOverride -> {
-                    // STATE 2: Definitive/strong match - show suggestion with confirm
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            ),
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Icon(
-                                    Icons.Outlined.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Text(
-                                    text =
-                                        book.matchReason.ifBlank {
-                                            "${book.confidence.replaceFirstChar { it.uppercase() }} match found"
-                                        },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                ListenUpButton(
-                                    onClick = { onMapBook(book.suggestions.first()) },
-                                    text = "Confirm",
-                                    modifier = Modifier.weight(1f),
-                                )
-                                OutlinedButton(
-                                    onClick = { showSearchOverride = true },
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Text("Search Instead")
-                                }
-                            }
-                        }
-                    }
-                }
-
-                else -> {
-                    // STATE 3: No confident match - show search field
-                    ListenUpAutocompleteField(
-                        value = searchQuery,
-                        onValueChange = { query ->
-                            if (!isSearchActive) onActivateSearch()
-                            onSearchQueryChange(query)
-                        },
-                        results = searchResults,
-                        onResultSelected = { result -> onMapBook(result.id) },
-                        onSubmit = { searchResults.firstOrNull()?.let { onMapBook(it.id) } },
-                        resultContent = { result ->
-                            val resultSubtitle = buildString {
-                                result.author?.let { append(it) }
-                                result.narrator?.let {
-                                    if (isNotEmpty()) append(" · ")
-                                    append("Narr. $it")
-                                }
-                                result.duration?.let { durationMs ->
-                                    if (isNotEmpty()) append(" · ")
-                                    val h = durationMs / 3_600_000
-                                    val m = (durationMs % 3_600_000) / 60_000
-                                    append(if (h > 0) "${h}h ${m}m" else "${m}m")
-                                }
-                            }.takeIf { it.isNotBlank() }
-                            AutocompleteResultItem(
-                                name = result.name,
-                                subtitle = resultSubtitle,
-                                onClick = { onMapBook(result.id) },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.AutoMirrored.Outlined.MenuBook,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                },
-                            )
-                        },
-                        placeholder = "Search books...",
-                        isLoading = isSearching,
+        book.isMapped -> {
+            // STATE 1: Already mapped - show with clear option
+            val mappedDisplay =
+                book.listenUpTitle
+                    ?: book.listenUpAuthor?.let { "by $it" }
+                    ?: book.listenUpId
+                    ?: "Unknown"
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
+            ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Mapped to: $mappedDisplay",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
+                    IconButton(
+                        onClick = onClearMapping,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Clear",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
+        }
+
+        hasConfidentSuggestion && !showSearchOverride -> {
+            // STATE 2: Definitive/strong match - show suggestion with confirm
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    ),
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text =
+                                book.matchReason.ifBlank {
+                                    "${book.confidence.replaceFirstChar { it.uppercase() }} match found"
+                                },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ListenUpButton(
+                            onClick = { onMapBook(book.suggestions.first()) },
+                            text = "Confirm",
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedButton(
+                            onClick = onShowSearchOverride,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Search Instead")
+                        }
+                    }
+                }
+            }
+        }
+
+        else -> {
+            // STATE 3: No confident match - show search field
+            ListenUpAutocompleteField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                results = searchResults,
+                onResultSelected = { result -> onMapBook(result.id) },
+                onSubmit = { searchResults.firstOrNull()?.let { onMapBook(it.id) } },
+                resultContent = { result ->
+                    val resultSubtitle =
+                        buildString {
+                            result.author?.let { append(it) }
+                            result.narrator?.let {
+                                if (isNotEmpty()) append(" · ")
+                                append("Narr. $it")
+                            }
+                            result.duration?.let { durationMs ->
+                                if (isNotEmpty()) append(" · ")
+                                val h = durationMs / 3_600_000
+                                val m = durationMs % 3_600_000 / 60_000
+                                append(if (h > 0) "${h}h ${m}m" else "${m}m")
+                            }
+                        }.takeIf { it.isNotBlank() }
+                    AutocompleteResultItem(
+                        name = result.name,
+                        subtitle = resultSubtitle,
+                        onClick = { onMapBook(result.id) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.MenuBook,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        },
+                    )
+                },
+                placeholder = "Search books...",
+                isLoading = isSearching,
+            )
         }
     }
 }
