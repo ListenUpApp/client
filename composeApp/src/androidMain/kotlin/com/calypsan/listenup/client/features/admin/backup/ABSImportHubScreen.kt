@@ -1051,6 +1051,7 @@ private fun UsersTabContent(
 @Composable
 private fun HubUserMappingCard(
     user: ABSImportUser,
+    isSearchActive: Boolean,
     searchQuery: String,
     searchResults: List<UserSearchResult>,
     isSearching: Boolean,
@@ -1361,6 +1362,7 @@ private fun BooksTabContent(
 @Composable
 private fun HubBookMappingCard(
     book: ABSImportBook,
+    isSearchActive: Boolean,
     searchQuery: String,
     searchResults: List<SearchHitResponse>,
     isSearching: Boolean,
