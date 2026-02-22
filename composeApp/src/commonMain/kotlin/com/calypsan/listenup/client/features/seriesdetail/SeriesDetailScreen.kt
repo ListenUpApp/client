@@ -58,7 +58,6 @@ import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.design.LocalDeviceContext
 import com.calypsan.listenup.client.design.components.BookCoverImage
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailUiState
@@ -198,6 +197,7 @@ private fun WideSeriesDetailContent(
         item(span = { GridItemSpan(maxLineSpan) }) {
             SeriesHeaderRow(
                 coverPath = state.coverPath,
+                featuredBookId = state.featuredBookId,
                 bookCount = state.books.size,
                 totalDuration = state.formatTotalDuration(),
                 description = state.seriesDescription,
@@ -236,6 +236,7 @@ private fun WideSeriesDetailContent(
 @Suppress("CognitiveComplexMethod")
 private fun SeriesHeaderRow(
     coverPath: String?,
+    featuredBookId: String?,
     bookCount: Int,
     totalDuration: String,
     description: String?,
@@ -256,24 +257,16 @@ private fun SeriesHeaderRow(
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
         ) {
-            if (coverPath != null) {
-                ListenUpAsyncImage(
-                    path = coverPath,
-                    contentDescription = stringResource(Res.string.series_series_cover),
-                    contentScale = ContentScale.Crop,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(12.dp)),
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.LibraryBooks,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.size(64.dp),
-                )
-            }
+            BookCoverImage(
+                bookId = featuredBookId ?: "",
+                coverPath = coverPath,
+                contentDescription = stringResource(Res.string.series_series_cover),
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp)),
+            )
         }
 
         // Stats and description
@@ -422,6 +415,7 @@ private fun NarrowSeriesDetailContent(
         item {
             SeriesHeroSection(
                 coverPath = state.coverPath,
+                featuredBookId = state.featuredBookId,
                 bookCount = state.books.size,
                 totalDuration = state.formatTotalDuration(),
             )
@@ -494,6 +488,7 @@ private fun NarrowSeriesDetailContent(
 @Composable
 private fun SeriesHeroSection(
     coverPath: String?,
+    featuredBookId: String?,
     bookCount: Int,
     totalDuration: String,
 ) {
@@ -513,24 +508,16 @@ private fun SeriesHeroSection(
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
         ) {
-            if (coverPath != null) {
-                ListenUpAsyncImage(
-                    path = coverPath,
-                    contentDescription = stringResource(Res.string.series_series_cover),
-                    contentScale = ContentScale.Crop,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(12.dp)),
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.LibraryBooks,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.size(64.dp),
-                )
-            }
+            BookCoverImage(
+                bookId = featuredBookId ?: "",
+                coverPath = coverPath,
+                contentDescription = stringResource(Res.string.series_series_cover),
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp)),
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))

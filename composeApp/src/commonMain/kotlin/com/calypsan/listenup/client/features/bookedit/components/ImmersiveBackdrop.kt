@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.CoverColors
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 
@@ -25,10 +26,23 @@ fun ImmersiveBackdrop(
     refreshKey: Any?,
     coverColors: CoverColors,
     surfaceColor: Color,
+    bookId: String? = null,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         // Blurred cover image
-        if (coverPath != null) {
+        if (bookId != null) {
+            BookCoverImage(
+                bookId = bookId,
+                coverPath = coverPath,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(400.dp)
+                        .blur(50.dp),
+            )
+        } else if (coverPath != null) {
             ListenUpAsyncImage(
                 path = coverPath,
                 contentDescription = null,

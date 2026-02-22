@@ -73,6 +73,7 @@ fun IdentityHeader(
     onSubtitleChange: (String) -> Unit,
     onCoverClick: () -> Unit,
     onBackClick: () -> Unit,
+    bookId: String? = null,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
 
@@ -111,6 +112,7 @@ fun IdentityHeader(
             // Cover art (120dp) - tappable for upload
             ElevatedCoverCard(
                 path = coverPath,
+                bookId = bookId,
                 contentDescription = stringResource(Res.string.book_edit_book_cover),
                 modifier =
                     Modifier
