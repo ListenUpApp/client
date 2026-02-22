@@ -138,7 +138,7 @@ fun ABSUploadSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (state !is ABSUploadState.Uploading) onDismiss() },
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         dragHandle = {
