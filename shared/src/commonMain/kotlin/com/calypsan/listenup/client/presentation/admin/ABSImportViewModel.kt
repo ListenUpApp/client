@@ -17,6 +17,7 @@ import com.calypsan.listenup.client.data.remote.UserSearchResult
 import com.calypsan.listenup.client.data.remote.model.ABSBookMatch
 import com.calypsan.listenup.client.data.remote.model.ABSUserMatch
 import com.calypsan.listenup.client.data.remote.model.AnalyzeABSRequest
+import com.calypsan.listenup.client.data.remote.model.AnalyzeABSResponse
 import com.calypsan.listenup.client.data.remote.model.ImportABSRequest
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -452,35 +453,7 @@ class ABSImportViewModel(
                         .associate { it.absItemId to it.listenupId!! }
 
                 // Pre-populate display info for auto-matched books
-                val initialBookDisplays =
-                    result.bookMatches
-                        .filter { it.listenupId != null }
-                        .associate { match ->
-                            val listenupId = match.listenupId!!
-                            // Try to find the matched book in suggestions for full details
-                            val matchedSuggestion = match.suggestions.firstOrNull { it.bookId == listenupId }
-                            // Fallback to first suggestion if matched book not in list
-                            val suggestion = matchedSuggestion ?: match.suggestions.firstOrNull()
-
-                            val display =
-                                if (suggestion != null) {
-                                    SelectedBookDisplay(
-                                        bookId = listenupId,
-                                        title = suggestion.title,
-                                        author = suggestion.author,
-                                        durationMs = suggestion.durationMs,
-                                    )
-                                } else {
-                                    // No suggestions available — use ABS metadata for display
-                                    SelectedBookDisplay(
-                                        bookId = listenupId,
-                                        title = match.absTitle,
-                                        author = match.absAuthor,
-                                        durationMs = null,
-                                    )
-                                }
-                            match.absItemId to display
-                        }
+                val initialBookDisplays = buildInitialBookDisplays(result)
 
                 // Determine next step based on what needs mapping
                 val nextStep =
@@ -528,6 +501,36 @@ class ABSImportViewModel(
             }
         }
     }
+
+    private fun buildInitialBookDisplays(result: AnalyzeABSResponse): Map<String, SelectedBookDisplay> =
+        result.bookMatches
+            .filter { it.listenupId != null }
+            .associate { match ->
+                val listenupId = match.listenupId!!
+                // Try to find the matched book in suggestions for full details
+                val matchedSuggestion = match.suggestions.firstOrNull { it.bookId == listenupId }
+                // Fallback to first suggestion if matched book not in list
+                val suggestion = matchedSuggestion ?: match.suggestions.firstOrNull()
+
+                val display =
+                    if (suggestion != null) {
+                        SelectedBookDisplay(
+                            bookId = listenupId,
+                            title = suggestion.title,
+                            author = suggestion.author,
+                            durationMs = suggestion.durationMs,
+                        )
+                    } else {
+                        // No suggestions available — use ABS metadata for display
+                        SelectedBookDisplay(
+                            bookId = listenupId,
+                            title = match.absTitle,
+                            author = match.absAuthor,
+                            durationMs = null,
+                        )
+                    }
+                match.absItemId to display
+            }
 
     // === Mapping ===
 
