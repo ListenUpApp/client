@@ -236,13 +236,7 @@ fun AppShell(
     GlobalErrorSnackbar(
         snackbarHostState = snackbarHostState,
         onRetry = { error ->
-            when (error) {
-                is SyncError.RealtimeDisconnected -> {
-                    sseManager.connect()
-                }
-
-                else -> {}
-            }
+            if (error is SyncError.RealtimeDisconnected) sseManager.connect()
         },
     )
 
