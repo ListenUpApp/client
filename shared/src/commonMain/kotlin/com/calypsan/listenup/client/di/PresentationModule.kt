@@ -76,7 +76,7 @@ val authPresentationModule =
  */
 val adminPresentationModule =
     module {
-        factory {
+        single {
             AdminViewModel(
                 instanceRepository = get(),
                 loadUsersUseCase = get(),
