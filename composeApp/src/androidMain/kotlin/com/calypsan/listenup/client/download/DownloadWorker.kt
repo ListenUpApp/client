@@ -83,7 +83,7 @@ class DownloadWorker(
             Result.failure()
         } catch (e: AuthenticationException) {
             // Auth failure after token refresh — pause instead of wasting retry budget
-            logger.warn { "Download paused due to auth failure: $audioFileId" }
+            logger.warn(e) { "Download paused due to auth failure: $audioFileId" }
             downloadDao.updateState(audioFileId, DownloadState.PAUSED)
             Result.failure()
         } catch (e: IOException) {
