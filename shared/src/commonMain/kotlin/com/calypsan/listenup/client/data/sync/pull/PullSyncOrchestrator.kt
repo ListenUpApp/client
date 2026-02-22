@@ -198,15 +198,21 @@ class PullSyncOrchestrator(
             // whose updated_at predates the client checkpoint. Re-pull those entity types in full.
             if (manifest != null) {
                 if (totalBooks > 0 && bookDao.count() < totalBooks) {
-                    logger.warn { "Book count mismatch: local=${bookDao.count()}, server=$totalBooks — re-pulling books in full" }
+                    logger.warn {
+                        "Book count mismatch: local=${bookDao.count()}, server=$totalBooks — re-pulling books in full"
+                    }
                     bookPuller.pull(null) {}
                 }
                 if (totalSeries > 0 && seriesDao.count() < totalSeries) {
-                    logger.warn { "Series count mismatch: local=${seriesDao.count()}, server=$totalSeries — re-pulling series in full" }
+                    logger.warn {
+                        "Series count mismatch: local=${seriesDao.count()}, server=$totalSeries — re-pulling series in full"
+                    }
                     seriesPuller.pull(null) {}
                 }
                 if (totalContributors > 0 && contributorDao.count() < totalContributors) {
-                    logger.warn { "Contributor count mismatch: local=${contributorDao.count()}, server=$totalContributors — re-pulling contributors in full" }
+                    logger.warn {
+                        "Contributor count mismatch: local=${contributorDao.count()}, server=$totalContributors — re-pulling contributors in full"
+                    }
                     contributorPuller.pull(null) {}
                 }
             }
