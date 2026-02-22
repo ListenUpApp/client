@@ -197,6 +197,8 @@ data class AnalysisStatusResponse(
     val phase: String, // "parsing", "matching_users", "matching_books", etc.
     val current: Int = 0,
     val total: Int = 0,
+    @SerialName("total_books") val totalBooks: Int = 0,
+    @SerialName("total_users") val totalUsers: Int = 0,
     val result: AnalyzeABSResponse? = null,
     val error: String? = null,
 )

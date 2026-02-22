@@ -424,6 +424,8 @@ class ABSImportViewModel(
                             analyzePhase = statusResponse.phase,
                             analyzeCurrent = statusResponse.current,
                             analyzeTotal = statusResponse.total,
+                            totalBooks = maxOf(it.totalBooks, statusResponse.totalBooks),
+                            totalUsers = maxOf(it.totalUsers, statusResponse.totalUsers),
                         )
                     }
                     @Suppress("MagicNumber")
