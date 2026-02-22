@@ -52,7 +52,7 @@ class PullSyncOrchestrator(
      *
      * @param onProgress Callback for progress updates
      */
-    @Suppress("CognitiveComplexMethod")
+    @Suppress("CognitiveComplexMethod", "LongMethod", "CyclomaticComplexMethod")
     suspend fun pull(onProgress: (SyncStatus) -> Unit) =
         coroutineScope {
             logger.debug { "Pulling changes from server" }
@@ -197,21 +197,26 @@ class PullSyncOrchestrator(
             // Self-healing: if local count < manifest count, the delta sync filtered out entities
             // whose updated_at predates the client checkpoint. Re-pull those entity types in full.
             if (manifest != null) {
-                if (totalBooks > 0 && bookDao.count() < totalBooks) {
+                val localBookCount = bookDao.count()
+                if (totalBooks > 0 && localBookCount < totalBooks) {
                     logger.warn {
-                        "Book count mismatch: local=${bookDao.count()}, server=$totalBooks — re-pulling books in full"
+                        "Book count mismatch: local=$localBookCount, server=$totalBooks — re-pulling books in full"
                     }
                     bookPuller.pull(null) {}
                 }
-                if (totalSeries > 0 && seriesDao.count() < totalSeries) {
+                val localSeriesCount = seriesDao.count()
+                if (totalSeries > 0 && localSeriesCount < totalSeries) {
                     logger.warn {
-                        "Series count mismatch: local=${seriesDao.count()}, server=$totalSeries — re-pulling series in full"
+                        "Series count mismatch: local=$localSeriesCount, " +
+                            "server=$totalSeries — re-pulling series in full"
                     }
                     seriesPuller.pull(null) {}
                 }
-                if (totalContributors > 0 && contributorDao.count() < totalContributors) {
+                val localContributorCount = contributorDao.count()
+                if (totalContributors > 0 && localContributorCount < totalContributors) {
                     logger.warn {
-                        "Contributor count mismatch: local=${contributorDao.count()}, server=$totalContributors — re-pulling contributors in full"
+                        "Contributor count mismatch: local=$localContributorCount, " +
+                            "server=$totalContributors — re-pulling contributors in full"
                     }
                     contributorPuller.pull(null) {}
                 }
