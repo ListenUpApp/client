@@ -53,6 +53,7 @@ import listenup.composeapp.generated.resources.book_detail_more_options
 @Composable
 fun HeroSection(
     coverPath: String?,
+    bookId: String,
     title: String,
     subtitle: String?,
     progress: Float?,
@@ -134,6 +135,7 @@ fun HeroSection(
             // Floating cover card
             FloatingCoverCard(
                 coverPath = coverPath,
+                bookId = bookId,
                 title = title,
                 progress = progress,
                 timeRemaining = timeRemaining,
@@ -289,6 +291,7 @@ private fun HeroNavigationBar(
 @Composable
 private fun FloatingCoverCard(
     coverPath: String?,
+    bookId: String,
     title: String,
     progress: Float?,
     timeRemaining: String?,
@@ -296,6 +299,7 @@ private fun FloatingCoverCard(
     Box(contentAlignment = Alignment.Center) {
         ElevatedCoverCard(
             path = coverPath,
+            bookId = bookId,
             contentDescription = title,
             modifier =
                 Modifier

@@ -41,8 +41,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.presentation.search.SearchUiState
@@ -344,35 +344,16 @@ private fun BookSearchResultCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Cover image
-            val coverPath = hit.coverPath
-            if (coverPath != null) {
-                ListenUpAsyncImage(
-                    path = coverPath,
-                    contentDescription = "Cover for ${hit.name}",
-                    contentScale = ContentScale.Crop,
-                    modifier =
-                        Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                )
-            } else {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(56.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                RoundedCornerShape(4.dp),
-                            ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Default.Book,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            BookCoverImage(
+                bookId = hit.id,
+                coverPath = hit.coverPath,
+                contentDescription = "Cover for ${hit.name}",
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 

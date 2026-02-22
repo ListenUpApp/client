@@ -225,6 +225,8 @@ fun WideBookDetail(
                         // Cover
                         ElevatedCoverCard(
                             path = state.book?.coverPath,
+                            bookId = state.book?.id?.value,
+                            blurHash = state.book?.coverBlurHash,
                             contentDescription = state.book?.title,
                             modifier =
                                 Modifier

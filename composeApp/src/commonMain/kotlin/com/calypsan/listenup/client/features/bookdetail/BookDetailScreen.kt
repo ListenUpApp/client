@@ -465,6 +465,7 @@ private fun ImmersiveBookDetail(
         item {
             HeroSection(
                 coverPath = state.book?.coverPath,
+                bookId = bookId,
                 title = state.book?.title ?: "",
                 subtitle = state.subtitle,
                 progress = state.progress,

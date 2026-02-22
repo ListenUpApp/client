@@ -155,6 +155,7 @@ fun BookEditScreen(
                 refreshKey = state.pendingCoverData,
                 coverColors = coverColors,
                 surfaceColor = surfaceColor,
+                bookId = bookId,
             )
 
             // Content
@@ -190,6 +191,7 @@ fun BookEditScreen(
 
                 else -> {
                     BookEditContent(
+                        bookId = bookId,
                         state = state,
                         coverColors = coverColors,
                         onEvent = viewModel::onEvent,
@@ -230,6 +232,7 @@ fun BookEditScreen(
 @Suppress("UnusedParameter")
 @Composable
 private fun BookEditContent(
+    bookId: String,
     state: BookEditUiState,
     coverColors: CoverColors,
     onEvent: (BookEditUiEvent) -> Unit,
@@ -276,6 +279,7 @@ private fun BookEditContent(
             onSubtitleChange = { onEvent(BookEditUiEvent.SubtitleChanged(it)) },
             onCoverClick = { imagePicker.launch() },
             onBackClick = onBackClick,
+            bookId = bookId,
         )
 
         // Cards section - responsive layout
