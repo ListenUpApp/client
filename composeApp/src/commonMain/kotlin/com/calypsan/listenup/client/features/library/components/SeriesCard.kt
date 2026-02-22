@@ -103,7 +103,6 @@ fun SeriesCard(
             coverPaths = coverPaths,
             coverHeight = 140.dp,
             cycleDurationMs = 3000L,
-            maxVisibleCovers = 5,
         )
 
         Spacer(modifier = Modifier.height(8.dp))
