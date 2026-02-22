@@ -292,6 +292,53 @@ class AppleDownloadService(
         downloadDao.markDeletedForBook(bookId.value)
     }
 
+    @Suppress("ReturnCount")
+    override suspend fun resumeIncompleteDownloads() {
+        val incomplete = downloadDao.getIncomplete()
+        if (incomplete.isEmpty()) return
+
+        logger.info { "Resuming ${incomplete.size} incomplete downloads" }
+
+        tokenProvider.prepareForPlayback()
+        val token =
+            tokenProvider.getToken() ?: run {
+                logger.warn { "No token available for resume" }
+                return
+            }
+        val serverUrl =
+            serverConfig.getServerUrl()?.value ?: run {
+                logger.warn { "No server URL for resume" }
+                return
+            }
+
+        for (download in incomplete) {
+            if (download.state != DownloadState.QUEUED) {
+                downloadDao.updateState(download.audioFileId, DownloadState.QUEUED)
+            }
+
+            scope.launch {
+                tokenProvider.prepareForPlayback()
+                val fileToken = tokenProvider.getToken() ?: token
+                downloadFile(
+                    bookId = download.bookId,
+                    audioFile =
+                        AudioFileResponse(
+                            id = download.audioFileId,
+                            filename = download.filename,
+                            format = "",
+                            codec = "",
+                            duration = 0,
+                            size = download.totalBytes,
+                        ),
+                    serverUrl = serverUrl,
+                    token = fileToken,
+                )
+            }
+        }
+
+        logger.info { "Re-enqueued ${incomplete.size} incomplete downloads" }
+    }
+
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
         downloadDao.observeForBook(bookId.value).map { entities ->
             if (entities.isEmpty()) {

@@ -23,6 +23,13 @@ interface DownloadDao {
     suspend fun getByAudioFileId(audioFileId: String): DownloadEntity?
 
     /**
+     * Get all downloads not in COMPLETED (ordinal 3) or DELETED (ordinal 5) state.
+     * Used to find stalled/interrupted downloads for resume.
+     */
+    @Query("SELECT * FROM downloads WHERE state NOT IN (3, 5) ORDER BY bookId, fileIndex")
+    suspend fun getIncomplete(): List<DownloadEntity>
+
+    /**
      * Get local path for a completed download.
      * Uses ordinal 3 for COMPLETED state (QUEUED=0, DOWNLOADING=1, PAUSED=2, COMPLETED=3, FAILED=4)
      */

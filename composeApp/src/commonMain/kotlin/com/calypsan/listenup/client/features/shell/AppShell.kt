@@ -43,6 +43,7 @@ import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.features.shell.components.AppNavigationBar
 import com.calypsan.listenup.client.features.shell.components.AppNavigationDrawer
 import com.calypsan.listenup.client.features.shell.components.AppNavigationRail
@@ -120,6 +121,7 @@ fun AppShell(
     val userRepository: UserRepository = koinInject()
     val syncStatusRepository: SyncStatusRepository = koinInject()
     val authSession: AuthSession = koinInject()
+    val downloadService: DownloadService = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
     val syncIndicatorViewModel: SyncIndicatorViewModel = koinViewModel()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -134,6 +136,11 @@ fun AppShell(
         } else if (isAuthenticated) {
             // Already synced before — just reconnect SSE and delta sync
             syncRepository.connectRealtime()
+        }
+
+        // Resume any stalled/interrupted downloads after (re-)authentication
+        if (isAuthenticated) {
+            downloadService.resumeIncompleteDownloads()
         }
     }
 

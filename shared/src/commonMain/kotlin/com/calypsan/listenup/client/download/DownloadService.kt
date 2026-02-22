@@ -68,4 +68,9 @@ interface DownloadService {
      * Emits new status whenever download state changes.
      */
     fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus>
+
+    /**
+     * Resume any incomplete downloads (e.g. after re-authentication or app restart).
+     */
+    suspend fun resumeIncompleteDownloads()
 }
