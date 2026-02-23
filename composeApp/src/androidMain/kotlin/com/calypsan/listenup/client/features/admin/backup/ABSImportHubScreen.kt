@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Dns
@@ -87,6 +88,7 @@ import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import org.koin.compose.koinInject
 
 private const val IMPORT_STATUS_ANALYZING = "analyzing"
+private const val IMPORT_STATUS_ACTIVE = "active"
 
 // ============================================================
 // Import List Screen
@@ -338,7 +340,28 @@ private fun ImportSummaryCard(
                 )
             }
 
-            if (import.status == IMPORT_STATUS_ANALYZING) {
+            val isStuck = import.status.lowercase() == IMPORT_STATUS_ACTIVE &&
+                import.totalUsers == 0 && import.totalBooks == 0 && import.totalSessions == 0
+
+            if (isStuck) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                    Text(
+                        text = "Import appears stuck",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            } else if (import.status == IMPORT_STATUS_ANALYZING) {
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
@@ -570,6 +593,7 @@ fun ABSImportHubDetailScreen(
     onBackClick: () -> Unit,
 ) {
     val state by viewModel.hubState.collectAsStateWithLifecycle()
+    var showCancelConfirm by remember { mutableStateOf(false) }
 
     // Load import when screen opens
     androidx.compose.runtime.LaunchedEffect(importId) {
@@ -611,9 +635,37 @@ fun ABSImportHubDetailScreen(
                 onImportSessions = viewModel::importReadySessions,
                 onSkipSession = viewModel::skipSession,
                 onClearImportResult = viewModel::clearImportResult,
+                onCancelImport = { showCancelConfirm = true },
                 modifier = Modifier.padding(paddingValues),
             )
         }
+    }
+
+    if (showCancelConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCancelConfirm = false },
+            shape = MaterialTheme.shapes.large,
+            title = { Text("Cancel Import") },
+            text = {
+                Text("This will delete the stuck import. You can create a new one afterwards.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteImport(importId)
+                        showCancelConfirm = false
+                        onBackClick()
+                    },
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelConfirm = false }) {
+                    Text("Keep")
+                }
+            },
+        )
     }
 }
 
@@ -636,8 +688,16 @@ private fun ImportHubContent(
     onImportSessions: () -> Unit,
     onSkipSession: (String, String?) -> Unit,
     onClearImportResult: () -> Unit,
+    onCancelImport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Stuck import: status is "active" but analysis never populated any data
+    val isStuckImport = state.import?.let { imp ->
+        imp.status.lowercase() == IMPORT_STATUS_ACTIVE &&
+            imp.completedAt == null &&
+            imp.totalUsers == 0 && imp.totalBooks == 0 && imp.totalSessions == 0
+    } == true
+
     Column(modifier = modifier.fillMaxSize()) {
         // Analyzing banner
         if (state.import?.status == IMPORT_STATUS_ANALYZING) {
@@ -656,6 +716,44 @@ private fun ImportHubContent(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+
+        // Stuck import banner
+        if (isStuckImport) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                ),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Import appears stuck",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                        Text(
+                            text = "Analysis was likely interrupted. Cancel and try again.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
+                    OutlinedButton(onClick = onCancelImport) {
+                        Text("Cancel Import")
+                    }
                 }
             }
         }
