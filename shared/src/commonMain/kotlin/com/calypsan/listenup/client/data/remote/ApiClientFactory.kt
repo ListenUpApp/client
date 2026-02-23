@@ -158,31 +158,7 @@ class ApiClientFactory(
 
                         // Refresh tokens when receiving 401 Unauthorized
                         refreshTokens {
-                            val currentRefreshToken =
-                                authSession.getRefreshToken()
-                                    ?: error("No refresh token available")
-
-                            try {
-                                val response = authApi.refresh(currentRefreshToken)
-
-                                // Save new tokens to storage
-                                authSession.saveAuthTokens(
-                                    access = AccessToken(response.accessToken),
-                                    refresh = RefreshToken(response.refreshToken),
-                                    sessionId = response.sessionId,
-                                    userId = response.userId,
-                                )
-
-                                BearerTokens(
-                                    accessToken = response.accessToken,
-                                    refreshToken = response.refreshToken,
-                                )
-                            } catch (e: Exception) {
-                                // Refresh failed - clear auth state and force re-login
-                                logger.warn(e) { "Token refresh failed, clearing auth state" }
-                                authSession.clearAuthTokens()
-                                null
-                            }
+                            refreshAuthTokens(authSession, authApi)
                         }
 
                         // Control when to send bearer token
