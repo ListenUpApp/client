@@ -1,10 +1,7 @@
 package com.calypsan.listenup.client.data.remote
 
-import com.calypsan.listenup.client.core.AccessToken
-import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.repository.AuthSession
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.auth.Auth
@@ -17,8 +14,6 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * JVM desktop implementation of streaming HTTP client factory.
@@ -75,29 +70,7 @@ internal actual suspend fun createStreamingHttpClient(
                 }
 
                 refreshTokens {
-                    val currentRefreshToken =
-                        authSession.getRefreshToken()
-                            ?: error("No refresh token available")
-
-                    try {
-                        val response = authApi.refresh(currentRefreshToken)
-
-                        authSession.saveAuthTokens(
-                            access = AccessToken(response.accessToken),
-                            refresh = RefreshToken(response.refreshToken),
-                            sessionId = response.sessionId,
-                            userId = response.userId,
-                        )
-
-                        BearerTokens(
-                            accessToken = response.accessToken,
-                            refreshToken = response.refreshToken,
-                        )
-                    } catch (e: Exception) {
-                        logger.warn(e) { "Token refresh failed, clearing auth state" }
-                        authSession.clearAuthTokens()
-                        null
-                    }
+                    refreshAuthTokens(authSession, authApi)
                 }
 
                 sendWithoutRequest { request ->
