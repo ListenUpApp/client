@@ -56,8 +56,6 @@ class BookPuller(
             when (val result = syncApi.getBooks(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
                 is Result.Success -> {
                     val response = result.data
-                    cursor = response.nextCursor
-                    hasMore = response.hasMore
                     val serverBooks = response.books.map { it.toEntity() }
                     val deletedBookIds = response.deletedBookIds
                     itemsSynced += serverBooks.size + deletedBookIds.size
@@ -84,6 +82,12 @@ class BookPuller(
                     if (serverBooks.isNotEmpty()) {
                         processServerBooks(serverBooks, response)
                     }
+
+                    // Advance cursor only after all books in this page are persisted.
+                    // Moving this after persistence ensures an interrupted sync does not
+                    // skip books: the next delta sync will re-fetch the missing page.
+                    cursor = response.nextCursor
+                    hasMore = response.hasMore
                 }
 
                 is Result.Failure -> {
