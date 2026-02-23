@@ -151,7 +151,13 @@ fun AdminBackupScreen(
             state = uploadSheetState.uploadState,
             onPickFile = { documentPicker.launch() },
             onUpload = {
-                uploadSheetState.enqueueUpload(context)
+                val workId = uploadSheetState.enqueueUpload(context)
+                if (workId != null) {
+                    // Dismiss sheet immediately — import list on this screen shows progress
+                    showUploadSheet = false
+                    uploadSheetState.reset()
+                    absImportViewModel.loadImports()
+                }
             },
             onNavigateToImport = { importId ->
                 showUploadSheet = false

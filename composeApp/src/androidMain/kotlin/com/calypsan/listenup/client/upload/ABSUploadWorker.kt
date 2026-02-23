@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.upload
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -27,6 +28,9 @@ private val logger = KotlinLogging.logger {}
 private const val CHANNEL_ID = "abs_upload"
 private const val CHANNEL_NAME = "ABS Import Upload"
 private const val NOTIFICATION_ID = 9001
+private const val COMPLETE_CHANNEL_ID = "abs_import_complete"
+private const val COMPLETE_CHANNEL_NAME = "ABS Import"
+private const val COMPLETE_NOTIFICATION_ID = 9002
 private const val MAX_RUN_ATTEMPTS = 3
 
 /**
@@ -131,6 +135,7 @@ class ABSUploadWorker(
                 is Success -> {
                     val importId = importResult.data.id
                     logger.info { "Import created: id=$importId" }
+                    showCompleteNotification()
                     Result.success(workDataOf(KEY_IMPORT_ID to importId))
                 }
 
@@ -158,8 +163,83 @@ class ABSUploadWorker(
             logger.info { "Retrying upload (attempt ${runAttemptCount + 1}/$MAX_RUN_ATTEMPTS)" }
             Result.retry()
         } else {
+            showFailureNotification()
             Result.failure(workDataOf(KEY_ERROR to errorMessage))
         }
+
+    private fun ensureCompleteChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager =
+                applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel =
+                NotificationChannel(
+                    COMPLETE_CHANNEL_ID,
+                    COMPLETE_CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                )
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun showCompleteNotification() {
+        ensureCompleteChannel()
+        val notificationManager =
+            applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val launchIntent =
+            applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)
+        val pendingIntent = launchIntent?.let {
+            PendingIntent.getActivity(
+                applicationContext,
+                0,
+                it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
+
+        val notification =
+            NotificationCompat
+                .Builder(applicationContext, COMPLETE_CHANNEL_ID)
+                .setContentTitle("Backup ready to review")
+                .setContentText("Your Audiobookshelf backup has been analysed and is ready to map.")
+                .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+                .setAutoCancel(true)
+                .apply { pendingIntent?.let { setContentIntent(it) } }
+                .build()
+
+        notificationManager.cancel(NOTIFICATION_ID)
+        notificationManager.notify(COMPLETE_NOTIFICATION_ID, notification)
+    }
+
+    private fun showFailureNotification() {
+        ensureCompleteChannel()
+        val notificationManager =
+            applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val launchIntent =
+            applicationContext.packageManager.getLaunchIntentForPackage(applicationContext.packageName)
+        val pendingIntent = launchIntent?.let {
+            PendingIntent.getActivity(
+                applicationContext,
+                0,
+                it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
+
+        val notification =
+            NotificationCompat
+                .Builder(applicationContext, COMPLETE_CHANNEL_ID)
+                .setContentTitle("Backup import failed")
+                .setContentText("The Audiobookshelf backup could not be processed. Please try again.")
+                .setSmallIcon(android.R.drawable.stat_notify_error)
+                .setAutoCancel(true)
+                .apply { pendingIntent?.let { setContentIntent(it) } }
+                .build()
+
+        notificationManager.cancel(NOTIFICATION_ID)
+        notificationManager.notify(COMPLETE_NOTIFICATION_ID, notification)
+    }
 
     private fun createForegroundInfo(): ForegroundInfo {
         val notificationManager =
