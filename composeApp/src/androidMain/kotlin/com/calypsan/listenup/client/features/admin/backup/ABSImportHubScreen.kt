@@ -340,8 +340,9 @@ private fun ImportSummaryCard(
                 )
             }
 
-            val isStuck = import.status.lowercase() == IMPORT_STATUS_ACTIVE &&
-                import.totalUsers == 0 && import.totalBooks == 0 && import.totalSessions == 0
+            val isStuck =
+                import.status.lowercase() == IMPORT_STATUS_ACTIVE &&
+                    import.totalUsers == 0 && import.totalBooks == 0 && import.totalSessions == 0
 
             if (isStuck) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -692,11 +693,12 @@ private fun ImportHubContent(
     modifier: Modifier = Modifier,
 ) {
     // Stuck import: status is "active" but analysis never populated any data
-    val isStuckImport = state.import?.let { imp ->
-        imp.status.lowercase() == IMPORT_STATUS_ACTIVE &&
-            imp.completedAt == null &&
-            imp.totalUsers == 0 && imp.totalBooks == 0 && imp.totalSessions == 0
-    } == true
+    val isStuckImport =
+        state.import?.let { imp ->
+            imp.status.lowercase() == IMPORT_STATUS_ACTIVE &&
+                imp.completedAt == null &&
+                imp.totalUsers == 0 && imp.totalBooks == 0 && imp.totalSessions == 0
+        } == true
 
     Column(modifier = modifier.fillMaxSize()) {
         // Analyzing banner
@@ -724,9 +726,10 @@ private fun ImportHubContent(
         if (isStuckImport) {
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                ),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
