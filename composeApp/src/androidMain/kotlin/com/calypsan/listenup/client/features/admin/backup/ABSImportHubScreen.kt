@@ -89,6 +89,9 @@ import org.koin.compose.koinInject
 
 private const val IMPORT_STATUS_ANALYZING = "analyzing"
 private const val IMPORT_STATUS_ACTIVE = "active"
+private const val LABEL_DELETE = "Delete"
+private const val LABEL_CANCEL = "Cancel"
+private const val LABEL_CANCEL_IMPORT = "Cancel Import"
 
 // ============================================================
 // Import List Screen
@@ -173,12 +176,12 @@ fun ABSImportListScreen(
                         deleteConfirmImport = null
                     },
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(LABEL_DELETE, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { deleteConfirmImport = null }) {
-                    Text("Cancel")
+                    Text(LABEL_CANCEL)
                 }
             },
         )
@@ -390,7 +393,7 @@ private fun ImportSummaryCard(
                 IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = LABEL_DELETE,
                         tint = MaterialTheme.colorScheme.error,
                     )
                 }
@@ -436,7 +439,7 @@ private fun StatusBadge(
 ) {
     val (containerColor, contentColor, label) =
         when (status.lowercase()) {
-            "active" -> {
+            IMPORT_STATUS_ACTIVE -> {
                 Triple(
                     MaterialTheme.colorScheme.primaryContainer,
                     MaterialTheme.colorScheme.onPrimaryContainer,
@@ -576,7 +579,7 @@ private fun CreateImportDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(LABEL_CANCEL)
             }
         },
     )
@@ -646,7 +649,7 @@ fun ABSImportHubDetailScreen(
         AlertDialog(
             onDismissRequest = { showCancelConfirm = false },
             shape = MaterialTheme.shapes.large,
-            title = { Text("Cancel Import") },
+            title = { Text(LABEL_CANCEL_IMPORT) },
             text = {
                 Text("This will delete the stuck import. You can create a new one afterwards.")
             },
@@ -658,7 +661,7 @@ fun ABSImportHubDetailScreen(
                         onBackClick()
                     },
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(LABEL_DELETE, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -755,7 +758,7 @@ private fun ImportHubContent(
                         )
                     }
                     OutlinedButton(onClick = onCancelImport) {
-                        Text("Cancel Import")
+                        Text(LABEL_CANCEL_IMPORT)
                     }
                 }
             }
