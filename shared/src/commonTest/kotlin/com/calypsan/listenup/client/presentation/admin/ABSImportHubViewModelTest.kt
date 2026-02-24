@@ -218,35 +218,34 @@ class ABSImportHubViewModelTest {
             val analyzingImport = testImport.copy(status = "analyzing")
             val completedImport = testImport.copy(status = "active")
 
-            // First call (from openImport) returns analyzing — triggers polling
+            // openImport will get "analyzing" → triggers startAnalysisPolling
             everySuspend { api.getImport("import-1") } returns Success(analyzingImport)
 
             val vm = ABSImportHubViewModel(api, mock(), mock())
-            advanceUntilIdle()
+            advanceUntilIdle() // drain init (loadImports)
 
             vm.openImport("import-1")
-            advanceUntilIdle()
+            // Use runCurrent() — NOT advanceUntilIdle() — to execute the openImport
+            // coroutine without advancing virtual time into the infinite polling loop
+            testScheduler.runCurrent()
 
-            // Initial state should show analyzing
             assertEquals(
                 "analyzing",
                 vm.hubState.value.import
                     ?.status,
             )
 
-            // Change stub so the next poll call returns completed — loop exits naturally
+            // Re-stub so the next poll returns "active" — polling loop exits naturally
             everySuspend { api.getImport("import-1") } returns Success(completedImport)
 
-            // Advance past polling interval (3 seconds)
+            // Advance past the 3-second polling interval so the poll fires
             testScheduler.advanceTimeBy(3_100)
-            advanceUntilIdle()
+            testScheduler.runCurrent()
 
-            // After polling, status should be updated to active
             assertEquals(
                 "active",
                 vm.hubState.value.import
                     ?.status,
             )
-            // Polling loop exited naturally (status != analyzing) — no UncompletedCoroutinesError
         }
 }
