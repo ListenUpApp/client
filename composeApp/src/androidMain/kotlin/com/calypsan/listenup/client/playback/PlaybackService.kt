@@ -850,6 +850,11 @@ class PlaybackService : MediaLibraryService() {
                                                         .build(),
                                                 ).build()
                                         }
+                                    // Apply the restored playback speed to ExoPlayer
+                                    val resumeSpeed = prepareResult.resumeSpeed
+                                    if (resumeSpeed != 1.0f) {
+                                        this@PlaybackService.player?.setPlaybackSpeed(resumeSpeed)
+                                    }
                                     resolvedItems.addAll(bookItems)
                                 }
                             } else {
@@ -1012,6 +1017,11 @@ class PlaybackService : MediaLibraryService() {
                                     ).build()
                             }
 
+                        // Apply the restored playback speed to ExoPlayer
+                        val resumeSpeed = prepareResult.resumeSpeed
+                        if (resumeSpeed != 1.0f) {
+                            this@PlaybackService.player?.setPlaybackSpeed(resumeSpeed)
+                        }
                         // Resolve start position
                         val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
 
