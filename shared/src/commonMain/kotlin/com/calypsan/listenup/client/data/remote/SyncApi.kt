@@ -430,25 +430,25 @@ class SyncApi(
     override suspend fun getReadingSessions(): Result<SyncReadingSessionsResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            val response: ApiResponse<ApiReadingSessions> =
+            val response: ApiResponse<ApiActiveSessions> =
                 client.get("/api/v1/sync/active-sessions").body()
             val apiSessions = response.toResult().getOrThrow()
             SyncReadingSessionsResponse(
                 readers =
-                    apiSessions.readers.map { reader ->
+                    apiSessions.sessions.map { session ->
                         SyncReadingSessionReaderResponse(
-                            bookId = reader.bookId,
-                            userId = reader.userId,
-                            displayName = reader.displayName,
-                            avatarType = reader.avatarType,
-                            avatarValue = reader.avatarValue,
-                            avatarColor = reader.avatarColor,
-                            isCurrentlyReading = reader.isCurrentlyReading,
-                            currentProgress = reader.currentProgress,
-                            startedAt = reader.startedAt,
-                            finishedAt = reader.finishedAt,
-                            lastActivityAt = reader.lastActivityAt,
-                            completionCount = reader.completionCount,
+                            bookId = session.bookId,
+                            userId = session.userId,
+                            displayName = session.displayName,
+                            avatarType = session.avatarType,
+                            avatarValue = session.avatarValue,
+                            avatarColor = session.avatarColor,
+                            isCurrentlyReading = false,
+                            currentProgress = 0.0,
+                            startedAt = session.startedAt,
+                            finishedAt = null,
+                            lastActivityAt = session.startedAt,
+                            completionCount = 0,
                         )
                     },
             )
