@@ -99,7 +99,7 @@ class SeriesDetailViewModel(
  * UI state for the Series Detail screen.
  */
 data class SeriesDetailUiState(
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val seriesId: String = "",
     val seriesName: String = "",
     val seriesDescription: String? = null,

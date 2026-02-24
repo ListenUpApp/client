@@ -76,8 +76,8 @@ fun BookCoverImage(
         key1 = bookId,
         key2 = coverPath,
     ) {
-        // Skip async if we already have a sync request
-        if (coverPath != null) return@produceState
+        // Skip async if we already have a sync request, or if bookId is blank (no valid ID to look up)
+        if (coverPath != null || bookId.isBlank()) return@produceState
 
         val imageRepository: ImageRepository =
             org.koin.core.context.GlobalContext

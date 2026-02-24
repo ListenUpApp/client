@@ -131,7 +131,7 @@ class SeriesDetailViewModelTest {
     // ========== Initial State Tests ==========
 
     @Test
-    fun `initial state has isLoading false and empty data`() =
+    fun `initial state has isLoading true and empty data`() =
         runTest {
             // Given
             val fixture = createFixture()
@@ -139,7 +139,7 @@ class SeriesDetailViewModelTest {
 
             // Then
             val state = viewModel.state.value
-            assertFalse(state.isLoading)
+            assertTrue(state.isLoading)
             assertEquals("", state.seriesName)
             assertTrue(state.books.isEmpty())
             assertNull(state.error)
