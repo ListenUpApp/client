@@ -166,10 +166,9 @@ fun AdminBackupScreen(
             state = uploadSheetState.uploadState,
             onPickFile = { documentPicker.launch() },
             onUpload = {
-                val workId = uploadSheetState.enqueueUpload(context)
-                if (workId != null) {
-                    showUploadSheet = false
-                }
+                // Sheet stays visible during upload — shows existing progress UI.
+                // Upload runs via foreground service so user can dismiss freely.
+                uploadSheetState.enqueueUpload(context)
             },
             onNavigateToImport = { importId ->
                 showUploadSheet = false
