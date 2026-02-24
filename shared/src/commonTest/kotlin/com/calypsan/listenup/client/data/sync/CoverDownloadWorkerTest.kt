@@ -43,9 +43,9 @@ class CoverDownloadWorkerTest {
             everySuspend { dao.getNextBatch(limit = any()) } sequentiallyReturns listOf(tasks, emptyList())
             everySuspend { dao.markInProgress(any()) } returns Unit
             everySuspend { dao.markCompleted(any()) } returns Unit
-            everySuspend { dao.observeRemainingCount() } returns flowOf(0)
-            everySuspend { dao.observeCompletedCount() } returns flowOf(0)
-            everySuspend { dao.observeTotalCount() } returns flowOf(0)
+            every { dao.observeRemainingCount() } returns flowOf(0)
+            every { dao.observeCompletedCount() } returns flowOf(0)
+            every { dao.observeTotalCount() } returns flowOf(0)
             everySuspend { downloader.downloadCover(any()) } returns Success(true)
 
             val worker = CoverDownloadWorker(dao, downloader)
