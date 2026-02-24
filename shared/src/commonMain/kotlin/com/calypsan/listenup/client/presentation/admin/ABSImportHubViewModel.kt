@@ -246,6 +246,15 @@ class ABSImportHubViewModel(
                     hubState.update { it.copy(import = result.data, isLoading = false) }
                     // Load initial data for the active tab
                     loadTabData(ImportHubTab.OVERVIEW)
+                    // Start polling if analysis is still in progress (covers WorkManager upload flow)
+                    if (result.data.status == IMPORT_STATUS_ANALYZING) {
+                        startAnalysisPolling(importId)
+                    }
+                    // If this import isn't in the list yet (newly created via background upload),
+                    // reload the list so the user sees it when they navigate back
+                    if (listState.value.imports.none { it.id == importId }) {
+                        loadImports()
+                    }
                 }
 
                 is Failure -> {
