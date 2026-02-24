@@ -405,6 +405,16 @@ class PlaybackService : MediaLibraryService() {
     }
 
     /**
+     * Apply restored playback speed to ExoPlayer.
+     * Extracted to keep onAddMediaItems and onPlaybackResumption within complexity limits.
+     */
+    private fun applyResumeSpeed(speed: Float) {
+        if (speed != 1.0f) {
+            player?.setPlaybackSpeed(speed)
+        }
+    }
+
+    /**
      * Listens to player events for logging and progress tracking.
      */
     private inner class PlayerListener : Player.Listener {
@@ -850,6 +860,8 @@ class PlaybackService : MediaLibraryService() {
                                                         .build(),
                                                 ).build()
                                         }
+                                    // Apply the restored playback speed to ExoPlayer
+                                    applyResumeSpeed(prepareResult.resumeSpeed)
                                     resolvedItems.addAll(bookItems)
                                 }
                             } else {
@@ -1012,6 +1024,8 @@ class PlaybackService : MediaLibraryService() {
                                     ).build()
                             }
 
+                        // Apply the restored playback speed to ExoPlayer
+                        applyResumeSpeed(prepareResult.resumeSpeed)
                         // Resolve start position
                         val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
 
