@@ -120,12 +120,15 @@ class ABSUploadWorker(
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ListenUp:ABSUpload")
                 .apply { acquire(15 * 60 * 1000L) } // 15 min max
 
+        // Track result so finally can skip cleanup on retry (file needed for next attempt)
+        var workerResult: Result = Result.failure(workDataOf(KEY_ERROR to "Unknown error"))
         return try {
             setForeground(createForegroundInfo())
 
             if (!cacheFile.exists()) {
                 logger.error { "Cache file does not exist: $cacheFilePath" }
-                return Result.failure(workDataOf(KEY_ERROR to "Cache file not found"))
+                workerResult = Result.failure(workDataOf(KEY_ERROR to "Cache file not found"))
+                return workerResult
             }
 
             logger.info { "Starting ABS upload: filename=$filename, size=${cacheFile.length()}" }
@@ -139,42 +142,46 @@ class ABSUploadWorker(
             setProgress(workDataOf("phase" to "analyzing"))
 
             // Create the import from the uploaded file
-            when (val importResult = absImportApi.createImportFromPath(uploadResponse.path, filename)) {
-                is Success -> {
-                    val importId = importResult.data.id
-                    logger.info { "Import created: id=$importId" }
-                    showResultNotification(
-                        title = "Backup ready to review",
-                        text = "Your Audiobookshelf backup has been analysed and is ready to map.",
-                        iconRes = android.R.drawable.stat_sys_upload_done,
-                        importId = importId,
-                    )
-                    Result.success(workDataOf(KEY_IMPORT_ID to importId))
-                }
-
-                is Failure -> {
-                    val error = importResult.exception?.message ?: "Failed to create import"
-                    logger.error { "Import creation failed: $error" }
-                    val result = retryOrFail(error)
-                    if (result is Result.Failure) {
-                        showFailureNotification()
+            workerResult =
+                when (val importResult = absImportApi.createImportFromPath(uploadResponse.path, filename)) {
+                    is Success -> {
+                        val importId = importResult.data.id
+                        logger.info { "Import created: id=$importId" }
+                        showResultNotification(
+                            title = "Backup ready to review",
+                            text = "Your Audiobookshelf backup has been analysed and is ready to map.",
+                            iconRes = android.R.drawable.stat_sys_upload_done,
+                            importId = importId,
+                        )
+                        Result.success(workDataOf(KEY_IMPORT_ID to importId))
                     }
-                    result
+
+                    is Failure -> {
+                        val error = importResult.exception?.message ?: "Failed to create import"
+                        logger.error { "Import creation failed: $error" }
+                        val result = retryOrFail(error)
+                        if (result is Result.Failure) {
+                            showFailureNotification()
+                        }
+                        result
+                    }
                 }
-            }
+            workerResult
         } catch (e: Exception) {
             logger.error(e) { "ABS upload failed" }
-            val result = retryOrFail(e.message ?: "Upload failed")
-            if (result is Result.Failure) {
+            workerResult = retryOrFail(e.message ?: "Upload failed")
+            if (workerResult is Result.Failure) {
                 showFailureNotification()
             }
-            result
+            workerResult
         } finally {
             if (wakeLock.isHeld) wakeLock.release()
-            // Clean up cache file
-            if (cacheFile.exists()) {
-                val deleted = cacheFile.delete()
-                logger.debug { "Cache file cleanup: deleted=$deleted, path=$cacheFilePath" }
+            // Only delete the staged file on final outcomes — keep it for retry attempts
+            if (workerResult !is Result.Retry) {
+                if (cacheFile.exists()) {
+                    val deleted = cacheFile.delete()
+                    logger.debug { "Staged file cleanup: deleted=$deleted, path=$cacheFilePath" }
+                }
             }
         }
     }
