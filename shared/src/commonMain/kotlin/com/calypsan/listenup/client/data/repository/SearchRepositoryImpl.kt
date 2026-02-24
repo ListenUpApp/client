@@ -211,7 +211,7 @@ private fun SearchHitResponse.toDomain(imageStorage: ImageStorage): SearchHit {
 
     // Resolve cover path for books (convert String to BookId)
     val coverPath =
-        if (hitType == SearchHitType.BOOK) {
+        if (hitType == SearchHitType.BOOK && id.isNotBlank()) {
             val bookId = BookId(id)
             if (imageStorage.exists(bookId)) imageStorage.getCoverPath(bookId) else null
         } else {
