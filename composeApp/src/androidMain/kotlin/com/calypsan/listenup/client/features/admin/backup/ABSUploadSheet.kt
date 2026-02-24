@@ -36,7 +36,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,15 +51,11 @@ import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.upload.ABSUploadWorker
 import com.calypsan.listenup.client.util.DocumentPickerResult
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
-
-/** Delay before auto-navigating after successful upload. */
-private const val SUCCESS_ANIMATION_DELAY_MS = 1500L
 
 /**
  * State for the ABS upload flow.
@@ -129,16 +124,8 @@ fun ABSUploadSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Auto-navigate to import hub when upload completes
-    LaunchedEffect(state) {
-        if (state is ABSUploadState.Complete) {
-            delay(SUCCESS_ANIMATION_DELAY_MS)
-            onNavigateToImport(state.importId)
-        }
-    }
-
     ModalBottomSheet(
-        onDismissRequest = { if (state !is ABSUploadState.Uploading) onDismiss() },
+        onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         dragHandle = {

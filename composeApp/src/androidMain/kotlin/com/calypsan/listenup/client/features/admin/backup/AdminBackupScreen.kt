@@ -105,6 +105,15 @@ fun AdminBackupScreen(
         }
     }
 
+    // Auto-navigate to import detail when background upload completes while on this screen
+    LaunchedEffect(uploadSheetState.uploadState) {
+        val currentState = uploadSheetState.uploadState
+        if (currentState is ABSUploadState.Complete && currentState.importId.isNotEmpty()) {
+            uploadSheetState.reset()
+            onABSImportHubClick(currentState.importId)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -151,7 +160,10 @@ fun AdminBackupScreen(
             state = uploadSheetState.uploadState,
             onPickFile = { documentPicker.launch() },
             onUpload = {
-                uploadSheetState.enqueueUpload(context)
+                val workId = uploadSheetState.enqueueUpload(context)
+                if (workId != null) {
+                    showUploadSheet = false
+                }
             },
             onNavigateToImport = { importId ->
                 showUploadSheet = false
