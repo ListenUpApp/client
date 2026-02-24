@@ -84,8 +84,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.palette.graphics.Palette
+import androidx.compose.runtime.produceState
 import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.SubcomposeAsyncImageContent
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.ServerConfig
+import org.koin.core.context.GlobalContext
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
@@ -424,6 +430,7 @@ private fun TallNowPlayingLayout(
             contentAlignment = Alignment.Center,
         ) {
             CoverArt(
+                bookId = state.bookId,
                 coverUrl = state.coverUrl,
                 breathScale = breathScale,
                 onColorExtracted = onColorExtracted,
@@ -533,6 +540,7 @@ private fun WideNowPlayingLayout(
             contentAlignment = Alignment.Center,
         ) {
             CoverArt(
+                bookId = state.bookId,
                 coverUrl = state.coverUrl,
                 breathScale = breathScale,
                 onColorExtracted = onColorExtracted,
@@ -782,14 +790,63 @@ private fun NowPlayingTopBar(
 
 @Composable
 private fun CoverArt(
+    bookId: String,
     coverUrl: String?,
     breathScale: Float = 1f,
     onColorExtracted: (Color) -> Unit,
 ) {
     val context = LocalContext.current
 
-    // Track if color has been extracted for this URL to prevent repeated extraction
-    var colorExtracted by remember(coverUrl) { mutableStateOf(false) }
+    // Track if color has been extracted for this cover to prevent repeated extraction
+    var colorExtracted by remember(bookId, coverUrl) { mutableStateOf(false) }
+
+    // Resolve cover image: local file fast path, or server URL fallback with auth.
+    // Covers are never blank when online even if the local download hasn't completed yet.
+    val imageRequest by produceState<ImageRequest>(
+        initialValue =
+            ImageRequest
+                .Builder(context)
+                .data(coverUrl)
+                .allowHardware(false)
+                .build(),
+        key1 = bookId,
+        key2 = coverUrl,
+    ) {
+        if (coverUrl != null) {
+            // Local file available — use it directly, no network needed
+            value =
+                ImageRequest
+                    .Builder(context)
+                    .data(coverUrl)
+                    .allowHardware(false)
+                    .build()
+            return@produceState
+        }
+
+        if (bookId.isBlank()) return@produceState
+
+        // No local cover yet — fetch from server with auth header
+        withContext(Dispatchers.IO) {
+            val serverConfig = GlobalContext.get().get<ServerConfig>()
+            val authSession = GlobalContext.get().get<AuthSession>()
+            val baseUrl = serverConfig.getActiveUrl()?.value
+            val token = authSession.getAccessToken()?.value
+            if (baseUrl != null) {
+                value =
+                    ImageRequest
+                        .Builder(context)
+                        .data("$baseUrl/api/v1/covers/$bookId")
+                        .apply {
+                            if (token != null) {
+                                httpHeaders(
+                                    NetworkHeaders.Builder().set("Authorization", "Bearer $token").build(),
+                                )
+                            }
+                        }.allowHardware(false)
+                        .build()
+            }
+        }
+    }
 
     // Cover art with shadow and breathing animation
     Surface(
@@ -806,12 +863,7 @@ private fun CoverArt(
         tonalElevation = 0.dp,
     ) {
         SubcomposeAsyncImage(
-            model =
-                ImageRequest
-                    .Builder(context)
-                    .data(coverUrl)
-                    .allowHardware(false)
-                    .build(),
+            model = imageRequest,
             contentDescription = "Book cover",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
