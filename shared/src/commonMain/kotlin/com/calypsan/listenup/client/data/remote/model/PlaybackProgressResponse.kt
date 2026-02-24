@@ -6,7 +6,6 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -40,17 +39,25 @@ data class PlaybackProgressResponse(
 ) {
     /**
      * Convert to local PlaybackPositionEntity for caching.
+     *
+     * Uses the server's own timestamps (not Clock.System.now()) so that
+     * future local-vs-server comparisons in ProgressTracker.mergePositions
+     * use consistent time bases. Using local clock would inflate updatedAt,
+     * causing stale local positions to win over newer server positions on
+     * subsequent app launches.
      */
-    fun toEntity(): PlaybackPositionEntity =
-        PlaybackPositionEntity(
+    fun toEntity(): PlaybackPositionEntity {
+        val serverUpdatedAt = updatedAtMillis()
+        return PlaybackPositionEntity(
             bookId = BookId(bookId),
             positionMs = currentPositionMs,
             playbackSpeed = 1.0f, // Server doesn't track per-position speed
-            updatedAt = Clock.System.now().toEpochMilliseconds(),
-            syncedAt = Clock.System.now().toEpochMilliseconds(),
+            updatedAt = serverUpdatedAt,
+            syncedAt = serverUpdatedAt,
             lastPlayedAt = lastPlayedAtMillis(),
             isFinished = isFinished, // Trust server's authoritative finished status
         )
+    }
 
     /**
      * Parse lastPlayedAt ISO 8601 timestamp to epoch milliseconds.
@@ -58,6 +65,16 @@ data class PlaybackProgressResponse(
     fun lastPlayedAtMillis(): Long =
         try {
             Instant.parse(lastPlayedAt).toEpochMilliseconds()
+        } catch (_: Exception) {
+            0L
+        }
+
+    /**
+     * Parse updatedAt ISO 8601 timestamp to epoch milliseconds.
+     */
+    fun updatedAtMillis(): Long =
+        try {
+            Instant.parse(updatedAt).toEpochMilliseconds()
         } catch (_: Exception) {
             0L
         }

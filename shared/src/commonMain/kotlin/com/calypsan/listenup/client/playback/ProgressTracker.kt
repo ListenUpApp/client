@@ -408,8 +408,13 @@ class ProgressTracker(
 
             else -> {
                 // Both exist - compare timestamps
+                // Compare using lastPlayedAt consistently. Previously this compared
+                // server.lastPlayedAt against local.updatedAt, but caching server
+                // positions set updatedAt to Clock.System.now(), inflating it beyond
+                // the server timestamp and causing stale local positions to win.
                 val serverTimestamp = server.lastPlayedAtMillis()
-                if (serverTimestamp > local!!.updatedAt) {
+                val localTimestamp = local!!.lastPlayedAt ?: local.updatedAt
+                if (serverTimestamp > localTimestamp) {
                     // Server is newer (listened on another device)
                     // Preserve local speed settings — server doesn't track per-position speed
                     val entity =
@@ -420,7 +425,7 @@ class ProgressTracker(
                     positionDao.save(entity)
                     logger.info {
                         "Using server position: ${server.currentPositionMs}ms " +
-                            "(was ${local.positionMs}ms locally, server is ${(serverTimestamp - local.updatedAt) / 1000}s newer)"
+                            "(was ${local.positionMs}ms locally, server is ${(serverTimestamp - localTimestamp) / 1000}s newer)"
                     }
                     entity
                 } else {
