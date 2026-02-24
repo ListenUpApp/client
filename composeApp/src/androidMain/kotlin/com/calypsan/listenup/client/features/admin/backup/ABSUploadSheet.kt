@@ -712,6 +712,27 @@ class ABSUploadSheetState {
     }
 
     /**
+     * Check WorkManager for any in-flight ABSUploadWorker job.
+     * Call this on screen startup to restore activeWorkId after app restart.
+     * If a running/enqueued job is found, sets activeWorkId so the
+     * existing LaunchedEffect(uploadSheetState.activeWorkId) can observe it.
+     */
+    fun restoreActiveWorkIfRunning(context: Context) {
+        if (activeWorkId != null) return
+        val infos = WorkManager.getInstance(context)
+            .getWorkInfosByTag(ABSUploadWorker.WORK_TAG)
+            .get()
+        val running = infos.firstOrNull { info ->
+            info.state == WorkInfo.State.RUNNING || info.state == WorkInfo.State.ENQUEUED
+        }
+        if (running != null) {
+            activeWorkId = running.id
+            if (pendingFilename == null) pendingFilename = "backup"
+            uploadState = ABSUploadState.Uploading(pendingFilename ?: "backup", UploadPhase.UPLOADING)
+        }
+    }
+
+    /**
      * Reset to file selection state.
      */
     fun retry() {

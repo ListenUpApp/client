@@ -65,6 +65,7 @@ class ABSUploadWorker(
         const val KEY_FILE_SIZE = "file_size"
         const val KEY_IMPORT_ID = "import_id"
         const val KEY_ERROR = "error"
+        const val WORK_TAG = "abs_upload_worker"
 
         /**
          * Enqueue an upload work request.
@@ -92,6 +93,7 @@ class ABSUploadWorker(
                 OneTimeWorkRequestBuilder<ABSUploadWorker>()
                     .setInputData(data)
                     .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .addTag(WORK_TAG)
                     .build()
 
             WorkManager.getInstance(context).enqueue(request)
