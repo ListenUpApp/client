@@ -57,6 +57,8 @@ import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
+private const val DEFAULT_FILENAME = "backup"
+
 /**
  * State for the ABS upload flow.
  */
@@ -667,7 +669,7 @@ class ABSUploadSheetState {
      */
     fun observeWorkInfo(workInfo: WorkInfo?) {
         if (workInfo == null) return
-        val filename = pendingFilename ?: "backup"
+        val filename = pendingFilename ?: DEFAULT_FILENAME
 
         when (workInfo.state) {
             WorkInfo.State.ENQUEUED,
@@ -709,6 +711,30 @@ class ABSUploadSheetState {
         return WorkManager
             .getInstance(context)
             .getWorkInfoByIdFlow(workId)
+    }
+
+    /**
+     * Check WorkManager for any in-flight ABSUploadWorker job.
+     * Call this on screen startup to restore activeWorkId after app restart.
+     * If a running/enqueued job is found, sets activeWorkId so the
+     * existing LaunchedEffect(uploadSheetState.activeWorkId) can observe it.
+     */
+    fun restoreActiveWorkIfRunning(context: Context) {
+        if (activeWorkId != null) return
+        val infos =
+            WorkManager
+                .getInstance(context)
+                .getWorkInfosByTag(ABSUploadWorker.WORK_TAG)
+                .get()
+        val running =
+            infos.firstOrNull { info ->
+                info.state == WorkInfo.State.RUNNING || info.state == WorkInfo.State.ENQUEUED
+            }
+        if (running != null) {
+            activeWorkId = running.id
+            if (pendingFilename == null) pendingFilename = DEFAULT_FILENAME
+            uploadState = ABSUploadState.Uploading(pendingFilename ?: DEFAULT_FILENAME, UploadPhase.UPLOADING)
+        }
     }
 
     /**

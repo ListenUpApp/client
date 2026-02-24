@@ -98,6 +98,11 @@ fun AdminBackupScreen(
             uploadSheetState.onDocumentSelected(result)
         }
 
+    // Restore any in-flight upload job after app restart
+    LaunchedEffect(Unit) {
+        uploadSheetState.restoreActiveWorkIfRunning(context)
+    }
+
     // Observe WorkManager work info when an upload is active
     LaunchedEffect(uploadSheetState.activeWorkId) {
         val flow = uploadSheetState.getWorkInfoFlow(context) ?: return@LaunchedEffect
