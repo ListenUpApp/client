@@ -177,11 +177,9 @@ class ABSUploadWorker(
         } finally {
             if (wakeLock.isHeld) wakeLock.release()
             // Only delete the staged file on final outcomes — keep it for retry attempts
-            if (workerResult !is Result.Retry) {
-                if (cacheFile.exists()) {
-                    val deleted = cacheFile.delete()
-                    logger.debug { "Staged file cleanup: deleted=$deleted, path=$cacheFilePath" }
-                }
+            if (workerResult !is Result.Retry && cacheFile.exists()) {
+                val deleted = cacheFile.delete()
+                logger.debug { "Staged file cleanup: deleted=$deleted, path=$cacheFilePath" }
             }
         }
     }
