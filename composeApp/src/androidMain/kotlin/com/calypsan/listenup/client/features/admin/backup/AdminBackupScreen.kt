@@ -72,6 +72,7 @@ private const val LABEL_DELETE = "Delete"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("LongMethod")
 fun AdminBackupScreen(
     backupViewModel: AdminBackupViewModel = koinInject(),
     absImportViewModel: ABSImportHubViewModel = koinInject(),
