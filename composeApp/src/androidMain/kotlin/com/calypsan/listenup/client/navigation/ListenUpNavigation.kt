@@ -507,6 +507,16 @@ private fun AuthenticatedNavigation(
                     // Let the user interact with sleep timer in the player
                 }
             }
+
+            is ShortcutAction.NavigateToAbsImport -> {
+                logger.info { "Navigating to ABS import: ${action.importId}" }
+                if (backStack.lastOrNull() != Shell) {
+                    backStack.clear()
+                    backStack.add(Shell)
+                }
+                backStack.add(AdminBackups)
+                backStack.add(ABSImportDetail(action.importId))
+            }
         }
 
         // Consume the action after processing

@@ -72,6 +72,7 @@ private const val LABEL_DELETE = "Delete"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("LongMethod")
 fun AdminBackupScreen(
     backupViewModel: AdminBackupViewModel = koinInject(),
     absImportViewModel: ABSImportHubViewModel = koinInject(),
@@ -102,6 +103,15 @@ fun AdminBackupScreen(
         val flow = uploadSheetState.getWorkInfoFlow(context) ?: return@LaunchedEffect
         flow.collect { workInfo ->
             uploadSheetState.observeWorkInfo(workInfo)
+        }
+    }
+
+    // Auto-navigate to import detail when background upload completes while on this screen
+    LaunchedEffect(uploadSheetState.uploadState) {
+        val currentState = uploadSheetState.uploadState
+        if (currentState is ABSUploadState.Complete && currentState.importId.isNotEmpty()) {
+            uploadSheetState.reset()
+            onABSImportHubClick(currentState.importId)
         }
     }
 
@@ -151,7 +161,10 @@ fun AdminBackupScreen(
             state = uploadSheetState.uploadState,
             onPickFile = { documentPicker.launch() },
             onUpload = {
-                uploadSheetState.enqueueUpload(context)
+                val workId = uploadSheetState.enqueueUpload(context)
+                if (workId != null) {
+                    showUploadSheet = false
+                }
             },
             onNavigateToImport = { importId ->
                 showUploadSheet = false

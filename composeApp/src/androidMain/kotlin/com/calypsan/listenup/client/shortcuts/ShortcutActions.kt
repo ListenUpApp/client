@@ -60,6 +60,14 @@ object ShortcutActions {
      */
     const val SLEEP_TIMER = "com.calypsan.listenup.action.SLEEP_TIMER"
 
+    /**
+     * Navigate to a specific ABS import detail screen.
+     *
+     * Used by completion notifications from ABSUploadWorker.
+     * Requires EXTRA_IMPORT_ID to identify which import to view.
+     */
+    const val NAVIGATE_TO_ABS_IMPORT = "com.calypsan.listenup.action.NAVIGATE_TO_ABS_IMPORT"
+
     // ═══════════════════════════════════════════════════════════════════════════
     // INTENT EXTRAS
     // ═══════════════════════════════════════════════════════════════════════════
@@ -78,6 +86,13 @@ object ShortcutActions {
      * If not provided, uses default duration.
      */
     const val EXTRA_TIMER_MINUTES = "timer_minutes"
+
+    /**
+     * Import ID extra for NAVIGATE_TO_ABS_IMPORT action.
+     *
+     * Value type: String
+     */
+    const val EXTRA_IMPORT_ID = "import_id"
 
     // ═══════════════════════════════════════════════════════════════════════════
     // SHORTCUT IDS

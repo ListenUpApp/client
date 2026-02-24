@@ -154,6 +154,16 @@ class MainActivity : ComponentActivity() {
                 println("MainActivity: Received SLEEP_TIMER shortcut action - minutes=$timerMinutes")
                 shortcutActionManager.setPendingAction(ShortcutAction.SleepTimer(timerMinutes))
             }
+
+            ShortcutActions.NAVIGATE_TO_ABS_IMPORT -> {
+                val importId = intent.getStringExtra(ShortcutActions.EXTRA_IMPORT_ID)
+                if (importId != null) {
+                    println("MainActivity: Received NAVIGATE_TO_ABS_IMPORT action - importId=$importId")
+                    shortcutActionManager.setPendingAction(ShortcutAction.NavigateToAbsImport(importId))
+                } else {
+                    println("MainActivity: NAVIGATE_TO_ABS_IMPORT action missing import_id extra")
+                }
+            }
         }
     }
 

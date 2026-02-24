@@ -2,7 +2,9 @@ package com.calypsan.listenup.client.upload
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.PowerManager
@@ -14,10 +16,12 @@ import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.calypsan.listenup.client.MainActivity
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.remote.ABSImportApiContract
 import com.calypsan.listenup.client.data.remote.BackupApiContract
+import com.calypsan.listenup.client.shortcuts.ShortcutActions
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import java.util.UUID
@@ -27,7 +31,13 @@ private val logger = KotlinLogging.logger {}
 private const val CHANNEL_ID = "abs_upload"
 private const val CHANNEL_NAME = "ABS Import Upload"
 private const val NOTIFICATION_ID = 9001
+private const val RESULT_CHANNEL_ID = "abs_import_complete"
+private const val RESULT_CHANNEL_NAME = "ABS Import Results"
+private const val RESULT_NOTIFICATION_ID = 9002
 private const val MAX_RUN_ATTEMPTS = 3
+private const val NOTIFICATION_TITLE_FAILURE = "Backup import failed"
+private const val NOTIFICATION_TEXT_FAILURE =
+    "The Audiobookshelf backup could not be processed. Please try again."
 
 /**
  * Background worker that uploads an Audiobookshelf backup and creates an import.
@@ -131,18 +141,32 @@ class ABSUploadWorker(
                 is Success -> {
                     val importId = importResult.data.id
                     logger.info { "Import created: id=$importId" }
+                    showResultNotification(
+                        title = "Backup ready to review",
+                        text = "Your Audiobookshelf backup has been analysed and is ready to map.",
+                        iconRes = android.R.drawable.stat_sys_upload_done,
+                        importId = importId,
+                    )
                     Result.success(workDataOf(KEY_IMPORT_ID to importId))
                 }
 
                 is Failure -> {
                     val error = importResult.exception?.message ?: "Failed to create import"
                     logger.error { "Import creation failed: $error" }
-                    retryOrFail(error)
+                    val result = retryOrFail(error)
+                    if (result is Result.Failure) {
+                        showFailureNotification()
+                    }
+                    result
                 }
             }
         } catch (e: Exception) {
             logger.error(e) { "ABS upload failed" }
-            retryOrFail(e.message ?: "Upload failed")
+            val result = retryOrFail(e.message ?: "Upload failed")
+            if (result is Result.Failure) {
+                showFailureNotification()
+            }
+            result
         } finally {
             if (wakeLock.isHeld) wakeLock.release()
             // Clean up cache file
@@ -160,6 +184,71 @@ class ABSUploadWorker(
         } else {
             Result.failure(workDataOf(KEY_ERROR to errorMessage))
         }
+
+    private fun showFailureNotification() {
+        showResultNotification(
+            title = NOTIFICATION_TITLE_FAILURE,
+            text = NOTIFICATION_TEXT_FAILURE,
+            iconRes = android.R.drawable.stat_notify_error,
+        )
+    }
+
+    @Suppress("LongMethod")
+    private fun showResultNotification(
+        title: String,
+        text: String,
+        iconRes: Int,
+        importId: String? = null,
+    ) {
+        val notificationManager =
+            applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel =
+                NotificationChannel(
+                    RESULT_CHANNEL_ID,
+                    RESULT_CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                )
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val intent =
+            if (importId != null) {
+                Intent(applicationContext, MainActivity::class.java).apply {
+                    action = ShortcutActions.NAVIGATE_TO_ABS_IMPORT
+                    putExtra(ShortcutActions.EXTRA_IMPORT_ID, importId)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+            } else {
+                Intent(applicationContext, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+            }
+
+        val pendingIntent =
+            PendingIntent.getActivity(
+                applicationContext,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+
+        // Cancel the ongoing upload notification
+        notificationManager.cancel(NOTIFICATION_ID)
+
+        val notification =
+            NotificationCompat
+                .Builder(applicationContext, RESULT_CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(iconRes)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .build()
+
+        notificationManager.notify(RESULT_NOTIFICATION_ID, notification)
+    }
 
     private fun createForegroundInfo(): ForegroundInfo {
         val notificationManager =

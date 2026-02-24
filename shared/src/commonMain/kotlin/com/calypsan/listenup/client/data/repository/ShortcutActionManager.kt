@@ -45,6 +45,15 @@ sealed interface ShortcutAction {
     data class NavigateToBook(
         val bookId: String,
     ) : ShortcutAction
+
+    /**
+     * Navigate to a specific ABS import detail screen (from notification deep link).
+     *
+     * @property importId The ID of the import to view
+     */
+    data class NavigateToAbsImport(
+        val importId: String,
+    ) : ShortcutAction
 }
 
 /**
