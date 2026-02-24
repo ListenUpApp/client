@@ -208,4 +208,43 @@ class ABSImportHubViewModelTest {
             )
             assertEquals("Failed to map user", vm.hubState.value.error)
         }
+
+    // ========== openImport polling behavior ==========
+
+    @Test
+    fun `openImport starts polling when status is analyzing`() =
+        runTest {
+            val api = createMockedApi()
+            val analyzingImport = testImport.copy(status = "analyzing")
+            val completedImport = testImport.copy(status = "active")
+
+            // First call returns analyzing, second returns completed
+            var callCount = 0
+            everySuspend { api.getImport("import-1") } returns
+                Success(if (callCount++ == 0) analyzingImport else completedImport)
+
+            val vm = ABSImportHubViewModel(api, mock(), mock())
+            advanceUntilIdle()
+
+            vm.openImport("import-1")
+            advanceUntilIdle()
+
+            // Initial state should show analyzing
+            assertEquals(
+                "analyzing",
+                vm.hubState.value.import
+                    ?.status,
+            )
+
+            // Advance past polling interval (3 seconds)
+            testScheduler.advanceTimeBy(3_100)
+            advanceUntilIdle()
+
+            // After polling, status should be updated to active
+            assertEquals(
+                "active",
+                vm.hubState.value.import
+                    ?.status,
+            )
+        }
 }
