@@ -719,12 +719,15 @@ class ABSUploadSheetState {
      */
     fun restoreActiveWorkIfRunning(context: Context) {
         if (activeWorkId != null) return
-        val infos = WorkManager.getInstance(context)
-            .getWorkInfosByTag(ABSUploadWorker.WORK_TAG)
-            .get()
-        val running = infos.firstOrNull { info ->
-            info.state == WorkInfo.State.RUNNING || info.state == WorkInfo.State.ENQUEUED
-        }
+        val infos =
+            WorkManager
+                .getInstance(context)
+                .getWorkInfosByTag(ABSUploadWorker.WORK_TAG)
+                .get()
+        val running =
+            infos.firstOrNull { info ->
+                info.state == WorkInfo.State.RUNNING || info.state == WorkInfo.State.ENQUEUED
+            }
         if (running != null) {
             activeWorkId = running.id
             if (pendingFilename == null) pendingFilename = "backup"
