@@ -57,6 +57,8 @@ import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
+private const val DEFAULT_FILENAME = "backup"
+
 /**
  * State for the ABS upload flow.
  */
@@ -667,7 +669,7 @@ class ABSUploadSheetState {
      */
     fun observeWorkInfo(workInfo: WorkInfo?) {
         if (workInfo == null) return
-        val filename = pendingFilename ?: "backup"
+        val filename = pendingFilename ?: DEFAULT_FILENAME
 
         when (workInfo.state) {
             WorkInfo.State.ENQUEUED,
@@ -730,8 +732,8 @@ class ABSUploadSheetState {
             }
         if (running != null) {
             activeWorkId = running.id
-            if (pendingFilename == null) pendingFilename = "backup"
-            uploadState = ABSUploadState.Uploading(pendingFilename ?: "backup", UploadPhase.UPLOADING)
+            if (pendingFilename == null) pendingFilename = DEFAULT_FILENAME
+            uploadState = ABSUploadState.Uploading(pendingFilename ?: DEFAULT_FILENAME, UploadPhase.UPLOADING)
         }
     }
 
