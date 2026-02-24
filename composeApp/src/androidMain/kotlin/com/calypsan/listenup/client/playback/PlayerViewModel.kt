@@ -142,12 +142,12 @@ class PlayerViewModel(
                         logger.debug {
                             "MediaItem[$index]: id=${file.audioFileId}, " +
                                 "duration=${file.durationMs}ms, " +
-                                "url=${file.streamingUrl.takeLast(30)}"
+                                "uri=${file.playbackUri.takeLast(40)} (local=${file.isDownloaded})"
                         }
                         MediaItem
                             .Builder()
                             .setMediaId(file.audioFileId)
-                            .setUri(file.streamingUrl)
+                            .setUri(file.playbackUri)
                             .setMediaMetadata(
                                 MediaMetadata
                                     .Builder()
