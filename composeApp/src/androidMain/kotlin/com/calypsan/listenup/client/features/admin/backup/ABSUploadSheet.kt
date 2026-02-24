@@ -770,7 +770,7 @@ class ABSUploadSheetState {
         uri: Uri,
         filename: String,
     ): File {
-        val cacheDir = File(context.cacheDir, "abs_uploads")
+        val cacheDir = File(context.filesDir, "abs_uploads")
         cacheDir.mkdirs()
 
         val cacheFile = File(cacheDir, "${System.currentTimeMillis()}_$filename")
