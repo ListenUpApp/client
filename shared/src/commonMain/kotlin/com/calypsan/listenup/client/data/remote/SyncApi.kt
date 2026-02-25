@@ -422,15 +422,16 @@ class SyncApi(
 
     /**
      * Get all reading sessions for offline-first book detail pages.
+     * Returns active, completed, and abandoned sessions for the Readers section.
      *
-     * Endpoint: GET /api/v1/sync/active-sessions
+     * Endpoint: GET /api/v1/sync/reading-sessions
      * Auth: Required
      */
     override suspend fun getReadingSessions(): Result<SyncReadingSessionsResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ApiActiveSessions> =
-                client.get("/api/v1/sync/active-sessions").body()
+                client.get("/api/v1/sync/reading-sessions").body()
             val apiSessions = response.toResult().getOrThrow()
             SyncReadingSessionsResponse(
                 readers =
