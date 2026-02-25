@@ -217,7 +217,7 @@ class SyncManager(
             }
             logger.info { "Real-time connection established with delta sync" }
         } catch (e: CancellationException) {
-            throw e  // cooperative cancellation — never swallow
+            throw e // cooperative cancellation — never swallow
         } catch (e: Exception) {
             logger.warn(e) { "Delta sync failed during connectRealtime, SSE still connected" }
         }
@@ -251,7 +251,7 @@ class SyncManager(
 
                 logger.info { "Reconnection delta sync completed" }
             } catch (e: CancellationException) {
-                throw e  // cooperative cancellation — never swallow
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 logger.warn(e) { "Reconnection delta sync failed, will retry on next reconnect" }
                 // Don't update sync state - this is a background operation
@@ -295,7 +295,7 @@ class SyncManager(
                         try {
                             ftsPopulator.rebuildAll()
                         } catch (e: CancellationException) {
-                            throw e  // cooperative cancellation — never swallow
+                            throw e // cooperative cancellation — never swallow
                         } catch (e: Exception) {
                             logger.warn(e) { "FTS rebuild failed after scan completion sync" }
                         }
@@ -314,7 +314,7 @@ class SyncManager(
                     }
                 }
             } catch (e: CancellationException) {
-                throw e  // cooperative cancellation — never swallow
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 logger.warn(e) { "Scan completion sync failed" }
             }
@@ -364,7 +364,7 @@ class SyncManager(
             try {
                 ftsPopulator.rebuildAll()
             } catch (e: CancellationException) {
-                throw e  // cooperative cancellation — never swallow
+                throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
                 logger.warn(e) { "FTS rebuild failed, offline search may be incomplete" }
             }
@@ -380,7 +380,7 @@ class SyncManager(
                     coverDownloadWorker.recoverInterrupted()
                     coverDownloadWorker.processQueue()
                 } catch (e: CancellationException) {
-                    throw e  // cooperative cancellation — never swallow
+                    throw e // cooperative cancellation — never swallow
                 } catch (e: Exception) {
                     logger.warn(e) { "Cover download worker failed, covers will retry on next launch" }
                 }
@@ -399,7 +399,7 @@ class SyncManager(
             _syncState.value = SyncStatus.Idle
             throw e
         } catch (e: CancellationException) {
-            throw e  // cooperative cancellation — never swallow
+            throw e // cooperative cancellation — never swallow
         } catch (e: Exception) {
             ErrorBus.emit(SyncError.SyncFailed(debugInfo = e.message))
             logger.error(e) { "Sync failed after retries" }
@@ -441,7 +441,7 @@ class SyncManager(
             // Perform fresh sync
             return sync()
         } catch (e: CancellationException) {
-            throw e  // cooperative cancellation — never swallow
+            throw e // cooperative cancellation — never swallow
         } catch (e: Exception) {
             logger.error(e) { "Failed to reset for new library" }
             _syncState.value = SyncStatus.Error(exception = e)
@@ -457,7 +457,7 @@ class SyncManager(
             logger.info { "Listening history refresh complete" }
             Success(Unit)
         } catch (e: CancellationException) {
-            throw e  // cooperative cancellation — never swallow
+            throw e // cooperative cancellation — never swallow
         } catch (e: Exception) {
             logger.error(e) { "Failed to refresh listening history" }
             Failure(exception = e, message = "Failed to refresh listening history: ${e.message}")
@@ -480,7 +480,7 @@ class SyncManager(
             // Perform fresh sync (will reconnect SSE at the end)
             sync()
         } catch (e: CancellationException) {
-            throw e  // cooperative cancellation — never swallow
+            throw e // cooperative cancellation — never swallow
         } catch (e: Exception) {
             logger.error(e) { "Failed to force full resync" }
             _syncState.value = SyncStatus.Error(exception = e)
@@ -517,7 +517,7 @@ class SyncManager(
                 }
             }
         } catch (e: CancellationException) {
-            throw e  // cooperative cancellation — never swallow
+            throw e // cooperative cancellation — never swallow
         } catch (e: Exception) {
             logger.debug(e) { "Failed to refresh remote URL" }
         }
@@ -538,7 +538,7 @@ class SyncManager(
                 }
             }
         } catch (e: CancellationException) {
-            throw e  // cooperative cancellation — never swallow
+            throw e // cooperative cancellation — never swallow
         } catch (e: Exception) {
             logger.warn(e) { "User preferences sync failed, using cached values" }
         }
@@ -591,7 +591,7 @@ class SyncManager(
                 try {
                     ftsPopulator.rebuildAll()
                 } catch (e: CancellationException) {
-                    throw e  // cooperative cancellation — never swallow
+                    throw e // cooperative cancellation — never swallow
                 } catch (e: Exception) {
                     logger.warn(e) { "FTS rebuild failed after resync" }
                 }
@@ -603,7 +603,7 @@ class SyncManager(
 
             return false
         } catch (e: CancellationException) {
-            throw e  // cooperative cancellation — never swallow
+            throw e // cooperative cancellation — never swallow
         } catch (e: Exception) {
             logger.warn(e) { "Failed to check library scan status" }
             return false
