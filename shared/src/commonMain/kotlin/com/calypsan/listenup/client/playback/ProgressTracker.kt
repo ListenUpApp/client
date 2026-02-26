@@ -4,6 +4,7 @@
 package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ProgressRefreshBus
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
@@ -260,6 +261,9 @@ class ProgressTracker(
                 ),
             )
             logger.info { "Position saved: book=${bookId.value}, position=$positionMs, lastPlayedAt=$now" }
+
+            // Signal that progress was saved so Continue Listening shelf refreshes immediately
+            ProgressRefreshBus.emit()
         } catch (e: Exception) {
             logger.error(e) { "Failed to save position: book=${bookId.value}, position=$positionMs" }
         }
