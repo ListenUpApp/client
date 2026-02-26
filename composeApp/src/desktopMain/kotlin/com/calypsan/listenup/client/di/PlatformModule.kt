@@ -99,6 +99,7 @@ val platformModule: Module =
                 pendingOperationRepository = get(),
                 listeningEventHandler = get<ListeningEventHandler>(),
                 pushSyncOrchestrator = get(),
+                positionRepository = get(),
                 deviceId = get(qualifier = named("deviceId")),
                 scope = get(qualifier = named("playbackScope")),
             )
