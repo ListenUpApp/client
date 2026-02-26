@@ -184,14 +184,14 @@ class DesktopPlayerViewModel(
 
     fun skipBack(seconds: Int = 10) {
         val currentPos = playbackManager.currentPositionMs.value
-        val newPos = (currentPos - seconds * 1000L).coerceAtLeast(0)
+        val newPos = (currentPos - (seconds * state.value.playbackSpeed * 1000).toLong()).coerceAtLeast(0)
         audioPlayer.seekTo(newPos)
     }
 
     fun skipForward(seconds: Int = 30) {
         val currentPos = playbackManager.currentPositionMs.value
         val totalDuration = playbackManager.totalDurationMs.value
-        val newPos = (currentPos + seconds * 1000L).coerceAtMost(totalDuration)
+        val newPos = (currentPos + (seconds * state.value.playbackSpeed * 1000).toLong()).coerceAtMost(totalDuration)
         audioPlayer.seekTo(newPos)
     }
 
