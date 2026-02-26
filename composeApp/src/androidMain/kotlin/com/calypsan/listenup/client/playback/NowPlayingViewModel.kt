@@ -396,7 +396,10 @@ class NowPlayingViewModel(
 
         val currentBookPos = playbackManager.currentPositionMs.value
         val totalDuration = playbackManager.totalDurationMs.value
-        val newBookPos = (currentBookPos + (seconds * state.value.playbackSpeed * 1000).toLong()).coerceAtMost(totalDuration)
+        val newBookPos =
+            (currentBookPos + (seconds * state.value.playbackSpeed * 1000).toLong()).coerceAtMost(
+                totalDuration,
+            )
         logger.debug { "skipForward: currentPos=$currentBookPos, newPos=$newBookPos, totalDuration=$totalDuration" }
 
         val position = timeline.resolve(newBookPos)
