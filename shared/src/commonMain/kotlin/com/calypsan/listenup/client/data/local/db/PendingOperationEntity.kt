@@ -74,6 +74,9 @@ enum class OperationType {
     // Profile updates (coalesce by user)
     PROFILE_UPDATE,
     PROFILE_AVATAR,
+
+    // Mark book as complete (retry on failure)
+    MARK_COMPLETE,
     ;
 
     companion object {
@@ -90,6 +93,7 @@ enum class OperationType {
         const val USER_PREFERENCES_ORDINAL = 9
         const val PROFILE_UPDATE_ORDINAL = 10
         const val PROFILE_AVATAR_ORDINAL = 11
+        const val MARK_COMPLETE_ORDINAL = 12
     }
 }
 

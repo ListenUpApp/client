@@ -182,3 +182,17 @@ data class ProfileAvatarPayload(
     @SerialName("content_type")
     val contentType: String,
 )
+
+/**
+ * Payload for MARK_COMPLETE operations.
+ * Coalesces by book - only the latest timestamps matter.
+ */
+@Serializable
+data class MarkCompletePayload(
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("started_at")
+    val startedAt: String? = null,
+    @SerialName("finished_at")
+    val finishedAt: String? = null,
+)

@@ -658,3 +658,43 @@ class ProfileAvatarHandler(
         }
     }
 }
+
+/**
+ * Handler for MARK_COMPLETE operations.
+ * Coalesces by book - only the latest timestamps matter.
+ * Retries failed markComplete calls so ProgressPuller doesn't overwrite local isFinished.
+ */
+class MarkCompleteHandler(
+    private val api: SyncApiContract,
+) : OperationHandler<MarkCompletePayload> {
+    override val operationType = OperationType.MARK_COMPLETE
+
+    override fun parsePayload(json: String): MarkCompletePayload = Json.decodeFromString(json)
+
+    override fun serializePayload(payload: MarkCompletePayload): String = Json.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: MarkCompletePayload,
+        newPayload: MarkCompletePayload,
+    ): MarkCompletePayload? {
+        if (existing.operationType != OperationType.MARK_COMPLETE) return null
+        return newPayload // Latest timestamps win
+    }
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: MarkCompletePayload,
+    ): Result<Unit> =
+        when (
+            val result =
+                api.markComplete(
+                    payload.bookId,
+                    startedAt = payload.startedAt,
+                    finishedAt = payload.finishedAt,
+                )
+        ) {
+            is Success -> Success(Unit)
+            is Failure -> result
+        }
+}

@@ -211,6 +211,7 @@ class SyncIndicatorViewModel(
             PendingOperationType.USER_PREFERENCES -> "Syncing preferences"
             PendingOperationType.PROFILE_UPDATE -> "Updating profile"
             PendingOperationType.PROFILE_AVATAR -> "Uploading avatar"
+            PendingOperationType.MARK_COMPLETE -> "Marking book complete"
         }
     }
 }

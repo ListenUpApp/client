@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
@@ -24,6 +25,7 @@ private val logger = KotlinLogging.logger {}
 class ProgressPuller(
     private val syncApi: SyncApiContract,
     private val playbackPositionDao: PlaybackPositionDao,
+    private val pendingOperationDao: PendingOperationDao,
 ) : Puller {
     /**
      * Pull all progress from server and upsert locally.
@@ -95,7 +97,36 @@ class ProgressPuller(
                         }
                     }
 
-                    playbackPositionDao.saveAll(entities)
+                    // Guard: don't overwrite isFinished for books with pending MARK_COMPLETE
+                    val pendingCompleteBookIds =
+                        pendingOperationDao.getPendingMarkCompleteBookIds().toSet()
+                    val guardedEntities =
+                        if (pendingCompleteBookIds.isEmpty()) {
+                            entities
+                        } else {
+                            entities.map { entity ->
+                                if (entity.bookId.value in pendingCompleteBookIds && !entity.isFinished) {
+                                    // Server says not finished but we have a pending local markComplete
+                                    // Preserve local isFinished=true
+                                    val localEntity = existingPositions[entity.bookId.value]
+                                    if (localEntity?.isFinished == true) {
+                                        logger.info {
+                                            "Preserving local isFinished=true for ${entity.bookId.value} (pending MARK_COMPLETE)"
+                                        }
+                                        entity.copy(
+                                            isFinished = true,
+                                            finishedAt = localEntity.finishedAt,
+                                        )
+                                    } else {
+                                        entity
+                                    }
+                                } else {
+                                    entity
+                                }
+                            }
+                        }
+
+                    playbackPositionDao.saveAll(guardedEntities)
 
                     // Debug: Verify what's in DB after save
                     val dbCheck = playbackPositionDao.getByBookIds(entities.map { it.bookId })

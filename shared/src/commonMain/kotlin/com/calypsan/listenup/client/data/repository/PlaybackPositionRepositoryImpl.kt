@@ -8,6 +8,11 @@ import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.OperationType
+import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
+import com.calypsan.listenup.client.data.sync.push.MarkCompletePayload
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -34,6 +39,8 @@ private val logger = KotlinLogging.logger {}
 class PlaybackPositionRepositoryImpl(
     private val dao: PlaybackPositionDao,
     private val syncApi: SyncApiContract,
+    private val pendingOps: PendingOperationRepositoryContract,
+    private val markCompleteHandler: MarkCompleteHandler,
 ) : PlaybackPositionRepository {
     override suspend fun get(bookId: String): PlaybackPosition? = dao.get(BookId(bookId))?.toDomain()
 
@@ -120,13 +127,25 @@ class PlaybackPositionRepositoryImpl(
 
             is Failure -> {
                 logger.warn {
-                    "markComplete: server sync failed for $bookId (keeping local update; will sync on next pull)"
+                    "markComplete: server sync failed for $bookId, enqueueing for retry"
                 }
                 // Do NOT rollback. Optimistic local update is correct.
-                // Book is marked finished locally (isFinished = true persists).
-                // Server will eventually sync back the correct state via ProgressPuller.
-                // Rolling back on failure creates a race where the book reappears in Continue Listening.
-                result
+                // Enqueue for retry so PushSyncOrchestrator will keep trying,
+                // preventing ProgressPuller from overwriting local isFinished=true.
+                pendingOps.queue(
+                    type = OperationType.MARK_COMPLETE,
+                    entityType = EntityType.BOOK,
+                    entityId = bookId,
+                    payload =
+                        MarkCompletePayload(
+                            bookId = bookId,
+                            startedAt = startedAtIso,
+                            finishedAt = finishedAtIso,
+                        ),
+                    handler = markCompleteHandler,
+                )
+                // Return success since local state is correct and retry is enqueued
+                Success(Unit)
             }
         }
     }

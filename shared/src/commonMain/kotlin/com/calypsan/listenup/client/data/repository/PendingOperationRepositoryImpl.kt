@@ -74,6 +74,7 @@ private fun OperationType.toDomain(): PendingOperationType =
         OperationType.USER_PREFERENCES -> PendingOperationType.USER_PREFERENCES
         OperationType.PROFILE_UPDATE -> PendingOperationType.PROFILE_UPDATE
         OperationType.PROFILE_AVATAR -> PendingOperationType.PROFILE_AVATAR
+        OperationType.MARK_COMPLETE -> PendingOperationType.MARK_COMPLETE
     }
 
 /**
