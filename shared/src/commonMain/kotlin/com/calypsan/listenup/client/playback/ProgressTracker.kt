@@ -243,13 +243,11 @@ class ProgressTracker(
      * @param bookId The book to save position for
      * @param positionMs Current position in milliseconds
      * @param speed Current playback speed
-     * @param totalDurationMs Optional total duration for defensive completion check (Issue #208)
      */
     private suspend fun savePosition(
         bookId: BookId,
         positionMs: Long,
         speed: Float,
-        totalDurationMs: Long? = null,
     ) {
         try {
             // Preserve existing hasCustomSpeed and isFinished values
@@ -268,16 +266,6 @@ class ProgressTracker(
                 ),
             )
             logger.info { "Position saved: book=${bookId.value}, position=$positionMs, lastPlayedAt=$now" }
-
-            // Defensive check: mark complete if position >= total duration (Issue #208)
-            if (totalDurationMs != null && positionMs >= totalDurationMs && existing?.isFinished != true) {
-                positionRepository.markComplete(
-                    bookId = bookId.value,
-                    startedAt = null,
-                    finishedAt = now,
-                )
-                logger.info { "Book defensively marked complete: ${bookId.value} (position $positionMs >= duration $totalDurationMs)" }
-            }
         } catch (e: Exception) {
             logger.error(e) { "Failed to save position: book=${bookId.value}, position=$positionMs" }
         }
