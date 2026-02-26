@@ -119,13 +119,13 @@ class PlaybackPositionRepositoryImpl(
             }
 
             is Failure -> {
-                logger.warn { "markComplete: server sync failed for $bookId, rolling back" }
-                // Rollback on failure
-                if (existing != null) {
-                    dao.save(existing)
-                } else {
-                    dao.delete(BookId(bookId))
+                logger.warn {
+                    "markComplete: server sync failed for $bookId (keeping local update; will sync on next pull)"
                 }
+                // Do NOT rollback. Optimistic local update is correct.
+                // Book is marked finished locally (isFinished = true persists).
+                // Server will eventually sync back the correct state via ProgressPuller.
+                // Rolling back on failure creates a race where the book reappears in Continue Listening.
                 result
             }
         }
