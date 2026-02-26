@@ -300,7 +300,9 @@ class HomeViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.syncRepository.sync() } returns com.calypsan.listenup.client.core.Success(Unit)
+            everySuspend { fixture.syncRepository.sync() } returns
+                com.calypsan.listenup.client.core
+                    .Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
