@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.CoverDownloadDao
@@ -13,9 +12,9 @@ import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
+import dev.mokkery.verifySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -40,9 +39,9 @@ class CoverDownloadWorkerTest {
             val tasks = listOf(createTask("a"), createTask("b"), createTask("c"))
 
             // First call returns tasks, second returns empty to stop loop
-            everySuspend { dao.getNextBatch(limit = any()) } sequentiallyReturns listOf(tasks, emptyList())
+            everySuspend { dao.getNextBatch(limit = any(), maxRetries = any()) } sequentiallyReturns listOf(tasks, emptyList())
             everySuspend { dao.markInProgress(any()) } returns Unit
-            everySuspend { dao.markCompleted(any()) } returns Unit
+            everySuspend { dao.markCompleted(any(), any()) } returns Unit
             every { dao.observeRemainingCount() } returns flowOf(0)
             every { dao.observeCompletedCount() } returns flowOf(0)
             every { dao.observeTotalCount() } returns flowOf(0)
@@ -60,5 +59,11 @@ class CoverDownloadWorkerTest {
                 elapsed >= expectedMinimum,
                 "Expected at least ${expectedMinimum}ms but took ${elapsed}ms",
             )
+
+            // Verify each task was marked in-progress then completed
+            for (task in tasks) {
+                verifySuspend { dao.markInProgress(task.bookId) }
+                verifySuspend { dao.markCompleted(task.bookId, any()) }
+            }
         }
 }

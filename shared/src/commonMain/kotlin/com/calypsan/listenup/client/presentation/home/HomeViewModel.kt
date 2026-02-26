@@ -183,14 +183,15 @@ class HomeViewModel(
     /**
      * Refresh home screen data.
      *
-     * Since continue listening is observed from local Room data, this is a no-op.
-     * The Flow automatically updates when playback positions change.
-     * Pull-to-refresh triggers sync elsewhere, which updates Room,
-     * causing the Flow to emit new data.
+     * Triggers a full sync with the server, which pulls updated playback progress
+     * (including isFinished state) into local Room. The continue listening and
+     * shelves Flows then emit automatically with the new data.
      */
     fun refresh() {
-        // No-op - data auto-updates from Room Flow
-        logger.debug { "Refresh requested - data will update automatically from Room" }
+        viewModelScope.launch {
+            logger.debug { "Refresh: triggering sync to pull latest progress" }
+            syncRepository.sync()
+        }
     }
 
     /**

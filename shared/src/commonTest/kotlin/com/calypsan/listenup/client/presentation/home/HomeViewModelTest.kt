@@ -7,9 +7,12 @@ import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import dev.mokkery.answering.returns
+import dev.mokkery.answering.throws
 import dev.mokkery.every
+import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
+import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -293,21 +296,44 @@ class HomeViewModelTest {
     // ========== Refresh Tests ==========
 
     @Test
-    fun `refresh is no-op since data is observed reactively`() =
+    fun `refresh triggers a full server sync`() =
         runTest {
-            // Given - ViewModel with reactive observation
+            // Given
             val fixture = createFixture()
-            fixture.continueListeningFlow.value = listOf(createContinueListeningBook())
+            everySuspend { fixture.syncRepository.sync() } returns
+                com.calypsan.listenup.client.core
+                    .Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
-            val initialState = viewModel.state.value
 
-            // When - refresh is called
+            // When
             viewModel.refresh()
             advanceUntilIdle()
 
-            // Then - state is unchanged (refresh is a no-op)
-            assertEquals(initialState.continueListening, viewModel.state.value.continueListening)
+            // Then
+            verifySuspend { fixture.syncRepository.sync() }
+        }
+
+    @Test
+    fun `refresh handles sync failure gracefully`() =
+        runTest {
+            // Given - sync returns a failure Result (not an exception)
+            val fixture = createFixture()
+            everySuspend { fixture.syncRepository.sync() } returns
+                com.calypsan.listenup.client.core.Failure(
+                    exception = RuntimeException("Network error"),
+                    message = "Network error",
+                )
+            val viewModel = fixture.build()
+            advanceUntilIdle()
+
+            // When
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            // Then - ViewModel is still functional, sync was attempted
+            verifySuspend { fixture.syncRepository.sync() }
+            assertFalse(viewModel.state.value.isDataLoading)
         }
 
     // ========== State Derived Properties Tests ==========
