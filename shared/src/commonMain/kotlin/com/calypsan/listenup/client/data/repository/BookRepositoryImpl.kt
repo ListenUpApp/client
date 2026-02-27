@@ -1,15 +1,12 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.ChapterId
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
-import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
@@ -123,42 +120,14 @@ class BookRepositoryImpl(
     }
 
     /**
-     * Get chapters for a book.
-     *
-     * Currently, the backend does not sync chapters.
-     * To simulate "real" data, if the database is empty for this book,
-     * we generate mock chapters and persist them to the local database.
-     * This ensures the UI is always consuming from the Single Source of Truth (DAO).
+     * Get chapters for a book from the local database.
      *
      * @param bookId The book ID
      * @return List of chapters
      */
     override suspend fun getChapters(bookId: String): List<Chapter> {
-        val id = BookId(bookId)
-        val localChapters = chapterDao.getChaptersForBook(id)
-
-        if (localChapters.isNotEmpty()) {
-            return localChapters.map { it.toDomain() }
-        }
-
-        // Temporary: Seed mock data into DB if empty
-        // TODO: Remove this once backend syncs chapters
-        val mockChapters =
-            List(15) { index ->
-                ChapterEntity(
-                    id = ChapterId("ch-$bookId-$index"),
-                    bookId = id,
-                    title = "Chapter ${index + 1}",
-                    duration = 1_800_000L + (index * 60_000L), // ~30 mins varying
-                    startTime = index * 1_800_000L,
-                    syncState = SyncState.SYNCED,
-                    lastModified = Timestamp.now(),
-                    serverVersion = Timestamp.now(),
-                )
-            }
-        chapterDao.upsertAll(mockChapters)
-
-        return mockChapters.map { it.toDomain() }
+        val localChapters = chapterDao.getChaptersForBook(BookId(bookId))
+        return localChapters.map { it.toDomain() }
     }
 
     private fun ChapterEntity.toDomain(): Chapter =
