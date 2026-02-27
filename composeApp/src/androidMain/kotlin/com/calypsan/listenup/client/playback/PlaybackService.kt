@@ -311,14 +311,18 @@ class PlaybackService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        val player = mediaLibrarySession?.player
+
+        // Pause playback when user swipes app away — notification remains for resume
+        player?.playWhenReady = false
+
         // Always save position when the user swipes the app away — if the system
         // later kills the process, onDestroy may not get a chance to run
         saveCurrentPosition()
 
-        val player = mediaLibrarySession?.player
         // Don't stop immediately - keep the idle timer running
         // User can still resume from notification
-        if (player == null || (!player.playWhenReady && idleJob == null)) {
+        if (player == null || idleJob == null) {
             stopSelf()
         }
     }
