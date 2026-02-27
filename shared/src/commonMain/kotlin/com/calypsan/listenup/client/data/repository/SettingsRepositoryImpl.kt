@@ -267,7 +267,7 @@ class SettingsRepositoryImpl(
      * 2. Making another HTTP call during auth failure can cause issues
      * 3. Server setup status rarely changes during a session
      *
-     * TODO: Add playback resilience - check if audio is playing before clearing.
+     * Playback resilience handled in LogoutUseCase (clears playback before auth tokens).
      * If playing, show banner instead of redirecting to login.
      */
     override suspend fun clearAuthTokens() {
