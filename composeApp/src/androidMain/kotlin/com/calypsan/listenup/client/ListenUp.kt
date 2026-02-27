@@ -110,6 +110,7 @@ val playbackModule =
                 pendingOperationRepository = get(),
                 listeningEventHandler = get<ListeningEventHandler>(),
                 pushSyncOrchestrator = get(),
+                positionRepository = get(),
                 deviceId = get(),
                 scope = get(),
             )
