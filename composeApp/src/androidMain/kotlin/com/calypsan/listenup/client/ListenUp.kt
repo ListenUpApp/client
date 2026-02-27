@@ -36,6 +36,9 @@ import com.calypsan.listenup.client.sync.BackgroundSyncScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import com.calypsan.listenup.client.domain.repository.AuthState
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.component.KoinComponent
@@ -282,9 +285,12 @@ class ListenUp :
         // This catches DI misconfigurations before UI loads, providing clear error messages.
         verifyCriticalKoinBindings()
 
-        // Schedule periodic background sync
-        // TODO: Only schedule after user authentication
-        get<BackgroundSyncScheduler>().schedule()
+        // Schedule periodic background sync only after user authenticates
+        get<CoroutineScope>().launch {
+            val authSession = get<com.calypsan.listenup.client.domain.repository.AuthSession>()
+            authSession.authState.first { it is AuthState.Authenticated }
+            get<BackgroundSyncScheduler>().schedule()
+        }
     }
 
     /**
