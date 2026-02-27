@@ -427,6 +427,7 @@ val useCaseModule =
                 authRepository = get(),
                 authSession = get(),
                 userRepository = get(),
+                playbackStateProvider = get<PlaybackManager>(),
             )
         }
 

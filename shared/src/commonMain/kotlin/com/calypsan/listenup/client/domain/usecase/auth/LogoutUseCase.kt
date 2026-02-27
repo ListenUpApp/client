@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.AuthRepository
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -31,6 +32,7 @@ open class LogoutUseCase(
     private val authRepository: AuthRepository,
     private val authSession: AuthSession,
     private val userRepository: UserRepository,
+    private val playbackStateProvider: PlaybackStateProvider? = null,
 ) {
     /**
      * Execute logout.
@@ -56,6 +58,9 @@ open class LogoutUseCase(
                 }
             }
 
+            // Stop any active playback before clearing auth
+            playbackStateProvider?.clearPlayback()
+
             // Clear local auth tokens - this triggers AuthState change
             authSession.clearAuthTokens()
 
@@ -75,6 +80,7 @@ open class LogoutUseCase(
      */
     open suspend fun logoutLocally(): Result<Unit> =
         suspendRunCatching {
+            playbackStateProvider?.clearPlayback()
             authSession.clearAuthTokens()
             userRepository.clearUsers()
             logger.info { "Local-only logout completed" }
