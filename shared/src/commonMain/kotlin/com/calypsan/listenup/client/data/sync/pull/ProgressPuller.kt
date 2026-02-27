@@ -2,7 +2,9 @@ package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
@@ -24,6 +26,7 @@ private val logger = KotlinLogging.logger {}
 class ProgressPuller(
     private val syncApi: SyncApiContract,
     private val playbackPositionDao: PlaybackPositionDao,
+    private val pendingOperationDao: PendingOperationDao,
 ) : Puller {
     /**
      * Pull all progress from server and upsert locally.
@@ -81,33 +84,7 @@ class ProgressPuller(
                             item.toEntity(existing)
                         }
 
-                    // Debug: Verify entities have correct isFinished values before save
-                    val finishedEntities = entities.filter { it.isFinished }
-                    logger.debug {
-                        "Entities with isFinished=true BEFORE saveAll: ${finishedEntities.size}"
-                    }
-                    if (finishedEntities.isNotEmpty()) {
-                        val sample = finishedEntities.take(3)
-                        logger.debug {
-                            "Sample finished entities: ${sample.map {
-                                "${it.bookId.value}: isFinished=${it.isFinished}"
-                            }}"
-                        }
-                    }
-
-                    playbackPositionDao.saveAll(entities)
-
-                    // Debug: Verify what's in DB after save
-                    val dbCheck = playbackPositionDao.getByBookIds(entities.map { it.bookId })
-                    val dbFinishedCount = dbCheck.count { it.isFinished }
-                    logger.debug {
-                        "DB check AFTER saveAll: ${dbCheck.size} positions, $dbFinishedCount finished"
-                    }
-                    if (dbFinishedCount == 0 && finishedEntities.isNotEmpty()) {
-                        logger.warn {
-                            "BUG: isFinished not persisting! ${finishedEntities.size} entities had isFinished=true but DB shows 0"
-                        }
-                    }
+                    guardAndSaveEntities(entities)
 
                     logger.info {
                         "Progress sync complete: $created created, $updated updated, " +
@@ -123,6 +100,60 @@ class ProgressPuller(
         } catch (e: Exception) {
             logger.warn(e) { "Failed to sync progress" }
             // Don't throw - progress sync is not critical for basic functionality
+        }
+    }
+
+    /**
+     * Apply pending MARK_COMPLETE guards, persist entities, and verify isFinished state.
+     *
+     * Ensures books with pending local MARK_COMPLETE operations retain isFinished=true
+     * even if the server hasn't processed the operation yet.
+     */
+    private suspend fun guardAndSaveEntities(entities: List<PlaybackPositionEntity>) {
+        val finishedEntities = entities.filter { it.isFinished }
+        logger.debug {
+            "Entities with isFinished=true BEFORE saveAll: ${finishedEntities.size}"
+        }
+        if (finishedEntities.isNotEmpty()) {
+            val sample = finishedEntities.take(3)
+            logger.debug {
+                "Sample finished entities: ${sample.map {
+                    "${it.bookId.value}: isFinished=${it.isFinished}"
+                }}"
+            }
+        }
+
+        // Guard: don't overwrite isFinished for books with pending MARK_COMPLETE
+        val pendingCompleteBookIds =
+            pendingOperationDao.getPendingMarkCompleteBookIds().toSet()
+        val guardedEntities =
+            if (pendingCompleteBookIds.isEmpty()) {
+                entities
+            } else {
+                entities.map { entity ->
+                    if (entity.bookId.value in pendingCompleteBookIds && !entity.isFinished) {
+                        logger.info {
+                            "Preserving isFinished=true for ${entity.bookId.value} (pending MARK_COMPLETE)"
+                        }
+                        entity.copy(isFinished = true)
+                    } else {
+                        entity
+                    }
+                }
+            }
+
+        playbackPositionDao.saveAll(guardedEntities)
+
+        // Debug: Verify what's in DB after save
+        val dbCheck = playbackPositionDao.getByBookIds(entities.map { it.bookId })
+        val dbFinishedCount = dbCheck.count { it.isFinished }
+        logger.debug {
+            "DB check AFTER saveAll: ${dbCheck.size} positions, $dbFinishedCount finished"
+        }
+        if (dbFinishedCount == 0 && finishedEntities.isNotEmpty()) {
+            logger.warn {
+                "BUG: isFinished not persisting! ${finishedEntities.size} entities had isFinished=true but DB shows 0"
+            }
         }
     }
 }

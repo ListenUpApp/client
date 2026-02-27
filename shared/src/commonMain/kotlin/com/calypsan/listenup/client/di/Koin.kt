@@ -118,6 +118,7 @@ import com.calypsan.listenup.client.data.sync.push.OperationExecutor
 import com.calypsan.listenup.client.data.sync.push.OperationExecutorContract
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepository
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.PlaybackPositionHandler
 import com.calypsan.listenup.client.data.sync.push.PreferencesSyncObserver
 import com.calypsan.listenup.client.data.sync.push.ProfileAvatarHandler
@@ -1020,6 +1021,7 @@ val syncModule =
             ProgressPuller(
                 syncApi = get<SyncApiContract>(),
                 playbackPositionDao = get(),
+                pendingOperationDao = get(),
             )
         }
 
@@ -1103,6 +1105,7 @@ val syncModule =
         single { UserPreferencesHandler(api = get()) }
         single { ProfileUpdateHandler(api = get(), userDao = get()) }
         single { ProfileAvatarHandler(api = get(), userDao = get(), imageDownloader = get()) }
+        single { MarkCompleteHandler(api = get()) }
 
         // PreferencesSyncObserver - observes SettingsRepository.preferenceChanges and queues sync operations.
         // This breaks the circular dependency between SettingsRepository and the sync layer.
@@ -1139,6 +1142,7 @@ val syncModule =
                 userPreferencesHandler = get(),
                 profileUpdateHandler = get(),
                 profileAvatarHandler = get(),
+                markCompleteHandler = get(),
             )
         } bind OperationExecutorContract::class
 
@@ -1358,7 +1362,12 @@ val syncModule =
 
         // PlaybackPositionRepository for position tracking (SOLID: interface in domain, impl in data)
         single<PlaybackPositionRepository> {
-            PlaybackPositionRepositoryImpl(dao = get(), syncApi = get())
+            PlaybackPositionRepositoryImpl(
+                dao = get(),
+                syncApi = get(),
+                pendingOps = get(),
+                markCompleteHandler = get(),
+            )
         }
 
         // TagRepository for community tags (SOLID: interface in domain, impl in data)

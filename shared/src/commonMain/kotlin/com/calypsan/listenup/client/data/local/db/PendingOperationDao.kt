@@ -215,4 +215,17 @@ interface PendingOperationDao {
         """,
     )
     suspend fun resetStuckOperations()
+
+    /**
+     * Get book IDs that have a pending or in-progress MARK_COMPLETE operation.
+     * Used by ProgressPuller to avoid overwriting local isFinished=true.
+     */
+    @Query(
+        """
+        SELECT entityId FROM pending_operations
+        WHERE operationType = ${OperationType.MARK_COMPLETE_ORDINAL}
+          AND status IN (${OperationStatus.PENDING_ORDINAL}, ${OperationStatus.IN_PROGRESS_ORDINAL})
+        """,
+    )
+    suspend fun getPendingMarkCompleteBookIds(): List<String>
 }

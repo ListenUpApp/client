@@ -107,6 +107,7 @@ class OperationExecutor(
             userPreferencesHandler: UserPreferencesHandler,
             profileUpdateHandler: ProfileUpdateHandler,
             profileAvatarHandler: ProfileAvatarHandler,
+            markCompleteHandler: MarkCompleteHandler,
         ): OperationExecutor =
             OperationExecutor(
                 mapOf(
@@ -122,6 +123,7 @@ class OperationExecutor(
                     OperationType.USER_PREFERENCES to userPreferencesHandler,
                     OperationType.PROFILE_UPDATE to profileUpdateHandler,
                     OperationType.PROFILE_AVATAR to profileAvatarHandler,
+                    OperationType.MARK_COMPLETE to markCompleteHandler,
                 ),
             )
     }

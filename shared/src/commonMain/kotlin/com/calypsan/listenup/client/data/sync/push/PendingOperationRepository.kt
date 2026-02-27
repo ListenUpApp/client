@@ -27,6 +27,7 @@ private val SILENT_TYPES =
         OperationType.LISTENING_EVENT,
         OperationType.PLAYBACK_POSITION,
         OperationType.USER_PREFERENCES,
+        OperationType.MARK_COMPLETE,
     )
 
 /**

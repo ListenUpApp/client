@@ -40,6 +40,7 @@ enum class PendingOperationType {
     USER_PREFERENCES,
     PROFILE_UPDATE,
     PROFILE_AVATAR,
+    MARK_COMPLETE,
 }
 
 /**
