@@ -14,7 +14,6 @@ import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
 import com.calypsan.listenup.client.data.sync.push.OperationHandler
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
-import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
@@ -55,7 +54,6 @@ class ProgressTrackerTest {
         val pendingOperationRepository: PendingOperationRepositoryContract = mock()
         val listeningEventHandler: OperationHandler<ListeningEventPayload> = mock()
         val pushSyncOrchestrator: PushSyncOrchestratorContract = mock()
-        val positionRepository: PlaybackPositionRepository = mock()
 
         fun build(): ProgressTracker =
             ProgressTracker(
@@ -66,7 +64,6 @@ class ProgressTrackerTest {
                 pendingOperationRepository = pendingOperationRepository,
                 listeningEventHandler = listeningEventHandler,
                 pushSyncOrchestrator = pushSyncOrchestrator,
-                positionRepository = positionRepository,
                 deviceId = "test-device-123",
                 scope = testScope,
             )
