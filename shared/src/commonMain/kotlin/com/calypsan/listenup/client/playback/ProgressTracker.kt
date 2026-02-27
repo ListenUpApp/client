@@ -4,6 +4,7 @@
 package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ProgressRefreshBus
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
@@ -18,7 +19,6 @@ import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
 import com.calypsan.listenup.client.data.sync.push.OperationHandler
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
-import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -46,7 +46,6 @@ class ProgressTracker(
     private val pendingOperationRepository: PendingOperationRepositoryContract,
     private val listeningEventHandler: OperationHandler<ListeningEventPayload>,
     private val pushSyncOrchestrator: PushSyncOrchestratorContract,
-    private val positionRepository: PlaybackPositionRepository,
     private val deviceId: String,
     private val scope: CoroutineScope,
 ) {
@@ -239,17 +238,11 @@ class ProgressTracker(
     /**
      * Save position to local database immediately.
      * Preserves the existing hasCustomSpeed flag.
-     *
-     * @param bookId The book to save position for
-     * @param positionMs Current position in milliseconds
-     * @param speed Current playback speed
-     * @param totalDurationMs Optional total duration for defensive completion check (Issue #208)
      */
     private suspend fun savePosition(
         bookId: BookId,
         positionMs: Long,
         speed: Float,
-        totalDurationMs: Long? = null,
     ) {
         try {
             // Preserve existing hasCustomSpeed and isFinished values
@@ -269,15 +262,8 @@ class ProgressTracker(
             )
             logger.info { "Position saved: book=${bookId.value}, position=$positionMs, lastPlayedAt=$now" }
 
-            // Defensive check: mark complete if position >= total duration (Issue #208)
-            if (totalDurationMs != null && positionMs >= totalDurationMs && existing?.isFinished != true) {
-                positionRepository.markComplete(
-                    bookId = bookId.value,
-                    startedAt = null,
-                    finishedAt = now,
-                )
-                logger.info { "Book defensively marked complete: ${bookId.value} (position $positionMs >= duration $totalDurationMs)" }
-            }
+            // Signal that progress was saved so Continue Listening shelf refreshes immediately
+            ProgressRefreshBus.emit()
         } catch (e: Exception) {
             logger.error(e) { "Failed to save position: book=${bookId.value}, position=$positionMs" }
         }
@@ -505,15 +491,6 @@ class ProgressTracker(
             // They want the default behavior again (stream + download)
             downloadDao.deleteForBook(bookId.value)
             logger.debug { "Cleared download records for finished book: ${bookId.value}" }
-
-            // Mark book as complete (Issue #206)
-            val finishedAt = Clock.System.now().toEpochMilliseconds()
-            positionRepository.markComplete(
-                bookId = bookId.value,
-                startedAt = null,
-                finishedAt = finishedAt,
-            )
-            logger.info { "Book marked complete: ${bookId.value}" }
         }
     }
 
