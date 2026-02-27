@@ -106,20 +106,12 @@ class ProgressPuller(
                         } else {
                             entities.map { entity ->
                                 if (entity.bookId.value in pendingCompleteBookIds && !entity.isFinished) {
-                                    // Server says not finished but we have a pending local markComplete
-                                    // Preserve local isFinished=true
-                                    val localEntity = existingPositions[entity.bookId.value]
-                                    if (localEntity?.isFinished == true) {
-                                        logger.info {
-                                            "Preserving local isFinished=true for ${entity.bookId.value} (pending MARK_COMPLETE)"
-                                        }
-                                        entity.copy(
-                                            isFinished = true,
-                                            finishedAt = localEntity.finishedAt,
-                                        )
-                                    } else {
-                                        entity
+                                    // Server says not finished but we have a pending local markComplete.
+                                    // The pending op is the source of truth — unconditionally preserve isFinished.
+                                    logger.info {
+                                        "Preserving isFinished=true for ${entity.bookId.value} (pending MARK_COMPLETE)"
                                     }
+                                    entity.copy(isFinished = true)
                                 } else {
                                     entity
                                 }
