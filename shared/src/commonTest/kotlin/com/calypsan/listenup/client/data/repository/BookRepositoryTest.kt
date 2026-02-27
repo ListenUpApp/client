@@ -557,40 +557,6 @@ class BookRepositoryTest {
         }
 
     @Test
-    fun `getChapters generates mock chapters when database empty`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.chapterDao.getChaptersForBook(BookId("book-1")) } returns emptyList()
-            everySuspend { fixture.chapterDao.upsertAll(any()) } returns Unit
-            val repository = fixture.build()
-
-            // When
-            val result = repository.getChapters("book-1")
-
-            // Then
-            assertEquals(15, result.size) // Mock generates 15 chapters
-            assertEquals("Chapter 1", result[0].title)
-            assertEquals("Chapter 15", result[14].title)
-        }
-
-    @Test
-    fun `getChapters persists mock chapters to database`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.chapterDao.getChaptersForBook(BookId("book-1")) } returns emptyList()
-            everySuspend { fixture.chapterDao.upsertAll(any()) } returns Unit
-            val repository = fixture.build()
-
-            // When
-            repository.getChapters("book-1")
-
-            // Then
-            verifySuspend { fixture.chapterDao.upsertAll(any()) }
-        }
-
-    @Test
     fun `getChapters transforms chapter entities to domain models`() =
         runTest {
             // Given
