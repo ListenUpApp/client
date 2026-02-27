@@ -10,7 +10,6 @@ import com.calypsan.listenup.client.core.getOrNull
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
-import com.calypsan.listenup.client.data.local.db.Syncable
 import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SetupApiContract
@@ -486,14 +485,6 @@ class SyncManager(
             _syncState.value = SyncStatus.Error(exception = e)
             Failure(exception = e, message = "Failed to resync: ${e.message}")
         }
-    }
-
-    /**
-     * Queue an entity for synchronization with server.
-     */
-    suspend fun queueUpdate(entity: Syncable) {
-        // TODO: Implement via PendingOperationRepository
-        logger.debug { "Queued update for entity: $entity" }
     }
 
     /**
