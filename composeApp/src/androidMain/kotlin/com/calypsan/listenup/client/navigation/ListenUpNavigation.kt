@@ -25,8 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.animation.core.animateDpAsState
-import com.calypsan.listenup.client.design.MiniPlayerReservedHeight
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.core.BookId
@@ -53,6 +51,7 @@ import com.calypsan.listenup.client.features.connect.ServerSelectScreen
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.features.invite.InviteRegistrationScreen
 import com.calypsan.listenup.client.domain.repository.HomeRepository
+import com.calypsan.listenup.client.features.nowplaying.NowPlayingBar
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.PlayerViewModel
@@ -528,18 +527,8 @@ private fun AuthenticatedNavigation(
         LocalSnackbarHostState provides snackbarHostState,
         LocalDeviceContext provides koinInject<DeviceContext>(),
     ) {
-        // Structural bottom padding when mini player is visible
-        val nowPlayingState by nowPlayingViewModel.state.collectAsState()
-        val miniPlayerVisible =
-            (nowPlayingState.isVisible || nowPlayingState.isPreparing) && !nowPlayingState.isExpanded
-        val miniPlayerPadding by animateDpAsState(
-            targetValue = if (miniPlayerVisible) MiniPlayerReservedHeight else 0.dp,
-            label = "mini_player_padding",
-        )
-
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
             NavDisplay(
-                modifier = Modifier.padding(bottom = miniPlayerPadding),
                 backStack = backStack,
                 // Only handle back if we're not at root - let system handle back-to-home
                 onBack = {
@@ -569,6 +558,15 @@ private fun AuthenticatedNavigation(
                             AppShell(
                                 currentDestination = currentShellDestination,
                                 onDestinationChange = { currentShellDestination = it },
+                                nowPlayingContent = {
+                                    NowPlayingBar(
+                                        state = nowPlayingViewModel.state.collectAsState().value,
+                                        onTap = nowPlayingViewModel::expand,
+                                        onPlayPause = nowPlayingViewModel::playPause,
+                                        onSkipBack = { nowPlayingViewModel.skipBack() },
+                                        onSkipForward = { nowPlayingViewModel.skipForward() },
+                                    )
+                                },
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
                                 },

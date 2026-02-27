@@ -123,7 +123,9 @@ fun NowPlayingHost(
                 onSkipForward = { viewModel.skipForward() },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
-        } else {
+        } else if (!hasBottomNav) {
+            // Only render floating mini bar on detail screens (not Shell)
+            // When hasBottomNav=true, the mini bar is rendered inside AppShell's bottomBar
             val navBarInsets = WindowInsets.navigationBars
             val density = LocalDensity.current
             val systemNavBarHeight = with(density) { navBarInsets.getBottom(density).toDp() }

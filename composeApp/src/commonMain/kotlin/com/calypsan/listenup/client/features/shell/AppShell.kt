@@ -116,6 +116,7 @@ fun AppShell(
     onUserProfileClick: (userId: String) -> Unit,
     homeContent: @Composable (PaddingValues, topBarCollapseFraction: Float, onNavigateToLibrary: () -> Unit) -> Unit,
     libraryContent: @Composable (PaddingValues, topBarCollapseFraction: Float) -> Unit,
+    nowPlayingContent: @Composable () -> Unit = {},
     discoverContent: @Composable (PaddingValues) -> Unit,
 ) {
     // Inject dependencies
@@ -373,7 +374,7 @@ fun AppShell(
                 snackbarHost = { SnackbarHost(snackbarHostState) },
                 bottomBar = {
                     Column(modifier = Modifier.navigationBarsPadding()) {
-                        // TODO: NowPlayingBar will be inserted here
+                        nowPlayingContent()
                         AppNavigationBar(
                             currentDestination = currentDestination,
                             onDestinationSelected = onDestinationChange,
