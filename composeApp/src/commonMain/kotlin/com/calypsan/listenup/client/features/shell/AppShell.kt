@@ -4,7 +4,6 @@ package com.calypsan.listenup.client.features.shell
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -373,7 +372,7 @@ fun AppShell(
                 topBar = topBar,
                 snackbarHost = { SnackbarHost(snackbarHostState) },
                 bottomBar = {
-                    Column(modifier = Modifier.navigationBarsPadding()) {
+                    Column {
                         nowPlayingContent()
                         AppNavigationBar(
                             currentDestination = currentDestination,
