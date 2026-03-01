@@ -434,6 +434,19 @@ val settingsPresentationModule =
     }
 
 /**
+ * App startup / navigation initialisation ViewModel.
+ */
+val startupPresentationModule =
+    module {
+        factory {
+            com.calypsan.listenup.client.presentation.startup.AppStartupViewModel(
+                userRepository = get(),
+                setupApi = get(),
+            )
+        }
+    }
+
+/**
  * All presentation modules combined.
  */
 val allPresentationModules =
@@ -450,16 +463,3 @@ val allPresentationModules =
         settingsPresentationModule,
         startupPresentationModule,
     )
-
-/**
- * App startup / navigation initialisation ViewModel.
- */
-val startupPresentationModule =
-    module {
-        factory {
-            com.calypsan.listenup.client.presentation.startup.AppStartupViewModel(
-                userRepository = get(),
-                setupApi = get(),
-            )
-        }
-    }
