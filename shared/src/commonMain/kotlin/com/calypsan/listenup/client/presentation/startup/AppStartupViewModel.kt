@@ -44,7 +44,6 @@ class AppStartupViewModel(
     private val userRepository: UserRepository,
     private val setupApi: SetupApiContract,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(AppStartupState())
     val state: StateFlow<AppStartupState> = _state.asStateFlow()
 
@@ -91,18 +90,19 @@ class AppStartupViewModel(
                 val user = userRepository.refreshCurrentUser() ?: userRepository.getCurrentUser()
                 logger.debug { "AppStartupViewModel: user=${user?.displayName}, isAdmin=${user?.isAdmin}" }
 
-                val needsSetup = if (user?.isAdmin == true) {
-                    try {
-                        val status = setupApi.getLibraryStatus()
-                        logger.info { "AppStartupViewModel: library needsSetup=${status.needsSetup}" }
-                        status.needsSetup
-                    } catch (e: Exception) {
-                        logger.warn(e) { "AppStartupViewModel: library status check failed, defaulting to false" }
+                val needsSetup =
+                    if (user?.isAdmin == true) {
+                        try {
+                            val status = setupApi.getLibraryStatus()
+                            logger.info { "AppStartupViewModel: library needsSetup=${status.needsSetup}" }
+                            status.needsSetup
+                        } catch (e: Exception) {
+                            logger.warn(e) { "AppStartupViewModel: library status check failed, defaulting to false" }
+                            false
+                        }
+                    } else {
                         false
                     }
-                } else {
-                    false
-                }
 
                 _state.value = _state.value.copy(isChecking = false, needsLibrarySetup = needsSetup)
             } catch (e: Exception) {
