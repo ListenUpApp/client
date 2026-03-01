@@ -375,6 +375,7 @@ private fun LoginNavigation(
  */
 @Suppress("LongMethod")
 @Composable
+    @Suppress("CognitiveComplexMethod")
 private fun AuthenticatedNavigation(
     authSession: AuthSession,
     libraryResetHelper: LibraryResetHelperContract = koinInject(),
