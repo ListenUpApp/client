@@ -53,6 +53,8 @@ import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import com.calypsan.listenup.client.presentation.startup.AppStartupViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 /**
  * Main activity for the ListenUp app.
@@ -76,6 +78,7 @@ class MainActivity : ComponentActivity() {
     private val serverConfig: ServerConfig by inject()
     private val deepLinkManager: DeepLinkManager by inject()
     private val shortcutActionManager: ShortcutActionManager by inject()
+    private val appStartupViewModel: AppStartupViewModel by viewModel()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -170,6 +173,11 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
 
+        // Notify startup ViewModel that the app is foregrounding.
+        // Short resumes (< 5 min) skip the library-setup re-check;
+        // long background periods trigger a fresh check.
+        appStartupViewModel.onAppForegrounded()
+
         // Prefer local URL when app comes to foreground
         lifecycleScope.launch {
             serverConfig.preferLocalUrl()
@@ -189,6 +197,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
+
+        // Record background timestamp so onAppForegrounded can decide
+        // whether a library-setup re-check is needed on the next resume.
+        appStartupViewModel.onAppBackgrounded()
 
         // Disconnect SSE when app goes to background to save battery
         println("MainActivity: App paused, disconnecting SSE to save battery...")
