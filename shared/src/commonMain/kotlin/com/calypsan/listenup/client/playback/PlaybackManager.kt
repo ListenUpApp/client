@@ -262,11 +262,16 @@ class PlaybackManager(
         // 6. Get resume position and speed
         val savedPosition = progressTracker.getResumePosition(bookId)
 
-        // If book is marked as finished, restart from beginning (re-read scenario)
-        // This ensures completed books don't resume near the end where user left off
+        // Derive finished state from position vs duration (#204, #208)
+        // Don't blindly trust the stored isFinished flag — it can be set incorrectly
+        val derivedFinished = savedPosition != null && timeline.totalDurationMs > 0 && (
+            savedPosition.positionMs >= timeline.totalDurationMs ||
+            (savedPosition.isFinished &&
+                savedPosition.positionMs.toFloat() / timeline.totalDurationMs >= 0.95f)
+        )
         val resumePositionMs =
-            if (savedPosition?.isFinished == true) {
-                logger.info { "Book is marked finished - starting from beginning for re-read" }
+            if (derivedFinished) {
+                logger.info { "Book is effectively finished - starting from beginning for re-read" }
                 0L
             } else {
                 savedPosition?.positionMs ?: 0L
@@ -404,7 +409,19 @@ class PlaybackManager(
                 setPlaying(playing)
 
                 if (playbackState == PlaybackState.Ended) {
-                    progressTracker.onBookFinished(bookId, totalDurationMs.value)
+                    val duration = totalDurationMs.value
+                    val position = currentPositionMs.value
+                    // Guard: only mark finished if position is actually near the end.
+                    // Prevents false completion from spurious Ended events on player
+                    // release/stop (#204).
+                    if (duration > 0 && position.toFloat() / duration >= 0.90f) {
+                        progressTracker.onBookFinished(bookId, duration)
+                    } else {
+                        logger.warn {
+                            "Ignoring Ended state: position=${position}ms " +
+                                "not near end (duration=${duration}ms)"
+                        }
+                    }
                 }
             }
         }
