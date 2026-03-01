@@ -167,9 +167,9 @@ class HomeRepositoryTest {
     @Test
     fun `getContinueListening filters out books with isFinished true`() =
         runTest {
-            // Given: A book marked as finished (regardless of position)
+            // Given: A book marked as finished AND near-complete (>=95%)
             val fixture = createFixture()
-            val finishedPosition = createPlaybackPosition("book-1", positionMs = 5000L, isFinished = true)
+            val finishedPosition = createPlaybackPosition("book-1", positionMs = 9500L, isFinished = true)
             val book = createBook(id = "book-1", duration = 10_000L)
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(finishedPosition)
@@ -179,7 +179,7 @@ class HomeRepositoryTest {
             // When
             val result = repository.getContinueListening(10)
 
-            // Then: Book should be filtered out because isFinished=true
+            // Then: Book should be filtered out because isFinished=true AND position>=95%
             val success = assertIs<Success<*>>(result)
             val books = success.data as List<*>
             assertTrue(books.isEmpty())
