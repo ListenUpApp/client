@@ -92,11 +92,18 @@ class HomeRepositoryImpl(
                         0f
                     }
 
-                // Skip finished books (use server's authoritative isFinished flag)
-                if (position.isFinished) {
+                // Derive finished state from position vs duration (#204, #208)
+                // A book is finished if position >= duration OR (flag set AND near-complete)
+                val effectivelyFinished = book.duration > 0 && (
+                    position.positionMs >= book.duration ||
+                    (position.isFinished &&
+                        position.positionMs.toFloat() / book.duration >= 0.95f)
+                )
+                if (effectivelyFinished) {
                     booksFiltered++
                     logger.debug {
-                        "Local fallback: skipping finished book - id=$bookIdStr, isFinished=${position.isFinished}"
+                        "Local fallback: skipping finished book - id=$bookIdStr, " +
+                            "position=${position.positionMs}, duration=${book.duration}"
                     }
                     return@mapNotNull null
                 }
@@ -156,20 +163,26 @@ class HomeRepositoryImpl(
                         "(finished=$finishedFromRoom, unfinished=${positions.size - finishedFromRoom})"
                 }
 
-                // Filter out finished books and unstarted books BEFORE applying limit
-                val inProgress = positions.filter { !it.isFinished && it.positionMs > 0 }
-                logger.info { "observeContinueListening: after filter=${inProgress.size}" }
+                // Filter unstarted books; finished check deferred until we have duration (#208)
+                val started = positions.filter { it.positionMs > 0 }
 
                 val sortedPositions =
-                    inProgress
-                        .sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
-                        .take(limit)
-                logger.info { "observeContinueListening: after sort/take=${ sortedPositions.size}" }
+                    started.sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
+                logger.info { "observeContinueListening: started=${started.size}" }
 
                 val result = mutableListOf<ContinueListeningBook>()
                 for (position in sortedPositions) {
+                    if (result.size >= limit) break
                     val bookIdStr = position.bookId.value
                     val book = bookRepository.getBook(bookIdStr) ?: continue
+
+                    // Derive finished state from position vs duration (#204, #208)
+                    val effectivelyFinished = book.duration > 0 && (
+                        position.positionMs >= book.duration ||
+                        (position.isFinished &&
+                            position.positionMs.toFloat() / book.duration >= 0.95f)
+                    )
+                    if (effectivelyFinished) continue
 
                     val progress =
                         if (book.duration > 0) {
