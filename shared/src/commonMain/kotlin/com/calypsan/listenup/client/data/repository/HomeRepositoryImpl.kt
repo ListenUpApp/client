@@ -94,11 +94,14 @@ class HomeRepositoryImpl(
 
                 // Derive finished state from position vs duration (#204, #208)
                 // A book is finished if position >= duration OR (flag set AND near-complete)
-                val effectivelyFinished = book.duration > 0 && (
-                    position.positionMs >= book.duration ||
-                    (position.isFinished &&
-                        position.positionMs.toFloat() / book.duration >= 0.95f)
-                )
+                val effectivelyFinished =
+                    book.duration > 0 && (
+                        position.positionMs >= book.duration ||
+                            (
+                                position.isFinished &&
+                                    position.positionMs.toFloat() / book.duration >= 0.95f
+                            )
+                    )
                 if (effectivelyFinished) {
                     booksFiltered++
                     logger.debug {
@@ -177,11 +180,14 @@ class HomeRepositoryImpl(
                     val book = bookRepository.getBook(bookIdStr) ?: continue
 
                     // Derive finished state from position vs duration (#204, #208)
-                    val effectivelyFinished = book.duration > 0 && (
-                        position.positionMs >= book.duration ||
-                        (position.isFinished &&
-                            position.positionMs.toFloat() / book.duration >= 0.95f)
-                    )
+                    val effectivelyFinished =
+                        book.duration > 0 && (
+                            position.positionMs >= book.duration ||
+                                (
+                                    position.isFinished &&
+                                        position.positionMs.toFloat() / book.duration >= 0.95f
+                                )
+                        )
                     if (effectivelyFinished) continue
 
                     val progress =

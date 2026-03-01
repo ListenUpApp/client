@@ -264,11 +264,14 @@ class PlaybackManager(
 
         // Derive finished state from position vs duration (#204, #208)
         // Don't blindly trust the stored isFinished flag — it can be set incorrectly
-        val derivedFinished = savedPosition != null && timeline.totalDurationMs > 0 && (
-            savedPosition.positionMs >= timeline.totalDurationMs ||
-            (savedPosition.isFinished &&
-                savedPosition.positionMs.toFloat() / timeline.totalDurationMs >= 0.95f)
-        )
+        val derivedFinished =
+            savedPosition != null && timeline.totalDurationMs > 0 && (
+                savedPosition.positionMs >= timeline.totalDurationMs ||
+                    (
+                        savedPosition.isFinished &&
+                            savedPosition.positionMs.toFloat() / timeline.totalDurationMs >= 0.95f
+                    )
+            )
         val resumePositionMs =
             if (derivedFinished) {
                 logger.info { "Book is effectively finished - starting from beginning for re-read" }
