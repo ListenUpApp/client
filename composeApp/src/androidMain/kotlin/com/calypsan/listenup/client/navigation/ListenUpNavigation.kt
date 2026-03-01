@@ -28,13 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.data.remote.SetupApiContract
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.ShortcutAction
 import com.calypsan.listenup.client.data.repository.ShortcutActionManager
 import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
 import com.calypsan.listenup.client.domain.repository.SyncRepository
-import com.calypsan.listenup.client.domain.repository.UserRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
@@ -73,6 +71,8 @@ import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewMo
 import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
+import com.calypsan.listenup.client.presentation.startup.AppStartupViewModel
 import com.calypsan.listenup.client.design.LocalDeviceContext
 import com.calypsan.listenup.client.device.DeviceContext
 
@@ -378,9 +378,7 @@ private fun LoginNavigation(
 private fun AuthenticatedNavigation(
     authSession: AuthSession,
     libraryResetHelper: LibraryResetHelperContract = koinInject(),
-    setupApi: SetupApiContract = koinInject(),
     syncRepository: SyncRepository = koinInject(),
-    userRepository: UserRepository = koinInject(),
     shortcutActionManager: ShortcutActionManager = koinInject(),
     homeRepository: HomeRepository = koinInject(),
 ) {
@@ -390,49 +388,23 @@ private fun AuthenticatedNavigation(
     val playerViewModel: PlayerViewModel = koinInject()
     val nowPlayingViewModel: NowPlayingViewModel = koinInject()
 
-    // Library setup check state
-    var isCheckingLibrarySetup by remember { mutableStateOf(true) }
-    var needsLibrarySetup by remember { mutableStateOf(false) }
+    // AppStartupViewModel holds the library-setup check result across Activity re-creations.
+    // This prevents the loading screen from reappearing on every config change or short
+    // foreground resume. The ViewModel lives in the Activity's ViewModelStore, so it is only
+    // discarded on process death (true cold start).
+    val startupViewModel: AppStartupViewModel = koinViewModel()
+    val startupState by startupViewModel.state.collectAsState()
 
-    // Check if admin user needs to set up library on initial composition
-    LaunchedEffect(Unit) {
-        try {
-            // Refresh user data to ensure we have current admin status
-            val user = userRepository.refreshCurrentUser() ?: userRepository.getCurrentUser()
-            logger.debug { "Checking library setup: user=${user?.displayName}, isAdmin=${user?.isAdmin}" }
-
-            if (user?.isAdmin == true) {
-                // Admin user - check if library needs setup
-                try {
-                    val status = setupApi.getLibraryStatus()
-                    logger.info { "Library status: needsSetup=${status.needsSetup}" }
-                    needsLibrarySetup = status.needsSetup
-                } catch (e: Exception) {
-                    // Never stranded: if status check fails, proceed to main app
-                    logger.warn(e) { "Failed to check library status, proceeding to main app" }
-                    needsLibrarySetup = false
-                }
-            } else {
-                // Non-admin user - skip library setup check
-                needsLibrarySetup = false
-            }
-        } catch (e: Exception) {
-            // Never stranded: if user check fails, proceed to main app
-            logger.warn(e) { "Failed to check user, proceeding to main app" }
-            needsLibrarySetup = false
-        } finally {
-            isCheckingLibrarySetup = false
-        }
-    }
-
-    // Show loading while checking library setup status
-    if (isCheckingLibrarySetup) {
+    // Show loading only while the cold-start library-setup check is in progress.
+    // After the first check completes the ViewModel retains the result, so subsequent
+    // recompositions (config change, brief background resume) skip straight to the app.
+    if (startupState.isChecking) {
         FullScreenLoadingIndicator()
         return
     }
 
     // Determine starting route based on library setup needs
-    val startRoute: Route = if (needsLibrarySetup) LibrarySetup else Shell
+    val startRoute: Route = if (startupState.needsLibrarySetup) LibrarySetup else Shell
     val backStack = remember(startRoute) { mutableStateListOf(startRoute) }
 
     // Track shell tab state here so it survives navigation to detail screens
