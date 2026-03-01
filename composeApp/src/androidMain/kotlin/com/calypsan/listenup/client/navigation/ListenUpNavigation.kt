@@ -373,9 +373,8 @@ private fun LoginNavigation(
  * When user logs out, SettingsRepository clears auth tokens,
  * triggering automatic switch to UnauthenticatedNavigation.
  */
-@Suppress("LongMethod")
+@Suppress("LongMethod", "CognitiveComplexMethod")
 @Composable
-@Suppress("CognitiveComplexMethod")
 private fun AuthenticatedNavigation(
     authSession: AuthSession,
     libraryResetHelper: LibraryResetHelperContract = koinInject(),
