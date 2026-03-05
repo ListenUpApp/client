@@ -17,6 +17,7 @@ import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
@@ -67,16 +68,23 @@ class SessionRepositoryImpl(
     override fun observeBookReaders(bookId: String): Flow<BookReadersResult> {
         logger.debug { "Starting observation of readers for book $bookId" }
 
-        // Data is populated by ReadingSessionPuller during initial sync
-        // and kept fresh by SSE events updating Room directly.
-        // No API calls needed here.
-        return kotlinx.coroutines.flow.flow {
+        return kotlinx.coroutines.flow.channelFlow {
             val currentUserId = authSession.getUserId()
             logger.debug { "Observing Room for book $bookId (currentUserId=$currentUserId)" }
 
+            // Trigger a background refresh so the cache is always up-to-date
+            launch {
+                try {
+                    refreshBookReaders(bookId)
+                } catch (e: Exception) {
+                    logger.warn(e) { "Background refresh of readers for book $bookId failed" }
+                }
+            }
+
+            // Emit from Room cache immediately (optimistic UI)
             readingSessionDao.observeByBookId(bookId).collect { entities ->
                 logger.debug { "Room emitted ${entities.size} reading sessions for book $bookId" }
-                emit(entitiesToBookReadersResult(entities, currentUserId))
+                send(entitiesToBookReadersResult(entities, currentUserId))
             }
         }
     }
