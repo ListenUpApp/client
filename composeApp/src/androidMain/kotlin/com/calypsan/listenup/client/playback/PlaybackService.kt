@@ -15,6 +15,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -149,8 +150,10 @@ class PlaybackService : MediaLibraryService() {
                 .writeTimeout(30.seconds.toJavaDuration())
                 .build()
 
-        // Create DataSource factory that uses OkHttp
-        val dataSourceFactory: DataSource.Factory = OkHttpDataSource.Factory(okHttpClient)
+        // Create DataSource factory: OkHttp for HTTP(S) streaming, DefaultDataSource
+        // wrapper to also handle file:// URIs for downloaded audiobooks
+        val httpDataSourceFactory: DataSource.Factory = OkHttpDataSource.Factory(okHttpClient)
+        val dataSourceFactory: DataSource.Factory = DefaultDataSource.Factory(this, httpDataSourceFactory)
 
         // Create media source factory
         val mediaSourceFactory =
@@ -853,7 +856,7 @@ class PlaybackService : MediaLibraryService() {
                                             MediaItem
                                                 .Builder()
                                                 .setMediaId(file.audioFileId)
-                                                .setUri(file.streamingUrl)
+                                                .setUri(file.playbackUri)
                                                 .setMediaMetadata(
                                                     MediaMetadata
                                                         .Builder()
@@ -957,7 +960,7 @@ class PlaybackService : MediaLibraryService() {
                 MediaItem
                     .Builder()
                     .setMediaId(file.audioFileId)
-                    .setUri(file.streamingUrl)
+                    .setUri(file.playbackUri)
                     .setMediaMetadata(
                         MediaMetadata
                             .Builder()
@@ -1016,7 +1019,7 @@ class PlaybackService : MediaLibraryService() {
                                 MediaItem
                                     .Builder()
                                     .setMediaId(file.audioFileId)
-                                    .setUri(file.streamingUrl)
+                                    .setUri(file.playbackUri)
                                     .setMediaMetadata(
                                         MediaMetadata
                                             .Builder()
