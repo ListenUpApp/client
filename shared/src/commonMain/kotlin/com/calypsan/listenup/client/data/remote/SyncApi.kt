@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.AllProgressResponse
 import com.calypsan.listenup.client.data.remote.model.ApiActiveSessions
+import com.calypsan.listenup.client.data.remote.model.ApiReadingSessions
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningResponse
@@ -430,25 +431,25 @@ class SyncApi(
     override suspend fun getReadingSessions(): Result<SyncReadingSessionsResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            val response: ApiResponse<ApiActiveSessions> =
+            val response: ApiResponse<ApiReadingSessions> =
                 client.get("/api/v1/sync/reading-sessions").body()
             val apiSessions = response.toResult().getOrThrow()
             SyncReadingSessionsResponse(
                 readers =
-                    apiSessions.sessions.map { session ->
+                    apiSessions.readers.map { reader ->
                         SyncReadingSessionReaderResponse(
-                            bookId = session.bookId,
-                            userId = session.userId,
-                            displayName = session.displayName,
-                            avatarType = session.avatarType,
-                            avatarValue = session.avatarValue,
-                            avatarColor = session.avatarColor,
-                            isCurrentlyReading = false,
-                            currentProgress = 0.0,
-                            startedAt = session.startedAt,
-                            finishedAt = null,
-                            lastActivityAt = session.startedAt,
-                            completionCount = 0,
+                            bookId = reader.bookId,
+                            userId = reader.userId,
+                            displayName = reader.displayName,
+                            avatarType = reader.avatarType,
+                            avatarValue = reader.avatarValue,
+                            avatarColor = reader.avatarColor,
+                            isCurrentlyReading = reader.isCurrentlyReading,
+                            currentProgress = reader.currentProgress,
+                            startedAt = reader.startedAt,
+                            finishedAt = reader.finishedAt,
+                            lastActivityAt = reader.lastActivityAt,
+                            completionCount = reader.completionCount,
                         )
                     },
             )
