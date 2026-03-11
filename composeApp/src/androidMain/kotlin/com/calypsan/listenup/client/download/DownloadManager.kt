@@ -309,8 +309,12 @@ class DownloadManager(
         val requiredNetworkType = if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
 
         for (download in incomplete) {
-            // Reset stalled states to QUEUED
-            if (download.state != DownloadState.QUEUED) {
+            // Only reset PAUSED state to QUEUED — do NOT reset DOWNLOADING.
+            // A DOWNLOADING entry means WorkManager may still have an active worker for it.
+            // Re-enqueueing with KEEP policy keeps that worker running, but if we reset the
+            // DB state to QUEUED the UI gets stuck on the spinner permanently because the
+            // worker only calls updateState(DOWNLOADING) once at the top of doWork().
+            if (download.state == DownloadState.PAUSED) {
                 downloadDao.updateState(download.audioFileId, DownloadState.QUEUED)
             }
 

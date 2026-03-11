@@ -78,6 +78,9 @@ class ProgressTrackerTest {
         // Default stubs
         everySuspend { fixture.positionDao.get(any()) } returns null
         everySuspend { fixture.positionDao.save(any()) } returns Unit
+        // updatePositionOnly returns 0 by default (no existing record), causing savePosition
+        // to fall through to positionDao.save(). Override in individual tests if needed.
+        everySuspend { fixture.positionDao.updatePositionOnly(any(), any(), any(), any()) } returns 0
         everySuspend { fixture.syncApi.getProgress(any()) } returns Success(null)
         everySuspend { fixture.pendingOperationRepository.queue<Any>(any(), any(), any(), any(), any()) } returns Unit
         everySuspend { fixture.pushSyncOrchestrator.flush() } returns Unit

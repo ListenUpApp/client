@@ -55,6 +55,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -468,6 +469,7 @@ private fun TallNowPlayingLayout(
         Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
             MainControls(
                 isPlaying = state.isPlaying,
+                isBuffering = state.isBuffering,
                 onPlayPause = onPlayPause,
                 onSkipBack = onSkipBack,
                 onSkipForward = onSkipForward,
@@ -627,6 +629,7 @@ private fun WideNowPlayingLayout(
             Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
                 MainControls(
                     isPlaying = state.isPlaying,
+                    isBuffering = state.isBuffering,
                     onPlayPause = onPlayPause,
                     onSkipBack = onSkipBack,
                     onSkipForward = onSkipForward,
@@ -1011,6 +1014,7 @@ private fun ChapterSeekBar(
 @Composable
 private fun MainControls(
     isPlaying: Boolean,
+    isBuffering: Boolean,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
@@ -1086,8 +1090,10 @@ private fun MainControls(
         }
 
         // Play/Pause - MIDDLE shape but FILLED color (hero) and wider
+        // Shows a spinner while the player is buffering so the user knows it's loading.
         Button(
             onClick = onPlayPause,
+            enabled = !isBuffering,
             modifier =
                 Modifier
                     .weight(1.4f)
@@ -1100,11 +1106,19 @@ private fun MainControls(
                 ),
             contentPadding = PaddingValues(0.dp),
         ) {
-            Icon(
-                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
-                modifier = Modifier.size(32.dp),
-            )
+            if (isBuffering) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.5.dp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            } else {
+                Icon(
+                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    modifier = Modifier.size(32.dp),
+                )
+            }
         }
 
         // Skip forward 30s - MIDDLE shape

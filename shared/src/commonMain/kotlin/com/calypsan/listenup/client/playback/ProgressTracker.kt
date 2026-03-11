@@ -24,6 +24,7 @@ import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -251,21 +252,35 @@ class ProgressTracker(
         speed: Float,
     ) {
         try {
-            // Preserve existing hasCustomSpeed and isFinished values
-            val existing = positionDao.get(bookId)
             val now = Clock.System.now().toEpochMilliseconds()
-            positionDao.save(
-                PlaybackPositionEntity(
+
+            // Try a position-only update first. This avoids a read-modify-write race with
+            // onSpeedChanged: both run concurrently on Dispatchers.IO and a full-entity
+            // save here could clobber a hasCustomSpeed=true written by onSpeedChanged.
+            val rowsUpdated =
+                positionDao.updatePositionOnly(
                     bookId = bookId,
                     positionMs = positionMs,
-                    playbackSpeed = speed,
-                    hasCustomSpeed = existing?.hasCustomSpeed ?: false,
                     updatedAt = now,
-                    syncedAt = null,
-                    lastPlayedAt = now, // Track actual play time
-                    isFinished = existing?.isFinished ?: false,
-                ),
-            )
+                    lastPlayedAt = now,
+                )
+
+            if (rowsUpdated == 0) {
+                // No existing record — first play for this book. Insert with sensible defaults.
+                positionDao.save(
+                    PlaybackPositionEntity(
+                        bookId = bookId,
+                        positionMs = positionMs,
+                        playbackSpeed = speed,
+                        hasCustomSpeed = false,
+                        updatedAt = now,
+                        syncedAt = null,
+                        lastPlayedAt = now,
+                        isFinished = false,
+                    ),
+                )
+            }
+
             logger.info { "Position saved: book=${bookId.value}, position=$positionMs, lastPlayedAt=$now" }
 
             // Signal that progress was saved so Continue Listening shelf refreshes immediately
@@ -362,8 +377,14 @@ class ProgressTracker(
         // 1. Get local position (instant, offline-first)
         val local = positionDao.get(bookId)
 
-        // 2. Try to get server position (best-effort)
-        val server = fetchServerProgress(bookId)
+        // 2. Try to get server position within a short deadline.
+        //    A slow or unreachable server used to block this call indefinitely,
+        //    delaying ExoPlayer startup by 30–60 seconds. We cap at 3 seconds —
+        //    if the server doesn't respond in time, local position is good enough.
+        val server = withTimeoutOrNull(3_000L) { fetchServerProgress(bookId) }
+        if (server == null) {
+            logger.debug { "Server progress fetch timed out or was null — using local position" }
+        }
 
         // 3. Merge: latest timestamp wins
         return mergePositions(bookId, local, server)
