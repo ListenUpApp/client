@@ -68,6 +68,27 @@ interface PlaybackPositionDao {
     suspend fun getUnsyncedPositions(): List<PlaybackPositionEntity>
 
     /**
+     * Update only the playback position and timestamps for an existing record.
+     *
+     * IMPORTANT: This intentionally does NOT touch [PlaybackPositionEntity.hasCustomSpeed]
+     * or [PlaybackPositionEntity.playbackSpeed]. This prevents a read-modify-write race
+     * between periodic saves (savePosition) and explicit speed changes (onSpeedChanged).
+     * Both run on Dispatchers.IO concurrently and would otherwise clobber each other.
+     *
+     * @return The number of rows updated (0 if no record exists for this book)
+     */
+    @Query(
+        "UPDATE playback_positions SET positionMs = :positionMs, updatedAt = :updatedAt, " +
+            "syncedAt = NULL, lastPlayedAt = :lastPlayedAt WHERE bookId = :bookId",
+    )
+    suspend fun updatePositionOnly(
+        bookId: BookId,
+        positionMs: Long,
+        updatedAt: Long,
+        lastPlayedAt: Long,
+    ): Int
+
+    /**
      * Mark a position as synced to server.
      *
      * @param bookId The book whose position was synced

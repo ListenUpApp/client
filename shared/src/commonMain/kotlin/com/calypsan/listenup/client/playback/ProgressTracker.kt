@@ -252,21 +252,34 @@ class ProgressTracker(
         speed: Float,
     ) {
         try {
-            // Preserve existing hasCustomSpeed and isFinished values
-            val existing = positionDao.get(bookId)
             val now = Clock.System.now().toEpochMilliseconds()
-            positionDao.save(
-                PlaybackPositionEntity(
-                    bookId = bookId,
-                    positionMs = positionMs,
-                    playbackSpeed = speed,
-                    hasCustomSpeed = existing?.hasCustomSpeed ?: false,
-                    updatedAt = now,
-                    syncedAt = null,
-                    lastPlayedAt = now, // Track actual play time
-                    isFinished = existing?.isFinished ?: false,
-                ),
+
+            // Try a position-only update first. This avoids a read-modify-write race with
+            // onSpeedChanged: both run concurrently on Dispatchers.IO and a full-entity
+            // save here could clobber a hasCustomSpeed=true written by onSpeedChanged.
+            val rowsUpdated = positionDao.updatePositionOnly(
+                bookId = bookId,
+                positionMs = positionMs,
+                updatedAt = now,
+                lastPlayedAt = now,
             )
+
+            if (rowsUpdated == 0) {
+                // No existing record — first play for this book. Insert with sensible defaults.
+                positionDao.save(
+                    PlaybackPositionEntity(
+                        bookId = bookId,
+                        positionMs = positionMs,
+                        playbackSpeed = speed,
+                        hasCustomSpeed = false,
+                        updatedAt = now,
+                        syncedAt = null,
+                        lastPlayedAt = now,
+                        isFinished = false,
+                    ),
+                )
+            }
+
             logger.info { "Position saved: book=${bookId.value}, position=$positionMs, lastPlayedAt=$now" }
 
             // Signal that progress was saved so Continue Listening shelf refreshes immediately
