@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -166,6 +167,7 @@ fun NowPlayingBar(
                     if (!state.isPreparing) {
                         NowPlayingBarControls(
                             isPlaying = state.isPlaying,
+                            isBuffering = state.isBuffering,
                             onPlayPause = onPlayPause,
                             onSkipBack = onSkipBack,
                             onSkipForward = onSkipForward,
@@ -204,6 +206,7 @@ fun NowPlayingBar(
 @Composable
 private fun NowPlayingBarControls(
     isPlaying: Boolean,
+    isBuffering: Boolean,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
@@ -226,16 +229,25 @@ private fun NowPlayingBarControls(
         }
 
         // Play/Pause - larger, filled, rounded square (hero button)
+        // Shows a spinner during mid-playback buffering.
         FilledIconButton(
             onClick = onPlayPause,
+            enabled = !isBuffering,
             modifier = Modifier.size(48.dp),
             shape = RoundedCornerShape(14.dp),
         ) {
-            Icon(
-                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
-                modifier = Modifier.size(28.dp),
-            )
+            if (isBuffering) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Icon(
+                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    modifier = Modifier.size(28.dp),
+                )
+            }
         }
 
         // Skip forward - rounded square, tonal
