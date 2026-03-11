@@ -19,7 +19,6 @@ import kotlin.test.assertTrue
  * Fix: only reset PAUSED → QUEUED. Leave DOWNLOADING entries untouched.
  */
 class DownloadStateResumeTest {
-
     /**
      * The core rule: DOWNLOADING must NOT be reset to QUEUED on resume.
      * A running worker uses KEEP policy and won't re-call updateState(DOWNLOADING).

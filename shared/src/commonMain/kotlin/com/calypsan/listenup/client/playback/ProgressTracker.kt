@@ -257,12 +257,13 @@ class ProgressTracker(
             // Try a position-only update first. This avoids a read-modify-write race with
             // onSpeedChanged: both run concurrently on Dispatchers.IO and a full-entity
             // save here could clobber a hasCustomSpeed=true written by onSpeedChanged.
-            val rowsUpdated = positionDao.updatePositionOnly(
-                bookId = bookId,
-                positionMs = positionMs,
-                updatedAt = now,
-                lastPlayedAt = now,
-            )
+            val rowsUpdated =
+                positionDao.updatePositionOnly(
+                    bookId = bookId,
+                    positionMs = positionMs,
+                    updatedAt = now,
+                    lastPlayedAt = now,
+                )
 
             if (rowsUpdated == 0) {
                 // No existing record — first play for this book. Insert with sensible defaults.
