@@ -24,6 +24,7 @@ import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -362,8 +363,14 @@ class ProgressTracker(
         // 1. Get local position (instant, offline-first)
         val local = positionDao.get(bookId)
 
-        // 2. Try to get server position (best-effort)
-        val server = fetchServerProgress(bookId)
+        // 2. Try to get server position within a short deadline.
+        //    A slow or unreachable server used to block this call indefinitely,
+        //    delaying ExoPlayer startup by 30–60 seconds. We cap at 3 seconds —
+        //    if the server doesn't respond in time, local position is good enough.
+        val server = withTimeoutOrNull(3_000L) { fetchServerProgress(bookId) }
+        if (server == null) {
+            logger.debug { "Server progress fetch timed out or was null — using local position" }
+        }
 
         // 3. Merge: latest timestamp wins
         return mergePositions(bookId, local, server)
