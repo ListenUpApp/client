@@ -467,14 +467,38 @@ private fun WideBookDetailAppBarActions(
                 isComplete = isComplete,
                 hasProgress = hasProgress,
                 isAdmin = isAdmin,
-                onEditClick = { showMenu = false; onEditClick() },
-                onFindMetadataClick = { showMenu = false; onFindMetadataClick() },
-                onMarkCompleteClick = { showMenu = false; onMarkCompleteClick() },
-                onDiscardProgressClick = { showMenu = false; onDiscardProgressClick() },
-                onAddToShelfClick = { showMenu = false; onAddToShelfClick() },
-                onAddToCollectionClick = { showMenu = false; onAddToCollectionClick() },
-                onShareClick = { showMenu = false; onShareClick() },
-                onDeleteClick = { showMenu = false; onDeleteBookClick() },
+                onEditClick = {
+                    showMenu = false
+                    onEditClick()
+                },
+                onFindMetadataClick = {
+                    showMenu = false
+                    onFindMetadataClick()
+                },
+                onMarkCompleteClick = {
+                    showMenu = false
+                    onMarkCompleteClick()
+                },
+                onDiscardProgressClick = {
+                    showMenu = false
+                    onDiscardProgressClick()
+                },
+                onAddToShelfClick = {
+                    showMenu = false
+                    onAddToShelfClick()
+                },
+                onAddToCollectionClick = {
+                    showMenu = false
+                    onAddToCollectionClick()
+                },
+                onShareClick = {
+                    showMenu = false
+                    onShareClick()
+                },
+                onDeleteClick = {
+                    showMenu = false
+                    onDeleteBookClick()
+                },
             )
         }
     }
