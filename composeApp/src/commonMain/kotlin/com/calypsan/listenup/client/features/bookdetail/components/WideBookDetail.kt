@@ -151,58 +151,20 @@ fun WideBookDetail(
                 }
             },
             actions = {
-                if (!deviceContext.isLeanback) {
-                    IconButton(onClick = onShareClick) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
-                    }
-                }
-                if (deviceContext.canEdit) {
-                    var showMenu by remember { mutableStateOf(false) }
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                        }
-                        BookActionsMenu(
-                            expanded = showMenu,
-                            onDismiss = { showMenu = false },
-                            isComplete = isComplete,
-                            hasProgress = hasProgress,
-                            isAdmin = isAdmin,
-                            onEditClick = {
-                                showMenu = false
-                                onEditClick()
-                            },
-                            onFindMetadataClick = {
-                                showMenu = false
-                                onFindMetadataClick()
-                            },
-                            onMarkCompleteClick = {
-                                showMenu = false
-                                onMarkCompleteClick()
-                            },
-                            onDiscardProgressClick = {
-                                showMenu = false
-                                onDiscardProgressClick()
-                            },
-                            onAddToShelfClick = {
-                                showMenu = false
-                                onAddToShelfClick()
-                            },
-                            onAddToCollectionClick = {
-                                showMenu = false
-                                onAddToCollectionClick()
-                            },
-                            onShareClick = {
-                                showMenu = false
-                                onShareClick()
-                            },
-                            onDeleteClick = {
-                                showMenu = false
-                                onDeleteBookClick()
-                            },
-                        )
-                    }
-                }
+                WideBookDetailAppBarActions(
+                    deviceContext = deviceContext,
+                    isComplete = isComplete,
+                    hasProgress = hasProgress,
+                    isAdmin = isAdmin,
+                    onShareClick = onShareClick,
+                    onEditClick = onEditClick,
+                    onFindMetadataClick = onFindMetadataClick,
+                    onMarkCompleteClick = onMarkCompleteClick,
+                    onDiscardProgressClick = onDiscardProgressClick,
+                    onAddToShelfClick = onAddToShelfClick,
+                    onAddToCollectionClick = onAddToCollectionClick,
+                    onDeleteBookClick = onDeleteBookClick,
+                )
             },
             colors =
                 TopAppBarDefaults.topAppBarColors(
@@ -468,6 +430,51 @@ private fun ServerUnreachableWarning() {
                 text = stringResource(Res.string.book_detail_server_is_unreachable_connect_to),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WideBookDetailAppBarActions(
+    deviceContext: com.calypsan.listenup.client.device.DeviceContext,
+    isComplete: Boolean,
+    hasProgress: Boolean,
+    isAdmin: Boolean,
+    onShareClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onDiscardProgressClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
+    onDeleteBookClick: () -> Unit,
+) {
+    if (!deviceContext.isLeanback) {
+        IconButton(onClick = onShareClick) {
+            Icon(Icons.Default.Share, contentDescription = "Share")
+        }
+    }
+    if (deviceContext.canEdit) {
+        var showMenu by remember { mutableStateOf(false) }
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+            }
+            BookActionsMenu(
+                expanded = showMenu,
+                onDismiss = { showMenu = false },
+                isComplete = isComplete,
+                hasProgress = hasProgress,
+                isAdmin = isAdmin,
+                onEditClick = { showMenu = false; onEditClick() },
+                onFindMetadataClick = { showMenu = false; onFindMetadataClick() },
+                onMarkCompleteClick = { showMenu = false; onMarkCompleteClick() },
+                onDiscardProgressClick = { showMenu = false; onDiscardProgressClick() },
+                onAddToShelfClick = { showMenu = false; onAddToShelfClick() },
+                onAddToCollectionClick = { showMenu = false; onAddToCollectionClick() },
+                onShareClick = { showMenu = false; onShareClick() },
+                onDeleteClick = { showMenu = false; onDeleteBookClick() },
             )
         }
     }
