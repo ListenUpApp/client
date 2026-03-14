@@ -92,7 +92,9 @@ fun ContributorCoverImage(
                 } else {
                     val baseUrl = serverConfig.getActiveUrl()?.value
                     val token = authSession.getAccessToken()?.value
-                    logger.debug { "ContributorCoverImage: fallback contributorId=$contributorId, url=$baseUrl/api/v1/contributors/$contributorId/image" }
+                    logger.debug {
+                        "ContributorCoverImage: fallback contributorId=$contributorId, url=$baseUrl/api/v1/contributors/$contributorId/image"
+                    }
                     if (baseUrl != null) {
                         ImageRequest
                             .Builder(context)
