@@ -25,14 +25,17 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -62,6 +65,9 @@ import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.features.bookdetail.TagsSection
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.bookdetail.ChapterUiModel
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_server_is_unreachable_connect_to
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Wide book detail layout for tablets, foldables, desktop, and TV.
@@ -93,6 +99,8 @@ fun WideBookDetail(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     playEnabled: Boolean = true,
+    downloadEnabled: Boolean = true,
+    showServerWarning: Boolean = false,
     onPlayDisabledClick: () -> Unit = {},
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
@@ -294,10 +302,41 @@ fun WideBookDetail(
                                     modifier = Modifier.widthIn(max = 400.dp),
                                     isWaitingForWifi = isWaitingForWifi,
                                     playEnabled = playEnabled,
+                                    downloadEnabled = downloadEnabled,
                                     onPlayDisabledClick = onPlayDisabledClick,
                                     requestFocus = LocalDeviceContext.current.hasDpad,
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            // Server unreachable warning — informational only, does not disable buttons
+            if (showServerWarning) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        tonalElevation = 1.dp,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                            Text(
+                                text = stringResource(Res.string.book_detail_server_is_unreachable_connect_to),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
                         }
                     }
                 }

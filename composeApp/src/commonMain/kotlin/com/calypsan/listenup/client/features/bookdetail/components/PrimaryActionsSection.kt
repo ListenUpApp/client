@@ -46,6 +46,7 @@ fun PrimaryActionsSection(
     modifier: Modifier = Modifier,
     isWaitingForWifi: Boolean = false,
     playEnabled: Boolean = true,
+    downloadEnabled: Boolean = true,
     requestFocus: Boolean = false,
     onPlayDisabledClick: () -> Unit = {},
 ) {
@@ -107,15 +108,14 @@ fun PrimaryActionsSection(
 
         // Download Button - icon-only square (hidden on TV/Auto — stream only)
         if (LocalDeviceContext.current.supportsDownloads) {
-            // When server is unavailable and book isn't downloaded, disable download too
             DownloadButton(
                 status = downloadStatus,
-                onDownloadClick = if (playEnabled) onDownloadClick else onPlayDisabledClick,
+                onDownloadClick = onDownloadClick,
                 onCancelClick = onCancelClick,
                 onDeleteClick = onDeleteClick,
                 modifier = Modifier.size(64.dp),
                 isWaitingForWifi = isWaitingForWifi,
-                enabled = playEnabled || downloadStatus.isFullyDownloaded,
+                enabled = downloadEnabled,
             )
         }
     }

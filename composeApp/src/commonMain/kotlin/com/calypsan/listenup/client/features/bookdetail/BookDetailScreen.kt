@@ -3,18 +3,25 @@
 package com.calypsan.listenup.client.features.bookdetail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -133,6 +140,12 @@ fun BookDetailScreen(
     // While check is in progress (null), assume playable to avoid flicker for fast connections
     val canPlay = downloadStatus.isFullyDownloaded || isServerReachable != false
 
+    // Downloads are always allowed — they queue locally and don't need the server to be reachable
+    val canDownload = platformActions.isPlaybackAvailable
+
+    // Show warning when server is unreachable and book isn't downloaded (informational only)
+    val showServerWarning = isServerReachable == false && !downloadStatus.isFullyDownloaded
+
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showMarkCompleteDialog by remember { mutableStateOf(false) }
 
@@ -206,10 +219,12 @@ fun BookDetailScreen(
                     onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { platformActions.playBook(BookId(bookId)) },
                     canPlay = canPlay,
+                    canDownload = canDownload,
+                    showServerWarning = showServerWarning,
                     onPlayDisabledClick = {
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                "Server is unreachable. Connect to your server to play or download this book.",
+                                "Server is unreachable. Connect to your server to stream this book, or download it for offline playback.",
                             )
                         }
                     },
@@ -323,6 +338,8 @@ fun BookDetailContent(
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     canPlay: Boolean,
+    canDownload: Boolean,
+    showServerWarning: Boolean,
     onPlayDisabledClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
@@ -364,6 +381,8 @@ fun BookDetailContent(
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
             playEnabled = canPlay,
+            downloadEnabled = canDownload,
+            showServerWarning = showServerWarning,
             onPlayDisabledClick = onPlayDisabledClick,
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
@@ -391,6 +410,8 @@ fun BookDetailContent(
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
             canPlay = canPlay,
+            canDownload = canDownload,
+            showServerWarning = showServerWarning,
             onPlayDisabledClick = onPlayDisabledClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
@@ -433,6 +454,8 @@ private fun ImmersiveBookDetail(
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     canPlay: Boolean,
+    canDownload: Boolean,
+    showServerWarning: Boolean,
     onPlayDisabledClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
@@ -509,8 +532,18 @@ private fun ImmersiveBookDetail(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                     isWaitingForWifi = isWaitingForWifi,
                     playEnabled = canPlay,
+                    downloadEnabled = canDownload,
                     onPlayDisabledClick = onPlayDisabledClick,
                 )
+            }
+
+            // Server unreachable warning — informational only, does not disable buttons
+            if (showServerWarning) {
+                item {
+                    ServerUnreachableBanner(
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                    )
+                }
             }
         }
 
@@ -596,6 +629,34 @@ private fun ImmersiveBookDetail(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ServerUnreachableBanner(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        tonalElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = stringResource(Res.string.book_detail_server_is_unreachable_connect_to),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
         }
     }
 }
