@@ -59,9 +59,6 @@
     <ID>UnusedImports:BookCard.kt$import androidx.compose.material.icons.filled.Book</ID>
     <ID>UnusedImports:BookCard.kt$import androidx.compose.ui.graphics.Brush</ID>
     <ID>UnusedImports:BookCoverImage.kt$import org.koin.compose.koinInject</ID>
-    <ID>UnusedImports:BookDetailScreen.kt$import listenup.composeapp.generated.resources.Res</ID>
-    <ID>UnusedImports:BookDetailScreen.kt$import listenup.composeapp.generated.resources.book_detail_server_is_unreachable_connect_to</ID>
-    <ID>UnusedImports:BookDetailScreen.kt$import org.jetbrains.compose.resources.stringResource</ID>
     <ID>UnusedImports:ContributorBooksScreen.kt$import androidx.compose.foundation.layout.width</ID>
     <ID>UnusedImports:ContributorDetailScreen.kt$import androidx.compose.foundation.layout.heightIn</ID>
     <ID>UnusedImports:CreateInviteScreen.kt$import listenup.composeapp.generated.resources.admin_invite_created_link_copied_to</ID>
