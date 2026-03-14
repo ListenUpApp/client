@@ -102,14 +102,17 @@ fun BookDetailScreen(
     }
 
     val state by viewModel.state.collectAsState()
-    val isAdmin by userRepository.observeIsAdmin().collectAsState(initial = false)
-    val downloadStatus by platformActions
-        .observeBookStatus(BookId(bookId))
+    val isAdminFlow = remember { userRepository.observeIsAdmin() }
+    val isAdmin by isAdminFlow.collectAsState(initial = false)
+    val downloadStatusFlow = remember(bookId) { platformActions.observeBookStatus(BookId(bookId)) }
+    val downloadStatus by downloadStatusFlow
         .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
 
     // WiFi-only download state detection
-    val wifiOnlyDownloads by platformActions.observeWifiOnlyDownloads().collectAsState(initial = false)
-    val isOnUnmeteredNetwork by platformActions.observeIsOnUnmeteredNetwork().collectAsState(initial = true)
+    val wifiOnlyFlow = remember { platformActions.observeWifiOnlyDownloads() }
+    val wifiOnlyDownloads by wifiOnlyFlow.collectAsState(initial = false)
+    val unmeteredFlow = remember { platformActions.observeIsOnUnmeteredNetwork() }
+    val isOnUnmeteredNetwork by unmeteredFlow.collectAsState(initial = true)
 
     // Show "Waiting for WiFi" when:
     // - Download is queued AND
