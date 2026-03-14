@@ -21,6 +21,8 @@ import kotlinx.coroutines.withContext
 
 private val logger = KotlinLogging.logger {}
 
+private fun contributorCacheKey(contributorId: String) = "$contributorId:contributor"
+
 /**
  * Smart contributor image with server URL fallback.
  *
@@ -44,15 +46,13 @@ fun ContributorCoverImage(
     // Fast path: imagePath provided means the file exists locally.
     val syncRequest =
         remember(contributorId, imagePath) {
-            if (imagePath != null) {
+            imagePath?.let {
                 ImageRequest
                     .Builder(context)
-                    .data(imagePath)
-                    .memoryCacheKey("$contributorId:contributor")
-                    .diskCacheKey("$contributorId:contributor")
+                    .data(it)
+                    .memoryCacheKey(contributorCacheKey(contributorId))
+                    .diskCacheKey(contributorCacheKey(contributorId))
                     .build()
-            } else {
-                null
             }
         }
 
@@ -86,14 +86,15 @@ fun ContributorCoverImage(
                     ImageRequest
                         .Builder(context)
                         .data(localPath)
-                        .memoryCacheKey("$contributorId:contributor")
-                        .diskCacheKey("$contributorId:contributor")
+                        .memoryCacheKey(contributorCacheKey(contributorId))
+                        .diskCacheKey(contributorCacheKey(contributorId))
                         .build()
                 } else {
                     val baseUrl = serverConfig.getActiveUrl()?.value
                     val token = authSession.getAccessToken()?.value
                     logger.debug {
-                        "ContributorCoverImage: fallback contributorId=$contributorId, url=$baseUrl/api/v1/contributors/$contributorId/image"
+                        "ContributorCoverImage: fallback id=$contributorId " +
+                            "url=$baseUrl/api/v1/contributors/$contributorId/image"
                     }
                     if (baseUrl != null) {
                         ImageRequest
@@ -121,9 +122,9 @@ fun ContributorCoverImage(
 
     val imageRequest = syncRequest ?: asyncRequest
 
-    if (imageRequest != null) {
+    imageRequest?.let {
         AsyncImage(
-            model = imageRequest,
+            model = it,
             contentDescription = contentDescription,
             modifier = modifier,
             contentScale = contentScale,
