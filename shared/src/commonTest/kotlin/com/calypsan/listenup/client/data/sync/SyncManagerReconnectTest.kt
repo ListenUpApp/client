@@ -20,7 +20,6 @@ import kotlin.test.assertTrue
  * - Reconnected event can be pattern-matched in when expressions
  */
 class SyncManagerReconnectTest {
-
     @Test
     fun `Reconnected event carries disconnectedAt timestamp`() {
         val timestamp = "2026-03-14T18:30:00.000Z"
@@ -58,25 +57,27 @@ class SyncManagerReconnectTest {
     fun `Reconnected event can be pattern matched in when expression`() {
         val event: SSEEventType = SSEEventType.Reconnected(disconnectedAt = "2026-03-14T18:30:00.000Z")
 
-        val result = when (event) {
-            is SSEEventType.Reconnected -> event.disconnectedAt
-            else -> null
-        }
+        val result =
+            when (event) {
+                is SSEEventType.Reconnected -> event.disconnectedAt
+                else -> null
+            }
 
         assertEquals("2026-03-14T18:30:00.000Z", result)
     }
 
     @Test
-    fun `Reconnected event flows through SharedFlow with timestamp`() = runTest {
-        val eventFlow = MutableSharedFlow<SSEEventType>(replay = 1)
-        val disconnectedAt = "2026-03-14T18:30:00.000Z"
+    fun `Reconnected event flows through SharedFlow with timestamp`() =
+        runTest {
+            val eventFlow = MutableSharedFlow<SSEEventType>(replay = 1)
+            val disconnectedAt = "2026-03-14T18:30:00.000Z"
 
-        eventFlow.emit(SSEEventType.Reconnected(disconnectedAt = disconnectedAt))
+            eventFlow.emit(SSEEventType.Reconnected(disconnectedAt = disconnectedAt))
 
-        val received = eventFlow.first()
-        assertIs<SSEEventType.Reconnected>(received)
-        assertEquals(disconnectedAt, received.disconnectedAt)
-    }
+            val received = eventFlow.first()
+            assertIs<SSEEventType.Reconnected>(received)
+            assertEquals(disconnectedAt, received.disconnectedAt)
+        }
 
     @Test
     fun `Reconnected event is correctly identified vs other event types`() {
@@ -96,6 +97,9 @@ class SyncManagerReconnectTest {
 
         // RFC3339 format should contain 'T' separator and end with 'Z' or timezone offset
         assertTrue(iso.contains("T"), "ISO string should contain T separator: $iso")
-        assertTrue(iso.contains("Z") || iso.contains("+") || iso.contains("-"), "ISO string should have timezone: $iso")
+        assertTrue(
+            iso.contains("Z") || iso.contains("+") || iso.contains("-"),
+            "ISO string should have timezone: $iso",
+        )
     }
 }
