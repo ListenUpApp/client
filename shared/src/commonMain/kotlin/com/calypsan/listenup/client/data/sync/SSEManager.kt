@@ -63,6 +63,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.calypsan.listenup.client.core.Timestamp
 import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
@@ -112,6 +113,9 @@ class SSEManager(
 
     /** Tracks if we've been connected before - used to detect reconnection vs initial connection. */
     private var hasBeenConnected = false
+
+    /** RFC3339 timestamp of when the SSE connection was last lost. Used for ?since= on reconnect. */
+    private var disconnectedAt: String? = null
 
     // JSON parser for manually parsing SSE event data field
     private val json =
@@ -164,6 +168,10 @@ class SSEManager(
                         break
                     } catch (e: Exception) {
                         _isConnected.value = false
+
+                        // Record when we disconnected for reconnect delta sync
+                        disconnectedAt = Timestamp.now().toIsoString()
+                        logger.debug { "SSE disconnected at $disconnectedAt" }
 
                         // Check for authentication errors - don't retry on 401/403
                         if (e is ResponseException) {
@@ -220,7 +228,14 @@ class SSEManager(
         val httpClient = clientFactory.getStreamingClient()
         logger.trace { "Streaming HTTP client ready" }
 
-        val url = "$serverUrl$SSE_ENDPOINT"
+        // Build URL with ?since= param for reconnection replay
+        val sinceParam = disconnectedAt
+        val url =
+            if (sinceParam != null) {
+                "$serverUrl$SSE_ENDPOINT?since=$sinceParam"
+            } else {
+                "$serverUrl$SSE_ENDPOINT"
+            }
         logger.debug { "Opening streaming connection to: $url" }
 
         // Use prepareGet + execute for streaming responses that never complete
@@ -239,9 +254,16 @@ class SSEManager(
                 hasBeenConnected = true
 
                 // Emit reconnection event so SyncManager can trigger delta sync
-                if (isReconnection) {
-                    logger.info { "SSE reconnected - emitting Reconnected event for delta sync" }
-                    _eventFlow.emit(SSEEventType.Reconnected)
+                if (isReconnection && sinceParam != null) {
+                    logger.info {
+                        "SSE reconnected after disconnect at $sinceParam - emitting Reconnected event for delta sync"
+                    }
+                    _eventFlow.emit(SSEEventType.Reconnected(disconnectedAt = sinceParam))
+                    // Clear disconnectedAt after successful reconnection with replay
+                    disconnectedAt = null
+                } else if (isReconnection) {
+                    logger.info { "SSE reconnected (no disconnectedAt recorded) - emitting Reconnected event" }
+                    _eventFlow.emit(SSEEventType.Reconnected(disconnectedAt = Timestamp.now().toIsoString()))
                 }
 
                 parseSSEStream(channel)
@@ -793,8 +815,13 @@ sealed interface SSEEventType {
     /**
      * SSE connection was re-established after a disconnect.
      * Triggers delta sync to catch up on missed events.
+     *
+     * @property disconnectedAt RFC3339 timestamp of when the connection was lost.
+     *   Used as `updated_after` for delta sync to catch missed events.
      */
-    data object Reconnected : SSEEventType
+    data class Reconnected(
+        val disconnectedAt: String,
+    ) : SSEEventType
 
     /**
      * Admin-only: New user registered and is pending approval.

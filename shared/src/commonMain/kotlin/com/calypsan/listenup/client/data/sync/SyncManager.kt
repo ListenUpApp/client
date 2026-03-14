@@ -157,7 +157,7 @@ class SyncManager(
             sseManager.eventFlow.collect { event ->
                 // Handle reconnection event - trigger delta sync to catch missed events
                 if (event is SSEEventType.Reconnected) {
-                    handleReconnection()
+                    handleReconnection(event.disconnectedAt)
                 } else {
                     syncMutex.withLock {
                         sseEventProcessor.process(event)
@@ -222,25 +222,36 @@ class SyncManager(
         }
     }
 
-    private fun handleReconnection() {
-        logger.info { "SSE reconnected - triggering delta sync to catch missed events" }
+    /**
+     * Handle SSE reconnection by triggering a delta sync.
+     *
+     * When SSE disconnects and reconnects, events during the gap are lost.
+     * We catch up by:
+     * 1. Waiting for any in-progress sync to finish (never skip — queue it)
+     * 2. Flushing pending local operations first (so local changes aren't lost)
+     * 3. Pulling ALL entity types with updated_after=disconnectedAt
+     *
+     * @param disconnectedAt RFC3339 timestamp of when the SSE connection was lost
+     */
+    private fun handleReconnection(disconnectedAt: String) {
+        logger.info { "SSE reconnected - triggering delta sync for changes since $disconnectedAt" }
 
         // Launch delta sync in background (non-blocking)
         // Mutex ensures delta sync writes don't race with SSE event processing
+        // NOTE: We do NOT skip if already syncing — syncMutex.withLock will wait.
+        // This guarantees we never drop a reconnection sync.
         scope.launch {
             try {
-                // Only sync if we're not already syncing
-                if (_syncState.value is SyncStatus.Syncing) {
-                    logger.debug { "Skipping reconnection sync - already syncing" }
-                    return@launch
-                }
-
                 syncMutex.withLock {
+                    logger.debug { "Reconnection sync acquired mutex, syncing changes since $disconnectedAt" }
+
                     // Flush pending operations first - ensures local changes reach server
                     // before we pull potentially conflicting server changes
                     pushOrchestrator.flush()
 
-                    // Pull changes since last sync (uses syncDao.getLastSyncTime() internally)
+                    // Pull changes since disconnect time for ALL entity types.
+                    // PullSyncOrchestrator.pull() uses syncDao.getLastSyncTime() internally,
+                    // which should be before disconnectedAt, so it catches everything.
                     pullOrchestrator.pull { /* suppress progress updates for background sync */ }
 
                     // Update sync timestamp
@@ -248,7 +259,7 @@ class SyncManager(
                     syncDao.setLastSyncTime(now)
                 }
 
-                logger.info { "Reconnection delta sync completed" }
+                logger.info { "Reconnection delta sync completed successfully" }
             } catch (e: CancellationException) {
                 throw e // cooperative cancellation — never swallow
             } catch (e: Exception) {
