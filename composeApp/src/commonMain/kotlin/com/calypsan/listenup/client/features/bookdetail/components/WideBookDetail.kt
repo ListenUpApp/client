@@ -435,6 +435,7 @@ private fun ServerUnreachableWarning() {
     }
 }
 
+@Suppress("LongParameterList")
 @Composable
 private fun WideBookDetailAppBarActions(
     deviceContext: com.calypsan.listenup.client.device.DeviceContext,
