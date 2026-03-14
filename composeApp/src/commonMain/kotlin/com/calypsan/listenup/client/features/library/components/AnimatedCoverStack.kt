@@ -35,7 +35,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import kotlinx.coroutines.delay
 
 /**
@@ -44,24 +44,25 @@ import kotlinx.coroutines.delay
  * - 2 books: Side by side layout
  * - 3+ books: Animated stack with Material 3 Expressive spring animations
  *
- * @param coverPaths List of local file paths to cover images
+ * @param bookCovers List of (bookId, coverPath) pairs for server URL fallback
  * @param modifier Optional modifier
  * @param coverHeight Height of the cover area
  * @param cycleDurationMs Duration of each animation cycle (3+ books only)
  */
 @Composable
 fun AnimatedCoverStack(
-    coverPaths: List<String?>,
+    bookCovers: List<Pair<String, String?>>,
     modifier: Modifier = Modifier,
     coverHeight: Dp = 120.dp,
     cycleDurationMs: Long = 3000L,
 ) {
-    val coverCount = coverPaths.size
+    val coverCount = bookCovers.size
 
     when {
         coverCount == 0 -> {
             // Empty placeholder - full width
             FullWidthCover(
+                bookId = "",
                 coverPath = null,
                 modifier = modifier.height(coverHeight),
             )
@@ -70,7 +71,8 @@ fun AnimatedCoverStack(
         coverCount == 1 -> {
             // Single book - full width cropped
             FullWidthCover(
-                coverPath = coverPaths[0],
+                bookId = bookCovers[0].first,
+                coverPath = bookCovers[0].second,
                 modifier = modifier.height(coverHeight),
             )
         }
@@ -78,7 +80,7 @@ fun AnimatedCoverStack(
         coverCount == 2 -> {
             // Two books - side by side
             TwoUpCoverLayout(
-                coverPaths = coverPaths,
+                bookCovers = bookCovers,
                 modifier = modifier.height(coverHeight),
             )
         }
@@ -86,7 +88,7 @@ fun AnimatedCoverStack(
         else -> {
             // 3+ books - animated stack
             AnimatedStackLayout(
-                coverPaths = coverPaths,
+                bookCovers = bookCovers,
                 coverHeight = coverHeight,
                 cycleDurationMs = cycleDurationMs,
                 modifier = modifier,
@@ -100,6 +102,7 @@ fun AnimatedCoverStack(
  */
 @Composable
 private fun FullWidthCover(
+    bookId: String,
     coverPath: String?,
     modifier: Modifier = Modifier,
 ) {
@@ -113,9 +116,10 @@ private fun FullWidthCover(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
-        if (coverPath != null) {
-            ListenUpAsyncImage(
-                path = coverPath,
+        if (bookId.isNotBlank()) {
+            BookCoverImage(
+                bookId = bookId,
+                coverPath = coverPath,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -138,7 +142,7 @@ private fun FullWidthCover(
  */
 @Composable
 private fun TwoUpCoverLayout(
-    coverPaths: List<String?>,
+    bookCovers: List<Pair<String, String?>>,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -147,7 +151,8 @@ private fun TwoUpCoverLayout(
     ) {
         // Primary cover — takes more space
         StackedCover(
-            coverPath = coverPaths.getOrNull(0),
+            bookId = bookCovers.getOrNull(0)?.first ?: "",
+            coverPath = bookCovers.getOrNull(0)?.second,
             modifier =
                 Modifier
                     .weight(1f)
@@ -155,7 +160,8 @@ private fun TwoUpCoverLayout(
         )
         // Secondary cover — equal size
         StackedCover(
-            coverPath = coverPaths.getOrNull(1),
+            bookId = bookCovers.getOrNull(1)?.first ?: "",
+            coverPath = bookCovers.getOrNull(1)?.second,
             modifier =
                 Modifier
                     .weight(1f)
@@ -171,12 +177,12 @@ private fun TwoUpCoverLayout(
  */
 @Composable
 private fun AnimatedStackLayout(
-    coverPaths: List<String?>,
+    bookCovers: List<Pair<String, String?>>,
     coverHeight: Dp,
     cycleDurationMs: Long,
     modifier: Modifier = Modifier,
 ) {
-    val coverCount = coverPaths.size
+    val coverCount = bookCovers.size
 
     // Randomize starting position and add small stagger so cards don't animate in sync
     val startingIndex = remember { (0 until coverCount).random() }
@@ -212,7 +218,7 @@ private fun AnimatedStackLayout(
                 coverWidthPx * 0.35f,
             )
 
-        coverPaths.forEachIndexed { index, coverPath ->
+        bookCovers.forEachIndexed { index, (bookId, coverPath) ->
             // visualPosition: 0 = back, coverCount-1 = front (for z-ordering)
             val visualPosition =
                 calculateVisualPosition(
@@ -260,6 +266,7 @@ private fun AnimatedStackLayout(
             )
 
             StackedCover(
+                bookId = bookId,
                 coverPath = coverPath,
                 modifier =
                     Modifier
@@ -300,6 +307,7 @@ private fun calculateVisualPosition(
  */
 @Composable
 private fun StackedCover(
+    bookId: String,
     coverPath: String?,
     modifier: Modifier = Modifier,
 ) {
@@ -316,39 +324,15 @@ private fun StackedCover(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
-        if (coverPath != null) {
-            ListenUpAsyncImage(
-                path = coverPath,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .clip(shape),
-            )
-        } else {
-            CoverPlaceholder(modifier = Modifier.fillMaxSize())
-        }
-    }
-}
-
-/**
- * Placeholder for missing cover images.
- */
-@Composable
-private fun CoverPlaceholder(modifier: Modifier = Modifier) {
-    Box(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Default.Book,
+        BookCoverImage(
+            bookId = bookId,
+            coverPath = coverPath,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            modifier = Modifier.padding(16.dp),
+            contentScale = ContentScale.Crop,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .clip(shape),
         )
     }
 }

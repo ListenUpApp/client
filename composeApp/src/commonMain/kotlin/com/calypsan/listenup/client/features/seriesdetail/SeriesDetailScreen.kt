@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -338,22 +337,13 @@ private fun SeriesBookCard(
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                 contentAlignment = Alignment.Center,
             ) {
-                if (true) { // Always render — BookCoverImage handles server URL fallback
-                    BookCoverImage(
-                        bookId = book.id.value,
-                        coverPath = book.coverPath,
-                        contentDescription = book.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Book,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(40.dp),
-                    )
-                }
+                BookCoverImage(
+                    bookId = book.id.value,
+                    coverPath = book.coverPath,
+                    contentDescription = book.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
 
             // Info section below cover
@@ -572,25 +562,16 @@ private fun SeriesBookItem(
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                 contentAlignment = Alignment.Center,
             ) {
-                if (true) { // Always render — BookCoverImage handles server URL fallback
-                    BookCoverImage(
-                        bookId = book.id.value,
-                        coverPath = book.coverPath,
-                        contentDescription = book.title,
-                        contentScale = ContentScale.Crop,
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(8.dp)),
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Book,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(32.dp),
-                    )
-                }
+                BookCoverImage(
+                    bookId = book.id.value,
+                    coverPath = book.coverPath,
+                    contentDescription = book.title,
+                    contentScale = ContentScale.Crop,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(8.dp)),
+                )
             }
 
             Spacer(modifier = Modifier.width(16.dp))

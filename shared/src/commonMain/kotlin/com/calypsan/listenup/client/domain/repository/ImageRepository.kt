@@ -195,6 +195,16 @@ interface ImageRepository {
         filename: String,
     ): Result<String>
 
+    // ========== Contributor Image Path Operations ==========
+
+    /**
+     * Check if a contributor's image exists locally.
+     *
+     * @param contributorId Unique identifier for the contributor
+     * @return true if image exists on disk, false otherwise
+     */
+    fun contributorImageExists(contributorId: String): Boolean
+
     // ========== Book Cover Path Operations ==========
 
     /**

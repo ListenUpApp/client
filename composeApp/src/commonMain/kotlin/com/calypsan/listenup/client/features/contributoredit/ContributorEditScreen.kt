@@ -299,6 +299,7 @@ private fun ArtistStudioContent(
     ) {
         // Identity Header with avatar and name
         ContributorIdentityHeader(
+            contributorId = state.contributorId,
             imagePath = state.imagePath,
             name = state.name,
             colorScheme = colorScheme,

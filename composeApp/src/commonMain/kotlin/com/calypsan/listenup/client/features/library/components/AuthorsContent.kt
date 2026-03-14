@@ -27,15 +27,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.AlphabetIndex
+import com.calypsan.listenup.client.design.components.ContributorCoverImage
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.SortSplitButton
 import com.calypsan.listenup.client.design.components.avatarColorForUser
@@ -191,22 +194,29 @@ internal fun ContributorCard(
                 color = avatarColorForUser(contributor.id.value),
                 modifier = Modifier.size(48.dp),
             ) {
-                val imagePath = contributor.imagePath
                 Box(contentAlignment = Alignment.Center) {
-                    if (imagePath != null) {
-                        coil3.compose.AsyncImage(
-                            model = imagePath,
-                            contentDescription = "${contributor.name} profile image",
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
+                    var imageLoaded by remember(contributor.id.value) { mutableStateOf(false) }
+
+                    if (!imageLoaded) {
                         Text(
                             text = getInitials(contributor.name),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
+
+                    ContributorCoverImage(
+                        contributorId = contributor.id.value,
+                        imagePath = contributor.imagePath,
+                        contentDescription = "${contributor.name} profile image",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        onState = { state ->
+                            if (state is coil3.compose.AsyncImagePainter.State.Success) {
+                                imageLoaded = true
+                            }
+                        },
+                    )
                 }
             }
 
