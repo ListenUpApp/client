@@ -195,7 +195,9 @@ class SSEEventProcessor(
 
                 is SSEEventType.Reconnected -> {
                     // Handled by SyncManager - triggers delta sync with disconnectedAt timestamp
-                    logger.debug { "SSE: Reconnected event (disconnectedAt=${event.disconnectedAt}), SyncManager will handle delta sync" }
+                    logger.debug {
+                        "SSE: Reconnected event (disconnectedAt=${event.disconnectedAt}), SyncManager will handle delta sync"
+                    }
                 }
 
                 is SSEEventType.UserPending,

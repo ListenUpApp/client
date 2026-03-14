@@ -2,8 +2,8 @@ package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.Timestamp
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

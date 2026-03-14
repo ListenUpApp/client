@@ -230,11 +230,12 @@ class SSEManager(
 
         // Build URL with ?since= param for reconnection replay
         val sinceParam = disconnectedAt
-        val url = if (sinceParam != null) {
-            "$serverUrl$SSE_ENDPOINT?since=$sinceParam"
-        } else {
-            "$serverUrl$SSE_ENDPOINT"
-        }
+        val url =
+            if (sinceParam != null) {
+                "$serverUrl$SSE_ENDPOINT?since=$sinceParam"
+            } else {
+                "$serverUrl$SSE_ENDPOINT"
+            }
         logger.debug { "Opening streaming connection to: $url" }
 
         // Use prepareGet + execute for streaming responses that never complete
@@ -254,7 +255,9 @@ class SSEManager(
 
                 // Emit reconnection event so SyncManager can trigger delta sync
                 if (isReconnection && sinceParam != null) {
-                    logger.info { "SSE reconnected after disconnect at $sinceParam - emitting Reconnected event for delta sync" }
+                    logger.info {
+                        "SSE reconnected after disconnect at $sinceParam - emitting Reconnected event for delta sync"
+                    }
                     _eventFlow.emit(SSEEventType.Reconnected(disconnectedAt = sinceParam))
                     // Clear disconnectedAt after successful reconnection with replay
                     disconnectedAt = null
@@ -816,7 +819,9 @@ sealed interface SSEEventType {
      * @property disconnectedAt RFC3339 timestamp of when the connection was lost.
      *   Used as `updated_after` for delta sync to catch missed events.
      */
-    data class Reconnected(val disconnectedAt: String) : SSEEventType
+    data class Reconnected(
+        val disconnectedAt: String,
+    ) : SSEEventType
 
     /**
      * Admin-only: New user registered and is pending approval.
