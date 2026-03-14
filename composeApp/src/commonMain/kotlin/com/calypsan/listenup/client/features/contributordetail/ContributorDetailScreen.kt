@@ -800,7 +800,6 @@ private fun NavigationBar(
 /**
  * Elevated avatar (140dp) with contributor image or initials.
  */
-@Suppress("UnusedParameter")
 @Composable
 private fun ElevatedAvatar(
     name: String,
@@ -823,14 +822,9 @@ private fun ElevatedAvatar(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            if (imagePath != null) {
-                com.calypsan.listenup.client.design.components.ListenUpAsyncImage(
-                    path = imagePath,
-                    contentDescription = stringResource(Res.string.contributor_name_profile_image, name),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
+            var imageLoaded by remember(contributorId) { mutableStateOf(false) }
+
+            if (!imageLoaded) {
                 Text(
                     text = initials,
                     style =
@@ -841,6 +835,19 @@ private fun ElevatedAvatar(
                     color = colorScheme.onPrimary,
                 )
             }
+
+            com.calypsan.listenup.client.design.components.ContributorCoverImage(
+                contributorId = contributorId,
+                imagePath = imagePath,
+                contentDescription = stringResource(Res.string.contributor_name_profile_image, name),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                onState = { state ->
+                    if (state is coil3.compose.AsyncImagePainter.State.Success) {
+                        imageLoaded = true
+                    }
+                },
+            )
         }
     }
 }

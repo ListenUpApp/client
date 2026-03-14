@@ -85,6 +85,11 @@ class ImageRepositoryImpl(
         filename: String,
     ): Result<String> = imageApi.uploadContributorImage(contributorId, imageData, filename).map { it.imageUrl }
 
+    // ========== Contributor Image Path Operations ==========
+
+    override fun contributorImageExists(contributorId: String): Boolean =
+        imageStorage.contributorImageExists(contributorId)
+
     // ========== Book Cover Path Operations ==========
 
     override fun bookCoverExists(bookId: BookId): Boolean = imageStorage.exists(bookId)

@@ -61,16 +61,18 @@ fun SeriesCard(
         label = "card_scale",
     )
 
-    // Extract cover paths from books, sorted by series sequence
-    val coverPaths =
+    // Extract book covers sorted by series sequence, with IDs for server fallback
+    val bookCovers =
         books
             .sortedBy { sequenceByBookId[it.id.value]?.toFloatOrNull() ?: Float.MAX_VALUE }
             .map { book ->
-                if (imageStorage.exists(book.id)) {
-                    imageStorage.getCoverPath(book.id)
-                } else {
-                    null
-                }
+                val coverPath =
+                    if (imageStorage.exists(book.id)) {
+                        imageStorage.getCoverPath(book.id)
+                    } else {
+                        null
+                    }
+                book.id.value to coverPath
             }
 
     Column(
@@ -100,7 +102,7 @@ fun SeriesCard(
     ) {
         // Animated cover stack (individual covers have their own shadows)
         AnimatedCoverStack(
-            coverPaths = coverPaths,
+            bookCovers = bookCovers,
             coverHeight = 140.dp,
             cycleDurationMs = 3000L,
         )
