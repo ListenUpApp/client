@@ -26,7 +26,6 @@ import com.calypsan.listenup.client.device.DeviceType
 import com.calypsan.listenup.client.features.shell.components.NavigationBarHeight
 import com.calypsan.listenup.client.playback.ContributorPickerType
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
-import org.koin.compose.viewmodel.koinViewModel
 
 /** Height of a standard snackbar for padding calculations */
 private val SnackbarHeight = 48.dp
@@ -47,8 +46,8 @@ fun NowPlayingHost(
     onNavigateToBook: (String) -> Unit,
     onNavigateToSeries: (String) -> Unit,
     onNavigateToContributor: (String) -> Unit,
+    viewModel: NowPlayingViewModel,
     modifier: Modifier = Modifier,
-    viewModel: NowPlayingViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val sleepTimerState by viewModel.sleepTimerState.collectAsState()
