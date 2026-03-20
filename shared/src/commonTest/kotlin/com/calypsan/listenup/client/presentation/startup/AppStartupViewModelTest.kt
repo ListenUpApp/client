@@ -59,7 +59,9 @@ class AppStartupViewModelTest {
         isAdmin: Boolean = false,
     ): User =
         User(
-            id = com.calypsan.listenup.client.core.UserId(id),
+            id =
+                com.calypsan.listenup.client.core
+                    .UserId(id),
             email = "test@example.com",
             displayName = "Test User",
             firstName = null,
@@ -128,13 +130,14 @@ class AppStartupViewModelTest {
             val adminUser = createTestUser(isAdmin = true)
             everySuspend { userRepository.refreshCurrentUser() } returns adminUser
             everySuspend { userRepository.getCurrentUser() } returns adminUser
-            everySuspend { setupApi.getLibraryStatus() } returns LibraryStatusResponse(
-                exists = false,
-                library = null,
-                needsSetup = true,
-                bookCount = 0,
-                isScanning = false,
-            )
+            everySuspend { setupApi.getLibraryStatus() } returns
+                LibraryStatusResponse(
+                    exists = false,
+                    library = null,
+                    needsSetup = true,
+                    bookCount = 0,
+                    isScanning = false,
+                )
 
             // When
             val viewModel = AppStartupViewModel(userRepository, setupApi)
@@ -224,13 +227,14 @@ class AppStartupViewModelTest {
             val adminUser = createTestUser(isAdmin = true)
             everySuspend { userRepository.refreshCurrentUser() } returns adminUser
             everySuspend { userRepository.getCurrentUser() } returns adminUser
-            everySuspend { setupApi.getLibraryStatus() } returns LibraryStatusResponse(
-                exists = false,
-                library = null,
-                needsSetup = true,
-                bookCount = 0,
-                isScanning = false,
-            )
+            everySuspend { setupApi.getLibraryStatus() } returns
+                LibraryStatusResponse(
+                    exists = false,
+                    library = null,
+                    needsSetup = true,
+                    bookCount = 0,
+                    isScanning = false,
+                )
 
             val viewModel = AppStartupViewModel(userRepository, setupApi)
             advanceUntilIdle()
