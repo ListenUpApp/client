@@ -395,20 +395,21 @@ private fun AuthenticatedNavigation(
     val startupViewModel: AppStartupViewModel = koinViewModel()
     val startupState by startupViewModel.state.collectAsState()
 
-    // Show loading only while the cold-start library-setup check is in progress.
-    // After the first check completes the ViewModel retains the result, so subsequent
-    // recompositions (config change, brief background resume) skip straight to the app.
-    if (startupState.isChecking) {
-        FullScreenLoadingIndicator()
-        return
-    }
-
-    // Determine starting route based on library setup needs
-    val startRoute: Route = if (startupState.needsLibrarySetup) LibrarySetup else Shell
-    val backStack = remember(startRoute) { mutableStateListOf(startRoute) }
+    // Hoist navigation state above the isChecking check so it survives loading periods.
+    // Using remember without key ensures the backStack persists when isChecking toggles,
+    // preventing navigation position from being lost on app resume.
+    val backStack = remember { mutableStateListOf<Route>(Shell) }
 
     // Track shell tab state here so it survives navigation to detail screens
     var currentShellDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
+
+    // Navigate to LibrarySetup when the check completes and setup is needed
+    LaunchedEffect(startupState.needsLibrarySetup, startupState.isChecking) {
+        if (!startupState.isChecking && startupState.needsLibrarySetup) {
+            backStack.clear()
+            backStack.add(LibrarySetup)
+        }
+    }
 
     // Track profile refresh - incremented when profile is updated to trigger refresh
     var profileRefreshKey by remember { mutableStateOf(0) }
@@ -1088,6 +1089,8 @@ private fun AuthenticatedNavigation(
             // Now Playing overlay - persistent across all navigation
             // Position adjusts based on whether bottom nav is visible (Shell vs detail screens)
             // Also animates up when snackbar is visible
+            // Pass viewModel explicitly to ensure NowPlayingHost shares the same instance
+            // as NowPlayingBar in AppShell - prevents state divergence between screens
             NowPlayingHost(
                 hasBottomNav = backStack.lastOrNull() == Shell,
                 snackbarHostState = snackbarHostState,
@@ -1100,6 +1103,7 @@ private fun AuthenticatedNavigation(
                 onNavigateToContributor = { contributorId ->
                     backStack.add(ContributorDetail(contributorId))
                 },
+                viewModel = nowPlayingViewModel,
             )
 
             // App-wide snackbar - positioned at bottom, mini player animates up when visible
@@ -1110,6 +1114,12 @@ private fun AuthenticatedNavigation(
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 16.dp),
             )
+
+            // Overlay loading indicator while startup check is in progress.
+            // Using an overlay instead of early return preserves the backStack state.
+            if (startupState.isChecking) {
+                FullScreenLoadingIndicator()
+            }
         }
     }
 }

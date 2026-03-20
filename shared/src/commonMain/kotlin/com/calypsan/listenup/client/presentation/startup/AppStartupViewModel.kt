@@ -49,7 +49,7 @@ class AppStartupViewModel(
 
     companion object {
         /** Apps backgrounded longer than this will re-run the library-setup check on resume. */
-        const val BACKGROUND_THRESHOLD_MS = 5 * 60 * 1000L // 5 minutes
+        const val BACKGROUND_THRESHOLD_MS = 30 * 60 * 1000L // 30 minutes
     }
 
     init {
