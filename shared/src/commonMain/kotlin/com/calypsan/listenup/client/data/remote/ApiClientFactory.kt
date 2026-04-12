@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
@@ -15,6 +16,7 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
+import io.ktor.http.HttpMethod
 import io.ktor.http.Url
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
@@ -30,6 +32,21 @@ private const val SERVER_URL_NOT_CONFIGURED_MESSAGE = "Server URL not configured
 private const val HTTP_UNAUTHORIZED = 401
 private const val HTTP_FORBIDDEN = 403
 private val logger = KotlinLogging.logger {}
+
+/**
+ * HTTP methods considered idempotent per RFC 9110 §9.2.2 — safe to retry because the server
+ * guarantees the same effect whether the request is applied once or many times. POST and
+ * PATCH are omitted deliberately: callers that need retry semantics for those must add
+ * server-side idempotency keys rather than relying on transport retry.
+ */
+private val IDEMPOTENT_METHODS =
+    setOf(
+        HttpMethod.Get,
+        HttpMethod.Head,
+        HttpMethod.Put,
+        HttpMethod.Delete,
+        HttpMethod.Options,
+    )
 
 /**
  * Factory for creating authenticated HTTP clients with automatic token refresh.
@@ -133,6 +150,21 @@ class ApiClientFactory(
                     requestTimeoutMillis = 30_000
                     connectTimeoutMillis = 10_000
                     socketTimeoutMillis = 30_000
+                }
+
+                // Retry idempotent requests on 5xx responses and transient IO failures.
+                // POST/PATCH are never retried — callers must treat them as at-most-once
+                // or implement their own idempotency keys. See Finding 04 D3.
+                @Suppress("MagicNumber")
+                install(HttpRequestRetry) {
+                    retryIf(maxRetries = 3) { request, response ->
+                        request.method in IDEMPOTENT_METHODS && response.status.value in 500..599
+                    }
+                    retryOnExceptionIf(maxRetries = 3) { request, cause ->
+                        request.method in IDEMPOTENT_METHODS &&
+                            (cause is IOException || cause is HttpRequestTimeoutException)
+                    }
+                    exponentialDelay(base = 2.0, maxDelayMs = 10_000L)
                 }
 
                 install(Auth) {

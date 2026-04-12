@@ -75,4 +75,16 @@ class TestMockEngineBuilder internal constructor() {
     ) {
         handlers[path] = { respondError(status) }
     }
+
+    /**
+     * Registers a custom handler for [path]. Use when the response depends on request state
+     * (attempt counter, headers, etc.) or when you want fine-grained control over body and
+     * headers beyond [respondJson] / [respondStatus].
+     */
+    fun handle(
+        path: String,
+        handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
+    ) {
+        handlers[path] = handler
+    }
 }
