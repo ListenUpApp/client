@@ -16,9 +16,9 @@ import kotlin.test.assertTrue
 /**
  * Tests for [AppResult] — the canonical result type.
  *
- * See Finding 01 D1 for motivation: today the codebase has three parallel error models
- * ([Result], [AsyncState], [AppError]) with no conversion path. [AppResult] is the single
- * sealed hierarchy carrying [AppError] directly.
+ * See Finding 01 D1 for motivation: the codebase previously had three parallel error
+ * models ([Result], `AsyncState`, [AppError]) with no conversion path. [AppResult] is
+ * the single sealed hierarchy carrying [AppError] directly.
  */
 class AppResultTest {
     @Test
@@ -160,8 +160,9 @@ class AppResultTest {
         val legacy: Result<Int> = Failure(message = "bad input", errorCode = ErrorCode.VALIDATION_ERROR)
         val appResult = legacy.toAppResult()
         assertIs<AppResult.Failure>(appResult)
-        assertIs<DataError>(appResult.error)
-        assertEquals("bad input", (appResult.error as DataError).message)
+        val err = appResult.error
+        assertIs<DataError>(err)
+        assertEquals("bad input", err.message)
     }
 
     @Test

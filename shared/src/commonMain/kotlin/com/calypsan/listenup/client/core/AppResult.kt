@@ -14,9 +14,10 @@ import com.calypsan.listenup.client.core.error.UnknownError
  * - [Success] — carries the produced value.
  * - [Failure] — carries an [AppError], already categorised and user-message-ready.
  *
- * Replaces the three-way split Finding 01 D1 diagnosed ([Result] + [AsyncState] +
- * [AppError] with no conversion path). The name avoids shadowing [kotlin.Result],
- * which must not be used as a public API return type.
+ * Replaces the three-way split Finding 01 D1 diagnosed (`core.Result<T>` plus the
+ * now-deleted `core.AsyncState<T>` plus [AppError], with no conversion path between
+ * them). The name avoids shadowing [kotlin.Result], which must not be used as a
+ * public API return type.
  *
  * Source: Android Architecture Guide "Define Result Class for Network Responses" +
  * Kotlin sealed-class API pattern.
