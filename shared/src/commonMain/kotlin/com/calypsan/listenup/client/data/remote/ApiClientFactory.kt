@@ -87,6 +87,8 @@ class ApiClientFactory(
 ) {
     private val mutex = Mutex()
     private var cachedClient: HttpClient? = null
+    private var cachedStreamingClient: HttpClient? = null
+    private var cachedUnauthenticatedStreamingClient: HttpClient? = null
 
     /**
      * Get or create the authenticated HTTP client for regular API calls.
@@ -113,39 +115,40 @@ class ApiClientFactory(
      * - Android: OkHttp connect/read/write timeouts = 0 (infinite)
      * - iOS: URLSession timeouts = infinity
      *
-     * NOT cached - creates a new client each time.
+     * Cached after first creation so SSE reconnect loops don't rebuild a full HttpClient
+     * (and its auth/engine/TLS setup) on every retry — see Finding 04 D4.
      *
      * @return Configured HttpClient with auth but no timeouts
      */
-    suspend fun getStreamingClient(): HttpClient {
-        val serverUrl =
-            serverConfig.getActiveUrl()
-                ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
-
-        return createStreamingHttpClient(
-            serverUrl = serverUrl,
-            authSession = authSession,
-            authApi = authApi,
-        )
-    }
+    suspend fun getStreamingClient(): HttpClient =
+        mutex.withLock {
+            cachedStreamingClient ?: run {
+                val serverUrl =
+                    serverConfig.getActiveUrl()
+                        ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
+                createStreamingHttpClient(
+                    serverUrl = serverUrl,
+                    authSession = authSession,
+                    authApi = authApi,
+                ).also { cachedStreamingClient = it }
+            }
+        }
 
     /**
-     * Create an unauthenticated streaming HTTP client.
-     *
-     * Used for SSE endpoints that don't require authentication, such as
-     * the registration status stream for pending users.
-     *
-     * NOT cached - creates a new client each time.
-     *
-     * @return Configured HttpClient without auth, suitable for streaming
+     * Cached unauthenticated streaming HTTP client for SSE endpoints that don't require
+     * authentication (e.g., the registration status stream for pending users).
      */
-    suspend fun getUnauthenticatedStreamingClient(): HttpClient {
-        val serverUrl =
-            serverConfig.getActiveUrl()
-                ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
-
-        return createUnauthenticatedStreamingHttpClient(serverUrl)
-    }
+    suspend fun getUnauthenticatedStreamingClient(): HttpClient =
+        mutex.withLock {
+            cachedUnauthenticatedStreamingClient ?: run {
+                val serverUrl =
+                    serverConfig.getActiveUrl()
+                        ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
+                createUnauthenticatedStreamingHttpClient(serverUrl).also {
+                    cachedUnauthenticatedStreamingClient = it
+                }
+            }
+        }
 
     @Suppress("ThrowsCount", "CognitiveComplexMethod")
     private suspend fun createClient(): HttpClient {
@@ -281,17 +284,25 @@ class ApiClientFactory(
         mutex.withLock {
             cachedClient?.close()
             cachedClient = null
+            cachedStreamingClient?.close()
+            cachedStreamingClient = null
+            cachedUnauthenticatedStreamingClient?.close()
+            cachedUnauthenticatedStreamingClient = null
         }
     }
 
     /**
-     * Close the cached client and release resources.
+     * Close the cached clients and release resources.
      * Call this when the factory is no longer needed.
      */
     suspend fun close() {
         mutex.withLock {
             cachedClient?.close()
             cachedClient = null
+            cachedStreamingClient?.close()
+            cachedStreamingClient = null
+            cachedUnauthenticatedStreamingClient?.close()
+            cachedUnauthenticatedStreamingClient = null
         }
     }
 }
