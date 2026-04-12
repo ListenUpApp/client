@@ -367,6 +367,11 @@ val repositoryModule =
         single { get<ListenUpDatabase>().userStatsDao() }
         single { get<ListenUpDatabase>().readingSessionDao() }
 
+        single<com.calypsan.listenup.client.data.local.db.TransactionRunner> {
+            com.calypsan.listenup.client.data.local.db
+                .RoomTransactionRunner(get())
+        }
+
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates ServerConfig
         // and invalidates the API client cache to use the new IP address.
@@ -892,6 +897,7 @@ val syncModule =
                     .named("bookPuller"),
         ) {
             BookPuller(
+                transactionRunner = get(),
                 syncApi = get<SyncApiContract>(),
                 bookDao = get(),
                 chapterDao = get(),

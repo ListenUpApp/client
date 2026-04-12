@@ -10,6 +10,7 @@ import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
@@ -28,6 +29,7 @@ private val logger = KotlinLogging.logger {}
  * Handles paginated book fetching, processing, and relationship syncing.
  */
 class BookPuller(
+    private val transactionRunner: TransactionRunner,
     private val syncApi: SyncApiContract,
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
@@ -102,6 +104,14 @@ class BookPuller(
 
     /**
      * Process server books: detect conflicts, upsert, sync related entities.
+     *
+     * All DB writes for a page — conflict marks, book upsert, chapters, contributor
+     * and series cross-refs, tags, cover-download tasks — commit atomically. If any
+     * step throws, Room rolls the transaction back so the DB never holds a half-synced
+     * book (Finding 05 D2).
+     *
+     * Reads and disk I/O run outside the transaction so the writer connection is held
+     * only long enough to apply the actual mutations.
      */
     private suspend fun processServerBooks(
         serverBooks: List<BookEntity>,
@@ -109,14 +119,11 @@ class BookPuller(
     ) {
         logger.info { "processServerBooks: received ${serverBooks.size} books from server" }
 
-        // Detect and mark conflicts (server newer than local changes)
         val conflicts = conflictDetector.detectBookConflicts(serverBooks)
-        conflicts.forEach { (bookId, serverVersion) ->
-            bookDao.markConflict(bookId, serverVersion)
+        conflicts.forEach { (bookId, _) ->
             logger.warn { "Conflict detected for book $bookId - server version is newer" }
         }
 
-        // Filter out books with local changes that are newer than server
         val booksToUpsert = serverBooks.filterNot { conflictDetector.shouldPreserveLocalChanges(it) }
         logger.info { "processServerBooks: ${booksToUpsert.size} books to upsert (after filtering)" }
 
@@ -125,25 +132,25 @@ class BookPuller(
             return
         }
 
-        // Invalidate local covers for books whose cover has changed on server
         invalidateChangedCovers(booksToUpsert)
 
-        // Preserve local-only palette colors that the server doesn't send
         val booksWithColors = preserveLocalColors(booksToUpsert)
 
-        // Upsert books
-        bookDao.upsertAll(booksWithColors)
+        transactionRunner.atomically {
+            conflicts.forEach { (bookId, serverVersion) ->
+                bookDao.markConflict(bookId, serverVersion)
+            }
 
-        // Sync chapters
-        syncChapters(response, booksToUpsert)
+            bookDao.upsertAll(booksWithColors)
 
-        // Sync relationships
-        syncBookContributors(response, booksToUpsert)
-        syncBookSeries(response, booksToUpsert)
-        syncBookTags(response, booksToUpsert)
+            syncChapters(response, booksToUpsert)
 
-        // Enqueue cover downloads to persistent queue
-        enqueueCoverDownloads(booksToUpsert)
+            syncBookContributors(response, booksToUpsert)
+            syncBookSeries(response, booksToUpsert)
+            syncBookTags(response, booksToUpsert)
+
+            enqueueCoverDownloads(booksToUpsert)
+        }
     }
 
     /**

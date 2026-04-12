@@ -117,6 +117,10 @@ class BookPullerTest {
     private class TestFixture(
         val scope: TestScope,
     ) {
+        val transactionRunner: com.calypsan.listenup.client.data.local.db.TransactionRunner =
+            object : com.calypsan.listenup.client.data.local.db.TransactionRunner {
+                override suspend fun <R> atomically(block: suspend () -> R): R = block()
+            }
         val syncApi: SyncApiContract = mock()
         val bookDao: BookDao = mock()
         val chapterDao: ChapterDao = mock()
@@ -149,6 +153,7 @@ class BookPullerTest {
 
         fun build(): BookPuller =
             BookPuller(
+                transactionRunner = transactionRunner,
                 syncApi = syncApi,
                 bookDao = bookDao,
                 chapterDao = chapterDao,
