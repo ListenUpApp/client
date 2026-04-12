@@ -139,11 +139,22 @@ These are the rules most likely to affect day-to-day work. The full rubric is in
 
 ## Pushing
 
-**No push occurs until `act` passes locally.** Running `./gradlew :shared:jvmTest` on your machine is not the same as running the full CI matrix — Gradle cache state, JDK differences, and lint/detekt baselines all diverge. A push that fails remote CI wastes reviewer attention and muddies the history. Catch it locally first.
+**No push occurs until the local equivalent of every act-runnable CI job passes.** The goal is functional parity with remote CI — not literal act invocation, since act currently cannot resolve `gradle/actions/setup-gradle@v4` against its monorepo subpath on this project. Direct Gradle invocation reproduces what each CI job actually does; as long as those pass, we're aligned.
 
-- Before `git push`, run `act -W .github/workflows/ci.yml` from the repo root.
-- If `act` reports a failure, fix it before pushing. Do not push with known-red CI to "see what happens remotely."
-- If `act` itself cannot run a step (missing Android SDK in the container image, unsupported action, Apple-Silicon arch issue), say so explicitly to the user and ask before pushing. Don't silently bypass.
+Before `git push`, from the repo root:
+
+| CI job | Local command |
+|---|---|
+| `Unit Tests` | `./gradlew :shared:jvmTest --no-daemon` |
+| `Lint & Static Analysis` | `./gradlew spotlessCheck detekt --no-daemon` |
+| `Build APK` | **Expected red until W7.** See `../docs/architecture/restoration-roadmap.md` → "Known Baseline Breakage." Do not gate pushes on it. Re-check once W7 lands and remove this exception. |
+
+Rules:
+
+- Every command above must pass before `git push`.
+- `spotlessApply` is the automatic fixer for formatting failures — run it, review the diff, commit as a `🎨` cleanup.
+- If a *different* failure mode appears in `Build APK` remotely (i.e. not the `AudiobookNotificationProvider` baseline), treat it as a regression and fix it before continuing.
+- When the act action-resolution bug is fixed (pin `gradle/actions/setup-gradle` to a commit SHA, or upstream fixes the subpath issue), promote this policy back to a literal `act -W .github/workflows/ci.yml` gate.
 
 ---
 
