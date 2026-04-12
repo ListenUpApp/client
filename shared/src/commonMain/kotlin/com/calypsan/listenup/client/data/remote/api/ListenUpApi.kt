@@ -6,6 +6,7 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.appJson
+import com.calypsan.listenup.client.core.isDebugBuild
 import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
@@ -35,6 +36,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.http.HttpHeaders
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.delete
@@ -86,7 +88,10 @@ class ListenUpApi(
                 json(appJson)
             }
 
-            // HTTP logging for debugging
+            // HTTP logging. Authorization is always sanitised — the bearer token is
+            // sensitive and must never appear in logs, even in debug builds. Verbosity
+            // drops in release builds so production log sinks don't receive header dumps.
+            // See Finding 04 D6.
             install(Logging) {
                 logger =
                     object : Logger {
@@ -95,7 +100,8 @@ class ListenUpApi(
                                 .debug { message }
                         }
                     }
-                level = LogLevel.HEADERS
+                level = if (isDebugBuild) LogLevel.HEADERS else LogLevel.INFO
+                sanitizeHeader { header -> header == HttpHeaders.Authorization }
             }
 
             // Request timeout configuration
