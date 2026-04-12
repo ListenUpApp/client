@@ -1304,6 +1304,7 @@ val syncModule =
         // ContributorEditRepository for contributor editing operations (offline-first, SOLID: domain interface)
         single<ContributorEditRepository> {
             ContributorEditRepositoryImpl(
+                transactionRunner = get(),
                 contributorDao = get(),
                 bookContributorDao = get(),
                 pendingOperationRepository = get(),

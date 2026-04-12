@@ -15,6 +15,7 @@ import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.EntityType
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.SyncState
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.sync.push.ContributorUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.ContributorUpdatePayload
 import com.calypsan.listenup.client.data.sync.push.MergeContributorHandler
@@ -119,6 +120,7 @@ interface ContributorEditRepositoryContract {
  * @property unmergeContributorHandler Handler for unmerge operations
  */
 class ContributorEditRepository(
+    private val transactionRunner: TransactionRunner,
     private val contributorDao: ContributorDao,
     private val bookContributorDao: BookContributorDao,
     private val pendingOperationRepository: PendingOperationRepositoryContract,
@@ -185,9 +187,7 @@ class ContributorEditRepository(
                     syncState = SyncState.NOT_SYNCED,
                     lastModified = Timestamp.now(),
                 )
-            contributorDao.upsert(updated)
 
-            // Queue operation
             val payload =
                 ContributorUpdatePayload(
                     name = update.name,
@@ -197,13 +197,17 @@ class ContributorEditRepository(
                     deathDate = update.deathDate,
                     aliases = update.aliases,
                 )
-            pendingOperationRepository.queue(
-                type = OperationType.CONTRIBUTOR_UPDATE,
-                entityType = EntityType.CONTRIBUTOR,
-                entityId = contributorId,
-                payload = payload,
-                handler = contributorUpdateHandler,
-            )
+
+            transactionRunner.atomically {
+                contributorDao.upsert(updated)
+                pendingOperationRepository.queue(
+                    type = OperationType.CONTRIBUTOR_UPDATE,
+                    entityType = EntityType.CONTRIBUTOR,
+                    entityId = contributorId,
+                    payload = payload,
+                    handler = contributorUpdateHandler,
+                )
+            }
 
             logger.info { "Contributor update queued: $contributorId" }
             Success(Unit)
@@ -236,32 +240,10 @@ class ContributorEditRepository(
                 return@withContext Failure(Exception("Cannot merge contributor into itself"))
             }
 
-            // 1. Re-link book relationships from source to target
+            // 1. Read existing book relationships for source outside the transaction (pure reads).
             val sourceRelations = bookContributorDao.getByContributorId(sourceId)
-            for (relation in sourceRelations) {
-                // Check if target already has this book/role
-                val existingTarget =
-                    bookContributorDao.get(
-                        relation.bookId,
-                        targetId,
-                        relation.role,
-                    )
-                if (existingTarget == null) {
-                    // Create new relationship with creditedAs preserving original name
-                    val newRelation =
-                        BookContributorCrossRef(
-                            bookId = relation.bookId,
-                            contributorId = ContributorId(targetId),
-                            role = relation.role,
-                            creditedAs = relation.creditedAs ?: source.name,
-                        )
-                    bookContributorDao.insert(newRelation)
-                }
-                // Delete old relationship
-                bookContributorDao.delete(relation.bookId, sourceId, relation.role)
-            }
 
-            // 2. Update target's aliases to include source name
+            // 2. Compute target's new alias set.
             val currentAliases = target.aliasList()
             val newAliases = (currentAliases + source.name).distinct()
             val updatedTarget =
@@ -270,24 +252,46 @@ class ContributorEditRepository(
                     syncState = SyncState.NOT_SYNCED,
                     lastModified = Timestamp.now(),
                 )
-            contributorDao.upsert(updatedTarget)
 
-            // 3. Delete source contributor locally
-            contributorDao.deleteById(sourceId)
-
-            // 4. Queue merge operation
             val payload =
                 MergeContributorPayload(
                     targetId = targetId,
                     sourceId = sourceId,
                 )
-            pendingOperationRepository.queue(
-                type = OperationType.MERGE_CONTRIBUTOR,
-                entityType = EntityType.CONTRIBUTOR,
-                entityId = targetId,
-                payload = payload,
-                handler = mergeContributorHandler,
-            )
+
+            transactionRunner.atomically {
+                // Re-link book relationships from source to target
+                for (relation in sourceRelations) {
+                    val existingTarget =
+                        bookContributorDao.get(
+                            relation.bookId,
+                            targetId,
+                            relation.role,
+                        )
+                    if (existingTarget == null) {
+                        val newRelation =
+                            BookContributorCrossRef(
+                                bookId = relation.bookId,
+                                contributorId = ContributorId(targetId),
+                                role = relation.role,
+                                creditedAs = relation.creditedAs ?: source.name,
+                            )
+                        bookContributorDao.insert(newRelation)
+                    }
+                    bookContributorDao.delete(relation.bookId, sourceId, relation.role)
+                }
+
+                contributorDao.upsert(updatedTarget)
+                contributorDao.deleteById(sourceId)
+
+                pendingOperationRepository.queue(
+                    type = OperationType.MERGE_CONTRIBUTOR,
+                    entityType = EntityType.CONTRIBUTOR,
+                    entityId = targetId,
+                    payload = payload,
+                    handler = mergeContributorHandler,
+                )
+            }
 
             logger.info { "Contributor merge queued: $sourceId -> $targetId" }
             Success(Unit)
@@ -316,7 +320,6 @@ class ContributorEditRepository(
                 return@withContext Failure(Exception("Alias not found: $aliasName"))
             }
 
-            // 1. Create placeholder contributor with temporary ID
             val tempId = ContributorId(NanoId.generate("temp"))
             val newContributor =
                 ContributorEntity(
@@ -334,27 +337,11 @@ class ContributorEditRepository(
                     deathDate = null,
                     aliases = null,
                 )
-            contributorDao.upsert(newContributor)
 
-            // 2. Re-link book relationships where creditedAs matches aliasName
+            // Read current relations outside the transaction — the subsequent writes
+            // require consistent state but the read itself is idempotent.
             val relations = bookContributorDao.getByContributorId(contributorId)
-            for (relation in relations) {
-                if (relation.creditedAs?.equals(aliasName, ignoreCase = true) == true) {
-                    // Create new relationship pointing to new contributor
-                    val newRelation =
-                        BookContributorCrossRef(
-                            bookId = relation.bookId,
-                            contributorId = tempId,
-                            role = relation.role,
-                            creditedAs = null, // New contributor's name matches creditedAs
-                        )
-                    bookContributorDao.insert(newRelation)
-                    // Delete old relationship
-                    bookContributorDao.delete(relation.bookId, contributorId, relation.role)
-                }
-            }
 
-            // 3. Remove alias from original contributor
             val updatedAliases = aliases.filter { !it.equals(aliasName, ignoreCase = true) }
             val updatedContributor =
                 contributor.copy(
@@ -362,21 +349,40 @@ class ContributorEditRepository(
                     syncState = SyncState.NOT_SYNCED,
                     lastModified = Timestamp.now(),
                 )
-            contributorDao.upsert(updatedContributor)
 
-            // 4. Queue unmerge operation
             val payload =
                 UnmergeContributorPayload(
                     contributorId = contributorId,
                     aliasName = aliasName,
                 )
-            pendingOperationRepository.queue(
-                type = OperationType.UNMERGE_CONTRIBUTOR,
-                entityType = EntityType.CONTRIBUTOR,
-                entityId = contributorId,
-                payload = payload,
-                handler = unmergeContributorHandler,
-            )
+
+            transactionRunner.atomically {
+                contributorDao.upsert(newContributor)
+
+                for (relation in relations) {
+                    if (relation.creditedAs?.equals(aliasName, ignoreCase = true) == true) {
+                        val newRelation =
+                            BookContributorCrossRef(
+                                bookId = relation.bookId,
+                                contributorId = tempId,
+                                role = relation.role,
+                                creditedAs = null,
+                            )
+                        bookContributorDao.insert(newRelation)
+                        bookContributorDao.delete(relation.bookId, contributorId, relation.role)
+                    }
+                }
+
+                contributorDao.upsert(updatedContributor)
+
+                pendingOperationRepository.queue(
+                    type = OperationType.UNMERGE_CONTRIBUTOR,
+                    entityType = EntityType.CONTRIBUTOR,
+                    entityId = contributorId,
+                    payload = payload,
+                    handler = unmergeContributorHandler,
+                )
+            }
 
             logger.info { "Contributor unmerge queued: '$aliasName' from $contributorId (temp ID: $tempId)" }
             Success(Unit)
