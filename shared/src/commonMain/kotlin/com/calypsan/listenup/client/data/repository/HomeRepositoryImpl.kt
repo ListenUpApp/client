@@ -151,7 +151,12 @@ class HomeRepositoryImpl(
      */
     override fun observeContinueListening(limit: Int): Flow<List<ContinueListeningBook>> =
         combine(
-            playbackPositionDao.observeAll(),
+            // Push the sort + limit + "started" filter to SQL (Finding 09). Room still
+            // re-emits on any row change, so the Home shelf stays reactive without
+            // pulling every position to the client. The finished-check stays in
+            // Kotlin because it requires each book's duration, which Room doesn't
+            // have in this query's projection.
+            playbackPositionDao.observeRecentPositions(limit),
             ProgressRefreshBus.refreshTrigger.onStart { emit(Unit) },
         ) { positions, _ -> positions }
             .onEach { positions ->
@@ -160,26 +165,11 @@ class HomeRepositoryImpl(
                     "Room EMITTED: ${positions.size} positions (finished=$finishedCount)"
                 }
             }.mapLatest { positions ->
-                val finishedFromRoom = positions.count { it.isFinished }
-                logger.info {
-                    "observeContinueListening: Room emitted ${positions.size} positions " +
-                        "(finished=$finishedFromRoom, unfinished=${positions.size - finishedFromRoom})"
-                }
-
-                // Filter unstarted books; finished check deferred until we have duration (#208)
-                val started = positions.filter { it.positionMs > 0 }
-
-                val sortedPositions =
-                    started.sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
-                logger.info { "observeContinueListening: started=${started.size}" }
-
                 val result = mutableListOf<ContinueListeningBook>()
-                for (position in sortedPositions) {
-                    if (result.size >= limit) break
+                for (position in positions) {
                     val bookIdStr = position.bookId.value
                     val book = bookRepository.getBook(bookIdStr) ?: continue
 
-                    // Derive finished state from position vs duration (#204, #208)
                     val effectivelyFinished =
                         book.duration > 0 && (
                             position.positionMs >= book.duration ||

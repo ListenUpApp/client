@@ -130,6 +130,25 @@ interface PlaybackPositionDao {
     suspend fun getRecentPositions(limit: Int): List<PlaybackPositionEntity>
 
     /**
+     * Reactive counterpart to [getRecentPositions] — emits the [limit] most recently
+     * started positions whenever any position row changes, pushing the sort and the
+     * limit to SQL so Home's Continue Listening shelf never has to pull every
+     * position to the client just to take the top N (Finding 09).
+     *
+     * Excludes positions with `positionMs = 0` since a continue-listening shelf
+     * should only surface books the user has actually begun. The "finished" filter
+     * still runs client-side because it requires the book's total duration.
+     *
+     * @param limit Maximum number of positions to emit per update
+     * @return Flow emitting ordered positions; re-emits on any row change
+     */
+    @Query(
+        "SELECT * FROM playback_positions WHERE positionMs > 0 " +
+            "ORDER BY COALESCE(lastPlayedAt, updatedAt) DESC LIMIT :limit",
+    )
+    fun observeRecentPositions(limit: Int): Flow<List<PlaybackPositionEntity>>
+
+    /**
      * Observe all playback positions.
      * Used for displaying progress indicators throughout the app.
      *
