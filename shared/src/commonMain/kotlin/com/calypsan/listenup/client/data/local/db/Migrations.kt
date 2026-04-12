@@ -1,42 +1,14 @@
 package com.calypsan.listenup.client.data.local.db
 
-import androidx.room.migration.Migration
-import androidx.sqlite.SQLiteConnection
-import androidx.sqlite.execSQL
-
 /**
  * Database migrations for ListenUp.
  *
- * Each migration transforms the schema from one version to the next.
- * Migrations MUST be additive and idempotent where possible.
+ * Currently empty — the schema lives at v1 as the single baseline. `MIGRATION_1_2` was
+ * deleted during W4.1 per Finding 05 D1's checkpoint resolution: it was dead code because
+ * the prior v1 schema was regenerated from the post-cover-download-queue state, making the
+ * "add cover_download_queue" migration a no-op against every real v1 installation.
+ *
+ * Add new `Migration(from, to) { connection -> ... }` instances here when the schema advances,
+ * and wire them into each `DatabaseModule` via `.addMigrations(...)`.
  */
-object Migrations {
-    /**
-     * v1 → v2: Add cover download queue table.
-     *
-     * Supports persistent, resumable cover downloads that survive app lifecycle.
-     * Previously covers were downloaded in fire-and-forget coroutines that
-     * would be lost on app kill.
-     */
-    val MIGRATION_1_2 =
-        object : Migration(1, 2) {
-            override fun migrate(connection: SQLiteConnection) {
-                connection.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `cover_download_queue` (
-                        `bookId` TEXT NOT NULL,
-                        `status` TEXT NOT NULL,
-                        `attempts` INTEGER NOT NULL,
-                        `lastAttemptAt` INTEGER,
-                        `error` TEXT,
-                        `createdAt` INTEGER NOT NULL,
-                        PRIMARY KEY(`bookId`)
-                    )
-                    """.trimIndent(),
-                )
-            }
-        }
-
-    /** All migrations in order. Add new migrations here. */
-    val ALL = arrayOf(MIGRATION_1_2)
-}
+object Migrations
