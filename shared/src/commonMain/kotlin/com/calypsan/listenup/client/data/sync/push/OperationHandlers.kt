@@ -516,6 +516,7 @@ class UserPreferencesHandler(
  * so all UI observing the local cache sees the update.
  */
 class ProfileUpdateHandler(
+    private val transactionRunner: com.calypsan.listenup.client.data.local.db.TransactionRunner,
     private val api: ProfileApiContract,
     private val userDao: UserDao,
 ) : OperationHandler<ProfileUpdatePayload> {
@@ -557,32 +558,35 @@ class ProfileUpdateHandler(
                 )
         ) {
             is Success -> {
-                // Sync server response to local cache
+                // Sync server response to local cache. The tagline, avatar, and
+                // name fields all belong to the same user row — applying them
+                // atomically ensures observers never see a partial update where
+                // e.g. the name changed but the tagline didn't (Finding 05 D2).
                 val profile = result.data
-                userDao.updateTagline(
-                    userId = profile.userId,
-                    tagline = profile.tagline,
-                    updatedAt = currentEpochMilliseconds(),
-                )
-                // If avatarType was changed (revert to auto), sync that too
-                if (payload.avatarType != null) {
-                    userDao.updateAvatar(
+                transactionRunner.atomically {
+                    userDao.updateTagline(
                         userId = profile.userId,
-                        avatarType = profile.avatarType,
-                        avatarValue = profile.avatarValue,
-                        avatarColor = profile.avatarColor,
+                        tagline = profile.tagline,
                         updatedAt = currentEpochMilliseconds(),
                     )
-                }
-                // If name was changed, update local user with firstName, lastName, and computed displayName
-                if (payload.firstName != null || payload.lastName != null) {
-                    userDao.updateName(
-                        userId = profile.userId,
-                        firstName = profile.firstName,
-                        lastName = profile.lastName,
-                        displayName = profile.displayName,
-                        updatedAt = currentEpochMilliseconds(),
-                    )
+                    if (payload.avatarType != null) {
+                        userDao.updateAvatar(
+                            userId = profile.userId,
+                            avatarType = profile.avatarType,
+                            avatarValue = profile.avatarValue,
+                            avatarColor = profile.avatarColor,
+                            updatedAt = currentEpochMilliseconds(),
+                        )
+                    }
+                    if (payload.firstName != null || payload.lastName != null) {
+                        userDao.updateName(
+                            userId = profile.userId,
+                            firstName = profile.firstName,
+                            lastName = profile.lastName,
+                            displayName = profile.displayName,
+                            updatedAt = currentEpochMilliseconds(),
+                        )
+                    }
                 }
                 Success(Unit)
             }

@@ -975,6 +975,7 @@ val syncModule =
                     .named("shelfPuller"),
         ) {
             ShelfPuller(
+                transactionRunner = get(),
                 shelfApi = get(),
                 shelfDao = get(),
                 shelfBookDao = get(),
@@ -1111,7 +1112,7 @@ val syncModule =
         single { ListeningEventHandler(api = get(), positionDao = get()) }
         single { PlaybackPositionHandler(api = get()) }
         single { UserPreferencesHandler(api = get()) }
-        single { ProfileUpdateHandler(api = get(), userDao = get()) }
+        single { ProfileUpdateHandler(transactionRunner = get(), api = get(), userDao = get()) }
         single { ProfileAvatarHandler(api = get(), userDao = get(), imageDownloader = get()) }
         single { MarkCompleteHandler(api = get()) }
 
@@ -1157,6 +1158,7 @@ val syncModule =
         // PendingOperationRepository - queue and coalesce operations
         single {
             PendingOperationRepository(
+                transactionRunner = get(),
                 dao = get(),
                 bookDao = get(),
                 contributorDao = get(),

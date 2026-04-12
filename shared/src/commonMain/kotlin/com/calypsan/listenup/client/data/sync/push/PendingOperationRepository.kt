@@ -12,6 +12,7 @@ import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncState
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
@@ -118,6 +119,7 @@ interface PendingOperationRepositoryContract {
  * operations that need to sync to the server.
  */
 class PendingOperationRepository(
+    private val transactionRunner: TransactionRunner,
     private val dao: PendingOperationDao,
     private val bookDao: BookDao,
     private val contributorDao: ContributorDao,
@@ -235,12 +237,15 @@ class PendingOperationRepository(
     override suspend fun dismiss(id: String) {
         val operation = dao.getById(id) ?: return
 
-        // Delete the pending operation
-        dao.delete(id)
-
-        // Mark the entity as needing re-sync (if applicable)
-        // The next full sync will refresh it from server
-        markEntityForResync(operation)
+        // Dismissing means deleting the pending op AND marking the associated
+        // entity for re-sync. Running both writes in a single transaction
+        // (Finding 05 D2) prevents the window where the op has been discarded
+        // but the entity's syncState wasn't flipped — a later sync would then
+        // consider the entity clean and never pull the fresh server copy.
+        transactionRunner.atomically {
+            dao.delete(id)
+            markEntityForResync(operation)
+        }
 
         logger.info { "Dismissed operation: $id (entity will be refreshed on next sync)" }
     }

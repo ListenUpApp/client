@@ -7,6 +7,7 @@ import com.calypsan.listenup.client.data.local.db.ShelfBookCrossRef
 import com.calypsan.listenup.client.data.local.db.ShelfBookDao
 import com.calypsan.listenup.client.data.local.db.ShelfDao
 import com.calypsan.listenup.client.data.local.db.ShelfEntity
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.ShelfApiContract
 import com.calypsan.listenup.client.data.remote.ShelfResponse
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
@@ -26,6 +27,7 @@ private val logger = KotlinLogging.logger {}
  * Non-critical — failures are logged but don't block the rest of the sync.
  */
 class ShelfPuller(
+    private val transactionRunner: TransactionRunner,
     private val shelfApi: ShelfApiContract,
     private val shelfDao: ShelfDao,
     private val shelfBookDao: ShelfBookDao,
@@ -90,13 +92,14 @@ class ShelfPuller(
                 }
             }
 
-            // 3. Update database
-            shelfDao.upsertAll(entitiesWithCovers)
-            logger.info { "Cached ${entitiesWithCovers.size} shelf entities" }
-
-            // 4. Update shelf-book relationships (clear and repopulate to ensure freshness)
-            shelfBookDao.deleteAll()
-            shelfBookDao.upsertAll(allShelfBooks)
+            // 3. Commit the refreshed shelves and shelf-book cross-refs in a single
+            //    transaction so the pull never leaves the DB with shelves that
+            //    reference books we haven't yet re-linked (Finding 05 D2).
+            transactionRunner.atomically {
+                shelfDao.upsertAll(entitiesWithCovers)
+                shelfBookDao.deleteAll()
+                shelfBookDao.upsertAll(allShelfBooks)
+            }
 
             logger.info {
                 "Shelf sync complete: ${entitiesWithCovers.size} shelves, ${allShelfBooks.size} shelf-book relationships cached"
