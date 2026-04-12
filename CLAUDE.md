@@ -137,6 +137,16 @@ These are the rules most likely to affect day-to-day work. The full rubric is in
 
 ---
 
+## Pushing
+
+**No push occurs until `act` passes locally.** Running `./gradlew :shared:jvmTest` on your machine is not the same as running the full CI matrix — Gradle cache state, JDK differences, and lint/detekt baselines all diverge. A push that fails remote CI wastes reviewer attention and muddies the history. Catch it locally first.
+
+- Before `git push`, run `act -W .github/workflows/ci.yml` from the repo root.
+- If `act` reports a failure, fix it before pushing. Do not push with known-red CI to "see what happens remotely."
+- If `act` itself cannot run a step (missing Android SDK in the container image, unsupported action, Apple-Silicon arch issue), say so explicitly to the user and ask before pushing. Don't silently bypass.
+
+---
+
 ## Project Structure
 
 ```
