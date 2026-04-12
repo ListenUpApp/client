@@ -7,6 +7,7 @@
 
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.core.error.SyncError
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
@@ -64,7 +65,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import com.calypsan.listenup.client.core.Timestamp
-import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
 
@@ -118,11 +118,7 @@ class SSEManager(
     private var disconnectedAt: String? = null
 
     // JSON parser for manually parsing SSE event data field
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            isLenient = true
-        }
+    private val json = appJson
 
     companion object {
         private const val SSE_ENDPOINT = "/api/v1/sync/events"

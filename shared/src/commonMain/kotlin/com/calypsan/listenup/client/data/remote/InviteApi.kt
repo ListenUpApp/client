@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.ktor.client.HttpClient
@@ -16,7 +17,6 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 /**
  * Contract for invite API operations.
@@ -60,19 +60,12 @@ interface InviteApiContract {
  * (comes from the invite deep link, not from stored settings).
  */
 class InviteApi : InviteApiContract {
-    private val json =
-        Json {
-            prettyPrint = false
-            isLenient = false
-            ignoreUnknownKeys = true
-        }
-
     private fun createClient(serverUrl: String): HttpClient =
         HttpClient {
             installListenUpErrorHandling()
 
             install(ContentNegotiation) {
-                json(this@InviteApi.json)
+                json(appJson)
             }
 
             defaultRequest {

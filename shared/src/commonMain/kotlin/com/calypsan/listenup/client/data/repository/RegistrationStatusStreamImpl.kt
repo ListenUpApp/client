@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.domain.repository.RegistrationStatusStream
 import com.calypsan.listenup.client.domain.repository.ServerConfig
@@ -11,7 +12,6 @@ import io.ktor.utils.io.readLine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
 
@@ -25,11 +25,7 @@ class RegistrationStatusStreamImpl(
     private val apiClientFactory: ApiClientFactory,
     private val serverConfig: ServerConfig,
 ) : RegistrationStatusStream {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            isLenient = true
-        }
+    private val json = appJson
 
     override fun streamStatus(userId: String): Flow<StreamedRegistrationStatus> =
         flow {

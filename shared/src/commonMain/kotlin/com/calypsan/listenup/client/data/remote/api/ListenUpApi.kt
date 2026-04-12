@@ -5,6 +5,7 @@ package com.calypsan.listenup.client.data.remote.api
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
 import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
@@ -49,7 +50,6 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
 
@@ -83,13 +83,7 @@ class ListenUpApi(
 
             // JSON content negotiation for request/response serialization
             install(ContentNegotiation) {
-                json(
-                    Json {
-                        prettyPrint = false
-                        isLenient = false
-                        ignoreUnknownKeys = true
-                    },
-                )
+                json(appJson)
             }
 
             // HTTP logging for debugging

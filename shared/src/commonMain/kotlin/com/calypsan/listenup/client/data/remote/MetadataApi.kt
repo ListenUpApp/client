@@ -2,6 +2,7 @@
 
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.ApplyContributorMetadataRequest
 import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest
@@ -25,7 +26,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
-import kotlinx.serialization.json.Json
 
 /**
  * Contract interface for metadata API operations.
@@ -259,7 +259,7 @@ class MetadataApi(
 
     // === Contributor Metadata ===
 
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = appJson
 
     /**
      * Search Audible for contributors by name.

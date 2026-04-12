@@ -4,6 +4,7 @@
 package com.calypsan.listenup.client.download
 
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
@@ -24,7 +25,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import platform.Foundation.NSError
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHTTPURLResponse
@@ -59,7 +59,7 @@ class AppleDownloadService(
     private val fileManager: DownloadFileManager,
     private val scope: CoroutineScope,
 ) : DownloadService {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = appJson
 
     /**
      * Delegate handles download progress and completion.

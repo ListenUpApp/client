@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.PlatformUtils
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.ktor.client.HttpClient
@@ -19,7 +20,6 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 /**
  * API client for authentication operations.
@@ -37,19 +37,12 @@ import kotlinx.serialization.json.Json
 class AuthApi(
     private val getServerUrl: suspend () -> ServerUrl?,
 ) : AuthApiContract {
-    private val json =
-        Json {
-            prettyPrint = false
-            isLenient = false
-            ignoreUnknownKeys = true
-        }
-
     private fun createClient(serverUrl: ServerUrl): HttpClient =
         HttpClient {
             installListenUpErrorHandling()
 
             install(ContentNegotiation) {
-                json(this@AuthApi.json)
+                json(appJson)
             }
 
             defaultRequest {

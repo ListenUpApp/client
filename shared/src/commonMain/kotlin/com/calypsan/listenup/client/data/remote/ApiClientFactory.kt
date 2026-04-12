@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -24,7 +25,6 @@ import io.ktor.client.plugins.ResponseException
 import io.ktor.client.plugins.HttpSend
 import kotlinx.io.IOException
 import io.ktor.client.plugins.plugin
-import kotlinx.serialization.json.Json
 
 private const val SERVER_URL_NOT_CONFIGURED_MESSAGE = "Server URL not configured"
 private const val HTTP_UNAUTHORIZED = 401
@@ -123,13 +123,7 @@ class ApiClientFactory(
                 installListenUpErrorHandling()
 
                 install(ContentNegotiation) {
-                    json(
-                        Json {
-                            prettyPrint = false
-                            isLenient = false
-                            ignoreUnknownKeys = true
-                        },
-                    )
+                    json(appJson)
                 }
 
                 // Install HttpTimeout plugin to allow per-request timeout configuration

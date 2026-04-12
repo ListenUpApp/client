@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
@@ -22,13 +23,11 @@ import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesRequest
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-private val json = Json { ignoreUnknownKeys = true }
 private val logger = KotlinLogging.logger {}
 
 /**
@@ -40,9 +39,9 @@ class BookUpdateHandler(
 ) : OperationHandler<BookUpdatePayload> {
     override val operationType = OperationType.BOOK_UPDATE
 
-    override fun parsePayload(json: String): BookUpdatePayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): BookUpdatePayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: BookUpdatePayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: BookUpdatePayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -97,9 +96,9 @@ class ContributorUpdateHandler(
 ) : OperationHandler<ContributorUpdatePayload> {
     override val operationType = OperationType.CONTRIBUTOR_UPDATE
 
-    override fun parsePayload(json: String): ContributorUpdatePayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): ContributorUpdatePayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: ContributorUpdatePayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: ContributorUpdatePayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -147,9 +146,9 @@ class SeriesUpdateHandler(
 ) : OperationHandler<SeriesUpdatePayload> {
     override val operationType = OperationType.SERIES_UPDATE
 
-    override fun parsePayload(json: String): SeriesUpdatePayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): SeriesUpdatePayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: SeriesUpdatePayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: SeriesUpdatePayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -188,9 +187,9 @@ class SetBookContributorsHandler(
 ) : OperationHandler<SetBookContributorsPayload> {
     override val operationType = OperationType.SET_BOOK_CONTRIBUTORS
 
-    override fun parsePayload(json: String): SetBookContributorsPayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): SetBookContributorsPayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: SetBookContributorsPayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: SetBookContributorsPayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -228,9 +227,9 @@ class SetBookSeriesHandler(
 ) : OperationHandler<SetBookSeriesPayload> {
     override val operationType = OperationType.SET_BOOK_SERIES
 
-    override fun parsePayload(json: String): SetBookSeriesPayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): SetBookSeriesPayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: SetBookSeriesPayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: SetBookSeriesPayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -268,9 +267,9 @@ class MergeContributorHandler(
 ) : OperationHandler<MergeContributorPayload> {
     override val operationType = OperationType.MERGE_CONTRIBUTOR
 
-    override fun parsePayload(json: String): MergeContributorPayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): MergeContributorPayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: MergeContributorPayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: MergeContributorPayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -297,9 +296,9 @@ class UnmergeContributorHandler(
 ) : OperationHandler<UnmergeContributorPayload> {
     override val operationType = OperationType.UNMERGE_CONTRIBUTOR
 
-    override fun parsePayload(json: String): UnmergeContributorPayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): UnmergeContributorPayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: UnmergeContributorPayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: UnmergeContributorPayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -331,9 +330,9 @@ class ListeningEventHandler(
 ) : OperationHandler<ListeningEventPayload> {
     override val operationType = OperationType.LISTENING_EVENT
 
-    override fun parsePayload(json: String): ListeningEventPayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): ListeningEventPayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: ListeningEventPayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: ListeningEventPayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -433,9 +432,9 @@ class PlaybackPositionHandler(
 ) : OperationHandler<PlaybackPositionPayload> {
     override val operationType = OperationType.PLAYBACK_POSITION
 
-    override fun parsePayload(json: String): PlaybackPositionPayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): PlaybackPositionPayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: PlaybackPositionPayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: PlaybackPositionPayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -480,9 +479,9 @@ class UserPreferencesHandler(
 ) : OperationHandler<UserPreferencesPayload> {
     override val operationType = OperationType.USER_PREFERENCES
 
-    override fun parsePayload(json: String): UserPreferencesPayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): UserPreferencesPayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: UserPreferencesPayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: UserPreferencesPayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -522,9 +521,9 @@ class ProfileUpdateHandler(
 ) : OperationHandler<ProfileUpdatePayload> {
     override val operationType = OperationType.PROFILE_UPDATE
 
-    override fun parsePayload(json: String): ProfileUpdatePayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): ProfileUpdatePayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: ProfileUpdatePayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: ProfileUpdatePayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -609,9 +608,9 @@ class ProfileAvatarHandler(
 ) : OperationHandler<ProfileAvatarPayload> {
     override val operationType = OperationType.PROFILE_AVATAR
 
-    override fun parsePayload(json: String): ProfileAvatarPayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): ProfileAvatarPayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: ProfileAvatarPayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: ProfileAvatarPayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,
@@ -669,9 +668,9 @@ class MarkCompleteHandler(
 ) : OperationHandler<MarkCompletePayload> {
     override val operationType = OperationType.MARK_COMPLETE
 
-    override fun parsePayload(json: String): MarkCompletePayload = Json.decodeFromString(json)
+    override fun parsePayload(json: String): MarkCompletePayload = appJson.decodeFromString(json)
 
-    override fun serializePayload(payload: MarkCompletePayload): String = Json.encodeToString(payload)
+    override fun serializePayload(payload: MarkCompletePayload): String = appJson.encodeToString(payload)
 
     override fun tryCoalesce(
         existing: PendingOperationEntity,

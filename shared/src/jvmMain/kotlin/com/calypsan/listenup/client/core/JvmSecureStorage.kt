@@ -4,7 +4,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.io.File
 import java.security.SecureRandom
 import java.util.Base64
@@ -40,7 +39,7 @@ private const val SALT_LENGTH = 16
 internal class JvmSecureStorage(
     private val storageFile: File,
 ) : SecureStorage {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = appJson
     private val secretKey: SecretKeySpec by lazy { deriveKey() }
 
     /**

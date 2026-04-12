@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -12,7 +13,6 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -44,13 +44,7 @@ internal actual suspend fun createStreamingHttpClient(
         }
 
         install(ContentNegotiation) {
-            json(
-                Json {
-                    prettyPrint = false
-                    isLenient = false
-                    ignoreUnknownKeys = true
-                },
-            )
+            json(appJson)
         }
 
         // NO HttpTimeout plugin - we're controlling timeouts at engine level
@@ -110,13 +104,7 @@ internal actual fun createUnauthenticatedStreamingHttpClient(serverUrl: ServerUr
         }
 
         install(ContentNegotiation) {
-            json(
-                Json {
-                    prettyPrint = false
-                    isLenient = false
-                    ignoreUnknownKeys = true
-                },
-            )
+            json(appJson)
         }
 
         // NO Auth plugin - this is intentionally unauthenticated

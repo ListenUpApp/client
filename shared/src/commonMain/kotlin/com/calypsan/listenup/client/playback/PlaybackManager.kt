@@ -11,6 +11,7 @@ package com.calypsan.listenup.client.playback
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.remote.PlaybackApi
@@ -37,7 +38,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
 
@@ -109,7 +109,7 @@ class PlaybackManager(
     // Callback for chapter changes - used by PlaybackService to update notification
     var onChapterChanged: ((ChapterInfo) -> Unit)? = null
 
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = appJson
 
     /** Set the current book ID — call this only when playback is confirmed to proceed. */
     fun activateBook(bookId: BookId) {

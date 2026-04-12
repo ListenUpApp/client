@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
@@ -20,7 +21,6 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
 
@@ -44,13 +44,6 @@ private const val SOCKET_TIMEOUT_MS = 30_000L
 class InstanceRepositoryImpl(
     private val getServerUrl: suspend () -> ServerUrl?,
 ) : InstanceRepository {
-    private val json =
-        Json {
-            prettyPrint = false
-            isLenient = false
-            ignoreUnknownKeys = true
-        }
-
     /**
      * Cached instance data.
      * TODO: Add proper cache invalidation strategy when requirements are clearer.
@@ -66,7 +59,7 @@ class InstanceRepositoryImpl(
             installListenUpErrorHandling()
 
             install(ContentNegotiation) {
-                json(this@InstanceRepositoryImpl.json)
+                json(appJson)
             }
 
             install(HttpTimeout) {
@@ -201,7 +194,7 @@ class InstanceRepositoryImpl(
                 installListenUpErrorHandling()
 
                 install(ContentNegotiation) {
-                    json(this@InstanceRepositoryImpl.json)
+                    json(appJson)
                 }
                 install(HttpTimeout) {
                     requestTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
@@ -238,7 +231,7 @@ class InstanceRepositoryImpl(
             installListenUpErrorHandling()
 
             install(ContentNegotiation) {
-                json(this@InstanceRepositoryImpl.json)
+                json(appJson)
             }
 
             install(HttpTimeout) {
