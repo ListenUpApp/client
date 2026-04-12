@@ -39,12 +39,16 @@ import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.sync.push.OperationHandler
 import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
 import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.LibraryPreferences
 import com.calypsan.listenup.client.domain.repository.LibrarySync
 import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
+import com.calypsan.listenup.client.domain.repository.SearchRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.download.DownloadService
@@ -136,6 +140,27 @@ class KoinModuleVerifyTest {
                     TagApiContract::class,
                     UserPreferencesApiContract::class,
                     ServerDiscoveryService::class,
+                ),
+        )
+    }
+
+    /**
+     * Verify voiceModule — the voice intent resolver and its four repository dependencies.
+     *
+     * Narrow module; the extraTypes list is correspondingly small. Covered as step 1 of
+     * the Finding 12 D4 expansion ("every leaf module is verified"). PresentationModule
+     * verification is deferred to W3, which rewrites the DI layout (Finding 02 R1) and
+     * would immediately invalidate any extraTypes enumerated today.
+     */
+    @Test
+    fun verifyVoiceModule() {
+        voiceModule.verify(
+            extraTypes =
+                listOf(
+                    SearchRepository::class,
+                    HomeRepository::class,
+                    SeriesRepository::class,
+                    BookRepository::class,
                 ),
         )
     }
