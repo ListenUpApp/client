@@ -69,6 +69,8 @@ class InviteApi : InviteApiContract {
 
     private fun createClient(serverUrl: String): HttpClient =
         HttpClient {
+            installListenUpErrorHandling()
+
             install(ContentNegotiation) {
                 json(this@InviteApi.json)
             }

@@ -5,6 +5,7 @@ package com.calypsan.listenup.client.data.remote.api
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
 import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
@@ -78,6 +79,8 @@ class ListenUpApi(
      */
     private val publicClient =
         HttpClient {
+            installListenUpErrorHandling()
+
             // JSON content negotiation for request/response serialization
             install(ContentNegotiation) {
                 json(

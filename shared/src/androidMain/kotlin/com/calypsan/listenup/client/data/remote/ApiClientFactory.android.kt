@@ -34,6 +34,8 @@ internal actual suspend fun createStreamingHttpClient(
     authApi: AuthApiContract,
 ): HttpClient =
     HttpClient(OkHttp) {
+        installListenUpErrorHandling()
+
         // Configure OkHttp engine with infinite timeouts for streaming
         engine {
             config {
@@ -98,6 +100,8 @@ internal actual suspend fun createStreamingHttpClient(
  */
 internal actual fun createUnauthenticatedStreamingHttpClient(serverUrl: ServerUrl): HttpClient =
     HttpClient(OkHttp) {
+        installListenUpErrorHandling()
+
         // Configure OkHttp engine with infinite timeouts for streaming
         engine {
             config {

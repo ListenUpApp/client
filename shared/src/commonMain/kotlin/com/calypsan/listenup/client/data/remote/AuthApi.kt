@@ -46,6 +46,8 @@ class AuthApi(
 
     private fun createClient(serverUrl: ServerUrl): HttpClient =
         HttpClient {
+            installListenUpErrorHandling()
+
             install(ContentNegotiation) {
                 json(this@AuthApi.json)
             }

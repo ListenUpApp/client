@@ -120,6 +120,8 @@ class ApiClientFactory(
 
         val client =
             HttpClient {
+                installListenUpErrorHandling()
+
                 install(ContentNegotiation) {
                     json(
                         Json {

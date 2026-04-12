@@ -15,6 +15,7 @@ import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
@@ -499,6 +500,8 @@ class PlaybackManager(
         return try {
             val client =
                 HttpClient {
+                    installListenUpErrorHandling()
+
                     install(HttpTimeout) {
                         requestTimeoutMillis = 3_000
                         connectTimeoutMillis = 3_000

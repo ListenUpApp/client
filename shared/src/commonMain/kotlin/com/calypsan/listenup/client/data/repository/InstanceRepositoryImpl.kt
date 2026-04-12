@@ -6,6 +6,7 @@ import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
+import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
@@ -62,6 +63,8 @@ class InstanceRepositoryImpl(
      */
     private fun createClient(serverUrl: ServerUrl): HttpClient =
         HttpClient {
+            installListenUpErrorHandling()
+
             install(ContentNegotiation) {
                 json(this@InstanceRepositoryImpl.json)
             }
@@ -195,6 +198,8 @@ class InstanceRepositoryImpl(
     override suspend fun findReachableUrl(urls: List<String>): String? {
         val quickClient =
             HttpClient {
+                installListenUpErrorHandling()
+
                 install(ContentNegotiation) {
                     json(this@InstanceRepositoryImpl.json)
                 }
@@ -230,6 +235,8 @@ class InstanceRepositoryImpl(
      */
     private fun createUnauthenticatedClient(): HttpClient =
         HttpClient {
+            installListenUpErrorHandling()
+
             install(ContentNegotiation) {
                 json(this@InstanceRepositoryImpl.json)
             }

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
@@ -41,6 +42,8 @@ class JvmNetworkMonitor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val httpClient =
         HttpClient(OkHttp) {
+            installListenUpErrorHandling()
+
             engine {
                 config {
                     connectTimeout(HEALTH_CHECK_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)

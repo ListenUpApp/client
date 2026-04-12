@@ -27,6 +27,8 @@ internal actual suspend fun createStreamingHttpClient(
     authApi: AuthApiContract,
 ): HttpClient =
     HttpClient(Darwin) {
+        installListenUpErrorHandling()
+
         // Configure Darwin engine with infinite timeouts for streaming
         engine {
             configureRequest {
@@ -95,6 +97,8 @@ internal actual suspend fun createStreamingHttpClient(
  */
 internal actual fun createUnauthenticatedStreamingHttpClient(serverUrl: ServerUrl): HttpClient =
     HttpClient(Darwin) {
+        installListenUpErrorHandling()
+
         // Configure Darwin engine with infinite timeouts for streaming
         engine {
             configureRequest {
