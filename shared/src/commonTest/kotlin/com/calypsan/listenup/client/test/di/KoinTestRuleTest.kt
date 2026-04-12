@@ -14,9 +14,10 @@ import kotlin.test.assertNotNull
  * establishing the KMP-compat alternative to JVM-only `org.koin.test.KoinTestRule`.
  */
 class KoinTestRuleTest {
-    private val fakeModule = module {
-        single<Greeter> { HelloGreeter() }
-    }
+    private val fakeModule =
+        module {
+            single<Greeter> { HelloGreeter() }
+        }
 
     private val koinRule = KoinTestRule(listOf(fakeModule))
 

@@ -28,8 +28,7 @@ class FakeSessionRepository(
     /** Map of bookId → number of times [refreshBookReaders] was called. */
     val refreshCounts: Map<String, Int> get() = _refreshCounts.toMap()
 
-    override suspend fun getBookReaders(bookId: String): List<ReaderInfo> =
-        state.value[bookId]?.otherReaders.orEmpty()
+    override suspend fun getBookReaders(bookId: String): List<ReaderInfo> = state.value[bookId]?.otherReaders.orEmpty()
 
     override suspend fun getBookReadersResult(bookId: String): Result<BookReadersResult> =
         Result.Success(state.value[bookId] ?: empty)
@@ -42,16 +41,20 @@ class FakeSessionRepository(
     }
 
     /** Test helper: update the readers for [bookId], emitting to all observers. */
-    fun setReaders(bookId: String, readers: BookReadersResult) {
+    fun setReaders(
+        bookId: String,
+        readers: BookReadersResult,
+    ) {
         state.value = state.value + (bookId to readers)
     }
 
     private companion object {
-        private val empty = BookReadersResult(
-            yourSessions = emptyList(),
-            otherReaders = emptyList(),
-            totalReaders = 0,
-            totalCompletions = 0,
-        )
+        private val empty =
+            BookReadersResult(
+                yourSessions = emptyList(),
+                otherReaders = emptyList(),
+                totalReaders = 0,
+                totalCompletions = 0,
+            )
     }
 }

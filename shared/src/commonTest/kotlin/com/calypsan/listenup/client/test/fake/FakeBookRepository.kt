@@ -61,7 +61,10 @@ class FakeBookRepository(
     }
 
     /** Test helper: set chapters for [bookId]. */
-    fun setChapters(bookId: String, chapters: List<Chapter>) {
+    fun setChapters(
+        bookId: String,
+        chapters: List<Chapter>,
+    ) {
         chaptersByBookId[bookId] = chapters
     }
 

@@ -72,11 +72,22 @@ class FakePlayer : AudioPlayer {
     }
 
     sealed interface Call {
-        data class Load(val segments: List<AudioSegment>) : Call
+        data class Load(
+            val segments: List<AudioSegment>,
+        ) : Call
+
         data object Play : Call
+
         data object Pause : Call
-        data class SeekTo(val positionMs: Long) : Call
-        data class SetSpeed(val speed: Float) : Call
+
+        data class SeekTo(
+            val positionMs: Long,
+        ) : Call
+
+        data class SetSpeed(
+            val speed: Float,
+        ) : Call
+
         data object Release : Call
     }
 }

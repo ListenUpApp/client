@@ -30,8 +30,7 @@ class FakePlaybackPositionRepository(
 
     override suspend fun get(bookId: String): PlaybackPosition? = state.value[bookId]
 
-    override fun observe(bookId: String): Flow<PlaybackPosition?> =
-        state.asStateFlow().map { it[bookId] }
+    override fun observe(bookId: String): Flow<PlaybackPosition?> = state.asStateFlow().map { it[bookId] }
 
     override fun observeAll(): Flow<Map<String, PlaybackPosition>> = state.asStateFlow()
 
@@ -48,18 +47,19 @@ class FakePlaybackPositionRepository(
     ) {
         val now = nowMs()
         state.value = state.value + (
-            bookId to PlaybackPosition(
-                bookId = bookId,
-                positionMs = positionMs,
-                playbackSpeed = playbackSpeed,
-                hasCustomSpeed = hasCustomSpeed,
-                updatedAtMs = now,
-                syncedAtMs = null,
-                lastPlayedAtMs = now,
-                isFinished = state.value[bookId]?.isFinished ?: false,
-                finishedAtMs = state.value[bookId]?.finishedAtMs,
-                startedAtMs = state.value[bookId]?.startedAtMs,
-            )
+            bookId to
+                PlaybackPosition(
+                    bookId = bookId,
+                    positionMs = positionMs,
+                    playbackSpeed = playbackSpeed,
+                    hasCustomSpeed = hasCustomSpeed,
+                    updatedAtMs = now,
+                    syncedAtMs = null,
+                    lastPlayedAtMs = now,
+                    isFinished = state.value[bookId]?.isFinished ?: false,
+                    finishedAtMs = state.value[bookId]?.finishedAtMs,
+                    startedAtMs = state.value[bookId]?.startedAtMs,
+                )
         )
     }
 
@@ -73,22 +73,24 @@ class FakePlaybackPositionRepository(
         finishedAt: Long?,
     ): Result<Unit> {
         val now = nowMs()
-        val existing = state.value[bookId] ?: PlaybackPosition(
-            bookId = bookId,
-            positionMs = 0L,
-            playbackSpeed = 1.0f,
-            hasCustomSpeed = false,
-            updatedAtMs = now,
-            syncedAtMs = null,
-            lastPlayedAtMs = now,
-        )
-        state.value = state.value + (
-            bookId to existing.copy(
-                isFinished = true,
-                finishedAtMs = finishedAt ?: now,
-                startedAtMs = startedAt ?: existing.startedAtMs,
+        val existing =
+            state.value[bookId] ?: PlaybackPosition(
+                bookId = bookId,
+                positionMs = 0L,
+                playbackSpeed = 1.0f,
+                hasCustomSpeed = false,
                 updatedAtMs = now,
+                syncedAtMs = null,
+                lastPlayedAtMs = now,
             )
+        state.value = state.value + (
+            bookId to
+                existing.copy(
+                    isFinished = true,
+                    finishedAtMs = finishedAt ?: now,
+                    startedAtMs = startedAt ?: existing.startedAtMs,
+                    updatedAtMs = now,
+                )
         )
         return Result.Success(Unit)
     }
@@ -101,12 +103,13 @@ class FakePlaybackPositionRepository(
     override suspend fun restartBook(bookId: String): Result<Unit> {
         val existing = state.value[bookId] ?: return Result.Success(Unit)
         state.value = state.value + (
-            bookId to existing.copy(
-                positionMs = 0L,
-                isFinished = false,
-                finishedAtMs = null,
-                updatedAtMs = nowMs(),
-            )
+            bookId to
+                existing.copy(
+                    positionMs = 0L,
+                    isFinished = false,
+                    finishedAtMs = null,
+                    updatedAtMs = nowMs(),
+                )
         )
         return Result.Success(Unit)
     }

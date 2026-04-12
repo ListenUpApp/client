@@ -28,14 +28,15 @@ class TestDatabaseTest {
     }
 
     @Test
-    fun isIsolatedBetweenInstances() = runTest {
-        val db2 = createInMemoryTestDatabase()
-        try {
-            // Two separately-built in-memory databases must not share state — otherwise
-            // parallel tests would leak data across each other.
-            assertNotNull(db2.userDao())
-        } finally {
-            db2.close()
+    fun isIsolatedBetweenInstances() =
+        runTest {
+            val db2 = createInMemoryTestDatabase()
+            try {
+                // Two separately-built in-memory databases must not share state — otherwise
+                // parallel tests would leak data across each other.
+                assertNotNull(db2.userDao())
+            } finally {
+                db2.close()
+            }
         }
-    }
 }

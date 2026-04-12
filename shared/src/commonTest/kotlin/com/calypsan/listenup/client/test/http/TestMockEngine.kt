@@ -33,14 +33,22 @@ fun testMockEngine(configure: TestMockEngineBuilder.() -> Unit): MockEngine {
     builder.configure()
     return MockEngine { request ->
         val path = request.url.encodedPath
-        val handler = builder.handlers[path]
-            ?: throw AssertionError("TestMockEngine: no handler for path '$path'. Registered paths: ${builder.handlers.keys}")
+        val handler =
+            builder.handlers[path]
+                ?: throw AssertionError(
+                    "TestMockEngine: no handler for path '$path'. Registered paths: ${builder.handlers.keys}",
+                )
         handler(request)
     }
 }
 
 class TestMockEngineBuilder internal constructor() {
-    internal val handlers: MutableMap<String, suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData> = mutableMapOf()
+    internal val handlers: MutableMap<
+        String,
+        suspend MockRequestHandleScope.(
+            HttpRequestData,
+        ) -> HttpResponseData,
+    > = mutableMapOf()
 
     /**
      * Responds to [path] with an `application/json` body supplied by [body]. Status defaults
@@ -61,7 +69,10 @@ class TestMockEngineBuilder internal constructor() {
     }
 
     /** Responds to [path] with [status] and an empty body. Useful for testing error paths. */
-    fun respondStatus(path: String, status: HttpStatusCode) {
+    fun respondStatus(
+        path: String,
+        status: HttpStatusCode,
+    ) {
         handlers[path] = { respondError(status) }
     }
 }

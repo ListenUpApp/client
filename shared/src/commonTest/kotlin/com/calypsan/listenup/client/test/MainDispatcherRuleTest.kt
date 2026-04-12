@@ -27,9 +27,10 @@ class MainDispatcherRuleTest {
     fun afterTest() = mainRule.tearDown()
 
     @Test
-    fun mainDispatcherIsUsableAfterSetUp() = runTest(mainRule.testDispatcher) {
-        var ran = false
-        withContext(Dispatchers.Main) { ran = true }
-        assertTrue(ran, "withContext(Dispatchers.Main) must execute under MainDispatcherRule")
-    }
+    fun mainDispatcherIsUsableAfterSetUp() =
+        runTest(mainRule.testDispatcher) {
+            var ran = false
+            withContext(Dispatchers.Main) { ran = true }
+            assertTrue(ran, "withContext(Dispatchers.Main) must execute under MainDispatcherRule")
+        }
 }
