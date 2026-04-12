@@ -1188,16 +1188,8 @@ val syncModule =
         // LibraryResetHelper - clears local data on library mismatch or server switch
         single {
             LibraryResetHelper(
-                bookDao = get(),
-                seriesDao = get(),
-                contributorDao = get(),
-                chapterDao = get(),
-                bookContributorDao = get(),
-                bookSeriesDao = get(),
-                playbackPositionDao = get(),
-                pendingOperationDao = get(),
-                userDao = get(),
-                syncDao = get(),
+                database = get(),
+                transactionRunner = get(),
                 librarySyncContract = get(),
             )
         } bind LibraryResetHelperContract::class

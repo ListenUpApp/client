@@ -1,15 +1,7 @@
 package com.calypsan.listenup.client.data.sync
 
-import com.calypsan.listenup.client.data.local.db.BookContributorDao
-import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookSeriesDao
-import com.calypsan.listenup.client.data.local.db.ChapterDao
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.PendingOperationDao
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.local.db.SyncDao
-import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.domain.repository.LibrarySync
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -61,55 +53,37 @@ interface LibraryResetHelperContract {
  *
  * Coordinates clearing data across multiple DAOs while preserving
  * non-library data (downloads, preferences).
+ *
+ * Every delete runs inside a single write transaction — Finding 05 D2 / W4.2 —
+ * so a failure at any step leaves the DB untouched rather than partially wiped.
+ * Because the reset spans essentially every library table, the helper depends on
+ * the [ListenUpDatabase] directly instead of listing each DAO individually; the
+ * semantic is "operate on the library as a whole".
  */
 class LibraryResetHelper(
-    private val bookDao: BookDao,
-    private val seriesDao: SeriesDao,
-    private val contributorDao: ContributorDao,
-    private val chapterDao: ChapterDao,
-    private val bookContributorDao: BookContributorDao,
-    private val bookSeriesDao: BookSeriesDao,
-    private val playbackPositionDao: PlaybackPositionDao,
-    private val pendingOperationDao: PendingOperationDao,
-    private val userDao: UserDao,
-    private val syncDao: SyncDao,
+    private val database: ListenUpDatabase,
+    private val transactionRunner: TransactionRunner,
     private val librarySyncContract: LibrarySync,
 ) : LibraryResetHelperContract {
     override suspend fun clearLibraryData(discardPendingOperations: Boolean) {
         logger.info { "Clearing library data (discardPendingOperations=$discardPendingOperations)" }
 
-        // Clear junction tables first (foreign key constraints)
-        bookContributorDao.deleteAll()
-        bookSeriesDao.deleteAll()
-        logger.debug { "Cleared junction tables" }
+        transactionRunner.atomically {
+            database.bookContributorDao().deleteAll()
+            database.bookSeriesDao().deleteAll()
+            database.chapterDao().deleteAll()
+            database.playbackPositionDao().deleteAll()
+            database.bookDao().deleteAll()
+            database.seriesDao().deleteAll()
+            database.contributorDao().deleteAll()
+            database.userDao().clear()
 
-        // Clear chapters
-        chapterDao.deleteAll()
-        logger.debug { "Cleared chapters" }
+            if (discardPendingOperations) {
+                database.pendingOperationDao().deleteAll()
+            }
 
-        // Clear playback positions
-        playbackPositionDao.deleteAll()
-        logger.debug { "Cleared playback positions" }
-
-        // Clear main entities
-        bookDao.deleteAll()
-        seriesDao.deleteAll()
-        contributorDao.deleteAll()
-        logger.debug { "Cleared books, series, contributors" }
-
-        // Clear user data
-        userDao.clear()
-        logger.debug { "Cleared users" }
-
-        // Optionally clear pending operations
-        if (discardPendingOperations) {
-            pendingOperationDao.deleteAll()
-            logger.debug { "Cleared pending operations" }
+            database.syncDao().clearLastSyncTime()
         }
-
-        // Clear sync timestamp to trigger full sync
-        syncDao.clearLastSyncTime()
-        logger.debug { "Cleared sync timestamp" }
 
         logger.info { "Library data cleared successfully" }
     }
