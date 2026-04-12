@@ -339,7 +339,7 @@ class ContributorRepositoryTest {
 
             every { networkMonitor.isOnline() } returns true
             everySuspend { api.searchContributors(any(), any()) } returns
-                Failure(Exception("Server error"), "Server error")
+                Failure(Exception("Server error"))
             everySuspend { searchDao.searchContributors(any(), any()) } returns
                 listOf(createTestContributorEntity(id = "c1", name = "Fallback Author"))
 

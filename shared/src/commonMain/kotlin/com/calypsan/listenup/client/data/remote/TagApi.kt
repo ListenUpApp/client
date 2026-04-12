@@ -2,9 +2,9 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Tag
+import com.calypsan.listenup.client.core.error.AppException
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -118,7 +118,7 @@ class TagApi(
             is Success -> { /* Tag removed successfully */ }
 
             is Failure -> {
-                throw result.exceptionOrFromMessage()
+                throw AppException(result.error)
             }
         }
     }

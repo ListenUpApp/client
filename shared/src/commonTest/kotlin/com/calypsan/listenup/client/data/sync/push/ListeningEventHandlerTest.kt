@@ -17,6 +17,7 @@ import dev.mokkery.verifySuspend
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertIs
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for ListeningEventHandler.

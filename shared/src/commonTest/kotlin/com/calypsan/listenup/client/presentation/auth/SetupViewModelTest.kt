@@ -26,6 +26,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import com.calypsan.listenup.client.core.Success
 
 /**
  * Tests for SetupViewModel.

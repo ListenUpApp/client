@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.data.sync
 import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.core.error.SyncError
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.core.getOrNull
@@ -61,7 +61,7 @@ interface SyncManagerContract {
     /**
      * Perform full synchronization with server.
      */
-    suspend fun sync(): Result<Unit>
+    suspend fun sync(): AppResult<Unit>
 
     /**
      * Connect to real-time updates (SSE) and perform a delta sync.
@@ -82,7 +82,7 @@ interface SyncManagerContract {
      *
      * @param newLibraryId The new library ID to sync with
      */
-    suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit>
+    suspend fun resetForNewLibrary(newLibraryId: String): AppResult<Unit>
 
     /**
      * Refresh all listening events and playback positions from server.
@@ -90,7 +90,7 @@ interface SyncManagerContract {
      * Fetches ALL events (ignoring delta sync cursor) and rebuilds
      * playback positions. Used after importing historical data.
      */
-    suspend fun refreshListeningHistory(): Result<Unit>
+    suspend fun refreshListeningHistory(): AppResult<Unit>
 
     /**
      * Force a complete resync by clearing all local data and syncing fresh.
@@ -99,7 +99,7 @@ interface SyncManagerContract {
      * completely replaced. Disconnects SSE, clears local database,
      * then performs a full sync.
      */
-    suspend fun forceFullResync(): Result<Unit>
+    suspend fun forceFullResync(): AppResult<Unit>
 }
 
 /**
@@ -334,7 +334,7 @@ class SyncManager(
     /**
      * Perform full synchronization with server.
      */
-    override suspend fun sync(): Result<Unit> {
+    override suspend fun sync(): AppResult<Unit> {
         _syncState.value = SyncStatus.Syncing
 
         return try {
@@ -345,10 +345,7 @@ class SyncManager(
                     "Library mismatch detected: expected=${mismatch.expectedLibraryId}, actual=${mismatch.actualLibraryId}"
                 }
                 _syncState.value = mismatch
-                return Failure(
-                    exception = LibraryMismatchException(mismatch.expectedLibraryId, mismatch.actualLibraryId),
-                    message = "Server library has changed. Local data needs to be reset.",
-                )
+                return Failure(LibraryMismatchException(mismatch.expectedLibraryId, mismatch.actualLibraryId))
             }
 
             // Phase 1: Pull changes from server
@@ -403,7 +400,7 @@ class SyncManager(
 
             logger.info { "Sync completed successfully" }
             _syncState.value = SyncStatus.Success(timestamp = now)
-            Result.Success(Unit)
+            Success(Unit)
         } catch (e: CancellationException) {
             logger.debug { "Sync was cancelled" }
             _syncState.value = SyncStatus.Idle
@@ -419,14 +416,14 @@ class SyncManager(
                 logger.warn { "Server unreachable - continuing with local data" }
             }
 
-            Failure(exception = e, message = "Sync failed: ${e.message}")
+            Failure(e)
         }
     }
 
     /**
      * Force a full sync by clearing the sync checkpoint and re-syncing.
      */
-    suspend fun forceFullSync(): Result<Unit> {
+    suspend fun forceFullSync(): AppResult<Unit> {
         logger.info { "Forcing full sync - clearing sync checkpoint" }
         syncDao.clearLastSyncTime()
         return sync()
@@ -440,7 +437,7 @@ class SyncManager(
      *
      * @param newLibraryId The new library ID to sync with
      */
-    override suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit> {
+    override suspend fun resetForNewLibrary(newLibraryId: String): AppResult<Unit> {
         logger.info { "Resetting for new library: $newLibraryId" }
         _syncState.value = SyncStatus.Syncing
 
@@ -455,11 +452,11 @@ class SyncManager(
         } catch (e: Exception) {
             logger.error(e) { "Failed to reset for new library" }
             _syncState.value = SyncStatus.Error(exception = e)
-            return Failure(exception = e, message = "Failed to reset library: ${e.message}")
+            return Failure(e)
         }
     }
 
-    override suspend fun refreshListeningHistory(): Result<Unit> {
+    override suspend fun refreshListeningHistory(): AppResult<Unit> {
         logger.info { "Refreshing all listening history from server..." }
 
         return try {
@@ -470,11 +467,11 @@ class SyncManager(
             throw e // cooperative cancellation — never swallow
         } catch (e: Exception) {
             logger.error(e) { "Failed to refresh listening history" }
-            Failure(exception = e, message = "Failed to refresh listening history: ${e.message}")
+            Failure(e)
         }
     }
 
-    override suspend fun forceFullResync(): Result<Unit> {
+    override suspend fun forceFullResync(): AppResult<Unit> {
         logger.info { "Force full resync - clearing local data and syncing fresh" }
         _syncState.value = SyncStatus.Syncing
 
@@ -494,7 +491,7 @@ class SyncManager(
         } catch (e: Exception) {
             logger.error(e) { "Failed to force full resync" }
             _syncState.value = SyncStatus.Error(exception = e)
-            Failure(exception = e, message = "Failed to resync: ${e.message}")
+            Failure(e)
         }
     }
 
@@ -529,13 +526,13 @@ class SyncManager(
         try {
             logger.debug { "Pulling user preferences from server" }
             when (val result = userPreferencesApi.getPreferences()) {
-                is Result.Success -> {
+                is Success -> {
                     val prefs = result.data
                     playbackPreferences.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
                     logger.info { "User preferences synced: defaultPlaybackSpeed=${prefs.defaultPlaybackSpeed}" }
                 }
 
-                is Result.Failure -> {
+                is Failure -> {
                     logger.warn { "Failed to fetch user preferences: ${result.message}" }
                 }
             }

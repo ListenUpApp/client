@@ -2,7 +2,7 @@
 
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.core.map
@@ -18,6 +18,7 @@ import com.calypsan.listenup.client.domain.repository.SessionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -51,7 +52,7 @@ class SessionRepositoryImpl(
         }
     }
 
-    override suspend fun getBookReadersResult(bookId: String): Result<BookReadersResult> =
+    override suspend fun getBookReadersResult(bookId: String): AppResult<BookReadersResult> =
         sessionApi.getBookReaders(bookId).map { response ->
             BookReadersResult(
                 yourSessions = response.yourSessions.map { it.toDomain() },
@@ -150,9 +151,7 @@ class SessionRepositoryImpl(
             }
 
             is com.calypsan.listenup.client.core.Failure -> {
-                logger.error(result.exception) {
-                    "Failed to refresh readers for book $bookId: ${result.message}"
-                }
+                logger.error { "Failed to refresh readers for book $bookId: ${result.message}" }
             }
         }
     }

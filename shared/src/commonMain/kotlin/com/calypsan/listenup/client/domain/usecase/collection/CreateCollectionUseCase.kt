@@ -1,11 +1,11 @@
 package com.calypsan.listenup.client.domain.usecase.collection
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.core.validationError
 import com.calypsan.listenup.client.domain.model.Collection
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import com.calypsan.listenup.client.core.validationError
 
 private val logger = KotlinLogging.logger {}
 
@@ -33,7 +33,7 @@ open class CreateCollectionUseCase(
      * @param name The collection name (required, will be trimmed)
      * @return Result containing the created collection or a failure
      */
-    open suspend operator fun invoke(name: String): Result<Collection> {
+    open suspend operator fun invoke(name: String): AppResult<Collection> {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) {
             return validationError("Collection name is required")

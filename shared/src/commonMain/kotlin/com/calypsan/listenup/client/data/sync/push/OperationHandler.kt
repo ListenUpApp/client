@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.data.sync.push
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
 
@@ -57,7 +57,7 @@ interface OperationHandler<P : Any> {
     suspend fun execute(
         operation: PendingOperationEntity,
         payload: P,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Execute a batch of operations together.
@@ -67,7 +67,7 @@ interface OperationHandler<P : Any> {
      *
      * @return Map of operation ID to result
      */
-    suspend fun executeBatch(operations: List<Pair<PendingOperationEntity, P>>): Map<String, Result<Unit>> =
+    suspend fun executeBatch(operations: List<Pair<PendingOperationEntity, P>>): Map<String, AppResult<Unit>> =
         operations.associate { (op, payload) ->
             op.id to execute(op, payload)
         }

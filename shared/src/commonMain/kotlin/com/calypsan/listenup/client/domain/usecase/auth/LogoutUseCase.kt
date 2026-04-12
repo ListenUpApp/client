@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.auth
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.AuthRepository
 import com.calypsan.listenup.client.domain.repository.AuthSession
@@ -40,9 +40,9 @@ open class LogoutUseCase(
      * Server session invalidation is best-effort - if it fails,
      * we still clear local data and return success.
      *
-     * @return Result<Unit> - always Success unless local operations fail
+     * @return AppResult<Unit> - always Success unless local operations fail
      */
-    open suspend operator fun invoke(): Result<Unit> =
+    open suspend operator fun invoke(): AppResult<Unit> =
         suspendRunCatching {
             // Get session ID for server invalidation
             val sessionId = authSession.getSessionId()
@@ -78,9 +78,9 @@ open class LogoutUseCase(
      * Use this when you know the server is unreachable or when
      * tokens are already invalid.
      *
-     * @return Result<Unit> - Success after clearing local state
+     * @return AppResult<Unit> - Success after clearing local state
      */
-    open suspend fun logoutLocally(): Result<Unit> =
+    open suspend fun logoutLocally(): AppResult<Unit> =
         suspendRunCatching {
             playbackStateProvider?.clearPlayback()
             authSession.clearAuthTokens()

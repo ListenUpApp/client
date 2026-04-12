@@ -1,12 +1,12 @@
 package com.calypsan.listenup.client.domain.usecase.auth
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.core.validationError
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.domain.repository.AuthRepository
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import com.calypsan.listenup.client.core.validationError
 
 /**
  * Use case for user login.
@@ -45,7 +45,7 @@ open class LoginUseCase(
     open suspend operator fun invoke(
         email: String,
         password: String,
-    ): Result<User> {
+    ): AppResult<User> {
         val trimmedEmail = email.trim()
 
         // Validate email format

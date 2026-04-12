@@ -181,7 +181,7 @@ class ServerConnectViewModel(
 
                             else -> {
                                 val appError =
-                                    result.exception?.let { ErrorMapper.map(it) }
+                                    (null as Exception?)?.let { ErrorMapper.map(it) }
                                         ?: UnknownError(message = result.message, debugInfo = null)
                                 ServerConnectError.VerificationFailed(appError)
                             }

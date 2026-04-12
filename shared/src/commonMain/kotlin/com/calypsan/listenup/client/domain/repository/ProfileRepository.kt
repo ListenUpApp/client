@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.UserProfile
 
 /**
@@ -18,5 +18,5 @@ interface ProfileRepository {
      * @param userId The user ID to fetch profile for
      * @return Result containing the user profile or an error
      */
-    suspend fun getUserProfile(userId: String): Result<UserProfile>
+    suspend fun getUserProfile(userId: String): AppResult<UserProfile>
 }

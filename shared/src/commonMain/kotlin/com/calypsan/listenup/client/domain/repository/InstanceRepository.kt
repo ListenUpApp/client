@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.Instance
 
 /**
@@ -31,7 +31,7 @@ interface InstanceRepository {
      * @param forceRefresh If true, bypasses any cached data and fetches fresh data from the server
      * @return Result containing the Instance on success, or an error on failure
      */
-    suspend fun getInstance(forceRefresh: Boolean = false): Result<Instance>
+    suspend fun getInstance(forceRefresh: Boolean = false): AppResult<Instance>
 
     /**
      * Verifies a server URL is a valid ListenUp instance before authentication.
@@ -43,5 +43,5 @@ interface InstanceRepository {
      * @param baseUrl The server URL to verify (with or without protocol)
      * @return Result containing VerifiedServer with instance and working URL on success
      */
-    suspend fun verifyServer(baseUrl: String): Result<VerifiedServer>
+    suspend fun verifyServer(baseUrl: String): AppResult<VerifiedServer>
 }

@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.presentation.library
 
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
@@ -45,6 +44,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Clock
+import com.calypsan.listenup.client.core.Success
 
 /**
  * Tests for LibraryViewModel.
@@ -801,7 +801,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             everySuspend { fixture.authSession.getAccessToken() } returns AccessToken("token")
             everySuspend { fixture.syncStatusRepository.getLastSyncTime() } returns null // Never synced
-            everySuspend { fixture.bookRepository.refreshBooks() } returns Result.Success(Unit)
+            everySuspend { fixture.bookRepository.refreshBooks() } returns Success(Unit)
             val viewModel = fixture.build()
             collectInBackground(viewModel)
             advanceUntilIdle()

@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.data.remote
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
@@ -37,7 +37,7 @@ class UserPreferencesApi(
      *
      * @return Result containing user settings or error
      */
-    override suspend fun getPreferences(): Result<UserPreferencesResponse> =
+    override suspend fun getPreferences(): AppResult<UserPreferencesResponse> =
         suspendRunCatching {
             logger.debug { "Fetching user settings" }
             val client = clientFactory.getClient()
@@ -57,7 +57,7 @@ class UserPreferencesApi(
      * @param request The settings to update (only non-null fields are sent)
      * @return Result containing updated settings or error
      */
-    override suspend fun updatePreferences(request: UserPreferencesRequest): Result<UserPreferencesResponse> =
+    override suspend fun updatePreferences(request: UserPreferencesRequest): AppResult<UserPreferencesResponse> =
         suspendRunCatching {
             logger.debug { "Updating user settings: $request" }
             val client = clientFactory.getClient()

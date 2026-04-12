@@ -13,6 +13,7 @@ import dev.mokkery.mock
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for LogoutUseCase.

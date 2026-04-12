@@ -1,17 +1,17 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.appJson
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.VerifiedServer
+import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -73,10 +73,10 @@ class InstanceRepositoryImpl(
             }
         }
 
-    override suspend fun getInstance(forceRefresh: Boolean): Result<Instance> {
+    override suspend fun getInstance(forceRefresh: Boolean): AppResult<Instance> {
         // Return cached data if available and refresh not forced
         if (!forceRefresh && cachedInstance != null) {
-            return Result.Success(cachedInstance!!)
+            return Success(cachedInstance!!)
         }
 
         val serverUrl = getServerUrl()
@@ -96,20 +96,20 @@ class InstanceRepositoryImpl(
 
                 when (val result = response.toResult()) {
                     is Success -> result.data
-                    is Failure -> throw result.exceptionOrFromMessage()
+                    is Failure -> throw AppException(result.error)
                 }
             } finally {
                 client.close()
             }
         }.also { result ->
             // Cache successful results
-            if (result is Result.Success) {
+            if (result is Success) {
                 cachedInstance = result.data
             }
         }
     }
 
-    private suspend fun attemptServerVerification(currentUrl: String): Result<VerifiedServer> {
+    private suspend fun attemptServerVerification(currentUrl: String): AppResult<VerifiedServer> {
         val client = createUnauthenticatedClient()
         return try {
             val instanceUrl = currentUrl.trimEnd('/') + "/api/v1/instance"
@@ -122,7 +122,7 @@ class InstanceRepositoryImpl(
                 }
 
                 is Failure -> {
-                    Failure(result.exceptionOrFromMessage())
+                    Failure(AppException(result.error))
                 }
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
@@ -134,7 +134,7 @@ class InstanceRepositoryImpl(
         }
     }
 
-    override suspend fun verifyServer(baseUrl: String): Result<VerifiedServer> {
+    override suspend fun verifyServer(baseUrl: String): AppResult<VerifiedServer> {
         val urlsToTry = normalizeUrl(baseUrl)
         var lastException: Exception? = null
         for ((index, currentUrl) in urlsToTry.withIndex()) {
@@ -151,10 +151,10 @@ class InstanceRepositoryImpl(
                             errorMessage.contains("handshake")
                     if (isSslError && index < urlsToTry.size - 1) {
                         logger.debug { "SSL error at $currentUrl, trying HTTP fallback" }
-                        lastException = result.exception
+                        lastException = AppException(result.error)
                         continue
                     }
-                    lastException = result.exception
+                    lastException = AppException(result.error)
                     break
                 }
             }

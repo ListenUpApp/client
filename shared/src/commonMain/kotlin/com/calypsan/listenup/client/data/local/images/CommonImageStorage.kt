@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.data.local.images
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +43,7 @@ class CommonImageStorage(
     override suspend fun saveCover(
         bookId: BookId,
         imageData: ByteArray,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val file = getCoverFile(bookId)
@@ -60,7 +60,7 @@ class CommonImageStorage(
 
     override fun exists(bookId: BookId): Boolean = SystemFileSystem.exists(getCoverFile(bookId))
 
-    override suspend fun deleteCover(bookId: BookId): Result<Unit> =
+    override suspend fun deleteCover(bookId: BookId): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val file = getCoverFile(bookId)
@@ -78,7 +78,7 @@ class CommonImageStorage(
     override suspend fun saveCoverStaging(
         bookId: BookId,
         imageData: ByteArray,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val file = getCoverStagingFile(bookId)
@@ -93,7 +93,7 @@ class CommonImageStorage(
 
     override fun getCoverStagingPath(bookId: BookId): String = getCoverStagingFile(bookId).toString()
 
-    override suspend fun commitCoverStaging(bookId: BookId): Result<Unit> =
+    override suspend fun commitCoverStaging(bookId: BookId): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val stagingFile = getCoverStagingFile(bookId)
@@ -118,7 +118,7 @@ class CommonImageStorage(
             }
         }
 
-    override suspend fun deleteCoverStaging(bookId: BookId): Result<Unit> =
+    override suspend fun deleteCoverStaging(bookId: BookId): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getCoverStagingFile(bookId))
@@ -130,7 +130,7 @@ class CommonImageStorage(
             }
         }
 
-    override suspend fun clearAll(): Result<Int> =
+    override suspend fun clearAll(): AppResult<Int> =
         withContext(Dispatchers.IO) {
             try {
                 var deletedCount = 0
@@ -157,7 +157,7 @@ class CommonImageStorage(
     override suspend fun saveContributorImage(
         contributorId: String,
         imageData: ByteArray,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val file = getContributorFile(contributorId)
@@ -175,7 +175,7 @@ class CommonImageStorage(
     override fun contributorImageExists(contributorId: String): Boolean =
         SystemFileSystem.exists(getContributorFile(contributorId))
 
-    override suspend fun deleteContributorImage(contributorId: String): Result<Unit> =
+    override suspend fun deleteContributorImage(contributorId: String): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getContributorFile(contributorId))
@@ -192,7 +192,7 @@ class CommonImageStorage(
     override suspend fun saveSeriesCover(
         seriesId: String,
         imageData: ByteArray,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val file = getSeriesCoverFile(seriesId)
@@ -209,7 +209,7 @@ class CommonImageStorage(
 
     override fun seriesCoverExists(seriesId: String): Boolean = SystemFileSystem.exists(getSeriesCoverFile(seriesId))
 
-    override suspend fun deleteSeriesCover(seriesId: String): Result<Unit> =
+    override suspend fun deleteSeriesCover(seriesId: String): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getSeriesCoverFile(seriesId))
@@ -226,7 +226,7 @@ class CommonImageStorage(
     override suspend fun saveSeriesCoverStaging(
         seriesId: String,
         imageData: ByteArray,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val file = getSeriesCoverStagingFile(seriesId)
@@ -241,7 +241,7 @@ class CommonImageStorage(
 
     override fun getSeriesCoverStagingPath(seriesId: String): String = getSeriesCoverStagingFile(seriesId).toString()
 
-    override suspend fun commitSeriesCoverStaging(seriesId: String): Result<Unit> =
+    override suspend fun commitSeriesCoverStaging(seriesId: String): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val stagingFile = getSeriesCoverStagingFile(seriesId)
@@ -266,7 +266,7 @@ class CommonImageStorage(
             }
         }
 
-    override suspend fun deleteSeriesCoverStaging(seriesId: String): Result<Unit> =
+    override suspend fun deleteSeriesCoverStaging(seriesId: String): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getSeriesCoverStagingFile(seriesId))
@@ -283,7 +283,7 @@ class CommonImageStorage(
     override suspend fun saveUserAvatar(
         userId: String,
         imageData: ByteArray,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val file = getUserAvatarFile(userId)
@@ -300,7 +300,7 @@ class CommonImageStorage(
 
     override fun userAvatarExists(userId: String): Boolean = SystemFileSystem.exists(getUserAvatarFile(userId))
 
-    override suspend fun deleteUserAvatar(userId: String): Result<Unit> =
+    override suspend fun deleteUserAvatar(userId: String): AppResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getUserAvatarFile(userId))

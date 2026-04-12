@@ -133,53 +133,38 @@ class AppResultTest {
     }
 
     @Test
-    fun legacyResultSuccessConvertsToAppResultSuccess() {
-        val legacy: Result<Int> = Success(42)
-        val appResult = legacy.toAppResult()
-        assertEquals(AppResult.Success(42), appResult)
+    fun failureFromThrowableMapsViaErrorMapper() {
+        val ex = IllegalStateException("boom")
+        val failure = Failure(ex)
+        assertIs<UnknownError>(failure.error)
     }
 
     @Test
-    fun legacyFailureNetworkUnavailableMapsToNetworkError() {
-        val legacy: Result<Int> = Failure(message = "offline", errorCode = ErrorCode.NETWORK_UNAVAILABLE)
-        val appResult = legacy.toAppResult()
-        assertIs<AppResult.Failure>(appResult)
-        assertIs<NetworkError>(appResult.error)
+    fun failureFromAppExceptionPreservesTypedError() {
+        val originalError: AppError = AuthError()
+        val ex =
+            com.calypsan.listenup.client.core.error
+                .AppException(originalError)
+        val failure = Failure(ex)
+        assertSame(originalError, failure.error)
     }
 
     @Test
-    fun legacyFailureUnauthorizedMapsToAuthError() {
-        val legacy: Result<Int> = Failure(message = "401", errorCode = ErrorCode.UNAUTHORIZED)
-        val appResult = legacy.toAppResult()
-        assertIs<AppResult.Failure>(appResult)
-        assertIs<AuthError>(appResult.error)
+    fun validationErrorBuildsDataErrorFailure() {
+        val failure = validationError("bad input")
+        assertIs<DataError>(failure.error)
+        assertEquals("bad input", failure.message)
     }
 
     @Test
-    fun legacyFailureValidationMapsToDataError() {
-        val legacy: Result<Int> = Failure(message = "bad input", errorCode = ErrorCode.VALIDATION_ERROR)
-        val appResult = legacy.toAppResult()
-        assertIs<AppResult.Failure>(appResult)
-        val err = appResult.error
-        assertIs<DataError>(err)
-        assertEquals("bad input", err.message)
+    fun networkErrorHelperBuildsNetworkErrorFailure() {
+        val failure = networkError("offline")
+        assertIs<NetworkError>(failure.error)
     }
 
     @Test
-    fun legacyFailureServerErrorMapsToServerErrorWithUnknownStatus() {
-        val legacy: Result<Int> = Failure(message = "boom", errorCode = ErrorCode.SERVER_ERROR)
-        val appResult = legacy.toAppResult()
-        assertIs<AppResult.Failure>(appResult)
-        val err = appResult.error
-        assertIs<ServerError>(err)
-        assertEquals(0, err.statusCode, "unknown status sentinel — no HTTP status retrievable from legacy ErrorCode")
-    }
-
-    @Test
-    fun legacyFailureUnknownMapsToUnknownError() {
-        val legacy: Result<Int> = Failure(message = "mystery", errorCode = ErrorCode.UNKNOWN)
-        val appResult = legacy.toAppResult()
-        assertIs<AppResult.Failure>(appResult)
-        assertIs<UnknownError>(appResult.error)
+    fun unauthorizedHelperBuildsAuthErrorFailure() {
+        val failure = unauthorizedError()
+        assertIs<AuthError>(failure.error)
     }
 }

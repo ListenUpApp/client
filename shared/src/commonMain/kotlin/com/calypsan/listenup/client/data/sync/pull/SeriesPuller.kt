@@ -1,16 +1,17 @@
 package com.calypsan.listenup.client.data.sync.pull
 
-import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -52,7 +53,7 @@ class SeriesPuller(
                     )
 
                     when (val result = syncApi.getSeries(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
-                        is Result.Success -> {
+                        is Success -> {
                             val response = result.data
                             cursor = response.nextCursor
                             hasMore = response.hasMore
@@ -91,8 +92,8 @@ class SeriesPuller(
                             )
                         }
 
-                        is Result.Failure -> {
-                            throw result.exceptionOrFromMessage()
+                        is Failure -> {
+                            throw AppException(result.error)
                         }
                     }
                 }

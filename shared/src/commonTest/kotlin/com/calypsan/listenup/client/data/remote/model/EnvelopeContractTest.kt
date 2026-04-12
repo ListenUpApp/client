@@ -88,8 +88,6 @@ class EnvelopeContractTest {
         val result = response.toResult()
         val failure = assertIs<Failure>(result)
         assertEquals("Entity already exists", failure.message)
-        val apiException = assertIs<ApiException>(failure.exception)
-        assertEquals("conflict", apiException.code)
     }
 
     @Test

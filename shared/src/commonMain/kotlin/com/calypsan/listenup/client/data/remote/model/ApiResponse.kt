@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.data.remote.model
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -51,7 +51,7 @@ data class ApiResponse<T>(
      *
      * @throws EnvelopeMismatchException if the response structure is invalid
      */
-    fun toResult(): Result<T> {
+    fun toResult(): AppResult<T> {
         // FIRST: Validate envelope structure (canary check)
         if (version == null) {
             throw EnvelopeMismatchException(
@@ -69,10 +69,7 @@ data class ApiResponse<T>(
 
         // Handle detailed error envelope format (has code/message instead of success/error)
         if (code != null) {
-            return Failure(
-                exception = ApiException(code = code, message = message ?: "Unknown error"),
-                message = message ?: error ?: "Unknown error",
-            )
+            return Failure(ApiException(code = code, message = message ?: "Unknown error"))
         }
 
         // Handle standard envelope format
@@ -84,10 +81,7 @@ data class ApiResponse<T>(
             @Suppress("UNCHECKED_CAST")
             Success(null as T)
         } else {
-            Failure(
-                exception = ApiException(message = error ?: "Unknown API error"),
-                message = error ?: "Unknown API error",
-            )
+            Failure(ApiException(message = error ?: "Unknown API error"))
         }
     }
 }

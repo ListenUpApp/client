@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.domain.repository
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 
 /**
  * Platform-agnostic interface for storing and retrieving images locally.
@@ -26,7 +26,7 @@ interface ImageStorage {
     suspend fun saveCover(
         bookId: BookId,
         imageData: ByteArray,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get the local file path for a book's cover image.
@@ -52,7 +52,7 @@ interface ImageStorage {
      * @param bookId Unique identifier for the book
      * @return Result indicating success or failure
      */
-    suspend fun deleteCover(bookId: BookId): Result<Unit>
+    suspend fun deleteCover(bookId: BookId): AppResult<Unit>
 
     // ========== Book Cover Staging Methods ==========
     // Used for edit screens to preview changes before committing
@@ -68,7 +68,7 @@ interface ImageStorage {
     suspend fun saveCoverStaging(
         bookId: BookId,
         imageData: ByteArray,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get the local file path for a book's staging cover image.
@@ -85,7 +85,7 @@ interface ImageStorage {
      * @param bookId Unique identifier for the book
      * @return Result indicating success or failure
      */
-    suspend fun commitCoverStaging(bookId: BookId): Result<Unit>
+    suspend fun commitCoverStaging(bookId: BookId): AppResult<Unit>
 
     /**
      * Delete staging cover file.
@@ -94,7 +94,7 @@ interface ImageStorage {
      * @param bookId Unique identifier for the book
      * @return Result indicating success or failure
      */
-    suspend fun deleteCoverStaging(bookId: BookId): Result<Unit>
+    suspend fun deleteCoverStaging(bookId: BookId): AppResult<Unit>
 
     /**
      * Clear all cover images from local storage.
@@ -102,7 +102,7 @@ interface ImageStorage {
      *
      * @return Result with count of deleted files
      */
-    suspend fun clearAll(): Result<Int>
+    suspend fun clearAll(): AppResult<Int>
 
     // ========== Contributor Image Methods ==========
 
@@ -116,7 +116,7 @@ interface ImageStorage {
     suspend fun saveContributorImage(
         contributorId: String,
         imageData: ByteArray,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get the local file path for a contributor's profile image.
@@ -142,7 +142,7 @@ interface ImageStorage {
      * @param contributorId Unique identifier for the contributor
      * @return Result indicating success or failure
      */
-    suspend fun deleteContributorImage(contributorId: String): Result<Unit>
+    suspend fun deleteContributorImage(contributorId: String): AppResult<Unit>
 
     // ========== Series Cover Methods ==========
 
@@ -156,7 +156,7 @@ interface ImageStorage {
     suspend fun saveSeriesCover(
         seriesId: String,
         imageData: ByteArray,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get the local file path for a series's cover image.
@@ -182,7 +182,7 @@ interface ImageStorage {
      * @param seriesId Unique identifier for the series
      * @return Result indicating success or failure
      */
-    suspend fun deleteSeriesCover(seriesId: String): Result<Unit>
+    suspend fun deleteSeriesCover(seriesId: String): AppResult<Unit>
 
     // ========== User Avatar Methods ==========
 
@@ -196,7 +196,7 @@ interface ImageStorage {
     suspend fun saveUserAvatar(
         userId: String,
         imageData: ByteArray,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get the local file path for a user's avatar image.
@@ -222,7 +222,7 @@ interface ImageStorage {
      * @param userId Unique identifier for the user
      * @return Result indicating success or failure
      */
-    suspend fun deleteUserAvatar(userId: String): Result<Unit>
+    suspend fun deleteUserAvatar(userId: String): AppResult<Unit>
 
     // ========== Series Cover Staging Methods ==========
 
@@ -237,7 +237,7 @@ interface ImageStorage {
     suspend fun saveSeriesCoverStaging(
         seriesId: String,
         imageData: ByteArray,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get the local file path for a series's staging cover image.
@@ -254,7 +254,7 @@ interface ImageStorage {
      * @param seriesId Unique identifier for the series
      * @return Result indicating success or failure
      */
-    suspend fun commitSeriesCoverStaging(seriesId: String): Result<Unit>
+    suspend fun commitSeriesCoverStaging(seriesId: String): AppResult<Unit>
 
     /**
      * Delete staging cover file.
@@ -263,5 +263,5 @@ interface ImageStorage {
      * @param seriesId Unique identifier for the series
      * @return Result indicating success or failure
      */
-    suspend fun deleteSeriesCoverStaging(seriesId: String): Result<Unit>
+    suspend fun deleteSeriesCoverStaging(seriesId: String): AppResult<Unit>
 }

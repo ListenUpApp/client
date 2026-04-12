@@ -4,8 +4,8 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
+import com.calypsan.listenup.client.core.error.AppException
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.http.encodeURLPath
@@ -122,7 +122,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.users
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -133,7 +133,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -150,7 +150,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -162,7 +162,7 @@ class AdminApi(
             is Success -> { /* User deleted successfully */ }
 
             is Failure -> {
-                throw result.exceptionOrFromMessage()
+                throw AppException(result.error)
             }
         }
     }
@@ -176,7 +176,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.users
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -187,7 +187,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -201,7 +201,7 @@ class AdminApi(
                 is Success -> { /* Shouldn't happen */ }
 
                 is Failure -> {
-                    throw result.exceptionOrFromMessage()
+                    throw AppException(result.error)
                 }
             }
         }
@@ -216,7 +216,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.invites
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -230,7 +230,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -242,7 +242,7 @@ class AdminApi(
             is Success -> { /* Invite deleted successfully */ }
 
             is Failure -> {
-                throw result.exceptionOrFromMessage()
+                throw AppException(result.error)
             }
         }
     }
@@ -262,7 +262,7 @@ class AdminApi(
                 is Success -> { /* Shouldn't happen */ }
 
                 is Failure -> {
-                    throw result.exceptionOrFromMessage()
+                    throw AppException(result.error)
                 }
             }
         }
@@ -277,7 +277,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.toDomain()
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -291,7 +291,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.toDomain()
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -307,7 +307,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -320,7 +320,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.toDomain()
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -334,7 +334,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.toDomain()
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -354,7 +354,7 @@ class AdminApi(
                 is Success -> { /* Shouldn't happen */ }
 
                 is Failure -> {
-                    throw result.exceptionOrFromMessage()
+                    throw AppException(result.error)
                 }
             }
         }
@@ -372,7 +372,7 @@ class AdminApi(
             is Success -> { /* Collection unstaged successfully */ }
 
             is Failure -> {
-                throw result.exceptionOrFromMessage()
+                throw AppException(result.error)
             }
         }
     }
@@ -386,7 +386,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.libraries
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -397,7 +397,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -414,7 +414,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -433,7 +433,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -450,7 +450,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -464,7 +464,7 @@ class AdminApi(
                 is Success -> { /* Shouldn't happen */ }
 
                 is Failure -> {
-                    throw result.exceptionOrFromMessage()
+                    throw AppException(result.error)
                 }
             }
         }
@@ -482,7 +482,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 }

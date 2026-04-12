@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.collection
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.repository.AdminRepository
@@ -35,7 +35,7 @@ open class LoadCollectionSharesUseCase(
      * @param collectionId The collection ID
      * @return Result containing list of enriched share summaries or a failure
      */
-    open suspend operator fun invoke(collectionId: String): Result<List<CollectionShareSummary>> {
+    open suspend operator fun invoke(collectionId: String): AppResult<List<CollectionShareSummary>> {
         logger.debug { "Loading shares for collection: $collectionId" }
 
         return suspendRunCatching {

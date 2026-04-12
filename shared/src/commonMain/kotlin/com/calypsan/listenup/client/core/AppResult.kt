@@ -1,11 +1,20 @@
+@file:Suppress("TooManyFunctions")
+
 package com.calypsan.listenup.client.core
 
 import com.calypsan.listenup.client.core.error.AppError
+import com.calypsan.listenup.client.core.error.AppException
 import com.calypsan.listenup.client.core.error.AuthError
 import com.calypsan.listenup.client.core.error.DataError
+import com.calypsan.listenup.client.core.error.ErrorMapper
 import com.calypsan.listenup.client.core.error.NetworkError
 import com.calypsan.listenup.client.core.error.ServerError
 import com.calypsan.listenup.client.core.error.UnknownError
+import kotlin.MustUseReturnValues
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
+import kotlinx.coroutines.CancellationException
 
 /**
  * The canonical result type for every fallible suspend function in the codebase.
@@ -14,14 +23,15 @@ import com.calypsan.listenup.client.core.error.UnknownError
  * - [Success] — carries the produced value.
  * - [Failure] — carries an [AppError], already categorised and user-message-ready.
  *
- * Replaces the three-way split Finding 01 D1 diagnosed (`core.Result<T>` plus the
- * now-deleted `core.AsyncState<T>` plus [AppError], with no conversion path between
- * them). The name avoids shadowing [kotlin.Result], which must not be used as a
- * public API return type.
+ * Replaces the three-way split Finding 01 D1 diagnosed (now-deleted `core.AppResult<T>` plus
+ * the now-deleted `core.AsyncState<T>` plus [AppError], with no conversion path between
+ * them). The name avoids shadowing [kotlin.Result], which must not be used as a public API
+ * return type.
  *
- * Source: Android Architecture Guide "Define Result Class for Network Responses" +
- * Kotlin sealed-class API pattern.
+ * Source: Android Architecture Guide "Define Result Class for Network Responses" + Kotlin
+ * sealed-class API pattern.
  */
+@MustUseReturnValues
 sealed interface AppResult<out T> {
     data class Success<T>(
         val data: T,
@@ -29,24 +39,95 @@ sealed interface AppResult<out T> {
 
     data class Failure(
         val error: AppError,
-    ) : AppResult<Nothing>
+    ) : AppResult<Nothing> {
+        /** Shortcut for [error].message so catch sites read naturally. */
+        val message: String get() = error.message
+    }
 }
 
-/** Transform the success value; failures pass through untouched. */
+// Ergonomic aliases so `Success(x)` / `is Failure ->` read naturally at call sites.
+typealias Success<T> = AppResult.Success<T>
+typealias Failure = AppResult.Failure
+
+@PublishedApi internal const val UNKNOWN_ERROR_MESSAGE = "Unknown error"
+
+// ---- Construction helpers ----------------------------------------------------------------
+
+/**
+ * Wraps an arbitrary [Throwable] as an [AppResult.Failure]. Preserves the typed [AppError]
+ * when [throwable] is already an [AppException]; otherwise routes through [ErrorMapper].
+ */
+fun Failure(throwable: Throwable): AppResult.Failure =
+    if (throwable is AppException) {
+        AppResult.Failure(throwable.error)
+    } else {
+        AppResult.Failure(ErrorMapper.map(throwable))
+    }
+
+// ---- Smart-cast helpers ------------------------------------------------------------------
+
+@OptIn(ExperimentalContracts::class)
+fun <T> AppResult<T>.isSuccess(): Boolean {
+    contract {
+        returns(true) implies (this@isSuccess is AppResult.Success<T>)
+    }
+    return this is AppResult.Success
+}
+
+@OptIn(ExperimentalContracts::class)
+fun <T> AppResult<T>.isFailure(): Boolean {
+    contract {
+        returns(true) implies (this@isFailure is AppResult.Failure)
+    }
+    return this is AppResult.Failure
+}
+
+// ---- Unwrap helpers ----------------------------------------------------------------------
+
+fun <T> AppResult<T>.getOrNull(): T? =
+    when (this) {
+        is AppResult.Success -> data
+        is AppResult.Failure -> null
+    }
+
+inline fun <T> AppResult<T>.getOrDefault(defaultValue: () -> T): T =
+    when (this) {
+        is AppResult.Success -> data
+        is AppResult.Failure -> defaultValue()
+    }
+
+fun <T> AppResult<T>.getOrThrow(): T =
+    when (this) {
+        is AppResult.Success -> data
+        is AppResult.Failure -> throw AppException(error)
+    }
+
+fun <T> AppResult<T>.errorOrNull(): AppError? =
+    when (this) {
+        is AppResult.Success -> null
+        is AppResult.Failure -> error
+    }
+
+// ---- Combinators -------------------------------------------------------------------------
+
 inline fun <T, R> AppResult<T>.map(transform: (T) -> R): AppResult<R> =
     when (this) {
         is AppResult.Success -> AppResult.Success(transform(data))
         is AppResult.Failure -> this
     }
 
-/** Chain another fallible step; short-circuits on the first failure (railway-oriented). */
+suspend inline fun <T, R> AppResult<T>.mapSuspend(crossinline transform: suspend (T) -> R): AppResult<R> =
+    when (this) {
+        is AppResult.Success -> AppResult.Success(transform(data))
+        is AppResult.Failure -> this
+    }
+
 inline fun <T, R> AppResult<T>.flatMap(transform: (T) -> AppResult<R>): AppResult<R> =
     when (this) {
         is AppResult.Success -> transform(data)
         is AppResult.Failure -> this
     }
 
-/** Collapse both branches into a single value. */
 inline fun <T, R> AppResult<T>.fold(
     onSuccess: (T) -> R,
     onFailure: (AppError) -> R,
@@ -56,77 +137,91 @@ inline fun <T, R> AppResult<T>.fold(
         is AppResult.Failure -> onFailure(error)
     }
 
-/** Returns the data on success, or `null` on failure. */
-fun <T> AppResult<T>.getOrNull(): T? =
-    when (this) {
-        is AppResult.Success -> data
-        is AppResult.Failure -> null
-    }
-
-/** Returns the [AppError] on failure, or `null` on success. */
-fun <T> AppResult<T>.errorOrNull(): AppError? =
-    when (this) {
-        is AppResult.Success -> null
-        is AppResult.Failure -> error
-    }
-
-/** Side-effect on success; returns `this` unchanged. */
 inline fun <T> AppResult<T>.onSuccess(action: (T) -> Unit): AppResult<T> {
     if (this is AppResult.Success) action(data)
     return this
 }
 
-/** Side-effect on failure; returns `this` unchanged. */
 inline fun <T> AppResult<T>.onFailure(action: (AppError) -> Unit): AppResult<T> {
     if (this is AppResult.Failure) action(error)
     return this
 }
 
-/**
- * Bridge from the legacy [Result] type to [AppResult]. Used during the incremental
- * migration from `core.Result<T>` to `AppResult<T>` (W2b); new code should return
- * [AppResult] directly and skip this conversion.
- *
- * Mapping preserves each failure's message; the legacy [ErrorCode] routes to the
- * corresponding [AppError] variant:
- * - [ErrorCode.NETWORK_UNAVAILABLE] → [NetworkError]
- * - [ErrorCode.UNAUTHORIZED] → [AuthError]
- * - [ErrorCode.VALIDATION_ERROR] / [ErrorCode.NOT_FOUND] / [ErrorCode.CONFLICT] → [DataError]
- * - [ErrorCode.SERVER_ERROR] → [ServerError] with `statusCode = 0` (legacy sentinel)
- * - [ErrorCode.UNKNOWN] → [UnknownError]
- */
-fun <T> Result<T>.toAppResult(): AppResult<T> =
+inline fun <T> AppResult<T>.recover(recovery: (AppError) -> T): AppResult<T> =
     when (this) {
-        is Success -> {
-            AppResult.Success(data)
-        }
-
-        is Failure -> {
-            AppResult.Failure(
-                when (errorCode) {
-                    ErrorCode.NETWORK_UNAVAILABLE -> {
-                        NetworkError(message = message, debugInfo = exception?.message)
-                    }
-
-                    ErrorCode.UNAUTHORIZED -> {
-                        AuthError(message = message, debugInfo = exception?.message)
-                    }
-
-                    ErrorCode.VALIDATION_ERROR,
-                    ErrorCode.NOT_FOUND,
-                    ErrorCode.CONFLICT,
-                    -> {
-                        DataError(message = message, debugInfo = exception?.message)
-                    }
-
-                    ErrorCode.SERVER_ERROR -> {
-                        ServerError(statusCode = 0, message = message, debugInfo = exception?.message)
-                    }
-
-                    ErrorCode.UNKNOWN -> {
-                        UnknownError(message = message, debugInfo = exception?.message)
-                    }
-                },
-            )
-        }
+        is AppResult.Success -> this
+        is AppResult.Failure -> AppResult.Success(recovery(error))
     }
+
+// ---- Boundary catch helpers --------------------------------------------------------------
+
+/**
+ * Catch exceptions in a suspend block and wrap them in [AppResult].
+ *
+ * Re-throws [CancellationException] to preserve coroutine cancellation semantics
+ * (Finding 01 D4 / kotlinx.coroutines canonical rule). All other throwables are mapped
+ * via [Failure] — which preserves [AppException.error] when the cause is already typed.
+ */
+@OptIn(ExperimentalContracts::class)
+suspend inline fun <T> suspendRunCatching(crossinline block: suspend () -> T): AppResult<T> {
+    contract {
+        callsInPlace(block, InvocationKind.AT_MOST_ONCE)
+    }
+    return try {
+        AppResult.Success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Failure(e)
+    }
+}
+
+/**
+ * Non-suspending equivalent of [suspendRunCatching]. Still routes typed [AppException]s
+ * through their [AppError] unchanged.
+ */
+@OptIn(ExperimentalContracts::class)
+inline fun <T> runCatching(block: () -> T): AppResult<T> {
+    contract {
+        callsInPlace(block, InvocationKind.AT_MOST_ONCE)
+    }
+    return try {
+        AppResult.Success(block())
+    } catch (e: Exception) {
+        Failure(e)
+    }
+}
+
+// ---- Domain-specific failure factories ---------------------------------------------------
+
+/** Construct an [AppResult.Failure] carrying a generic [UnknownError]. */
+fun failureOf(
+    message: String,
+    debugInfo: String? = null,
+): AppResult.Failure = AppResult.Failure(UnknownError(message = message, debugInfo = debugInfo))
+
+/** Construct an [AppResult.Failure] carrying a [DataError] for validation failures. */
+fun validationError(message: String): AppResult.Failure = AppResult.Failure(DataError(message = message))
+
+/** Construct an [AppResult.Failure] carrying a [DataError] for "resource not found". */
+fun notFoundError(message: String = "Resource not found"): AppResult.Failure =
+    AppResult.Failure(DataError(message = message))
+
+/** Construct an [AppResult.Failure] carrying a [NetworkError]. */
+fun networkError(
+    message: String = "Network unavailable",
+    cause: Throwable? = null,
+): AppResult.Failure = AppResult.Failure(NetworkError(message = message, debugInfo = cause?.message))
+
+/** Construct an [AppResult.Failure] carrying an [AuthError]. */
+fun unauthorizedError(message: String = "Session expired"): AppResult.Failure =
+    AppResult.Failure(AuthError(message = message))
+
+/** Construct an [AppResult.Failure] carrying a [ServerError] with unknown status. */
+fun serverError(
+    message: String,
+    cause: Throwable? = null,
+): AppResult.Failure =
+    AppResult.Failure(
+        ServerError(statusCode = 0, message = message, debugInfo = cause?.message),
+    )

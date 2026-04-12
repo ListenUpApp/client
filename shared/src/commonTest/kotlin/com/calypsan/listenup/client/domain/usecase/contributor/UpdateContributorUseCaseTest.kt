@@ -246,7 +246,7 @@ class UpdateContributorUseCaseTest {
             val fixture = createFixture()
             everySuspend {
                 fixture.contributorEditRepository.mergeContributor(any(), any())
-            } returns Failure(exception = Exception("Merge failed"), message = "Merge failed")
+            } returns Failure(Exception("Merge failed"))
             val useCase = fixture.build()
 
             val searchResult = createSearchResult(id = "source-id", name = "Pen Name")
@@ -347,7 +347,7 @@ class UpdateContributorUseCaseTest {
                     any(),
                     any(),
                 )
-            } returns Failure(exception = Exception("Update failed"), message = "Update failed")
+            } returns Failure(Exception("Update failed"))
             val useCase = fixture.build()
 
             // When

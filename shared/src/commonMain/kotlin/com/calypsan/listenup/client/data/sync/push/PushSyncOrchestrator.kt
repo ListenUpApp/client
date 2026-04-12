@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.error.AppException
 
 private val logger = KotlinLogging.logger {}
 
@@ -130,7 +132,9 @@ class PushSyncOrchestrator(
                                 val operation = batch.first { it.id == id }
                                 handleFailure(
                                     operation,
-                                    (result as? com.calypsan.listenup.client.core.Failure)?.exception,
+                                    (result as? com.calypsan.listenup.client.core.Failure)?.let {
+                                        AppException(it.error)
+                                    },
                                 )
                             }
                         }

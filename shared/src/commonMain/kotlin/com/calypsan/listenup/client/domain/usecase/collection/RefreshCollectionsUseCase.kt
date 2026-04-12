@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.collection
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -27,7 +27,7 @@ open class RefreshCollectionsUseCase(
      *
      * @return Result indicating success or failure
      */
-    open suspend operator fun invoke(): Result<Unit> {
+    open suspend operator fun invoke(): AppResult<Unit> {
         logger.debug { "Refreshing collections from server" }
 
         return suspendRunCatching {

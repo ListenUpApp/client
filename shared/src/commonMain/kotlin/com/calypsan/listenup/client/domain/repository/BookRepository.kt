@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Chapter
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +22,7 @@ interface BookRepository {
     /**
      * Trigger sync to refresh books from server.
      */
-    suspend fun refreshBooks(): Result<Unit>
+    suspend fun refreshBooks(): AppResult<Unit>
 
     /**
      * Get a single book by ID.

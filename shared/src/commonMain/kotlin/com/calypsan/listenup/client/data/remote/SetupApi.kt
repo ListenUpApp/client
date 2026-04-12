@@ -4,8 +4,8 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
+import com.calypsan.listenup.client.core.error.AppException
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -53,7 +53,7 @@ class SetupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -69,7 +69,7 @@ class SetupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -83,7 +83,7 @@ class SetupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 }

@@ -88,10 +88,11 @@ object ErrorMapper {
                 )
             }
 
-            // Fallback for unknown exceptions
+            // Fallback for unknown exceptions — use the exception's message verbatim so
+            // callers surface the same text they would have seen pre-migration.
             else -> {
                 UnknownError(
-                    message = "An unexpected error occurred: ${exception.message}",
+                    message = exception.message ?: "An unexpected error occurred",
                     debugInfo = exception.stackTraceToString(),
                 )
             }

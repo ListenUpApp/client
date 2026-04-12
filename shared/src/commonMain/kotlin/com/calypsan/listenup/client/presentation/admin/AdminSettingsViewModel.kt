@@ -3,7 +3,6 @@ package com.calypsan.listenup.client.presentation.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.domain.usecase.admin.LoadServerSettingsUseCase
@@ -124,14 +123,14 @@ class AdminSettingsViewModel(
     private fun loadRemoteUrl() {
         viewModelScope.launch {
             when (val result = instanceRepository.getInstance(forceRefresh = true)) {
-                is Result.Success -> {
+                is Success -> {
                     val url = result.data.remoteUrl ?: ""
                     savedRemoteUrl = url
                     state.value = state.value.copy(remoteUrl = url)
                     updateDirty()
                 }
 
-                is Result.Failure -> {
+                is Failure -> {
                     // Non-fatal, just leave remote URL empty
                 }
             }

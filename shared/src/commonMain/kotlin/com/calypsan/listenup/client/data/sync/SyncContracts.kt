@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.data.local.images.ExtractedColors
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -32,7 +32,7 @@ interface ImageDownloaderContract {
      * @param bookId Unique identifier for the book
      * @return Result indicating success or failure
      */
-    suspend fun deleteCover(bookId: BookId): Result<Unit>
+    suspend fun deleteCover(bookId: BookId): AppResult<Unit>
 
     /**
      * Download and save a single book cover.
@@ -40,7 +40,7 @@ interface ImageDownloaderContract {
      * @param bookId Unique identifier for the book
      * @return Result indicating if cover was successfully downloaded (true) or already existed/unavailable (false)
      */
-    suspend fun downloadCover(bookId: BookId): Result<Boolean>
+    suspend fun downloadCover(bookId: BookId): AppResult<Boolean>
 
     /**
      * Download and save a single contributor image.
@@ -48,7 +48,7 @@ interface ImageDownloaderContract {
      * @param contributorId Unique identifier for the contributor
      * @return Result indicating if image was successfully downloaded (true) or already existed/unavailable (false)
      */
-    suspend fun downloadContributorImage(contributorId: String): Result<Boolean>
+    suspend fun downloadContributorImage(contributorId: String): AppResult<Boolean>
 
     /**
      * Download images for multiple contributors in batch.
@@ -56,7 +56,7 @@ interface ImageDownloaderContract {
      * @param contributorIds List of contributor identifiers to download images for
      * @return Result containing list of contributor IDs that were successfully downloaded
      */
-    suspend fun downloadContributorImages(contributorIds: List<String>): Result<List<String>>
+    suspend fun downloadContributorImages(contributorIds: List<String>): AppResult<List<String>>
 
     /**
      * Get the local file path for a contributor's image.
@@ -72,7 +72,7 @@ interface ImageDownloaderContract {
      * @param seriesId Unique identifier for the series
      * @return Result indicating if cover was successfully downloaded (true) or already existed/unavailable (false)
      */
-    suspend fun downloadSeriesCover(seriesId: String): Result<Boolean>
+    suspend fun downloadSeriesCover(seriesId: String): AppResult<Boolean>
 
     /**
      * Download covers for multiple series in batch.
@@ -80,7 +80,7 @@ interface ImageDownloaderContract {
      * @param seriesIds List of series identifiers to download covers for
      * @return Result containing list of series IDs that were successfully downloaded
      */
-    suspend fun downloadSeriesCovers(seriesIds: List<String>): Result<List<String>>
+    suspend fun downloadSeriesCovers(seriesIds: List<String>): AppResult<List<String>>
 
     /**
      * Download and save a user's avatar image.
@@ -92,7 +92,7 @@ interface ImageDownloaderContract {
     suspend fun downloadUserAvatar(
         userId: String,
         forceRefresh: Boolean = false,
-    ): Result<Boolean>
+    ): AppResult<Boolean>
 
     /**
      * Get the local file path for a user's avatar image.
@@ -108,7 +108,7 @@ interface ImageDownloaderContract {
      * @param userId Unique identifier for the user
      * @return Result indicating success or failure
      */
-    suspend fun deleteUserAvatar(userId: String): Result<Unit>
+    suspend fun deleteUserAvatar(userId: String): AppResult<Unit>
 }
 
 /**

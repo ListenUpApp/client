@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.presentation.seriesedit
 
 import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Series
 import com.calypsan.listenup.client.domain.repository.ImageRepository
@@ -205,7 +204,7 @@ class SeriesEditViewModelTest {
             everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
             everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
             everySuspend { fixture.updateSeriesUseCase.invoke(any()) } returns
-                Failure(exception = Exception("Save failed"), message = "Save failed")
+                Failure(Exception("Save failed"))
 
             val viewModel = fixture.build()
             viewModel.loadSeries("series-1")
@@ -228,7 +227,7 @@ class SeriesEditViewModelTest {
             everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
             everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
             everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
-            everySuspend { fixture.imageRepository.deleteSeriesCoverStaging(any()) } returns Result.Success(Unit)
+            everySuspend { fixture.imageRepository.deleteSeriesCoverStaging(any()) } returns Success(Unit)
 
             val viewModel = fixture.build()
             viewModel.loadSeries("series-1")

@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.collection
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.repository.AdminRepository
@@ -37,7 +37,7 @@ open class GetUsersForSharingUseCase(
      * @param collectionId The collection to get available users for
      * @return Result containing list of available users or a failure
      */
-    open suspend operator fun invoke(collectionId: String): Result<List<AdminUserInfo>> {
+    open suspend operator fun invoke(collectionId: String): AppResult<List<AdminUserInfo>> {
         logger.debug { "Loading users available for sharing collection: $collectionId" }
 
         return suspendRunCatching {

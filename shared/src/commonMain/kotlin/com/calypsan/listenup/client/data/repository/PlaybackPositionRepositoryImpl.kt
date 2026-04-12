@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -87,7 +87,7 @@ class PlaybackPositionRepositoryImpl(
         bookId: String,
         startedAt: Long?,
         finishedAt: Long?,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         logger.debug { "markComplete: $bookId" }
         val existing = dao.get(BookId(bookId))
         val now = currentEpochMilliseconds()
@@ -150,7 +150,7 @@ class PlaybackPositionRepositoryImpl(
         }
     }
 
-    override suspend fun discardProgress(bookId: String): Result<Unit> {
+    override suspend fun discardProgress(bookId: String): AppResult<Unit> {
         logger.debug { "discardProgress: $bookId" }
         val existing = dao.get(BookId(bookId))
 
@@ -175,7 +175,7 @@ class PlaybackPositionRepositoryImpl(
         }
     }
 
-    override suspend fun restartBook(bookId: String): Result<Unit> {
+    override suspend fun restartBook(bookId: String): AppResult<Unit> {
         logger.debug { "restartBook: $bookId" }
         val existing = dao.get(BookId(bookId))
         val now = currentEpochMilliseconds()

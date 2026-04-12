@@ -4,7 +4,6 @@ import com.calypsan.listenup.client.TestData
 import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.BookEditData
 import com.calypsan.listenup.client.domain.model.BookMetadata
@@ -33,6 +32,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.failureOf
 
 /**
  * Tests for UpdateBookUseCase.
@@ -586,7 +586,7 @@ class UpdateBookUseCaseTest {
             val current = createUpdateRequest(pendingCover = pendingCover)
 
             val fixture = createFixture()
-            everySuspend { fixture.imageRepository.uploadBookCover(any(), any(), any()) } returns Failure(message = "Upload failed")
+            everySuspend { fixture.imageRepository.uploadBookCover(any(), any(), any()) } returns failureOf("Upload failed")
             val useCase = fixture.build()
 
             // When
@@ -608,7 +608,7 @@ class UpdateBookUseCaseTest {
             val current = createUpdateRequest(metadata = currentMetadata)
 
             val fixture = createFixture()
-            everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Failure(message = "Update failed")
+            everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns failureOf("Update failed")
             val useCase = fixture.build()
 
             // When
@@ -635,7 +635,7 @@ class UpdateBookUseCaseTest {
                 )
 
             val fixture = createFixture()
-            everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Failure(message = "Metadata failed")
+            everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns failureOf("Metadata failed")
             val useCase = fixture.build()
 
             // When
@@ -654,7 +654,7 @@ class UpdateBookUseCaseTest {
             val current = createUpdateRequest(contributors = currentContributors)
 
             val fixture = createFixture()
-            everySuspend { fixture.bookEditRepository.setBookContributors(any(), any()) } returns Failure(message = "Contributor update failed")
+            everySuspend { fixture.bookEditRepository.setBookContributors(any(), any()) } returns failureOf("Contributor update failed")
             val useCase = fixture.build()
 
             // When
@@ -674,7 +674,7 @@ class UpdateBookUseCaseTest {
             val current = createUpdateRequest(series = currentSeries)
 
             val fixture = createFixture()
-            everySuspend { fixture.bookEditRepository.setBookSeries(any(), any()) } returns Failure(message = "Series update failed")
+            everySuspend { fixture.bookEditRepository.setBookSeries(any(), any()) } returns failureOf("Series update failed")
             val useCase = fixture.build()
 
             // When

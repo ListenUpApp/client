@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.collection
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -30,7 +30,7 @@ open class RemoveCollectionShareUseCase(
      * @param shareId The share to remove
      * @return Result indicating success or failure
      */
-    open suspend operator fun invoke(shareId: String): Result<Unit> {
+    open suspend operator fun invoke(shareId: String): AppResult<Unit> {
         logger.info { "Removing share: $shareId" }
 
         return suspendRunCatching {

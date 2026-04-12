@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import com.calypsan.listenup.client.core.failureOf
 
 /**
  * Tests for DeleteContributorUseCase.
@@ -78,9 +79,7 @@ class DeleteContributorUseCaseTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.contributorRepository.deleteContributor(any()) } returns
-                Failure(
-                    message = "Contributor not found",
-                )
+                failureOf("Contributor not found")
             val useCase = fixture.build()
 
             // When
@@ -97,10 +96,7 @@ class DeleteContributorUseCaseTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.contributorRepository.deleteContributor(any()) } returns
-                Failure(
-                    exception = Exception("Network error"),
-                    message = "Network error",
-                )
+                Failure(Exception("Network error"))
             val useCase = fixture.build()
 
             // When

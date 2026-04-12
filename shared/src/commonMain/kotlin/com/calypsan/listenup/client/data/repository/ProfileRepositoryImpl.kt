@@ -1,7 +1,8 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.error.AppException
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.ProfileApiContract
@@ -23,11 +24,11 @@ import com.calypsan.listenup.client.domain.repository.ProfileRepository
 class ProfileRepositoryImpl(
     private val profileApi: ProfileApiContract,
 ) : ProfileRepository {
-    override suspend fun getUserProfile(userId: String): Result<UserProfile> =
+    override suspend fun getUserProfile(userId: String): AppResult<UserProfile> =
         suspendRunCatching {
             when (val result = profileApi.getUserProfile(userId)) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception ?: Exception(result.message)
+                is Failure -> throw AppException(result.error)
             }
         }
 }

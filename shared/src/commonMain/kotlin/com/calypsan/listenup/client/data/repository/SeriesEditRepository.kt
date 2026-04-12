@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.EntityType
@@ -40,7 +40,7 @@ interface SeriesEditRepositoryContract {
         seriesId: String,
         name: String?,
         description: String?,
-    ): Result<Unit>
+    ): AppResult<Unit>
 }
 
 /**
@@ -79,7 +79,7 @@ class SeriesEditRepository(
         seriesId: String,
         name: String?,
         description: String?,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Updating series (offline-first): $seriesId" }
 

@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.domain.usecase.shelf
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.ShelfDetail
 import com.calypsan.listenup.client.domain.repository.ImageRepository
@@ -31,7 +31,7 @@ open class LoadShelfDetailUseCase(
      * @param shelfId The shelf ID to load
      * @return Result containing the shelf detail or a failure
      */
-    open suspend operator fun invoke(shelfId: String): Result<ShelfDetail> {
+    open suspend operator fun invoke(shelfId: String): AppResult<ShelfDetail> {
         logger.debug { "Loading shelf detail: $shelfId" }
 
         return suspendRunCatching {

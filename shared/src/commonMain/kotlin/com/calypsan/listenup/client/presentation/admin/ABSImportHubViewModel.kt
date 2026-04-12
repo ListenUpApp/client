@@ -2,10 +2,7 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.FileSource
-import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.data.remote.ABSImportApiContract
 import com.calypsan.listenup.client.data.remote.ABSImportBook
@@ -27,11 +24,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.AppResult
 
 private val logger = KotlinLogging.logger {}
 
 private const val IMPORT_STATUS_ANALYZING = "analyzing"
 private const val ANALYSIS_POLL_INTERVAL_MS = 3_000L
+private const val CREATE_IMPORT_FAILED_PREFIX = "Failed to create import"
+
+private fun createImportFailureDetail(message: String): String = "$CREATE_IMPORT_FAILED_PREFIX: $message"
 
 /**
  * Tab in the import hub detail view.
@@ -129,7 +132,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to load imports: ${result.exception}" }
+                    logger.error { "Failed to load imports: ${result.message}" }
                     listState.update {
                         it.copy(isLoading = false, error = "Failed to load imports")
                     }
@@ -154,12 +157,10 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to create import: ${result.exception}" }
+                    val detail = createImportFailureDetail(result.message)
+                    logger.error { detail }
                     listState.update {
-                        it.copy(
-                            isCreating = false,
-                            error = "Failed to create import: ${result.exception?.message ?: "Unknown error"}",
-                        )
+                        it.copy(isCreating = false, error = detail)
                     }
                 }
             }
@@ -173,7 +174,7 @@ class ABSImportHubViewModel(
     suspend fun createImportAndGetId(
         fileSource: FileSource,
         name: String,
-    ): Result<String> =
+    ): AppResult<String> =
         when (val result = absImportApi.createImport(fileSource, name)) {
             is Success -> {
                 loadImports() // Refresh list in background
@@ -184,12 +185,9 @@ class ABSImportHubViewModel(
             }
 
             is Failure -> {
-                logger.error { "Failed to create import: ${result.exception}" }
-                Failure(
-                    exception = result.exception,
-                    message = result.message,
-                    errorCode = result.errorCode,
-                )
+                val detail = createImportFailureDetail(result.message)
+                logger.error { detail }
+                result
             }
         }
 
@@ -209,12 +207,10 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to create import from path: ${result.exception}" }
+                    val detail = createImportFailureDetail(result.message)
+                    logger.error { detail }
                     listState.update {
-                        it.copy(
-                            isCreating = false,
-                            error = "Failed to create import: ${result.exception?.message ?: "Unknown error"}",
-                        )
+                        it.copy(isCreating = false, error = detail)
                     }
                 }
             }
@@ -229,7 +225,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to delete import: ${result.exception}" }
+                    logger.error { "Failed to delete import: ${result.message}" }
                     listState.update { it.copy(error = "Failed to delete import") }
                 }
             }
@@ -258,7 +254,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to load import: ${result.exception}" }
+                    logger.error { "Failed to load import: ${result.message}" }
                     hubState.update {
                         it.copy(isLoading = false, error = "Failed to load import")
                     }
@@ -292,7 +288,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to refresh import: ${result.exception}" }
+                    logger.error { "Failed to refresh import: ${result.message}" }
                 }
             }
         }
@@ -317,7 +313,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to load users: ${result.exception}" }
+                    logger.error { "Failed to load users: ${result.message}" }
                     hubState.update { it.copy(isLoadingUsers = false, error = "Failed to load users") }
                 }
             }
@@ -369,7 +365,7 @@ class ABSImportHubViewModel(
                     }
 
                     is Failure -> {
-                        logger.error { "User search failed: ${result.exception}" }
+                        logger.error { "User search failed: ${result.message}" }
                         hubState.update {
                             it.copy(userSearchResults = emptyList(), isSearchingUsers = false)
                         }
@@ -403,7 +399,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to map user: ${result.exception}" }
+                    logger.error { "Failed to map user: ${result.message}" }
                     hubState.update {
                         it.copy(
                             error = "Failed to map user",
@@ -434,7 +430,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to clear user mapping: ${result.exception}" }
+                    logger.error { "Failed to clear user mapping: ${result.message}" }
                     hubState.update { it.copy(error = "Failed to clear mapping") }
                 }
             }
@@ -460,7 +456,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to load books: ${result.exception}" }
+                    logger.error { "Failed to load books: ${result.message}" }
                     hubState.update { it.copy(isLoadingBooks = false, error = "Failed to load books") }
                 }
             }
@@ -556,7 +552,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to map book: ${result.exception}" }
+                    logger.error { "Failed to map book: ${result.message}" }
                     hubState.update {
                         it.copy(
                             error = "Failed to map book",
@@ -587,7 +583,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to clear book mapping: ${result.exception}" }
+                    logger.error { "Failed to clear book mapping: ${result.message}" }
                     hubState.update { it.copy(error = "Failed to clear mapping") }
                 }
             }
@@ -613,7 +609,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to load sessions: ${result.exception}" }
+                    logger.error { "Failed to load sessions: ${result.message}" }
                     hubState.update { it.copy(isLoadingSessions = false, error = "Failed to load sessions") }
                 }
             }
@@ -638,7 +634,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to import sessions: ${result.exception}" }
+                    logger.error { "Failed to import sessions: ${result.message}" }
                     hubState.update {
                         it.copy(isImportingSessions = false, error = "Failed to import sessions")
                     }
@@ -662,7 +658,7 @@ class ABSImportHubViewModel(
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to skip session: ${result.exception}" }
+                    logger.error { "Failed to skip session: ${result.message}" }
                     hubState.update { it.copy(error = "Failed to skip session") }
                 }
             }
@@ -723,7 +719,7 @@ class ABSImportHubViewModel(
                         }
 
                         is Failure -> {
-                            logger.error { "Failed to poll import status: ${result.exception}" }
+                            logger.error { "Failed to poll import status: ${result.message}" }
                             break
                         }
                     }

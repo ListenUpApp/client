@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.data.remote
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
@@ -32,7 +32,7 @@ class SessionApi(
     override suspend fun getBookReaders(
         bookId: String,
         limit: Int,
-    ): Result<BookReadersResponse> =
+    ): AppResult<BookReadersResponse> =
         suspendRunCatching {
             logger.debug { "Fetching readers for book $bookId (limit=$limit)" }
             val client = clientFactory.getClient()
@@ -50,7 +50,7 @@ class SessionApi(
      *
      * Endpoint: GET /api/v1/users/me/reading-sessions
      */
-    override suspend fun getUserReadingHistory(limit: Int): Result<UserReadingHistoryResponse> =
+    override suspend fun getUserReadingHistory(limit: Int): AppResult<UserReadingHistoryResponse> =
         suspendRunCatching {
             logger.debug { "Fetching user reading history (limit=$limit)" }
             val client = clientFactory.getClient()
@@ -70,7 +70,7 @@ class SessionApi(
      *
      * Endpoint: GET /api/v1/users/me
      */
-    override suspend fun getCurrentUser(): Result<CurrentUserResponse> =
+    override suspend fun getCurrentUser(): AppResult<CurrentUserResponse> =
         suspendRunCatching {
             logger.debug { "Fetching current user profile" }
             val client = clientFactory.getClient()

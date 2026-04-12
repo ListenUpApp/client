@@ -5,7 +5,6 @@ package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ProgressRefreshBus
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
@@ -27,6 +26,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -400,11 +401,11 @@ class ProgressTracker(
     private suspend fun fetchServerProgress(bookId: BookId): PlaybackProgressResponse? =
         try {
             when (val result = syncApi.getProgress(bookId.value)) {
-                is Result.Success -> {
+                is Success -> {
                     result.data
                 }
 
-                is Result.Failure -> {
+                is Failure -> {
                     logger.debug { "Server progress unavailable: ${result.message}" }
                     null
                 }

@@ -24,7 +24,6 @@ import kotlinx.coroutines.launch
  */
 class LoginViewModel(
     private val loginUseCase: LoginUseCase,
-    private val errorMapper: LoginErrorMapper = DefaultLoginErrorMapper(),
 ) : ViewModel() {
     val state: StateFlow<LoginUiState>
         field = MutableStateFlow(LoginUiState())
@@ -71,13 +70,10 @@ class LoginViewModel(
      * network/server errors (via error mapper).
      */
     private fun mapFailureToErrorType(failure: Failure): LoginErrorType {
-        val exception = failure.exception
         val message = failure.message
 
-        // Check for validation errors from use case (exception might be null for validation errors)
-        if (exception is IllegalArgumentException ||
-            failure.errorCode == com.calypsan.listenup.client.core.ErrorCode.VALIDATION_ERROR
-        ) {
+        // Validation errors from the use case surface as DataError (AppError variant).
+        if (failure.error is com.calypsan.listenup.client.core.error.DataError) {
             return when {
                 message.contains("email", ignoreCase = true) -> {
                     LoginErrorType.ValidationError(LoginField.EMAIL)
@@ -93,7 +89,47 @@ class LoginViewModel(
             }
         }
 
-        // Use error mapper for network/server exceptions
-        return exception?.let { errorMapper.map(it) } ?: LoginErrorType.ServerError(message)
+        // Network/server/auth errors flow through as the already-typed AppError. For
+        // legacy Throwable flows that land as UnknownError, fall back to string-matching
+        // on the message until callers start producing typed AppError variants directly.
+        return when (failure.error) {
+            is com.calypsan.listenup.client.core.error.NetworkError -> LoginErrorType.NetworkError(message)
+            is com.calypsan.listenup.client.core.error.AuthError -> LoginErrorType.InvalidCredentials
+            is com.calypsan.listenup.client.core.error.UnknownError -> classifyByMessage(message)
+            else -> LoginErrorType.ServerError(message)
+        }
+    }
+
+    private fun classifyByMessage(message: String): LoginErrorType {
+        val lower = message.lowercase()
+        return when {
+            "invalid credentials" in lower -> {
+                LoginErrorType.InvalidCredentials
+            }
+
+            "connection refused" in lower -> {
+                LoginErrorType.NetworkError("Connection refused. Is the server running?")
+            }
+
+            "timed out" in lower -> {
+                LoginErrorType.NetworkError("Connection timed out. Check server address.")
+            }
+
+            "unable to resolve host" in lower || "unknown host" in lower -> {
+                LoginErrorType.NetworkError("Server not found. Check the address.")
+            }
+
+            "500" in lower -> {
+                LoginErrorType.ServerError("Server error (500)")
+            }
+
+            "server error" in lower -> {
+                LoginErrorType.ServerError(message)
+            }
+
+            else -> {
+                LoginErrorType.ServerError(message)
+            }
+        }
     }
 }

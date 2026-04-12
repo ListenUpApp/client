@@ -26,6 +26,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import com.calypsan.listenup.client.core.Success
 
 /**
  * Contract interface for metadata API operations.

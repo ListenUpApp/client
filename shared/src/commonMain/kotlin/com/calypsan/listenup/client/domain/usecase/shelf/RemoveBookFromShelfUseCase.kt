@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.shelf
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -33,7 +33,7 @@ open class RemoveBookFromShelfUseCase(
     open suspend operator fun invoke(
         shelfId: String,
         bookId: String,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         logger.info { "Removing book $bookId from shelf $shelfId" }
 
         return suspendRunCatching {

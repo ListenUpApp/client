@@ -3,7 +3,6 @@
 package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
@@ -15,6 +14,8 @@ import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Instant
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -75,7 +76,7 @@ class ListeningEventPuller(
             logger.debug { "Fetching events since: $sinceMs" }
 
             when (val result = syncApi.getListeningEvents(sinceMs)) {
-                is Result.Success -> {
+                is Success -> {
                     val events = result.data.events
                     logger.info { "Fetched ${events.size} listening events from server" }
 
@@ -109,8 +110,8 @@ class ListeningEventPuller(
                     updatePlaybackPositionsFromEvents(entities)
                 }
 
-                is Result.Failure -> {
-                    logger.warn(result.exception) { "Failed to fetch listening events" }
+                is Failure -> {
+                    logger.warn { "Failed to fetch listening events" }
                     // Don't throw - listening events are not critical for sync
                 }
             }
@@ -221,7 +222,7 @@ class ListeningEventPuller(
         try {
             // Fetch ALL events by passing null as the since parameter
             when (val result = syncApi.getListeningEvents(sinceMs = null)) {
-                is Result.Success -> {
+                is Success -> {
                     val events = result.data.events
                     logger.info { "Full refresh: fetched ${events.size} listening events from server" }
 
@@ -254,8 +255,8 @@ class ListeningEventPuller(
                     updatePlaybackPositionsFromEvents(entities)
                 }
 
-                is Result.Failure -> {
-                    logger.warn(result.exception) { "Full refresh: failed to fetch listening events" }
+                is Failure -> {
+                    logger.warn { "Full refresh: failed to fetch listening events" }
                 }
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {

@@ -1,10 +1,10 @@
 package com.calypsan.listenup.client.domain.usecase.admin
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.core.validationError
 import com.calypsan.listenup.client.domain.model.InviteInfo
 import com.calypsan.listenup.client.domain.repository.AdminRepository
+import com.calypsan.listenup.client.core.validationError
 
 /**
  * Creates a new invite code.
@@ -19,7 +19,7 @@ open class CreateInviteUseCase(
         email: String,
         role: String = "member",
         expiresInDays: Int = 7,
-    ): Result<InviteInfo> {
+    ): AppResult<InviteInfo> {
         val trimmedName = name.trim()
         val trimmedEmail = email.trim()
 

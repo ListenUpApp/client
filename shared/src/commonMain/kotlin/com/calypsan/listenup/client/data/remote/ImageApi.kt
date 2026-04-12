@@ -4,12 +4,12 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.repository.ServerConfig
+import com.calypsan.listenup.client.core.error.AppException
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.forms.formData
@@ -63,7 +63,7 @@ class ImageApi(
      * @param bookId Unique identifier for the book
      * @return Result containing image bytes or error
      */
-    override suspend fun downloadCover(bookId: BookId): Result<ByteArray> =
+    override suspend fun downloadCover(bookId: BookId): AppResult<ByteArray> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             client
@@ -85,7 +85,7 @@ class ImageApi(
      * @param contributorId Unique identifier for the contributor
      * @return Result containing image bytes or error
      */
-    override suspend fun downloadContributorImage(contributorId: String): Result<ByteArray> =
+    override suspend fun downloadContributorImage(contributorId: String): AppResult<ByteArray> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             client.get("/api/v1/contributors/$contributorId/image").body<ByteArray>()
@@ -110,7 +110,7 @@ class ImageApi(
         bookId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<ImageUploadResponse> =
+    ): AppResult<ImageUploadResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ImageUploadApiResponse> =
@@ -140,7 +140,7 @@ class ImageApi(
                 }
 
                 is Failure -> {
-                    throw result.exceptionOrFromMessage()
+                    throw AppException(result.error)
                 }
             }
         }
@@ -164,7 +164,7 @@ class ImageApi(
         contributorId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<ImageUploadResponse> =
+    ): AppResult<ImageUploadResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ImageUploadApiResponse> =
@@ -194,7 +194,7 @@ class ImageApi(
                 }
 
                 is Failure -> {
-                    throw result.exceptionOrFromMessage()
+                    throw AppException(result.error)
                 }
             }
         }
@@ -212,7 +212,7 @@ class ImageApi(
      * @param seriesId Unique identifier for the series
      * @return Result containing image bytes or error
      */
-    override suspend fun downloadSeriesCover(seriesId: String): Result<ByteArray> =
+    override suspend fun downloadSeriesCover(seriesId: String): AppResult<ByteArray> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             client.get("/api/v1/series/$seriesId/cover").body<ByteArray>()
@@ -237,7 +237,7 @@ class ImageApi(
         seriesId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<ImageUploadResponse> =
+    ): AppResult<ImageUploadResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ImageUploadApiResponse> =
@@ -267,7 +267,7 @@ class ImageApi(
                 }
 
                 is Failure -> {
-                    throw result.exceptionOrFromMessage()
+                    throw AppException(result.error)
                 }
             }
         }
@@ -284,7 +284,7 @@ class ImageApi(
      * @param seriesId Unique identifier for the series
      * @return Result with Unit on success or error
      */
-    override suspend fun deleteSeriesCover(seriesId: String): Result<Unit> =
+    override suspend fun deleteSeriesCover(seriesId: String): AppResult<Unit> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<Unit> = client.delete("/api/v1/series/$seriesId/cover").body()
@@ -293,7 +293,7 @@ class ImageApi(
                 is Success -> { /* Cover deleted successfully */ }
 
                 is Failure -> {
-                    throw result.exceptionOrFromMessage()
+                    throw AppException(result.error)
                 }
             }
         }
@@ -312,7 +312,9 @@ class ImageApi(
      * @param contributorIds List of contributor IDs to download images for (max 100)
      * @return Result containing map of contributorId to image bytes for successfully downloaded images
      */
-    override suspend fun downloadContributorImageBatch(contributorIds: List<String>): Result<Map<String, ByteArray>> =
+    override suspend fun downloadContributorImageBatch(
+        contributorIds: List<String>,
+    ): AppResult<Map<String, ByteArray>> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val idsParam = contributorIds.joinToString(",")
@@ -334,7 +336,7 @@ class ImageApi(
      * @param userId Unique identifier for the user
      * @return Result containing image bytes or error
      */
-    override suspend fun downloadUserAvatar(userId: String): Result<ByteArray> =
+    override suspend fun downloadUserAvatar(userId: String): AppResult<ByteArray> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             client.get("/avatars/$userId").body<ByteArray>()

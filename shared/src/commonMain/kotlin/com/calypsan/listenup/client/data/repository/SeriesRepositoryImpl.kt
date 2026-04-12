@@ -3,7 +3,6 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
@@ -18,6 +17,7 @@ import com.calypsan.listenup.client.domain.model.SeriesWithBooks
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
+import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -155,7 +155,7 @@ class SeriesRepositoryImpl(
                 measureTimedValue {
                     when (val result = api.searchSeries(query, limit)) {
                         is Success -> result.data.map { it.toDomain() }
-                        is Failure -> throw result.exceptionOrFromMessage()
+                        is Failure -> throw AppException(result.error)
                     }
                 }
 

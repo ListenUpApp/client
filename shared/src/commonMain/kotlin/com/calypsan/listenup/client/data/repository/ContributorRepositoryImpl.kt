@@ -4,9 +4,8 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
@@ -28,6 +27,7 @@ import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.domain.model.RoleWithBookCount
 import com.calypsan.listenup.client.domain.repository.BookWithContributorRole
 import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -171,7 +171,7 @@ class ContributorRepositoryImpl(
                 measureTimedValue {
                     when (val result = api.searchContributors(query, limit)) {
                         is Success -> result.data.map { it.toDomain() }
-                        is Failure -> throw result.exceptionOrFromMessage()
+                        is Failure -> throw AppException(result.error)
                     }
                 }
 
@@ -228,7 +228,7 @@ class ContributorRepositoryImpl(
         }
     }
 
-    override suspend fun deleteContributor(contributorId: String): Result<Unit> =
+    override suspend fun deleteContributor(contributorId: String): AppResult<Unit> =
         suspendRunCatching {
             withContext(IODispatcher) {
                 api.deleteContributor(contributorId)

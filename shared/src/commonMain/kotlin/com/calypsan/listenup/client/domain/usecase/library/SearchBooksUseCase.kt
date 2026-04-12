@@ -1,12 +1,12 @@
 package com.calypsan.listenup.client.domain.usecase.library
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.core.validationError
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.domain.model.SearchResult
 import com.calypsan.listenup.client.domain.repository.SearchRepository
+import com.calypsan.listenup.client.core.validationError
 
 /**
  * Use case for searching books in the library.
@@ -48,7 +48,7 @@ open class SearchBooksUseCase(
         genres: List<String>? = null,
         genrePath: String? = null,
         limit: Int = DEFAULT_RESULT_LIMIT,
-    ): Result<SearchResult> {
+    ): AppResult<SearchResult> {
         val trimmedQuery = query.trim()
 
         // Validate query length

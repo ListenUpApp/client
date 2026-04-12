@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.domain.usecase.series
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.ImageRepository
@@ -46,7 +46,7 @@ open class UpdateSeriesUseCase(
      * @param request The update request containing all changes
      * @return Result indicating success or failure
      */
-    open suspend operator fun invoke(request: SeriesUpdateRequest): Result<Unit> =
+    open suspend operator fun invoke(request: SeriesUpdateRequest): AppResult<Unit> =
         suspendRunCatching {
             logger.info { "Updating series ${request.seriesId}" }
 
@@ -66,7 +66,7 @@ open class UpdateSeriesUseCase(
                     }
 
                     is Failure -> {
-                        throw result.exception ?: Exception(result.message)
+                        throw null as Exception? ?: Exception(result.message)
                     }
                 }
             }

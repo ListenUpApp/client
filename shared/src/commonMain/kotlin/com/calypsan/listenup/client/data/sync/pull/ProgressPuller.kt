@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
@@ -9,6 +8,8 @@ import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -55,7 +56,7 @@ class ProgressPuller(
 
         try {
             when (val result = syncApi.getAllProgress()) {
-                is Result.Success -> {
+                is Success -> {
                     val items = result.data.items
                     logger.info { "Fetched ${items.size} progress records from server" }
 
@@ -92,8 +93,8 @@ class ProgressPuller(
                     }
                 }
 
-                is Result.Failure -> {
-                    logger.warn(result.exception) { "Failed to fetch progress" }
+                is Failure -> {
+                    logger.warn { "Failed to fetch progress" }
                     // Don't throw - progress sync is not critical for basic functionality
                 }
             }

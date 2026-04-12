@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.presentation.settings
 
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.AuthSession
@@ -30,6 +29,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for SettingsViewModel.
@@ -99,7 +99,7 @@ class SettingsViewModelTest {
 
         // Default stub for API - return defaults
         everySuspend { fixture.userPreferencesRepository.getPreferences() } returns
-            Result.Success(
+            Success(
                 UserPreferences(
                     defaultPlaybackSpeed = PlaybackPreferences.DEFAULT_PLAYBACK_SPEED,
                     defaultSkipForwardSec = 30,
@@ -112,7 +112,7 @@ class SettingsViewModelTest {
         // Default stubs for new dependencies
         everySuspend { fixture.serverConfig.getServerUrl() } returns null
         everySuspend { fixture.instanceRepository.getInstance() } returns
-            Result.Failure(exception = Exception("Not configured"), message = "Not configured")
+            Failure(Exception("Not configured"))
 
         return fixture
     }
@@ -153,7 +153,7 @@ class SettingsViewModelTest {
             everySuspend { fixture.libraryPreferences.getHideSingleBookSeries() } returns false
             everySuspend { fixture.playbackPreferences.setDefaultPlaybackSpeed(1.5f) } returns Unit
             everySuspend { fixture.userPreferencesRepository.getPreferences() } returns
-                Result.Success(
+                Success(
                     UserPreferences(
                         defaultPlaybackSpeed = 1.5f,
                         defaultSkipForwardSec = 30,
@@ -240,7 +240,7 @@ class SettingsViewModelTest {
             val fixture = createFixture()
             everySuspend { fixture.playbackPreferences.setDefaultPlaybackSpeed(2.0f) } returns Unit
             everySuspend { fixture.userPreferencesRepository.setDefaultPlaybackSpeed(2.0f) } returns
-                Result.Failure(exception = Exception("Network error"), message = "Network error")
+                Failure(Exception("Network error"))
             val viewModel = fixture.build()
             advanceUntilIdle()
 

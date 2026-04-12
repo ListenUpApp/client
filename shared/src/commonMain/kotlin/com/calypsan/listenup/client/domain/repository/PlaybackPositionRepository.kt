@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.domain.repository
 
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import kotlinx.coroutines.flow.Flow
+import com.calypsan.listenup.client.core.AppResult
 
 /**
  * Repository contract for playback position operations.
@@ -94,7 +95,7 @@ interface PlaybackPositionRepository {
         bookId: String,
         startedAt: Long? = null,
         finishedAt: Long? = null,
-    ): com.calypsan.listenup.client.core.Result<Unit>
+    ): com.calypsan.listenup.client.core.AppResult<Unit>
 
     /**
      * Discard all progress for a book.
@@ -106,7 +107,7 @@ interface PlaybackPositionRepository {
      * @param bookId The book to discard progress for
      * @return Result with Unit on success, or Failure on error
      */
-    suspend fun discardProgress(bookId: String): com.calypsan.listenup.client.core.Result<Unit>
+    suspend fun discardProgress(bookId: String): com.calypsan.listenup.client.core.AppResult<Unit>
 
     /**
      * Restart a book from the beginning.
@@ -118,5 +119,5 @@ interface PlaybackPositionRepository {
      * @param bookId The book to restart
      * @return Result with Unit on success, or Failure on error
      */
-    suspend fun restartBook(bookId: String): com.calypsan.listenup.client.core.Result<Unit>
+    suspend fun restartBook(bookId: String): com.calypsan.listenup.client.core.AppResult<Unit>
 }

@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.collection
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import com.calypsan.listenup.client.domain.repository.CollectionShareSummary
@@ -35,7 +35,7 @@ open class ShareCollectionUseCase(
     open suspend operator fun invoke(
         collectionId: String,
         userId: String,
-    ): Result<CollectionShareSummary> {
+    ): AppResult<CollectionShareSummary> {
         logger.info { "Sharing collection $collectionId with user $userId" }
 
         return suspendRunCatching {

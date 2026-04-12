@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.domain.repository
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 
 /**
  * Domain repository for image operations.
@@ -29,7 +29,7 @@ interface ImageRepository {
      * @param bookId Unique identifier for the book
      * @return Result indicating success or failure
      */
-    suspend fun deleteBookCover(bookId: BookId): Result<Unit>
+    suspend fun deleteBookCover(bookId: BookId): AppResult<Unit>
 
     /**
      * Download and save a single book cover from the server.
@@ -37,7 +37,7 @@ interface ImageRepository {
      * @param bookId Unique identifier for the book
      * @return Result indicating if cover was downloaded (true) or already existed/unavailable (false)
      */
-    suspend fun downloadBookCover(bookId: BookId): Result<Boolean>
+    suspend fun downloadBookCover(bookId: BookId): AppResult<Boolean>
 
     /**
      * Save book cover to staging location for preview.
@@ -51,7 +51,7 @@ interface ImageRepository {
     suspend fun saveBookCoverStaging(
         bookId: BookId,
         imageData: ByteArray,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get the local file path for a book's staging cover.
@@ -69,7 +69,7 @@ interface ImageRepository {
      * @param bookId Unique identifier for the book
      * @return Result indicating success or failure
      */
-    suspend fun deleteBookCoverStaging(bookId: BookId): Result<Unit>
+    suspend fun deleteBookCoverStaging(bookId: BookId): AppResult<Unit>
 
     /**
      * Commit staged book cover to the main location.
@@ -79,7 +79,7 @@ interface ImageRepository {
      * @param bookId Unique identifier for the book
      * @return Result indicating success or failure
      */
-    suspend fun commitBookCoverStaging(bookId: BookId): Result<Unit>
+    suspend fun commitBookCoverStaging(bookId: BookId): AppResult<Unit>
 
     /**
      * Upload book cover to the server.
@@ -93,7 +93,7 @@ interface ImageRepository {
         bookId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<String>
+    ): AppResult<String>
 
     // ========== Series Cover Operations ==========
 
@@ -109,7 +109,7 @@ interface ImageRepository {
     suspend fun saveSeriesCoverStaging(
         seriesId: String,
         imageData: ByteArray,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get the local file path for a series's staging cover.
@@ -127,7 +127,7 @@ interface ImageRepository {
      * @param seriesId Unique identifier for the series
      * @return Result indicating success or failure
      */
-    suspend fun deleteSeriesCoverStaging(seriesId: String): Result<Unit>
+    suspend fun deleteSeriesCoverStaging(seriesId: String): AppResult<Unit>
 
     /**
      * Commit staged series cover to the main location.
@@ -135,7 +135,7 @@ interface ImageRepository {
      * @param seriesId Unique identifier for the series
      * @return Result indicating success or failure
      */
-    suspend fun commitSeriesCoverStaging(seriesId: String): Result<Unit>
+    suspend fun commitSeriesCoverStaging(seriesId: String): AppResult<Unit>
 
     /**
      * Upload series cover to the server.
@@ -149,7 +149,7 @@ interface ImageRepository {
         seriesId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<String>
+    ): AppResult<String>
 
     // ========== Contributor Image Operations ==========
 
@@ -159,7 +159,7 @@ interface ImageRepository {
      * @param contributorId Unique identifier for the contributor
      * @return Result containing the image bytes or error
      */
-    suspend fun downloadContributorImage(contributorId: String): Result<ByteArray>
+    suspend fun downloadContributorImage(contributorId: String): AppResult<ByteArray>
 
     /**
      * Save contributor image to local storage.
@@ -171,7 +171,7 @@ interface ImageRepository {
     suspend fun saveContributorImage(
         contributorId: String,
         imageData: ByteArray,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get the local file path for a contributor's image.
@@ -193,7 +193,7 @@ interface ImageRepository {
         contributorId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<String>
+    ): AppResult<String>
 
     // ========== Contributor Image Path Operations ==========
 
@@ -269,5 +269,5 @@ interface ImageRepository {
     suspend fun downloadUserAvatar(
         userId: String,
         forceRefresh: Boolean = false,
-    ): Result<Boolean>
+    ): AppResult<Boolean>
 }

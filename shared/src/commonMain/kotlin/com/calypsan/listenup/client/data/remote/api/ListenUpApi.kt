@@ -3,11 +3,10 @@
 package com.calypsan.listenup.client.data.remote.api
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.BookApiContract
@@ -28,6 +27,7 @@ import com.calypsan.listenup.client.data.remote.UpdateContributorRequest
 import com.calypsan.listenup.client.data.remote.UpdateContributorResponse
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Instance
+import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -128,7 +128,7 @@ class ListenUpApi(
      *
      * @return Result containing the Instance on success, or an error on failure
      */
-    override suspend fun getInstance(): Result<Instance> =
+    override suspend fun getInstance(): AppResult<Instance> =
         suspendRunCatching {
             logger.debug { "Fetching instance information from $baseUrl/api/v1/instance" }
 
@@ -139,7 +139,7 @@ class ListenUpApi(
             // Convert API response to Result and extract data
             when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -160,7 +160,7 @@ class ListenUpApi(
     override suspend fun searchContributors(
         query: String,
         limit: Int,
-    ): Result<List<ContributorSearchResult>> =
+    ): AppResult<List<ContributorSearchResult>> =
         suspendRunCatching {
             logger.debug { "Searching contributors: query='$query', limit=$limit" }
 
@@ -176,7 +176,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.contributors.map { it.toDomain() }
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -193,7 +193,7 @@ class ListenUpApi(
     override suspend fun updateBook(
         bookId: String,
         update: BookUpdateRequest,
-    ): Result<BookEditResponse> =
+    ): AppResult<BookEditResponse> =
         suspendRunCatching {
             logger.debug { "Updating book: id=$bookId" }
 
@@ -209,7 +209,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -225,7 +225,7 @@ class ListenUpApi(
     override suspend fun setBookContributors(
         bookId: String,
         contributors: List<ContributorInput>,
-    ): Result<BookEditResponse> =
+    ): AppResult<BookEditResponse> =
         suspendRunCatching {
             logger.debug { "Setting book contributors: id=$bookId, count=${contributors.size}" }
 
@@ -245,7 +245,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -266,7 +266,7 @@ class ListenUpApi(
     override suspend fun searchSeries(
         query: String,
         limit: Int,
-    ): Result<List<SeriesSearchResult>> =
+    ): AppResult<List<SeriesSearchResult>> =
         suspendRunCatching {
             logger.debug { "Searching series: query='$query', limit=$limit" }
 
@@ -282,7 +282,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.series.map { it.toDomain() }
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -298,7 +298,7 @@ class ListenUpApi(
     override suspend fun setBookSeries(
         bookId: String,
         series: List<SeriesInput>,
-    ): Result<BookEditResponse> =
+    ): AppResult<BookEditResponse> =
         suspendRunCatching {
             logger.debug { "Setting book series: id=$bookId, count=${series.size}" }
 
@@ -318,7 +318,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -339,7 +339,7 @@ class ListenUpApi(
     override suspend fun mergeContributor(
         targetContributorId: String,
         sourceContributorId: String,
-    ): Result<MergeContributorResponse> =
+    ): AppResult<MergeContributorResponse> =
         suspendRunCatching {
             logger.debug { "Merging contributor: source=$sourceContributorId into target=$targetContributorId" }
 
@@ -356,7 +356,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -372,7 +372,7 @@ class ListenUpApi(
     override suspend fun unmergeContributor(
         contributorId: String,
         aliasName: String,
-    ): Result<UnmergeContributorResponse> =
+    ): AppResult<UnmergeContributorResponse> =
         suspendRunCatching {
             logger.debug { "Unmerging alias '$aliasName' from contributor: $contributorId" }
 
@@ -389,7 +389,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -405,7 +405,7 @@ class ListenUpApi(
     override suspend fun updateContributor(
         contributorId: String,
         request: UpdateContributorRequest,
-    ): Result<UpdateContributorResponse> =
+    ): AppResult<UpdateContributorResponse> =
         suspendRunCatching {
             logger.debug { "Updating contributor: $contributorId" }
 
@@ -430,7 +430,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -442,7 +442,7 @@ class ListenUpApi(
      * @param contributorId Contributor to delete
      * @return Result indicating success or failure
      */
-    override suspend fun deleteContributor(contributorId: String): Result<Unit> =
+    override suspend fun deleteContributor(contributorId: String): AppResult<Unit> =
         suspendRunCatching {
             logger.debug { "Deleting contributor: $contributorId" }
 
@@ -451,7 +451,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> logger.debug { "Contributor deleted: $contributorId" }
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 
@@ -468,7 +468,7 @@ class ListenUpApi(
     override suspend fun updateSeries(
         seriesId: String,
         request: SeriesUpdateRequest,
-    ): Result<SeriesEditResponse> =
+    ): AppResult<SeriesEditResponse> =
         suspendRunCatching {
             logger.debug { "Updating series: id=$seriesId" }
 
@@ -484,7 +484,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exceptionOrFromMessage()
+                is Failure -> throw AppException(result.error)
             }
         }
 

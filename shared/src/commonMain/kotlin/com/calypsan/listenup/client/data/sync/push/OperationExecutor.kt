@@ -3,7 +3,7 @@
 package com.calypsan.listenup.client.data.sync.push
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -15,7 +15,7 @@ private val logger = KotlinLogging.logger {}
  * Enables testing without concrete implementation.
  */
 interface OperationExecutorContract {
-    suspend fun execute(operations: List<PendingOperationEntity>): Map<String, Result<Unit>>
+    suspend fun execute(operations: List<PendingOperationEntity>): Map<String, AppResult<Unit>>
 }
 
 /**
@@ -35,7 +35,7 @@ class OperationExecutor(
      *
      * @return Map of operation ID to result
      */
-    override suspend fun execute(operations: List<PendingOperationEntity>): Map<String, Result<Unit>> {
+    override suspend fun execute(operations: List<PendingOperationEntity>): Map<String, AppResult<Unit>> {
         logger.info { "🔧 EXECUTOR: execute() called with ${operations.size} operations" }
         if (operations.isEmpty()) return emptyMap()
 
@@ -57,7 +57,7 @@ class OperationExecutor(
     private suspend fun <P : Any> executeWithHandler(
         operations: List<PendingOperationEntity>,
         handler: OperationHandler<P>,
-    ): Map<String, Result<Unit>> {
+    ): Map<String, AppResult<Unit>> {
         // Parse all payloads
         val parsed =
             operations.mapNotNull { op ->

@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import com.calypsan.listenup.client.domain.model.SyncState
@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.stateIn
 import com.calypsan.listenup.client.data.sync.model.SyncPhase as DataSyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus as DataSyncStatus
 import com.calypsan.listenup.client.domain.model.SyncPhase as DomainSyncPhase
+import com.calypsan.listenup.client.core.Success
 
 /**
  * Implementation of SyncRepository that wraps SyncManagerContract.
@@ -40,16 +41,16 @@ class SyncRepositoryImpl(
     override val isServerScanning: StateFlow<Boolean> = syncManager.isServerScanning
     override val scanProgress: StateFlow<ScanProgressState?> = syncManager.scanProgress
 
-    override suspend fun sync(): Result<Unit> = syncManager.sync()
+    override suspend fun sync(): AppResult<Unit> = syncManager.sync()
 
     override suspend fun connectRealtime() = syncManager.connectRealtime()
 
-    override suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit> =
+    override suspend fun resetForNewLibrary(newLibraryId: String): AppResult<Unit> =
         syncManager.resetForNewLibrary(newLibraryId)
 
-    override suspend fun refreshListeningHistory(): Result<Unit> = syncManager.refreshListeningHistory()
+    override suspend fun refreshListeningHistory(): AppResult<Unit> = syncManager.refreshListeningHistory()
 
-    override suspend fun forceFullResync(): Result<Unit> = syncManager.forceFullResync()
+    override suspend fun forceFullResync(): AppResult<Unit> = syncManager.forceFullResync()
 }
 
 /**

@@ -160,7 +160,7 @@ class ABSUploadWorker(
                         val error = importResult.exception?.message ?: "Failed to create import"
                         logger.error { "Import creation failed: $error" }
                         val result = retryOrFail(error)
-                        if (result is Result.Failure) {
+                        if (result is Failure) {
                             showFailureNotification()
                         }
                         result
@@ -170,7 +170,7 @@ class ABSUploadWorker(
         } catch (e: Exception) {
             logger.error(e) { "ABS upload failed" }
             workerResult = retryOrFail(e.message ?: "Upload failed")
-            if (workerResult is Result.Failure) {
+            if (workerResult is Failure) {
                 showFailureNotification()
             }
             workerResult

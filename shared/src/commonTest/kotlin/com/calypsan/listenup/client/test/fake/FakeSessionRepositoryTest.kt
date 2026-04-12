@@ -1,13 +1,13 @@
 package com.calypsan.listenup.client.test.fake
 
 import app.cash.turbine.test
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.domain.model.BookReadersResult
 import com.calypsan.listenup.client.domain.model.ReaderInfo
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.Success
 
 class FakeSessionRepositoryTest {
     private fun reader(userId: String) =
@@ -96,6 +96,6 @@ class FakeSessionRepositoryTest {
 
             val result = repo.getBookReadersResult("book-1")
 
-            assertTrue(result is Result.Success)
+            assertTrue(result is Success)
         }
 }

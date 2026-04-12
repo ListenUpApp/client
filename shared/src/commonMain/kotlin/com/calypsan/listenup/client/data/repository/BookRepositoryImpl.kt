@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookWithContributors
@@ -81,7 +81,7 @@ class BookRepositoryImpl(
      *
      * @return Result indicating sync success or failure
      */
-    override suspend fun refreshBooks(): Result<Unit> {
+    override suspend fun refreshBooks(): AppResult<Unit> {
         logger.debug { "Refreshing books from server" }
         return syncManager.sync()
     }

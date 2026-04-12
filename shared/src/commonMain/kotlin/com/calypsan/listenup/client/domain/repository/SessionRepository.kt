@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.BookReadersResult
 import com.calypsan.listenup.client.domain.model.ReaderInfo
 import kotlinx.coroutines.flow.Flow
@@ -31,7 +31,7 @@ interface SessionRepository {
      * @param bookId The book ID to get readers for
      * @return Result containing readers information or error
      */
-    suspend fun getBookReadersResult(bookId: String): Result<BookReadersResult>
+    suspend fun getBookReadersResult(bookId: String): AppResult<BookReadersResult>
 
     /**
      * Observe book readers reactively from local cache.

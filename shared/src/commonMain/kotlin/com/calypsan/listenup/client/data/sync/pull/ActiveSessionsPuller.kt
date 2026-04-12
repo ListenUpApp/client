@@ -2,7 +2,6 @@
 
 package com.calypsan.listenup.client.data.sync.pull
 
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
@@ -17,6 +16,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlin.time.Instant
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -65,7 +66,7 @@ class ActiveSessionsPuller(
 
         try {
             when (val result = syncApi.getActiveSessions()) {
-                is Result.Success -> {
+                is Success -> {
                     val sessions = result.data.sessions
                     logger.info { "Fetched ${sessions.size} active sessions from server" }
 
@@ -146,8 +147,8 @@ class ActiveSessionsPuller(
                     logger.info { "Active sessions sync complete: ${entities.size} sessions synced" }
                 }
 
-                is Result.Failure -> {
-                    logger.warn(result.exception) { "Failed to fetch active sessions" }
+                is Failure -> {
+                    logger.warn { "Failed to fetch active sessions" }
                     // Don't throw - active sessions are not critical for sync
                 }
             }

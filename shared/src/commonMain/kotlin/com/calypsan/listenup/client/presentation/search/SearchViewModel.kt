@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 
@@ -184,7 +185,7 @@ class SearchViewModel(
                     }
 
                     is SearchFlowResult.Error -> {
-                        logger.error(result.exception) { "Search failed for '${result.query}'" }
+                        logger.error { "Search failed for '${result.query}'" }
                         state.update {
                             it.copy(error = "Search unavailable. Please try again.", isSearching = false)
                         }

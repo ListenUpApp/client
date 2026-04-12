@@ -59,7 +59,7 @@ class ErrorMapperTest {
         val error = ErrorMapper.map(exception)
 
         val unknownError = assertIs<UnknownError>(error)
-        assertTrue(unknownError.message.contains("unexpected error"))
+        assertEquals("Something went wrong", unknownError.message)
     }
 
     @Test
@@ -77,7 +77,7 @@ class ErrorMapperTest {
         val error = ErrorMapper.map(exception)
 
         val unknownError = assertIs<UnknownError>(error)
-        assertTrue(unknownError.message.contains("Custom error message"))
+        assertEquals("Custom error message", unknownError.message)
     }
 
     @Test

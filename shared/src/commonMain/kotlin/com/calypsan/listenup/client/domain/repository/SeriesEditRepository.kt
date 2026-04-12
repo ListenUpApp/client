@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 
 /**
  * Repository contract for series editing operations.
@@ -27,5 +27,5 @@ interface SeriesEditRepository {
         seriesId: String,
         name: String?,
         description: String?,
-    ): Result<Unit>
+    ): AppResult<Unit>
 }

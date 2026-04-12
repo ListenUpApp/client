@@ -1,16 +1,16 @@
 package com.calypsan.listenup.client.domain.usecase.library
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.core.validationError
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import com.calypsan.listenup.client.domain.repository.HomeRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import com.calypsan.listenup.client.core.validationError
 
 private val logger = KotlinLogging.logger {}
 
@@ -51,7 +51,7 @@ open class GetContinueListeningUseCase(
      * @param limit Maximum number of books to return
      * @return Result containing list of ContinueListeningBook on success, or an error on failure
      */
-    open suspend operator fun invoke(limit: Int = DEFAULT_LIMIT): Result<List<ContinueListeningBook>> {
+    open suspend operator fun invoke(limit: Int = DEFAULT_LIMIT): AppResult<List<ContinueListeningBook>> {
         // Validate limit
         if (limit < 1) {
             return validationError("Limit must be at least 1")
@@ -72,7 +72,7 @@ open class GetContinueListeningUseCase(
                     logger.warn { "Failed to fetch continue listening: ${result.message}" }
                     throw ContinueListeningException(
                         message = mapErrorMessage(result),
-                        cause = result.exception,
+                        cause = null,
                     )
                 }
             }
@@ -108,7 +108,7 @@ open class GetContinueListeningUseCase(
      *
      * @return Result containing true if there are books, false otherwise
      */
-    open suspend fun hasBooks(): Result<Boolean> =
+    open suspend fun hasBooks(): AppResult<Boolean> =
         when (val result = invoke(limit = 1)) {
             is Success -> Success(result.data.isNotEmpty())
             is Failure -> result
@@ -118,19 +118,11 @@ open class GetContinueListeningUseCase(
      * Map technical errors to user-friendly messages.
      */
     private fun mapErrorMessage(failure: Failure): String {
-        val exceptionMessage = failure.exception?.message
+        val message = failure.message
         return when {
-            exceptionMessage?.contains("database", ignoreCase = true) == true -> {
-                "Unable to load your listening history."
-            }
-
-            exceptionMessage?.contains("network", ignoreCase = true) == true -> {
-                "Unable to connect to server. Showing local data."
-            }
-
-            else -> {
-                failure.message
-            }
+            message.contains("database", ignoreCase = true) -> "Unable to load your listening history."
+            message.contains("network", ignoreCase = true) -> "Unable to connect to server. Showing local data."
+            else -> message
         }
     }
 

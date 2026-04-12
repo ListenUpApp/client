@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.domain.usecase.metadata
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.ApplyMatchRequest
@@ -64,7 +64,7 @@ open class ApplyMetadataMatchUseCase(
         selections: MetadataMatchSelections,
         previewBook: MetadataBook,
         coverUrl: String?,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         suspendRunCatching {
             logger.info { "Applying metadata match: book=$bookId, asin=$asin, region=$region" }
 

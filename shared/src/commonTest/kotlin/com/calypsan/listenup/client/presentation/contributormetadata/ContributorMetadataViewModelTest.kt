@@ -401,7 +401,7 @@ class ContributorMetadataViewModelTest {
             everySuspend { fixture.metadataRepository.searchContributors(any(), any()) } returns listOf(searchResult)
             everySuspend { fixture.metadataRepository.getContributorProfile(any()) } returns profile
             everySuspend { fixture.applyContributorMetadataUseCase.invoke(any()) } returns
-                Failure(exception = Exception("Server error"), message = "Server error")
+                Failure(Exception("Server error"))
 
             val viewModel = fixture.build()
             viewModel.init("contributor-1")

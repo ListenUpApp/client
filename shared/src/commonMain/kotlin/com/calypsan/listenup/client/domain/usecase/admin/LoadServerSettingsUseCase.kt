@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.admin
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.ServerSettings
 import com.calypsan.listenup.client.domain.repository.AdminRepository
@@ -13,7 +13,7 @@ import com.calypsan.listenup.client.domain.repository.AdminRepository
 open class LoadServerSettingsUseCase(
     private val adminRepository: AdminRepository,
 ) {
-    open suspend operator fun invoke(): Result<ServerSettings> =
+    open suspend operator fun invoke(): AppResult<ServerSettings> =
         suspendRunCatching {
             adminRepository.getServerSettings()
         }

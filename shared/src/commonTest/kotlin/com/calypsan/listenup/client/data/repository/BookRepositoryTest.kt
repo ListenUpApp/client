@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ChapterId
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -28,6 +27,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 class BookRepositoryTest {
     // ========== Test Fixtures ==========
@@ -414,7 +415,7 @@ class BookRepositoryTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.syncManager.sync() } returns Result.Success(Unit)
+            everySuspend { fixture.syncManager.sync() } returns Success(Unit)
             val repository = fixture.build()
 
             // When
@@ -429,14 +430,14 @@ class BookRepositoryTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.syncManager.sync() } returns Result.Success(Unit)
+            everySuspend { fixture.syncManager.sync() } returns Success(Unit)
             val repository = fixture.build()
 
             // When
             val result = repository.refreshBooks()
 
             // Then
-            assertTrue(result is Result.Success)
+            assertTrue(result is Success)
         }
 
     @Test
@@ -444,16 +445,15 @@ class BookRepositoryTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val exception = Exception("Network error")
-            everySuspend { fixture.syncManager.sync() } returns Result.Failure(exception = exception, message = "Network error")
+            everySuspend { fixture.syncManager.sync() } returns Failure(Exception("Network error"))
             val repository = fixture.build()
 
             // When
             val result = repository.refreshBooks()
 
             // Then
-            val failure = assertIs<Result.Failure>(result)
-            assertEquals(exception, failure.exception)
+            val failure = assertIs<Failure>(result)
+            assertEquals("Network error", failure.message)
         }
 
     // ========== getBook Tests ==========

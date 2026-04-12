@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import kotlinx.coroutines.flow.Flow
 
@@ -19,7 +19,7 @@ interface HomeRepository {
      * @param limit Maximum number of books to return
      * @return Result containing list of ContinueListeningBook on success
      */
-    suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningBook>>
+    suspend fun getContinueListening(limit: Int = 10): AppResult<List<ContinueListeningBook>>
 
     /**
      * Observe continue listening books from local database.

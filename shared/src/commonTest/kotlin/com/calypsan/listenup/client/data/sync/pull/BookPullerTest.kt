@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
@@ -39,6 +38,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for BookPuller.
@@ -142,7 +143,7 @@ class BookPullerTest {
             everySuspend { tagDao.insertAllBookTags(any<List<BookTagCrossRef>>()) } returns Unit
             everySuspend { conflictDetector.detectBookConflicts(any()) } returns emptyList()
             everySuspend { conflictDetector.shouldPreserveLocalChanges(any()) } returns false
-            everySuspend { imageDownloader.deleteCover(any()) } returns Result.Success(Unit)
+            everySuspend { imageDownloader.deleteCover(any()) } returns Success(Unit)
             everySuspend { coverDownloadDao.enqueueAll(any()) } returns Unit
         }
 
@@ -168,7 +169,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books = emptyList(),
                         deletedBookIds = emptyList(),
@@ -191,7 +192,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books = listOf(createBookResponse(id = "book-1", title = "Test Book")),
                         deletedBookIds = emptyList(),
@@ -215,7 +216,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Failure(exception = RuntimeException("API error"), message = "API error")
+                Failure(RuntimeException("API error"))
             val puller = fixture.build()
 
             // When/Then
@@ -233,7 +234,7 @@ class BookPullerTest {
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } sequentially {
                 returns(
-                    Result.Success(
+                    Success(
                         SyncBooksResponse(
                             books = listOf(createBookResponse(id = "book-1")),
                             deletedBookIds = emptyList(),
@@ -243,7 +244,7 @@ class BookPullerTest {
                     ),
                 )
                 returns(
-                    Result.Success(
+                    Success(
                         SyncBooksResponse(
                             books = listOf(createBookResponse(id = "book-2")),
                             deletedBookIds = emptyList(),
@@ -276,7 +277,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books = emptyList(),
                         deletedBookIds = listOf("deleted-1", "deleted-2"),
@@ -302,7 +303,7 @@ class BookPullerTest {
             val fixture = TestFixture(this)
             val serverTimestamp = Timestamp(5000L)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books = listOf(createBookResponse(id = "book-1")),
                         deletedBookIds = emptyList(),
@@ -328,7 +329,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books = listOf(createBookResponse(id = "book-1")),
                         deletedBookIds = emptyList(),
@@ -356,7 +357,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books =
                             listOf(
@@ -392,7 +393,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books =
                             listOf(
@@ -428,7 +429,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books =
                             listOf(
@@ -464,7 +465,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books = listOf(createBookResponse(id = "book-1")),
                         deletedBookIds = emptyList(),
@@ -490,7 +491,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books = listOf(createBookResponse(id = "book-1")),
                         deletedBookIds = emptyList(),
@@ -520,7 +521,7 @@ class BookPullerTest {
             val fixture = TestFixture(this)
             val timestamp = "2024-01-01T00:00:00Z"
             everySuspend { fixture.syncApi.getBooks(any(), any(), timestamp) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books = emptyList(),
                         deletedBookIds = emptyList(),
@@ -543,7 +544,7 @@ class BookPullerTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.syncApi.getBooks(any(), any(), null) } returns
-                Result.Success(
+                Success(
                     SyncBooksResponse(
                         books = emptyList(),
                         deletedBookIds = emptyList(),

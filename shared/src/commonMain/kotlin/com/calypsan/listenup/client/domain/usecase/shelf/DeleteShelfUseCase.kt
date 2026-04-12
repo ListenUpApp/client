@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.shelf
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -27,7 +27,7 @@ open class DeleteShelfUseCase(
      * @param shelfId The ID of the shelf to delete
      * @return Result indicating success or failure
      */
-    open suspend operator fun invoke(shelfId: String): Result<Unit> {
+    open suspend operator fun invoke(shelfId: String): AppResult<Unit> {
         logger.info { "Deleting shelf $shelfId" }
 
         return suspendRunCatching {

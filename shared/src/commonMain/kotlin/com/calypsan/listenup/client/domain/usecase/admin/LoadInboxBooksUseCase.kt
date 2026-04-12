@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.admin
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.InboxBook
 import com.calypsan.listenup.client.domain.repository.AdminRepository
@@ -14,7 +14,7 @@ import com.calypsan.listenup.client.domain.repository.AdminRepository
 open class LoadInboxBooksUseCase(
     private val adminRepository: AdminRepository,
 ) {
-    open suspend operator fun invoke(): Result<List<InboxBook>> =
+    open suspend operator fun invoke(): AppResult<List<InboxBook>> =
         suspendRunCatching {
             adminRepository.getInboxBooks()
         }

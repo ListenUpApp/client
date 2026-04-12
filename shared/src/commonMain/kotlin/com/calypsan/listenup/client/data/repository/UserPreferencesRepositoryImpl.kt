@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesRequest
@@ -21,9 +21,9 @@ private val logger = KotlinLogging.logger {}
 class UserPreferencesRepositoryImpl(
     private val userPreferencesApi: UserPreferencesApiContract,
 ) : UserPreferencesRepository {
-    override suspend fun getPreferences(): Result<UserPreferences> =
+    override suspend fun getPreferences(): AppResult<UserPreferences> =
         when (val result = userPreferencesApi.getPreferences()) {
-            is com.calypsan.listenup.client.core.Result.Success -> {
+            is com.calypsan.listenup.client.core.Success -> {
                 Success(
                     UserPreferences(
                         defaultPlaybackSpeed = result.data.defaultPlaybackSpeed,
@@ -36,34 +36,34 @@ class UserPreferencesRepositoryImpl(
             }
 
             is Failure -> {
-                Failure(exception = result.exception, message = result.message, errorCode = result.errorCode)
+                result
             }
         }
 
-    override suspend fun setDefaultPlaybackSpeed(speed: Float): Result<Unit> =
+    override suspend fun setDefaultPlaybackSpeed(speed: Float): AppResult<Unit> =
         syncSetting(UserPreferencesRequest(defaultPlaybackSpeed = speed))
 
-    override suspend fun setDefaultSkipForwardSec(seconds: Int): Result<Unit> =
+    override suspend fun setDefaultSkipForwardSec(seconds: Int): AppResult<Unit> =
         syncSetting(UserPreferencesRequest(defaultSkipForwardSec = seconds))
 
-    override suspend fun setDefaultSkipBackwardSec(seconds: Int): Result<Unit> =
+    override suspend fun setDefaultSkipBackwardSec(seconds: Int): AppResult<Unit> =
         syncSetting(UserPreferencesRequest(defaultSkipBackwardSec = seconds))
 
-    override suspend fun setDefaultSleepTimerMin(minutes: Int?): Result<Unit> =
+    override suspend fun setDefaultSleepTimerMin(minutes: Int?): AppResult<Unit> =
         syncSetting(UserPreferencesRequest(defaultSleepTimerMin = minutes))
 
-    override suspend fun setShakeToResetSleepTimer(enabled: Boolean): Result<Unit> =
+    override suspend fun setShakeToResetSleepTimer(enabled: Boolean): AppResult<Unit> =
         syncSetting(UserPreferencesRequest(shakeToResetSleepTimer = enabled))
 
-    private suspend fun syncSetting(request: UserPreferencesRequest): Result<Unit> =
+    private suspend fun syncSetting(request: UserPreferencesRequest): AppResult<Unit> =
         when (val result = userPreferencesApi.updatePreferences(request)) {
-            is com.calypsan.listenup.client.core.Result.Success -> {
+            is com.calypsan.listenup.client.core.Success -> {
                 Success(Unit)
             }
 
             is Failure -> {
                 logger.warn { "Failed to sync preference: ${result.message}" }
-                Failure(exception = result.exception, message = result.message, errorCode = result.errorCode)
+                result
             }
         }
 }

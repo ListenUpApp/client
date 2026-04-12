@@ -1,16 +1,17 @@
 package com.calypsan.listenup.client.data.sync.pull
 
-import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -50,7 +51,7 @@ class ContributorPuller(
                                 updatedAfter = updatedAfter,
                             )
                     ) {
-                        is Result.Success -> {
+                        is Success -> {
                             val response = result.data
                             cursor = response.nextCursor
                             hasMore = response.hasMore
@@ -109,8 +110,8 @@ class ContributorPuller(
                             )
                         }
 
-                        is Result.Failure -> {
-                            throw result.exceptionOrFromMessage()
+                        is Failure -> {
+                            throw AppException(result.error)
                         }
                     }
                 }
@@ -124,7 +125,7 @@ class ContributorPuller(
                 logger.info { "Starting image downloads for ${contributorsWithImages.size} contributors..." }
                 val downloadedIds = imageDownloader.downloadContributorImages(contributorsWithImages)
 
-                if (downloadedIds is Result.Success && downloadedIds.data.isNotEmpty()) {
+                if (downloadedIds is Success && downloadedIds.data.isNotEmpty()) {
                     downloadedIds.data.forEach { contributorId ->
                         val localPath = imageDownloader.getContributorImagePath(contributorId)
                         if (localPath != null) {

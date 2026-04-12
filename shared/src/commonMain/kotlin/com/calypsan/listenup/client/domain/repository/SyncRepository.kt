@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import com.calypsan.listenup.client.domain.model.SyncState
 import kotlinx.coroutines.flow.StateFlow
@@ -50,9 +50,9 @@ interface SyncRepository {
      *
      * Progress can be observed via [syncState].
      *
-     * @return Result.Success on completion, Result.Failure on error
+     * @return Success on completion, Failure on error
      */
-    suspend fun sync(): Result<Unit>
+    suspend fun sync(): AppResult<Unit>
 
     /**
      * Connect to real-time updates without performing a full sync.
@@ -72,9 +72,9 @@ interface SyncRepository {
      * WARNING: This is destructive - any unsynced local changes will be lost.
      *
      * @param newLibraryId The new library ID to sync with
-     * @return Result.Success on completion, Result.Failure on error
+     * @return Success on completion, Failure on error
      */
-    suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit>
+    suspend fun resetForNewLibrary(newLibraryId: String): AppResult<Unit>
 
     /**
      * Refresh all listening events and playback positions from server.
@@ -85,9 +85,9 @@ interface SyncRepository {
      * This fetches ALL events from the server (ignoring the delta sync cursor)
      * and rebuilds playback positions from them.
      *
-     * @return Result.Success on completion, Result.Failure on error
+     * @return Success on completion, Failure on error
      */
-    suspend fun refreshListeningHistory(): Result<Unit>
+    suspend fun refreshListeningHistory(): AppResult<Unit>
 
     /**
      * Force a complete resync by clearing all local data and syncing fresh.
@@ -99,7 +99,7 @@ interface SyncRepository {
      * WARNING: This is destructive - all local data will be cleared, including
      * any unsynced changes and downloaded content references.
      *
-     * @return Result.Success on completion, Result.Failure on error
+     * @return Success on completion, Failure on error
      */
-    suspend fun forceFullResync(): Result<Unit>
+    suspend fun forceFullResync(): AppResult<Unit>
 }

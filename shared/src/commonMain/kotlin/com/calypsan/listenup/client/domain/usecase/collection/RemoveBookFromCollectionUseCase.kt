@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.collection
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -35,7 +35,7 @@ open class RemoveBookFromCollectionUseCase(
     open suspend operator fun invoke(
         collectionId: String,
         bookId: String,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         logger.info { "Removing book $bookId from collection $collectionId" }
 
         return suspendRunCatching {

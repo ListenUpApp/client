@@ -22,6 +22,7 @@ import com.calypsan.listenup.client.design.util.decodeBlurHash
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.calypsan.listenup.client.core.Success
 
 /**
  * Design system image component with BlurHash placeholder support.

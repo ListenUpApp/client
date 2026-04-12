@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 
 /**
  * Repository contract for profile editing operations.
@@ -20,7 +20,7 @@ interface ProfileEditRepository {
      * @param tagline The new tagline (or null to clear)
      * @return Result indicating success or failure
      */
-    suspend fun updateTagline(tagline: String?): Result<Unit>
+    suspend fun updateTagline(tagline: String?): AppResult<Unit>
 
     /**
      * Upload a new avatar image.
@@ -35,7 +35,7 @@ interface ProfileEditRepository {
     suspend fun uploadAvatar(
         imageData: ByteArray,
         contentType: String,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Revert to auto-generated avatar.
@@ -44,7 +44,7 @@ interface ProfileEditRepository {
      *
      * @return Result indicating success or failure
      */
-    suspend fun revertToAutoAvatar(): Result<Unit>
+    suspend fun revertToAutoAvatar(): AppResult<Unit>
 
     /**
      * Update the user's name.
@@ -59,7 +59,7 @@ interface ProfileEditRepository {
     suspend fun updateName(
         firstName: String,
         lastName: String,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Change the user's password.
@@ -69,5 +69,5 @@ interface ProfileEditRepository {
      * @param newPassword The new password to set
      * @return Result indicating success or failure
      */
-    suspend fun changePassword(newPassword: String): Result<Unit>
+    suspend fun changePassword(newPassword: String): AppResult<Unit>
 }

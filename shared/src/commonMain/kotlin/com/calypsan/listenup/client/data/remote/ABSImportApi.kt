@@ -4,10 +4,10 @@ import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.core.error.ImportError
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.FileSource
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
+import com.calypsan.listenup.client.core.error.AppException
 import io.ktor.client.call.body
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.delete
@@ -50,7 +50,7 @@ interface ABSImportApiContract {
     suspend fun createImport(
         fileSource: FileSource,
         name: String,
-    ): Result<ABSImportResponse>
+    ): AppResult<ABSImportResponse>
 
     /**
      * Create a new persistent import from an existing server path.
@@ -65,22 +65,22 @@ interface ABSImportApiContract {
     suspend fun createImportFromPath(
         backupPath: String,
         name: String,
-    ): Result<ABSImportResponse>
+    ): AppResult<ABSImportResponse>
 
     /**
      * List all imports (active, completed, archived).
      */
-    suspend fun listImports(): Result<List<ABSImportSummary>>
+    suspend fun listImports(): AppResult<List<ABSImportSummary>>
 
     /**
      * Get details for a specific import.
      */
-    suspend fun getImport(importId: String): Result<ABSImportResponse>
+    suspend fun getImport(importId: String): AppResult<ABSImportResponse>
 
     /**
      * Delete an import and all associated data.
      */
-    suspend fun deleteImport(importId: String): Result<Unit>
+    suspend fun deleteImport(importId: String): AppResult<Unit>
 
     // === User Mapping ===
 
@@ -94,7 +94,7 @@ interface ABSImportApiContract {
     suspend fun listImportUsers(
         importId: String,
         filter: MappingFilter = MappingFilter.ALL,
-    ): Result<List<ABSImportUser>>
+    ): AppResult<List<ABSImportUser>>
 
     /**
      * Map an ABS user to a ListenUp user.
@@ -110,7 +110,7 @@ interface ABSImportApiContract {
         importId: String,
         absUserId: String,
         listenUpId: String,
-    ): Result<ABSImportUser>
+    ): AppResult<ABSImportUser>
 
     /**
      * Clear user mapping.
@@ -120,7 +120,7 @@ interface ABSImportApiContract {
     suspend fun clearUserMapping(
         importId: String,
         absUserId: String,
-    ): Result<ABSImportUser>
+    ): AppResult<ABSImportUser>
 
     /**
      * Search ListenUp users for mapping.
@@ -132,7 +132,7 @@ interface ABSImportApiContract {
     suspend fun searchUsers(
         query: String,
         limit: Int = 10,
-    ): Result<List<UserSearchResult>>
+    ): AppResult<List<UserSearchResult>>
 
     // === Book Mapping ===
 
@@ -146,7 +146,7 @@ interface ABSImportApiContract {
     suspend fun listImportBooks(
         importId: String,
         filter: MappingFilter = MappingFilter.ALL,
-    ): Result<List<ABSImportBook>>
+    ): AppResult<List<ABSImportBook>>
 
     /**
      * Map an ABS book to a ListenUp book.
@@ -162,7 +162,7 @@ interface ABSImportApiContract {
         importId: String,
         absMediaId: String,
         listenUpId: String,
-    ): Result<ABSImportBook>
+    ): AppResult<ABSImportBook>
 
     /**
      * Clear book mapping.
@@ -172,7 +172,7 @@ interface ABSImportApiContract {
     suspend fun clearBookMapping(
         importId: String,
         absMediaId: String,
-    ): Result<ABSImportBook>
+    ): AppResult<ABSImportBook>
 
     // === Session Management ===
 
@@ -186,7 +186,7 @@ interface ABSImportApiContract {
     suspend fun listSessions(
         importId: String,
         status: SessionStatusFilter = SessionStatusFilter.ALL,
-    ): Result<ABSSessionsResponse>
+    ): AppResult<ABSSessionsResponse>
 
     /**
      * Import all ready sessions.
@@ -197,7 +197,7 @@ interface ABSImportApiContract {
      * @param importId Import ID
      * @return Import result with counts
      */
-    suspend fun importReadySessions(importId: String): Result<ImportSessionsResult>
+    suspend fun importReadySessions(importId: String): AppResult<ImportSessionsResult>
 
     /**
      * Skip a session (won't be imported).
@@ -210,7 +210,7 @@ interface ABSImportApiContract {
         importId: String,
         sessionId: String,
         reason: String? = null,
-    ): Result<Unit>
+    ): AppResult<Unit>
 }
 
 // === Filter Enums ===
@@ -434,7 +434,7 @@ class ABSImportApi(
     override suspend fun createImport(
         fileSource: FileSource,
         name: String,
-    ): Result<ABSImportResponse> {
+    ): AppResult<ABSImportResponse> {
         return try {
             val client = clientFactory.getClient()
 
@@ -460,7 +460,7 @@ class ABSImportApi(
 
             val uploadPath = when (val result = uploadResponse.toResult()) {
                 is Success -> result.data.path
-                is Failure -> return Failure(result.exceptionOrFromMessage())
+                is Failure -> return Failure(AppException(result.error))
             }
 
             // Then create the import from the uploaded path
@@ -474,7 +474,7 @@ class ABSImportApi(
     override suspend fun createImportFromPath(
         backupPath: String,
         name: String,
-    ): Result<ABSImportResponse> {
+    ): AppResult<ABSImportResponse> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<ABSImportResponse> =
@@ -488,7 +488,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.UploadFailed(debugInfo = e.message))
@@ -496,7 +496,7 @@ class ABSImportApi(
         }
     }
 
-    override suspend fun listImports(): Result<List<ABSImportSummary>> {
+    override suspend fun listImports(): AppResult<List<ABSImportSummary>> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<ImportListResponse> =
@@ -504,14 +504,14 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data.imports)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
         }
     }
 
-    override suspend fun getImport(importId: String): Result<ABSImportResponse> {
+    override suspend fun getImport(importId: String): AppResult<ABSImportResponse> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<ABSImportResponse> =
@@ -519,14 +519,14 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
         }
     }
 
-    override suspend fun deleteImport(importId: String): Result<Unit> {
+    override suspend fun deleteImport(importId: String): AppResult<Unit> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<Unit> =
@@ -534,7 +534,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(Unit)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
@@ -546,7 +546,7 @@ class ABSImportApi(
     override suspend fun listImportUsers(
         importId: String,
         filter: MappingFilter,
-    ): Result<List<ABSImportUser>> {
+    ): AppResult<List<ABSImportUser>> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<UsersListResponse> =
@@ -558,7 +558,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data.users)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.AnalysisFailed(debugInfo = e.message))
@@ -570,7 +570,7 @@ class ABSImportApi(
         importId: String,
         absUserId: String,
         listenUpId: String,
-    ): Result<ABSImportUser> {
+    ): AppResult<ABSImportUser> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<ABSImportUser> =
@@ -580,7 +580,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.ApplyFailed(debugInfo = e.message))
@@ -591,7 +591,7 @@ class ABSImportApi(
     override suspend fun clearUserMapping(
         importId: String,
         absUserId: String,
-    ): Result<ABSImportUser> {
+    ): AppResult<ABSImportUser> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<ABSImportUser> =
@@ -599,7 +599,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
@@ -609,7 +609,7 @@ class ABSImportApi(
     override suspend fun searchUsers(
         query: String,
         limit: Int,
-    ): Result<List<UserSearchResult>> {
+    ): AppResult<List<UserSearchResult>> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<UserSearchResponse> =
@@ -622,7 +622,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data.users)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
@@ -634,7 +634,7 @@ class ABSImportApi(
     override suspend fun listImportBooks(
         importId: String,
         filter: MappingFilter,
-    ): Result<List<ABSImportBook>> {
+    ): AppResult<List<ABSImportBook>> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<BooksListResponse> =
@@ -646,7 +646,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data.books)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.AnalysisFailed(debugInfo = e.message))
@@ -658,7 +658,7 @@ class ABSImportApi(
         importId: String,
         absMediaId: String,
         listenUpId: String,
-    ): Result<ABSImportBook> {
+    ): AppResult<ABSImportBook> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<ABSImportBook> =
@@ -668,7 +668,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.ApplyFailed(debugInfo = e.message))
@@ -679,7 +679,7 @@ class ABSImportApi(
     override suspend fun clearBookMapping(
         importId: String,
         absMediaId: String,
-    ): Result<ABSImportBook> {
+    ): AppResult<ABSImportBook> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<ABSImportBook> =
@@ -687,7 +687,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
@@ -699,7 +699,7 @@ class ABSImportApi(
     override suspend fun listSessions(
         importId: String,
         status: SessionStatusFilter,
-    ): Result<ABSSessionsResponse> {
+    ): AppResult<ABSSessionsResponse> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<ABSSessionsResponse> =
@@ -711,7 +711,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.AnalysisFailed(debugInfo = e.message))
@@ -719,7 +719,7 @@ class ABSImportApi(
         }
     }
 
-    override suspend fun importReadySessions(importId: String): Result<ImportSessionsResult> {
+    override suspend fun importReadySessions(importId: String): AppResult<ImportSessionsResult> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<ImportSessionsResult> =
@@ -732,7 +732,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(result.data)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.ApplyFailed(debugInfo = e.message))
@@ -744,7 +744,7 @@ class ABSImportApi(
         importId: String,
         sessionId: String,
         reason: String?,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         return try {
             val client = clientFactory.getClient()
             val response: ApiResponse<Unit> =
@@ -754,7 +754,7 @@ class ABSImportApi(
 
             when (val result = response.toResult()) {
                 is Success -> Success(Unit)
-                is Failure -> Failure(result.exceptionOrFromMessage())
+                is Failure -> Failure(AppException(result.error))
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.ApplyFailed(debugInfo = e.message))

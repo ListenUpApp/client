@@ -1,11 +1,11 @@
 package com.calypsan.listenup.client.domain.usecase.shelf
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.core.validationError
 import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import com.calypsan.listenup.client.core.validationError
 
 private val logger = KotlinLogging.logger {}
 
@@ -36,7 +36,7 @@ open class CreateShelfUseCase(
     open suspend operator fun invoke(
         name: String,
         description: String?,
-    ): Result<Shelf> {
+    ): AppResult<Shelf> {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) {
             return validationError("Shelf name is required")

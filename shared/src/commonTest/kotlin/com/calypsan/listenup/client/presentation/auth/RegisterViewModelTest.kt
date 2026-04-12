@@ -22,6 +22,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import com.calypsan.listenup.client.core.validationError
 
 /**
  * Tests for RegisterViewModel.
@@ -93,10 +94,7 @@ class RegisterViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = IllegalArgumentException("Invalid email format"),
-                    message = "Please enter a valid email address",
-                )
+                validationError("Please enter a valid email address")
             val viewModel = fixture.build()
 
             // When
@@ -119,10 +117,7 @@ class RegisterViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = IllegalArgumentException("Invalid email format"),
-                    message = "Please enter a valid email address",
-                )
+                validationError("Please enter a valid email address")
             val viewModel = fixture.build()
 
             // When
@@ -147,10 +142,7 @@ class RegisterViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = IllegalArgumentException("Password too short"),
-                    message = "Password must be at least 8 characters",
-                )
+                validationError("Password must be at least 8 characters")
             val viewModel = fixture.build()
 
             // When
@@ -173,10 +165,7 @@ class RegisterViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = IllegalArgumentException("Password too short"),
-                    message = "Password must be at least 8 characters",
-                )
+                validationError("Password must be at least 8 characters")
             val viewModel = fixture.build()
 
             // When
@@ -222,10 +211,7 @@ class RegisterViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = IllegalArgumentException("First name is required"),
-                    message = "First name is required",
-                )
+                validationError("First name is required")
             val viewModel = fixture.build()
 
             // When
@@ -248,10 +234,7 @@ class RegisterViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = IllegalArgumentException("First name is required"),
-                    message = "First name is required",
-                )
+                validationError("First name is required")
             val viewModel = fixture.build()
 
             // When
@@ -276,10 +259,7 @@ class RegisterViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = IllegalArgumentException("Last name is required"),
-                    message = "Last name is required",
-                )
+                validationError("Last name is required")
             val viewModel = fixture.build()
 
             // When
@@ -302,10 +282,7 @@ class RegisterViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = IllegalArgumentException("Last name is required"),
-                    message = "Last name is required",
-                )
+                validationError("Last name is required")
             val viewModel = fixture.build()
 
             // When
@@ -376,10 +353,7 @@ class RegisterViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = RuntimeException("Email already exists"),
-                    message = "Email already exists",
-                )
+                Failure(RuntimeException("Email already exists"))
             val viewModel = fixture.build()
 
             // When
@@ -404,10 +378,7 @@ class RegisterViewModelTest {
             // Given - put viewModel in error state
             val fixture = createFixture()
             everySuspend { fixture.registerUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    exception = IllegalArgumentException("Invalid email"),
-                    message = "Please enter a valid email address",
-                )
+                validationError("Invalid email")
             val viewModel = fixture.build()
             viewModel.onRegisterSubmit(
                 email = "",

@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.data.sync.sse
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
 import com.calypsan.listenup.client.data.local.db.ActivityDao
@@ -51,6 +50,8 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for SSEEventProcessor.
@@ -168,9 +169,9 @@ class SSEEventProcessorTest {
             everySuspend { userStatsDao.upsert(any<UserStatsEntity>()) } returns Unit
             everySuspend { playbackPositionDao.delete(any()) } returns Unit
             everySuspend { sessionRepository.refreshBookReaders(any()) } returns Unit
-            everySuspend { imageDownloader.downloadCover(any()) } returns Result.Success(false)
-            everySuspend { imageDownloader.downloadUserAvatar(any(), any()) } returns Result.Success(false)
-            everySuspend { imageDownloader.deleteUserAvatar(any()) } returns Result.Success(Unit)
+            everySuspend { imageDownloader.downloadCover(any()) } returns Success(false)
+            everySuspend { imageDownloader.downloadUserAvatar(any(), any()) } returns Success(false)
+            everySuspend { imageDownloader.deleteUserAvatar(any()) } returns Success(Unit)
 
             // PlaybackStateProvider stubs
             every { playbackStateProvider.currentBookId } returns currentBookIdFlow
@@ -468,7 +469,7 @@ class SSEEventProcessorTest {
         runTest {
             // Given
             val fixture = TestFixture(this)
-            everySuspend { fixture.imageDownloader.downloadCover(any()) } returns Result.Success(true)
+            everySuspend { fixture.imageDownloader.downloadCover(any()) } returns Success(true)
             val processor = fixture.build()
             val bookResponse = createBookResponse(id = "book-1")
 
@@ -486,7 +487,7 @@ class SSEEventProcessorTest {
             // Given
             val fixture = TestFixture(this)
             everySuspend { fixture.imageDownloader.downloadCover(any()) } returns
-                Result.Failure(exception = Exception("Network error"), message = "Failed")
+                Failure(Exception("Network error"))
             val processor = fixture.build()
             val bookResponse = createBookResponse(id = "book-1")
 

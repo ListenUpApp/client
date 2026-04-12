@@ -2,7 +2,6 @@
 
 package com.calypsan.listenup.client.data.sync.pull
 
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.ReadingSessionDao
 import com.calypsan.listenup.client.data.local.db.ReadingSessionEntity
@@ -11,6 +10,8 @@ import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Instant
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -54,7 +55,7 @@ class ReadingSessionPuller(
 
         try {
             when (val result = syncApi.getReadingSessions()) {
-                is Result.Success -> {
+                is Success -> {
                     val readers = result.data.readers
                     logger.info { "Fetched ${readers.size} reading sessions from server" }
 
@@ -92,8 +93,8 @@ class ReadingSessionPuller(
                     logger.info { "Reading sessions sync complete: ${entities.size} sessions synced" }
                 }
 
-                is Result.Failure -> {
-                    logger.warn(result.exception) { "Failed to fetch reading sessions" }
+                is Failure -> {
+                    logger.warn { "Failed to fetch reading sessions" }
                     // Don't throw - reading sessions are not critical for sync
                 }
             }

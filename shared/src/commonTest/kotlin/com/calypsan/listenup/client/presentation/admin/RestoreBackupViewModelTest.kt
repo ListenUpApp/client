@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.presentation.admin
 
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.model.RestoreError
 import com.calypsan.listenup.client.data.remote.model.RestoreRequest
@@ -28,6 +27,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for RestoreBackupViewModel.
@@ -48,8 +49,8 @@ class RestoreBackupViewModelTest {
 
     private fun createMockSyncRepository(): SyncRepository {
         val syncRepo: SyncRepository = mock()
-        everySuspend { syncRepo.forceFullResync() } returns Result.Success(Unit)
-        everySuspend { syncRepo.refreshListeningHistory() } returns Result.Success(Unit)
+        everySuspend { syncRepo.forceFullResync() } returns Success(Unit)
+        everySuspend { syncRepo.refreshListeningHistory() } returns Success(Unit)
         return syncRepo
     }
 
@@ -914,8 +915,8 @@ class RestoreBackupViewModelTest {
             val syncRepo: SyncRepository = mock()
             everySuspend { api.validateBackup(any()) } returns createValidationResponse()
             everySuspend { api.restore(any()) } returns createRestoreResponse()
-            everySuspend { syncRepo.forceFullResync() } returns Result.Success(Unit)
-            everySuspend { syncRepo.refreshListeningHistory() } returns Result.Success(Unit)
+            everySuspend { syncRepo.forceFullResync() } returns Success(Unit)
+            everySuspend { syncRepo.refreshListeningHistory() } returns Success(Unit)
 
             val viewModel = RestoreBackupViewModel("backup-1", api, syncRepo)
             advanceUntilIdle()
@@ -938,8 +939,8 @@ class RestoreBackupViewModelTest {
             val syncRepo: SyncRepository = mock()
             everySuspend { api.validateBackup(any()) } returns createValidationResponse()
             everySuspend { api.restore(any()) } returns createRestoreResponse()
-            everySuspend { syncRepo.forceFullResync() } returns Result.Success(Unit)
-            everySuspend { syncRepo.refreshListeningHistory() } returns Result.Success(Unit)
+            everySuspend { syncRepo.forceFullResync() } returns Success(Unit)
+            everySuspend { syncRepo.refreshListeningHistory() } returns Success(Unit)
 
             val viewModel = RestoreBackupViewModel("backup-1", api, syncRepo)
             advanceUntilIdle()
@@ -1173,10 +1174,7 @@ class RestoreBackupViewModelTest {
                 )
             // Sync fails after restore
             everySuspend { syncRepo.forceFullResync() } returns
-                Result.Failure(
-                    exception = RuntimeException("Network unavailable"),
-                    message = "Failed to sync",
-                )
+                Failure(RuntimeException("Network unavailable"))
 
             val viewModel = RestoreBackupViewModel("backup-1", api, syncRepo)
             advanceUntilIdle()
@@ -1209,10 +1207,7 @@ class RestoreBackupViewModelTest {
             everySuspend { api.restore(any()) } returns createRestoreResponse()
             // Sync fails after restore
             everySuspend { syncRepo.refreshListeningHistory() } returns
-                Result.Failure(
-                    exception = RuntimeException("SSE disconnected"),
-                    message = "Failed to refresh",
-                )
+                Failure(RuntimeException("SSE disconnected"))
 
             val viewModel = RestoreBackupViewModel("backup-1", api, syncRepo)
             advanceUntilIdle()

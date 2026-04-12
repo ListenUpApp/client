@@ -3,7 +3,6 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.model.Instance
@@ -28,6 +27,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for SettingsRepository.
@@ -456,7 +457,7 @@ class SettingsRepositoryTest {
             everySuspend { storage.read("open_registration") } returns null
             // Server returns setup not required
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
-                Result.Success(
+                Success(
                     createTestInstance(setupRequired = false),
                 )
 
@@ -481,7 +482,7 @@ class SettingsRepositoryTest {
             everySuspend { storage.save(any(), any()) } returns Unit
             // Server returns setup required
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
-                Result.Success(
+                Success(
                     createTestInstance(setupRequired = true),
                 )
 
@@ -506,10 +507,7 @@ class SettingsRepositoryTest {
             everySuspend { storage.read("open_registration") } returns null
             // Server unreachable
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
-                Result.Failure(
-                    exception = Exception("Network error"),
-                    message = "Network error",
-                )
+                Failure(Exception("Network error"))
 
             // When - checkServerStatus handles network errors gracefully
             repository.checkServerStatus()

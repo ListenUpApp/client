@@ -626,7 +626,7 @@ class PlaybackManager(
 
                 is Failure -> {
                     prepareProgress.value = null
-                    logger.warn(result.exception) {
+                    logger.warn {
                         "Failed to prepare stream for $audioFileId (attempt ${attempt + 1}), " +
                             "using fallback URL"
                     }
@@ -687,7 +687,7 @@ class PlaybackManager(
             }
 
             is Failure -> {
-                logger.error(result.exception) { "Failed to fetch book from server: ${bookId.value}" }
+                logger.error { "Failed to fetch book from server: ${bookId.value}" }
                 null
             }
         }

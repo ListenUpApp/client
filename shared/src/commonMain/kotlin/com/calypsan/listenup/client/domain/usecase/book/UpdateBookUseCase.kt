@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.domain.usecase.book
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
@@ -54,7 +54,7 @@ open class UpdateBookUseCase(
     open suspend operator fun invoke(
         current: BookUpdateRequest,
         original: BookOriginalState,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         val changes = detectChanges(current, original)
 
         if (!changes.hasAnyChanges) {
@@ -111,7 +111,7 @@ open class UpdateBookUseCase(
             coverChanged = current.pendingCover != null,
         )
 
-    private suspend fun updateMetadata(current: BookUpdateRequest): Result<Unit> {
+    private suspend fun updateMetadata(current: BookUpdateRequest): AppResult<Unit> {
         logger.debug { "Updating metadata for book ${current.bookId}" }
 
         val metadata = current.metadata
@@ -130,7 +130,7 @@ open class UpdateBookUseCase(
         )
     }
 
-    private suspend fun updateContributors(current: BookUpdateRequest): Result<Unit> {
+    private suspend fun updateContributors(current: BookUpdateRequest): AppResult<Unit> {
         logger.debug { "Updating contributors for book ${current.bookId}" }
 
         val contributorInputs =
@@ -144,7 +144,7 @@ open class UpdateBookUseCase(
         return bookEditRepository.setBookContributors(current.bookId, contributorInputs)
     }
 
-    private suspend fun updateSeries(current: BookUpdateRequest): Result<Unit> {
+    private suspend fun updateSeries(current: BookUpdateRequest): AppResult<Unit> {
         logger.debug { "Updating series for book ${current.bookId}" }
 
         val seriesInputs =

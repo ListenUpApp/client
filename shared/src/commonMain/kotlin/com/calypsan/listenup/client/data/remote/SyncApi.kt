@@ -2,8 +2,7 @@
 
 package com.calypsan.listenup.client.data.remote
 
-import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.AllProgressResponse
@@ -18,6 +17,7 @@ import com.calypsan.listenup.client.data.remote.model.SyncContributorsResponse
 import com.calypsan.listenup.client.data.remote.model.SyncListeningEventsResponse
 import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
 import com.calypsan.listenup.client.data.remote.model.SyncSeriesResponse
+import com.calypsan.listenup.client.core.error.AppException
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -30,6 +30,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * API client for sync endpoints.
@@ -61,7 +63,7 @@ class SyncApi(
      *
      * @return Result containing SyncManifestResponse or error
      */
-    override suspend fun getManifest(): Result<SyncManifestResponse> =
+    override suspend fun getManifest(): AppResult<SyncManifestResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncManifestResponse> =
@@ -87,7 +89,7 @@ class SyncApi(
         limit: Int,
         cursor: String?,
         updatedAfter: String?,
-    ): Result<SyncBooksResponse> =
+    ): AppResult<SyncBooksResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncBooksResponse> =
@@ -113,7 +115,7 @@ class SyncApi(
     override suspend fun getAllBooks(
         limit: Int,
         updatedAfter: String?,
-    ): Result<SyncBooksResponse> =
+    ): AppResult<SyncBooksResponse> =
         suspendRunCatching {
             var cursor: String? = null
             val allDeletedIds = mutableListOf<String>()
@@ -122,14 +124,14 @@ class SyncApi(
                 buildList {
                     do {
                         when (val result = getBooks(limit, cursor, updatedAfter)) {
-                            is Result.Success -> {
+                            is Success -> {
                                 addAll(result.data.books)
                                 allDeletedIds.addAll(result.data.deletedBookIds)
                                 cursor = result.data.nextCursor
                             }
 
-                            is Result.Failure -> {
-                                throw result.exceptionOrFromMessage()
+                            is Failure -> {
+                                throw AppException(result.error)
                             }
                         }
                     } while (cursor != null)
@@ -149,7 +151,7 @@ class SyncApi(
         limit: Int,
         cursor: String?,
         updatedAfter: String?,
-    ): Result<SyncSeriesResponse> =
+    ): AppResult<SyncSeriesResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncSeriesResponse> =
@@ -165,20 +167,20 @@ class SyncApi(
     override suspend fun getAllSeries(
         limit: Int,
         updatedAfter: String?,
-    ): Result<List<com.calypsan.listenup.client.data.remote.model.SeriesResponse>> =
+    ): AppResult<List<com.calypsan.listenup.client.data.remote.model.SeriesResponse>> =
         suspendRunCatching {
             var cursor: String? = null
 
             buildList {
                 do {
                     when (val result = getSeries(limit, cursor, updatedAfter)) {
-                        is Result.Success -> {
+                        is Success -> {
                             addAll(result.data.series)
                             cursor = result.data.nextCursor
                         }
 
-                        is Result.Failure -> {
-                            throw result.exceptionOrFromMessage()
+                        is Failure -> {
+                            throw AppException(result.error)
                         }
                     }
                 } while (cursor != null)
@@ -192,7 +194,7 @@ class SyncApi(
         limit: Int,
         cursor: String?,
         updatedAfter: String?,
-    ): Result<SyncContributorsResponse> =
+    ): AppResult<SyncContributorsResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncContributorsResponse> =
@@ -208,20 +210,20 @@ class SyncApi(
     override suspend fun getAllContributors(
         limit: Int,
         updatedAfter: String?,
-    ): Result<List<com.calypsan.listenup.client.data.remote.model.ContributorResponse>> =
+    ): AppResult<List<com.calypsan.listenup.client.data.remote.model.ContributorResponse>> =
         suspendRunCatching {
             var cursor: String? = null
 
             buildList {
                 do {
                     when (val result = getContributors(limit, cursor, updatedAfter)) {
-                        is Result.Success -> {
+                        is Success -> {
                             addAll(result.data.contributors)
                             cursor = result.data.nextCursor
                         }
 
-                        is Result.Failure -> {
-                            throw result.exceptionOrFromMessage()
+                        is Failure -> {
+                            throw AppException(result.error)
                         }
                     }
                 } while (cursor != null)
@@ -240,7 +242,9 @@ class SyncApi(
      * @param events List of listening events to submit
      * @return Result containing acknowledged event IDs
      */
-    override suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse> =
+    override suspend fun submitListeningEvents(
+        events: List<ListeningEventRequest>,
+    ): AppResult<ListeningEventsResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ListeningEventsResponse> =
@@ -264,7 +268,7 @@ class SyncApi(
      * @param bookId Book to get progress for
      * @return Result containing PlaybackProgressResponse or null if not found
      */
-    override suspend fun getProgress(bookId: String): Result<PlaybackProgressResponse?> =
+    override suspend fun getProgress(bookId: String): AppResult<PlaybackProgressResponse?> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val httpResponse: HttpResponse = client.get("/api/v1/books/$bookId/progress")
@@ -290,7 +294,7 @@ class SyncApi(
      * @param limit Maximum number of books to return
      * @return Result containing list of ContinueListeningItemResponse
      */
-    override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningItemResponse>> =
+    override suspend fun getContinueListening(limit: Int): AppResult<List<ContinueListeningItemResponse>> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ContinueListeningResponse> =
@@ -301,7 +305,7 @@ class SyncApi(
             response.toResult().getOrThrow().items
         }
 
-    override suspend fun getAllProgress(): Result<AllProgressResponse> =
+    override suspend fun getAllProgress(): AppResult<AllProgressResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<AllProgressResponse> =
@@ -321,7 +325,9 @@ class SyncApi(
      * @param bookId Book ID to fetch
      * @return Result containing BookResponse (converted from SingleBookResponse) or error
      */
-    override suspend fun getBook(bookId: String): Result<com.calypsan.listenup.client.data.remote.model.BookResponse> =
+    override suspend fun getBook(
+        bookId: String,
+    ): AppResult<com.calypsan.listenup.client.data.remote.model.BookResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<com.calypsan.listenup.client.data.remote.model.SingleBookResponse> =
@@ -341,7 +347,7 @@ class SyncApi(
      * @param sinceMs Only return events created after this timestamp (epoch ms), null for all events
      * @return Result containing list of listening events
      */
-    override suspend fun getListeningEvents(sinceMs: Long?): Result<ListeningEventsApiResponse> =
+    override suspend fun getListeningEvents(sinceMs: Long?): AppResult<ListeningEventsApiResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncListeningEventsResponse> =
@@ -383,7 +389,7 @@ class SyncApi(
     override suspend fun endPlaybackSession(
         bookId: String,
         durationMs: Long,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             client.post("/api/v1/listening/session/end") {
@@ -398,7 +404,7 @@ class SyncApi(
      * Endpoint: GET /api/v1/sync/active-sessions
      * Auth: Required
      */
-    override suspend fun getActiveSessions(): Result<SyncActiveSessionsResponse> =
+    override suspend fun getActiveSessions(): AppResult<SyncActiveSessionsResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ApiActiveSessions> =
@@ -428,7 +434,7 @@ class SyncApi(
      * Endpoint: GET /api/v1/sync/reading-sessions
      * Auth: Required
      */
-    override suspend fun getReadingSessions(): Result<SyncReadingSessionsResponse> =
+    override suspend fun getReadingSessions(): AppResult<SyncReadingSessionsResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ApiReadingSessions> =
@@ -465,7 +471,7 @@ class SyncApi(
         bookId: String,
         startedAt: String?,
         finishedAt: String?,
-    ): Result<PlaybackProgressResponse> =
+    ): AppResult<PlaybackProgressResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<PlaybackProgressResponse> =
@@ -488,7 +494,7 @@ class SyncApi(
     override suspend fun discardProgress(
         bookId: String,
         keepHistory: Boolean,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             client.delete("/api/v1/books/$bookId/progress/discard") {
@@ -502,7 +508,7 @@ class SyncApi(
      * Endpoint: POST /api/v1/books/{bookId}/progress/restart
      * Auth: Required
      */
-    override suspend fun restartBook(bookId: String): Result<PlaybackProgressResponse> =
+    override suspend fun restartBook(bookId: String): AppResult<PlaybackProgressResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<PlaybackProgressResponse> =

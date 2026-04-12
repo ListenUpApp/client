@@ -534,7 +534,7 @@ class ContributorEditViewModel(
             }
 
             is Failure -> {
-                result.exception?.let { logger.error(it) { "Unmerge failed for alias '$aliasName'" } }
+                (null as Exception?)?.let { logger.error(it) { "Unmerge failed for alias '$aliasName'" } }
                 state.update {
                     it.copy(
                         isSaving = false,

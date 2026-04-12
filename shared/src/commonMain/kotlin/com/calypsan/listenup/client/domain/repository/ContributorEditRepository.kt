@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 
 /**
  * Repository contract for contributor editing operations.
@@ -35,7 +35,7 @@ interface ContributorEditRepository {
         birthDate: String? = null,
         deathDate: String? = null,
         aliases: List<String>? = null,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Merge a source contributor into a target contributor.
@@ -54,7 +54,7 @@ interface ContributorEditRepository {
     suspend fun mergeContributor(
         targetId: String,
         sourceId: String,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Unmerge an alias from a contributor, creating a new contributor.
@@ -73,5 +73,5 @@ interface ContributorEditRepository {
     suspend fun unmergeContributor(
         contributorId: String,
         aliasName: String,
-    ): Result<Unit>
+    ): AppResult<Unit>
 }

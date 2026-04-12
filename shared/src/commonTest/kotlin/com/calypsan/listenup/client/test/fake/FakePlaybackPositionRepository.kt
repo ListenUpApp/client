@@ -1,12 +1,13 @@
 package com.calypsan.listenup.client.test.fake
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import com.calypsan.listenup.client.core.Success
 
 /**
  * In-memory fake of [PlaybackPositionRepository] backed by a [MutableStateFlow] of
@@ -71,7 +72,7 @@ class FakePlaybackPositionRepository(
         bookId: String,
         startedAt: Long?,
         finishedAt: Long?,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         val now = nowMs()
         val existing =
             state.value[bookId] ?: PlaybackPosition(
@@ -92,16 +93,16 @@ class FakePlaybackPositionRepository(
                     updatedAtMs = now,
                 )
         )
-        return Result.Success(Unit)
+        return Success(Unit)
     }
 
-    override suspend fun discardProgress(bookId: String): Result<Unit> {
+    override suspend fun discardProgress(bookId: String): AppResult<Unit> {
         state.value = state.value - bookId
-        return Result.Success(Unit)
+        return Success(Unit)
     }
 
-    override suspend fun restartBook(bookId: String): Result<Unit> {
-        val existing = state.value[bookId] ?: return Result.Success(Unit)
+    override suspend fun restartBook(bookId: String): AppResult<Unit> {
+        val existing = state.value[bookId] ?: return Success(Unit)
         state.value = state.value + (
             bookId to
                 existing.copy(
@@ -111,6 +112,6 @@ class FakePlaybackPositionRepository(
                     updatedAtMs = nowMs(),
                 )
         )
-        return Result.Success(Unit)
+        return Success(Unit)
     }
 }

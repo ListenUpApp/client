@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.domain.usecase.book
 
 import com.calypsan.listenup.client.TestData
 import com.calypsan.listenup.client.checkIs
-import com.calypsan.listenup.client.core.ErrorCode
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Book
@@ -79,7 +78,7 @@ class LoadBookForEditUseCaseTest {
 
             // Then
             val failure = assertIs<Failure>(result)
-            assertEquals(ErrorCode.NOT_FOUND, failure.errorCode)
+            assertIs<com.calypsan.listenup.client.core.error.DataError>(failure.error)
             assertTrue(failure.message.contains("not found", ignoreCase = true))
         }
 

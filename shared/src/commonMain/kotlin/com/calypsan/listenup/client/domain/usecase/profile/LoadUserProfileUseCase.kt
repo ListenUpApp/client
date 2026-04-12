@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.profile
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.UserProfile
 import com.calypsan.listenup.client.domain.repository.ProfileRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -31,7 +31,7 @@ open class LoadUserProfileUseCase(
      * @param userId The user ID to fetch profile for
      * @return Result containing the user profile or a failure
      */
-    open suspend operator fun invoke(userId: String): Result<UserProfile> {
+    open suspend operator fun invoke(userId: String): AppResult<UserProfile> {
         logger.debug { "Loading profile for user: $userId" }
         return profileRepository.getUserProfile(userId)
     }

@@ -1,11 +1,11 @@
 package com.calypsan.listenup.client.domain.usecase.auth
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.core.validationError
 import com.calypsan.listenup.client.domain.repository.AuthRepository
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.RegistrationResult
+import com.calypsan.listenup.client.core.validationError
 
 /**
  * Use case for user registration.
@@ -46,7 +46,7 @@ open class RegisterUseCase(
         password: String,
         firstName: String,
         lastName: String,
-    ): Result<RegistrationResult> {
+    ): AppResult<RegistrationResult> {
         val trimmedEmail = email.trim()
         val trimmedFirstName = firstName.trim()
         val trimmedLastName = lastName.trim()

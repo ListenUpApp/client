@@ -20,6 +20,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
+import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 

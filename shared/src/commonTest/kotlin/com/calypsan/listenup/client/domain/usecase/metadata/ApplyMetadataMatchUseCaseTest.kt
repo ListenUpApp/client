@@ -239,10 +239,7 @@ class ApplyMetadataMatchUseCaseTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.imageRepository.deleteBookCover(any()) } returns
-                Failure(
-                    exception = Exception("Delete failed"),
-                    message = "Delete failed",
-                )
+                Failure(Exception("Delete failed"))
             val useCase = fixture.build()
 
             // When
@@ -267,10 +264,7 @@ class ApplyMetadataMatchUseCaseTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.imageRepository.downloadBookCover(any()) } returns
-                Failure(
-                    exception = Exception("Download failed"),
-                    message = "Download failed",
-                )
+                Failure(Exception("Download failed"))
             val useCase = fixture.build()
 
             // When

@@ -1,9 +1,7 @@
 package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
@@ -19,7 +17,10 @@ import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -54,7 +55,7 @@ class BookPuller(
 
         while (hasMore) {
             when (val result = syncApi.getBooks(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
-                is Result.Success -> {
+                is Success -> {
                     val response = result.data
                     val serverBooks = response.books.map { it.toEntity() }
                     val deletedBookIds = response.deletedBookIds
@@ -90,8 +91,8 @@ class BookPuller(
                     hasMore = response.hasMore
                 }
 
-                is Result.Failure -> {
-                    throw result.exceptionOrFromMessage()
+                is Failure -> {
+                    throw AppException(result.error)
                 }
             }
         }

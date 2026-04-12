@@ -30,6 +30,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
+import com.calypsan.listenup.client.core.Success
 
 /**
  * Tests for SearchViewModel.

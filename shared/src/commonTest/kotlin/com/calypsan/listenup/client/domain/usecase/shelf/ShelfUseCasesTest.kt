@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.shelf
 
 import com.calypsan.listenup.client.checkIs
-import com.calypsan.listenup.client.core.ErrorCode
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Shelf
@@ -91,7 +90,7 @@ class ShelfUseCasesTest {
 
             // Then
             val failure = assertIs<Failure>(result)
-            assertEquals(ErrorCode.VALIDATION_ERROR, failure.errorCode)
+            assertIs<com.calypsan.listenup.client.core.error.DataError>(failure.error)
             assertEquals("Shelf name is required", failure.message)
         }
 
@@ -107,7 +106,7 @@ class ShelfUseCasesTest {
 
             // Then
             val failure = assertIs<Failure>(result)
-            assertEquals(ErrorCode.VALIDATION_ERROR, failure.errorCode)
+            assertIs<com.calypsan.listenup.client.core.error.DataError>(failure.error)
         }
 
     @Test
@@ -202,7 +201,7 @@ class ShelfUseCasesTest {
 
             // Then
             val failure = assertIs<Failure>(result)
-            assertEquals(ErrorCode.VALIDATION_ERROR, failure.errorCode)
+            assertIs<com.calypsan.listenup.client.core.error.DataError>(failure.error)
             assertEquals("Shelf name is required", failure.message)
         }
 

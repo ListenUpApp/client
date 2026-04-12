@@ -3,7 +3,6 @@ package com.calypsan.listenup.client.data.repository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.model.ThemeMode
@@ -17,6 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlin.time.TimeSource
 import com.calypsan.listenup.client.domain.repository.AuthState as DomainAuthState
 import com.calypsan.listenup.client.domain.repository.PreferenceChangeEvent as DomainPreferenceChangeEvent
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -390,7 +391,7 @@ class SettingsRepositoryImpl(
 
         logger.info { "checkServerStatus: Calling getInstance" }
         return when (val result = instanceRepository.getInstance(forceRefresh = true)) {
-            is Result.Success -> {
+            is Success -> {
                 logger.info { "checkServerStatus: getInstance succeeded (${startMark.elapsedNow()})" }
                 // Cache open registration status for use when deriving auth state
                 secureStorage.save(KEY_OPEN_REGISTRATION, result.data.openRegistration.toString())
@@ -405,7 +406,7 @@ class SettingsRepositoryImpl(
                 newState
             }
 
-            is Result.Failure -> {
+            is Failure -> {
                 logger.info { "checkServerStatus: getInstance failed (${startMark.elapsedNow()}): ${result.message}" }
                 // Server unreachable - stay in NeedsLogin with cached open registration value
                 // User can retry or check their connection
@@ -433,7 +434,7 @@ class SettingsRepositoryImpl(
         if (currentState !is DomainAuthState.NeedsLogin) return
 
         when (val result = instanceRepository.getInstance(forceRefresh = true)) {
-            is Result.Success -> {
+            is Success -> {
                 // Cache the value
                 secureStorage.save(KEY_OPEN_REGISTRATION, result.data.openRegistration.toString())
                 // Update state with new value (only if still in NeedsLogin)
@@ -442,7 +443,7 @@ class SettingsRepositoryImpl(
                 }
             }
 
-            is Result.Failure -> {
+            is Failure -> {
                 // Silently fail - keep existing cached value
             }
         }

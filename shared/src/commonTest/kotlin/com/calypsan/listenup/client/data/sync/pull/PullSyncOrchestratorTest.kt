@@ -21,6 +21,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.failureOf
 
 /**
  * Tests for PullSyncOrchestrator.
@@ -68,8 +70,8 @@ class PullSyncOrchestratorTest {
             everySuspend { readingSessionsPuller.pull(any(), any()) } returns Unit
             everySuspend { syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns null
             everySuspend { syncApi.getManifest() } returns
-                com.calypsan.listenup.client.core.Result
-                    .Failure(message = "no manifest")
+                com.calypsan.listenup.client.core
+                    .failureOf("no manifest")
             everySuspend { bookDao.count() } returns 0
             everySuspend { seriesDao.count() } returns 0
             everySuspend { contributorDao.count() } returns 0

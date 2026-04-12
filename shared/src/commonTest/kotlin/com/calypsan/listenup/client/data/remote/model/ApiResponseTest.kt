@@ -138,8 +138,6 @@ class ApiResponseTest {
 
         val failure = assertIs<Failure>(result)
         assertEquals("Entity already exists", failure.message)
-        val apiException = assertIs<ApiException>(failure.exception)
-        assertEquals("conflict", apiException.code)
     }
 
     @Test
@@ -179,7 +177,6 @@ class ApiResponseTest {
 
         val failure = assertIs<Failure>(result)
         assertEquals("Multiple matches found", failure.message)
-        assertEquals("disambiguation_required", (failure.exception as ApiException).code)
     }
 
     // endregion

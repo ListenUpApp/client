@@ -261,10 +261,7 @@ class LibraryActionsViewModelTest {
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
             everySuspend { fixture.addBooksToCollectionUseCase(any(), any()) } returns
-                Failure(
-                    RuntimeException("Network error"),
-                    "Network error",
-                )
+                Failure(RuntimeException("Network error"))
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -355,10 +352,7 @@ class LibraryActionsViewModelTest {
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
             everySuspend { fixture.addBooksToShelfUseCase(any(), any()) } returns
-                Failure(
-                    RuntimeException("Server error"),
-                    "Server error",
-                )
+                Failure(RuntimeException("Server error"))
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -436,10 +430,7 @@ class LibraryActionsViewModelTest {
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
             everySuspend { fixture.createShelfUseCase(any(), any()) } returns
-                Failure(
-                    RuntimeException("Failed to create shelf"),
-                    "Failed to create shelf",
-                )
+                Failure(RuntimeException("Failed to create shelf"))
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -460,10 +451,7 @@ class LibraryActionsViewModelTest {
             val newShelf = createShelf()
             everySuspend { fixture.createShelfUseCase(any(), any()) } returns Success(newShelf)
             everySuspend { fixture.addBooksToShelfUseCase(any(), any()) } returns
-                Failure(
-                    RuntimeException("Failed to add books"),
-                    "Failed to add books",
-                )
+                Failure(RuntimeException("Failed to add books"))
             val viewModel = fixture.build()
             advanceUntilIdle()
 

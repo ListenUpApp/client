@@ -1,10 +1,10 @@
 package com.calypsan.listenup.client.domain.usecase.shelf
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.core.validationError
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import com.calypsan.listenup.client.core.validationError
 
 private val logger = KotlinLogging.logger {}
 
@@ -35,7 +35,7 @@ open class AddBooksToShelfUseCase(
     open suspend operator fun invoke(
         shelfId: String,
         bookIds: List<String>,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         if (bookIds.isEmpty()) {
             return validationError("At least one book must be selected")
         }

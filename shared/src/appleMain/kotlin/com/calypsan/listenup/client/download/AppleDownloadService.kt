@@ -40,6 +40,7 @@ import platform.darwin.NSObject
 import kotlin.coroutines.resume
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 

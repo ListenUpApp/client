@@ -5,7 +5,7 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.ContributorId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
@@ -62,7 +62,7 @@ interface ContributorEditRepositoryContract {
     suspend fun updateContributor(
         contributorId: String,
         update: ContributorUpdateRequest,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Merge a source contributor into a target contributor.
@@ -81,7 +81,7 @@ interface ContributorEditRepositoryContract {
     suspend fun mergeContributor(
         targetId: String,
         sourceId: String,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Unmerge an alias from a contributor, creating a new contributor.
@@ -100,7 +100,7 @@ interface ContributorEditRepositoryContract {
     suspend fun unmergeContributor(
         contributorId: String,
         aliasName: String,
-    ): Result<Unit>
+    ): AppResult<Unit>
 }
 
 /**
@@ -140,7 +140,7 @@ class ContributorEditRepository(
         birthDate: String?,
         deathDate: String?,
         aliases: List<String>?,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         updateContributor(
             contributorId,
             ContributorUpdateRequest(
@@ -161,7 +161,7 @@ class ContributorEditRepository(
     override suspend fun updateContributor(
         contributorId: String,
         update: ContributorUpdateRequest,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Updating contributor (offline-first): $contributorId" }
 
@@ -215,7 +215,7 @@ class ContributorEditRepository(
     override suspend fun mergeContributor(
         targetId: String,
         sourceId: String,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Merging contributor $sourceId into $targetId (offline-first)" }
 
@@ -299,7 +299,7 @@ class ContributorEditRepository(
     override suspend fun unmergeContributor(
         contributorId: String,
         aliasName: String,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Unmerging alias '$aliasName' from contributor $contributorId (offline-first)" }
 

@@ -244,7 +244,7 @@ class ApplyContributorMetadataUseCaseTest {
             } returns ContributorMetadataResult.Success(contributor = contributorData)
             everySuspend {
                 fixture.imageRepository.downloadContributorImage(any())
-            } returns Failure(exception = Exception("Download failed"), message = "Download failed")
+            } returns Failure(Exception("Download failed"))
 
             val useCase = fixture.build()
 
@@ -271,7 +271,7 @@ class ApplyContributorMetadataUseCaseTest {
             } returns Success(imageData)
             everySuspend {
                 fixture.imageRepository.saveContributorImage(any(), any())
-            } returns Failure(exception = Exception("Save failed"), message = "Save failed")
+            } returns Failure(Exception("Save failed"))
 
             val useCase = fixture.build()
 

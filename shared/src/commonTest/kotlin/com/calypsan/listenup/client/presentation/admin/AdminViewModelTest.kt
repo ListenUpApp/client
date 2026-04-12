@@ -243,7 +243,7 @@ class AdminViewModelTest {
             val denyUserUseCase: DenyUserUseCase = mock()
             val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
 
-            everySuspend { loadUsersUseCase() } returns Failure(RuntimeException("Network error"), "Failed to load users: Network error")
+            everySuspend { loadUsersUseCase() } returns Failure(RuntimeException("Network error"))
             everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
             everySuspend { loadInvitesUseCase() } returns Success(emptyList())
 
@@ -373,7 +373,7 @@ class AdminViewModelTest {
             val denyUserUseCase: DenyUserUseCase = mock()
             val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
 
-            everySuspend { loadUsersUseCase() } returns Failure(RuntimeException("Error"), "Error")
+            everySuspend { loadUsersUseCase() } returns Failure(RuntimeException("Error"))
             everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
             everySuspend { loadInvitesUseCase() } returns Success(emptyList())
 

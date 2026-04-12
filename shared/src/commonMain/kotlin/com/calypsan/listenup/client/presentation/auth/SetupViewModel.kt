@@ -11,6 +11,7 @@ import com.calypsan.listenup.client.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import com.calypsan.listenup.client.core.Success
 
 /**
  * ViewModel for the root user setup screen.

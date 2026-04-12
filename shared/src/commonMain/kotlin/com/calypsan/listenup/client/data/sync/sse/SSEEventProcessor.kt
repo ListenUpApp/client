@@ -4,7 +4,6 @@
 package com.calypsan.listenup.client.data.sync.sse
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
@@ -48,6 +47,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
+import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 
@@ -489,7 +489,7 @@ class SSEEventProcessor(
     private suspend fun downloadCoverForBook(bookId: String) {
         try {
             val result = imageDownloader.downloadCover(BookId(bookId))
-            if (result is Result.Success && result.data) {
+            if (result is Success && result.data) {
                 try {
                     bookDao.touchUpdatedAt(BookId(bookId), Timestamp.now())
                     logger.debug { "Touched book $bookId to trigger UI refresh" }

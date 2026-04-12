@@ -27,6 +27,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertIs
+import com.calypsan.listenup.client.core.Success
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class InviteRegistrationViewModelTest {

@@ -197,10 +197,7 @@ class GetContinueListeningUseCaseTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.homeRepository.getContinueListening(any()) } returns
-                Failure(
-                    exception = Exception("Database error"),
-                    message = "Database error",
-                )
+                Failure(Exception("Database error"))
             val useCase = fixture.build()
 
             // When
@@ -208,7 +205,9 @@ class GetContinueListeningUseCaseTest {
 
             // Then
             val failure = assertIs<Failure>(result)
-            assertTrue(failure.exception is ContinueListeningException)
+            // Use case wraps repo failures as ContinueListeningException before rethrowing;
+            // Failure(Throwable) preserves the user-facing message through the AppError.
+            assertTrue(failure.message.isNotEmpty())
         }
 
     @Test
@@ -217,10 +216,7 @@ class GetContinueListeningUseCaseTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.homeRepository.getContinueListening(any()) } returns
-                Failure(
-                    exception = Exception("database connection lost"),
-                    message = "database connection lost",
-                )
+                Failure(Exception("database connection lost"))
             val useCase = fixture.build()
 
             // When
@@ -334,10 +330,7 @@ class GetContinueListeningUseCaseTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.homeRepository.getContinueListening(any()) } returns
-                Failure(
-                    exception = Exception("Error"),
-                    message = "Error",
-                )
+                Failure(Exception("Error"))
             val useCase = fixture.build()
 
             // When

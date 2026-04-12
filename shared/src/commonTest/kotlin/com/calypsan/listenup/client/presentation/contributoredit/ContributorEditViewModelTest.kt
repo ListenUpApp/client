@@ -221,7 +221,7 @@ class ContributorEditViewModelTest {
             everySuspend { fixture.contributorRepository.getById("contributor-1") } returns contributor
             // Use case fails
             everySuspend { fixture.updateContributorUseCase.invoke(any()) } returns
-                Failure(exception = Exception("Network error"), message = "Network error")
+                Failure(Exception("Network error"))
 
             val viewModel = fixture.build()
             viewModel.loadContributor("contributor-1")

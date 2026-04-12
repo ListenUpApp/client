@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.test.fake
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.BookReadersResult
 import com.calypsan.listenup.client.domain.model.ReaderInfo
 import com.calypsan.listenup.client.domain.repository.SessionRepository
@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import com.calypsan.listenup.client.core.Success
 
 /**
  * In-memory fake of [SessionRepository]. Backed by a [MutableStateFlow] of
@@ -30,8 +31,8 @@ class FakeSessionRepository(
 
     override suspend fun getBookReaders(bookId: String): List<ReaderInfo> = state.value[bookId]?.otherReaders.orEmpty()
 
-    override suspend fun getBookReadersResult(bookId: String): Result<BookReadersResult> =
-        Result.Success(state.value[bookId] ?: empty)
+    override suspend fun getBookReadersResult(bookId: String): AppResult<BookReadersResult> =
+        Success(state.value[bookId] ?: empty)
 
     override fun observeBookReaders(bookId: String): Flow<BookReadersResult> =
         state.asStateFlow().map { it[bookId] ?: empty }

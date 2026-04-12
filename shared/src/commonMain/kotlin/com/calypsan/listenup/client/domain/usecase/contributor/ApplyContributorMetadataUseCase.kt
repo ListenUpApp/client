@@ -1,8 +1,10 @@
 package com.calypsan.listenup.client.domain.usecase.contributor
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.failureOf
+import com.calypsan.listenup.client.core.validationError
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.ContributorMetadataResult
 import com.calypsan.listenup.client.domain.model.ContributorWithMetadata
@@ -52,12 +54,9 @@ open class ApplyContributorMetadataUseCase(
      * @param request The metadata application request
      * @return Success with the updated contributor, or Failure with error message
      */
-    open suspend operator fun invoke(request: ApplyContributorMetadataRequest): Result<Contributor> {
+    open suspend operator fun invoke(request: ApplyContributorMetadataRequest): AppResult<Contributor> {
         if (!request.selections.hasAnySelected) {
-            return Failure(
-                exception = IllegalArgumentException("No fields selected"),
-                message = "Please select at least one field to apply",
-            )
+            return validationError("Please select at least one field to apply")
         }
 
         logger.info { "Applying Audible metadata to contributor ${request.contributorId}" }
@@ -80,18 +79,12 @@ open class ApplyContributorMetadataUseCase(
             is ContributorMetadataResult.NeedsDisambiguation -> {
                 // Shouldn't happen when ASIN is provided
                 logger.warn { "Unexpected disambiguation request when ASIN was provided" }
-                Failure(
-                    exception = IllegalStateException("Disambiguation needed"),
-                    message = "Unexpected disambiguation request",
-                )
+                failureOf("Unexpected disambiguation request")
             }
 
             is ContributorMetadataResult.Error -> {
                 logger.warn { "Server rejected metadata application: ${apiResult.message}" }
-                Failure(
-                    exception = Exception(apiResult.message),
-                    message = apiResult.message,
-                )
+                failureOf(apiResult.message)
             }
         }
     }
@@ -102,13 +95,10 @@ open class ApplyContributorMetadataUseCase(
     private suspend fun handleSuccess(
         contributorId: String,
         apiResult: ContributorMetadataResult.Success,
-    ): Result<Contributor> {
+    ): AppResult<Contributor> {
         val contributorData =
             apiResult.contributor
-                ?: return Failure(
-                    exception = IllegalStateException("No contributor data in success result"),
-                    message = "Metadata was applied but contributor data was not returned",
-                )
+                ?: return failureOf("Metadata was applied but contributor data was not returned")
 
         val existing = contributorRepository.getById(contributorId)
         var contributor = contributorData.toDomain(existing)

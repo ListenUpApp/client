@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.ContributorMetadataResult
@@ -151,7 +151,7 @@ interface ContributorRepository {
      * @param contributorId Contributor ID to delete
      * @return Success or failure result
      */
-    suspend fun deleteContributor(contributorId: String): Result<Unit>
+    suspend fun deleteContributor(contributorId: String): AppResult<Unit>
 
     /**
      * Apply metadata from external source (e.g., Audible) to a contributor.

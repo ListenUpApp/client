@@ -3,7 +3,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.ProgressRefreshBus
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
@@ -50,7 +50,7 @@ class HomeRepositoryImpl(
      * @param limit Maximum number of books to return
      * @return Result containing list of ContinueListeningBook on success
      */
-    override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningBook>> {
+    override suspend fun getContinueListening(limit: Int): AppResult<List<ContinueListeningBook>> {
         logger.debug { "getContinueListening: using local-first approach" }
         return fetchFromLocal(limit)
     }
@@ -59,7 +59,7 @@ class HomeRepositoryImpl(
      * Fallback: fetch from local database when offline.
      * Requires client-side join with book details.
      */
-    private suspend fun fetchFromLocal(limit: Int): Result<List<ContinueListeningBook>> {
+    private suspend fun fetchFromLocal(limit: Int): AppResult<List<ContinueListeningBook>> {
         val positions = playbackPositionDao.getRecentPositions(limit)
         logger.info { "fetchFromLocal: found ${positions.size} playback positions" }
         positions.forEachIndexed { index, pos ->

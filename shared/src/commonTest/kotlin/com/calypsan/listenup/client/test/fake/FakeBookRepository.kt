@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.test.fake
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.BookRepository
@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import com.calypsan.listenup.client.core.Success
 
 /**
  * In-memory fake of [BookRepository]. Backed by a [MutableStateFlow] of the book list
@@ -33,9 +34,9 @@ class FakeBookRepository(
 
     override fun observeBooks(): Flow<List<Book>> = books.asStateFlow()
 
-    override suspend fun refreshBooks(): Result<Unit> {
+    override suspend fun refreshBooks(): AppResult<Unit> {
         _refreshCount++
-        return Result.Success(Unit)
+        return Success(Unit)
     }
 
     override suspend fun getBook(id: String): Book? = books.value.firstOrNull { it.id == BookId(id) }

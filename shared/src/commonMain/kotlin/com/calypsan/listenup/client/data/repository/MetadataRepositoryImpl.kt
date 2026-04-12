@@ -22,6 +22,7 @@ import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest as DataA
 import com.calypsan.listenup.client.data.remote.model.CoverOption as DataCoverOption
 import com.calypsan.listenup.client.data.remote.model.MetadataBook as DataMetadataBook
 import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult as DataMetadataSearchResult
+import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 

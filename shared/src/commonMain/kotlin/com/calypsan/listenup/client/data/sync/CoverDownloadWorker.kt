@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.data.sync
 
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.CoverDownloadDao
 import com.calypsan.listenup.client.data.local.db.CoverDownloadStatus
@@ -11,6 +10,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -86,7 +87,7 @@ class CoverDownloadWorker(
                         val result = imageDownloader.downloadCover(task.bookId)
 
                         when {
-                            result is Result.Success && result.data -> {
+                            result is Success && result.data -> {
                                 // Cover downloaded and saved
                                 coverDownloadDao.markCompleted(task.bookId)
                                 processedCount++
@@ -96,13 +97,13 @@ class CoverDownloadWorker(
                                 logger.debug { "Cover downloaded: ${task.bookId.value}" }
                             }
 
-                            result is Result.Success && !result.data -> {
+                            result is Success && !result.data -> {
                                 // Cover already exists locally or not available on server
                                 coverDownloadDao.markCompleted(task.bookId)
                                 processedCount++
                             }
 
-                            result is Result.Failure -> {
+                            result is Failure -> {
                                 coverDownloadDao.markFailed(
                                     task.bookId,
                                     result.message,

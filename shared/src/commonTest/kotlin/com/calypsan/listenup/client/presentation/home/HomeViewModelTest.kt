@@ -29,6 +29,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for HomeViewModel.
@@ -320,10 +322,8 @@ class HomeViewModelTest {
             // Given - sync returns a failure Result (not an exception)
             val fixture = createFixture()
             everySuspend { fixture.syncRepository.sync() } returns
-                com.calypsan.listenup.client.core.Failure(
-                    exception = RuntimeException("Network error"),
-                    message = "Network error",
-                )
+                com.calypsan.listenup.client.core
+                    .Failure(RuntimeException("Network error"))
             val viewModel = fixture.build()
             advanceUntilIdle()
 

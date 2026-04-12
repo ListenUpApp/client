@@ -5,7 +5,7 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -76,7 +76,7 @@ class BookEditRepositoryImpl(
         isbn: String?,
         asin: String?,
         abridged: Boolean?,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Updating book (offline-first): $bookId" }
 
@@ -146,7 +146,7 @@ class BookEditRepositoryImpl(
     override suspend fun setBookContributors(
         bookId: String,
         contributors: List<BookContributorInput>,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Setting contributors for book (offline-first): $bookId, count: ${contributors.size}" }
 
@@ -201,7 +201,7 @@ class BookEditRepositoryImpl(
     override suspend fun setBookSeries(
         bookId: String,
         series: List<BookSeriesInput>,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Setting series for book (offline-first): $bookId, count: ${series.size}" }
 

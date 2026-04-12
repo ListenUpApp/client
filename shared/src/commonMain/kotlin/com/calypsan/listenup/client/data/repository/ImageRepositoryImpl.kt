@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.map
 import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
@@ -24,57 +24,59 @@ class ImageRepositoryImpl(
 ) : ImageRepository {
     // ========== Book Cover Operations ==========
 
-    override suspend fun deleteBookCover(bookId: BookId): Result<Unit> = imageDownloader.deleteCover(bookId)
+    override suspend fun deleteBookCover(bookId: BookId): AppResult<Unit> = imageDownloader.deleteCover(bookId)
 
-    override suspend fun downloadBookCover(bookId: BookId): Result<Boolean> = imageDownloader.downloadCover(bookId)
+    override suspend fun downloadBookCover(bookId: BookId): AppResult<Boolean> = imageDownloader.downloadCover(bookId)
 
     override suspend fun saveBookCoverStaging(
         bookId: BookId,
         imageData: ByteArray,
-    ): Result<Unit> = imageStorage.saveCoverStaging(bookId, imageData)
+    ): AppResult<Unit> = imageStorage.saveCoverStaging(bookId, imageData)
 
     override fun getBookCoverStagingPath(bookId: BookId): String = imageStorage.getCoverStagingPath(bookId)
 
-    override suspend fun deleteBookCoverStaging(bookId: BookId): Result<Unit> = imageStorage.deleteCoverStaging(bookId)
+    override suspend fun deleteBookCoverStaging(bookId: BookId): AppResult<Unit> =
+        imageStorage.deleteCoverStaging(bookId)
 
-    override suspend fun commitBookCoverStaging(bookId: BookId): Result<Unit> = imageStorage.commitCoverStaging(bookId)
+    override suspend fun commitBookCoverStaging(bookId: BookId): AppResult<Unit> =
+        imageStorage.commitCoverStaging(bookId)
 
     override suspend fun uploadBookCover(
         bookId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<String> = imageApi.uploadBookCover(bookId, imageData, filename).map { it.imageUrl }
+    ): AppResult<String> = imageApi.uploadBookCover(bookId, imageData, filename).map { it.imageUrl }
 
     // ========== Series Cover Operations ==========
 
     override suspend fun saveSeriesCoverStaging(
         seriesId: String,
         imageData: ByteArray,
-    ): Result<Unit> = imageStorage.saveSeriesCoverStaging(seriesId, imageData)
+    ): AppResult<Unit> = imageStorage.saveSeriesCoverStaging(seriesId, imageData)
 
     override fun getSeriesCoverStagingPath(seriesId: String): String = imageStorage.getSeriesCoverStagingPath(seriesId)
 
-    override suspend fun deleteSeriesCoverStaging(seriesId: String): Result<Unit> =
+    override suspend fun deleteSeriesCoverStaging(seriesId: String): AppResult<Unit> =
         imageStorage.deleteSeriesCoverStaging(seriesId)
 
-    override suspend fun commitSeriesCoverStaging(seriesId: String): Result<Unit> =
+    override suspend fun commitSeriesCoverStaging(seriesId: String): AppResult<Unit> =
         imageStorage.commitSeriesCoverStaging(seriesId)
 
     override suspend fun uploadSeriesCover(
         seriesId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<String> = imageApi.uploadSeriesCover(seriesId, imageData, filename).map { it.imageUrl }
+    ): AppResult<String> = imageApi.uploadSeriesCover(seriesId, imageData, filename).map { it.imageUrl }
 
     // ========== Contributor Image Operations ==========
 
-    override suspend fun downloadContributorImage(contributorId: String): Result<ByteArray> =
+    override suspend fun downloadContributorImage(contributorId: String): AppResult<ByteArray> =
         imageApi.downloadContributorImage(contributorId)
 
     override suspend fun saveContributorImage(
         contributorId: String,
         imageData: ByteArray,
-    ): Result<Unit> = imageStorage.saveContributorImage(contributorId, imageData)
+    ): AppResult<Unit> = imageStorage.saveContributorImage(contributorId, imageData)
 
     override fun getContributorImagePath(contributorId: String): String =
         imageStorage.getContributorImagePath(contributorId)
@@ -83,7 +85,7 @@ class ImageRepositoryImpl(
         contributorId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<String> = imageApi.uploadContributorImage(contributorId, imageData, filename).map { it.imageUrl }
+    ): AppResult<String> = imageApi.uploadContributorImage(contributorId, imageData, filename).map { it.imageUrl }
 
     // ========== Contributor Image Path Operations ==========
 
@@ -111,5 +113,5 @@ class ImageRepositoryImpl(
     override suspend fun downloadUserAvatar(
         userId: String,
         forceRefresh: Boolean,
-    ): Result<Boolean> = imageDownloader.downloadUserAvatar(userId, forceRefresh)
+    ): AppResult<Boolean> = imageDownloader.downloadUserAvatar(userId, forceRefresh)
 }

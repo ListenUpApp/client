@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.data.remote
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
@@ -38,7 +38,7 @@ class ProfileApi(
     /**
      * Get the authenticated user's own profile.
      */
-    override suspend fun getMyProfile(): Result<ProfileResponse> =
+    override suspend fun getMyProfile(): AppResult<ProfileResponse> =
         suspendRunCatching {
             logger.debug { "Fetching own profile" }
             val client = clientFactory.getClient()
@@ -56,7 +56,7 @@ class ProfileApi(
         firstName: String?,
         lastName: String?,
         newPassword: String?,
-    ): Result<ProfileResponse> =
+    ): AppResult<ProfileResponse> =
         suspendRunCatching {
             logger.debug {
                 "Updating own profile: avatarType=$avatarType, tagline=$tagline, firstName=$firstName, lastName=$lastName"
@@ -85,7 +85,7 @@ class ProfileApi(
     override suspend fun uploadAvatar(
         imageData: ByteArray,
         contentType: String,
-    ): Result<ProfileResponse> =
+    ): AppResult<ProfileResponse> =
         suspendRunCatching {
             logger.debug { "Uploading avatar: ${imageData.size} bytes, contentType=$contentType" }
             val client = clientFactory.getClient()
@@ -101,7 +101,7 @@ class ProfileApi(
     /**
      * Get a user's full profile with stats and activity.
      */
-    override suspend fun getUserProfile(userId: String): Result<FullProfileResponse> =
+    override suspend fun getUserProfile(userId: String): AppResult<FullProfileResponse> =
         suspendRunCatching {
             logger.debug { "Fetching profile for user: $userId" }
             val client = clientFactory.getClient()

@@ -1,9 +1,9 @@
 package com.calypsan.listenup.client.data.remote
 
-import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
+import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.call.body
 import io.ktor.client.request.post
@@ -12,6 +12,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -45,7 +47,7 @@ class PlaybackApi(
         audioFileId: String,
         capabilities: List<String>,
         spatial: Boolean, // NEW parameter
-    ): Result<PreparePlaybackResponse> =
+    ): AppResult<PreparePlaybackResponse> =
         suspendRunCatching {
             logger.debug { "Preparing playback: book=$bookId, file=$audioFileId, caps=$capabilities, spatial=$spatial" }
 
@@ -69,7 +71,7 @@ class PlaybackApi(
 
             when (val result = response.toResult()) {
                 is com.calypsan.listenup.client.core.Success -> result.data.toDomain()
-                is com.calypsan.listenup.client.core.Failure -> throw result.exceptionOrFromMessage()
+                is com.calypsan.listenup.client.core.Failure -> throw AppException(result.error)
             }
         }
 }

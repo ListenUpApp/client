@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.ShortcutAction
 import com.calypsan.listenup.client.data.repository.ShortcutActionManager
@@ -55,6 +54,8 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import com.calypsan.listenup.client.presentation.startup.AppStartupViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Failure
 
 /**
  * Main activity for the ListenUp app.
@@ -414,7 +415,7 @@ class InstanceViewModel(
             state.value = InstanceUiState(isLoading = true)
 
             when (val result = getInstanceUseCase()) {
-                is Result.Success -> {
+                is Success -> {
                     state.value =
                         InstanceUiState(
                             isLoading = false,
@@ -422,7 +423,7 @@ class InstanceViewModel(
                         )
                 }
 
-                is Result.Failure -> {
+                is Failure -> {
                     state.value =
                         InstanceUiState(
                             isLoading = false,

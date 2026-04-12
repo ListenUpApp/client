@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.data.sync.push
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
@@ -66,7 +66,7 @@ class BookUpdateHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: BookUpdatePayload,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         val request =
             BookUpdateRequest(
                 title = payload.title,
@@ -119,7 +119,7 @@ class ContributorUpdateHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: ContributorUpdatePayload,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         // API requires all fields, so we need the full update
         val request =
             UpdateContributorRequest(
@@ -165,7 +165,7 @@ class SeriesUpdateHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: SeriesUpdatePayload,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         val request =
             SeriesUpdateRequest(
                 name = payload.name,
@@ -203,7 +203,7 @@ class SetBookContributorsHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: SetBookContributorsPayload,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         val contributors =
             payload.contributors.map { c ->
                 com.calypsan.listenup.client.data.remote.ContributorInput(
@@ -243,7 +243,7 @@ class SetBookSeriesHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: SetBookSeriesPayload,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         val series =
             payload.series.map { s ->
                 com.calypsan.listenup.client.data.remote.SeriesInput(
@@ -280,7 +280,7 @@ class MergeContributorHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: MergeContributorPayload,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         when (val result = api.mergeContributor(payload.targetId, payload.sourceId)) {
             is Success -> Success(Unit)
             is Failure -> result
@@ -309,7 +309,7 @@ class UnmergeContributorHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: UnmergeContributorPayload,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         when (val result = api.unmergeContributor(payload.contributorId, payload.aliasName)) {
             is Success -> Success(Unit)
             is Failure -> result
@@ -345,7 +345,7 @@ class ListeningEventHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: ListeningEventPayload,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         // Individual execution (fallback) - submit as single-item batch
         val request = listOf(payload.toApiRequest())
         return when (val result = api.submitListeningEvents(request)) {
@@ -368,7 +368,7 @@ class ListeningEventHandler(
 
     override suspend fun executeBatch(
         operations: List<Pair<PendingOperationEntity, ListeningEventPayload>>,
-    ): Map<String, Result<Unit>> {
+    ): Map<String, AppResult<Unit>> {
         logger.info { "📤 LISTENING EVENTS: Submitting ${operations.size} events to server" }
         val requests = operations.map { (_, payload) -> payload.toApiRequest() }
         logger.info { "📤 LISTENING EVENTS: Event IDs: ${requests.map { it.id }}" }
@@ -392,7 +392,7 @@ class ListeningEventHandler(
             }
 
             is Failure -> {
-                result.exception?.let { logger.error(it) { "📤 LISTENING EVENTS: Submission failed" } }
+                (null as Exception?)?.let { logger.error(it) { "📤 LISTENING EVENTS: Submission failed" } }
                 operations.associate { (op, _) -> op.id to result }
             }
         }
@@ -448,7 +448,7 @@ class PlaybackPositionHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: PlaybackPositionPayload,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         // Position sync happens via listening events - the position is derived server-side
         // from the events. This is a proactive hint to the server.
         // For now, we submit as a minimal listening event.
@@ -496,7 +496,7 @@ class UserPreferencesHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: UserPreferencesPayload,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         val request =
             UserPreferencesRequest(
                 defaultPlaybackSpeed = payload.defaultPlaybackSpeed,
@@ -545,7 +545,7 @@ class ProfileUpdateHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: ProfileUpdatePayload,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         when (
             val result =
                 api.updateMyProfile(
@@ -626,7 +626,7 @@ class ProfileAvatarHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: ProfileAvatarPayload,
-    ): Result<Unit> {
+    ): AppResult<Unit> {
         val imageData = Base64.decode(payload.imageDataBase64)
         return when (val result = api.uploadAvatar(imageData, payload.contentType)) {
             is Success -> {
@@ -684,7 +684,7 @@ class MarkCompleteHandler(
     override suspend fun execute(
         operation: PendingOperationEntity,
         payload: MarkCompletePayload,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         when (
             val result =
                 api.markComplete(

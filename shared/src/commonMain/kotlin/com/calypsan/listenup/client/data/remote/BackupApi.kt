@@ -3,7 +3,6 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.FileSource
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.AnalysisStatusResponse
 import com.calypsan.listenup.client.data.remote.model.AnalyzeABSRequest
 import com.calypsan.listenup.client.data.remote.model.AnalyzeABSResponse
@@ -18,6 +17,7 @@ import com.calypsan.listenup.client.data.remote.model.RestoreRequest
 import com.calypsan.listenup.client.data.remote.model.RestoreResponse
 import com.calypsan.listenup.client.data.remote.model.ValidateBackupRequest
 import com.calypsan.listenup.client.data.remote.model.ValidationResponse
+import com.calypsan.listenup.client.core.error.AppException
 import io.ktor.client.call.body
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.delete
@@ -56,7 +56,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -67,7 +67,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -78,7 +78,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -91,7 +91,7 @@ class BackupApi(
             is Success -> { /* Backup deleted successfully */ }
 
             is Failure -> {
-                throw result.exceptionOrFromMessage()
+                throw AppException(result.error)
             }
         }
     }
@@ -106,7 +106,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -125,7 +125,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -136,7 +136,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -154,7 +154,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -189,7 +189,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -208,7 +208,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -223,7 +223,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -234,7 +234,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -253,7 +253,7 @@ class BackupApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 }

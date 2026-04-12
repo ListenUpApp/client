@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 
 /**
  * User preferences that are synced to the server.
@@ -29,7 +29,7 @@ interface UserPreferencesRepository {
      *
      * @return Result containing preferences or failure
      */
-    suspend fun getPreferences(): Result<UserPreferences>
+    suspend fun getPreferences(): AppResult<UserPreferences>
 
     /**
      * Update default playback speed.
@@ -37,7 +37,7 @@ interface UserPreferencesRepository {
      * @param speed Playback speed multiplier (e.g., 1.0, 1.5, 2.0)
      * @return Result indicating success or failure
      */
-    suspend fun setDefaultPlaybackSpeed(speed: Float): Result<Unit>
+    suspend fun setDefaultPlaybackSpeed(speed: Float): AppResult<Unit>
 
     /**
      * Update default skip forward duration.
@@ -45,7 +45,7 @@ interface UserPreferencesRepository {
      * @param seconds Skip duration in seconds
      * @return Result indicating success or failure
      */
-    suspend fun setDefaultSkipForwardSec(seconds: Int): Result<Unit>
+    suspend fun setDefaultSkipForwardSec(seconds: Int): AppResult<Unit>
 
     /**
      * Update default skip backward duration.
@@ -53,7 +53,7 @@ interface UserPreferencesRepository {
      * @param seconds Skip duration in seconds
      * @return Result indicating success or failure
      */
-    suspend fun setDefaultSkipBackwardSec(seconds: Int): Result<Unit>
+    suspend fun setDefaultSkipBackwardSec(seconds: Int): AppResult<Unit>
 
     /**
      * Update default sleep timer duration.
@@ -61,7 +61,7 @@ interface UserPreferencesRepository {
      * @param minutes Sleep timer duration in minutes, or null to disable
      * @return Result indicating success or failure
      */
-    suspend fun setDefaultSleepTimerMin(minutes: Int?): Result<Unit>
+    suspend fun setDefaultSleepTimerMin(minutes: Int?): AppResult<Unit>
 
     /**
      * Update shake-to-reset sleep timer setting.
@@ -69,5 +69,5 @@ interface UserPreferencesRepository {
      * @param enabled Whether shaking resets the sleep timer
      * @return Result indicating success or failure
      */
-    suspend fun setShakeToResetSleepTimer(enabled: Boolean): Result<Unit>
+    suspend fun setShakeToResetSleepTimer(enabled: Boolean): AppResult<Unit>
 }

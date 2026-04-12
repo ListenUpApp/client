@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.Success
 
 /**
  * Smoke tests for [FakePlaybackPositionRepository]. Proves the fake's write-then-read
@@ -67,7 +68,7 @@ class FakePlaybackPositionRepositoryTest {
 
             val result = repo.markComplete("book-1", startedAt = 100L, finishedAt = 999L)
 
-            assertTrue(result is com.calypsan.listenup.client.core.Result.Success)
+            assertTrue(result is com.calypsan.listenup.client.core.Success)
             val after = repo.get("book-1")
             assertNotNull(after)
             assertTrue(after.isFinished)
@@ -83,7 +84,7 @@ class FakePlaybackPositionRepositoryTest {
 
             val result = repo.discardProgress("book-1")
 
-            assertTrue(result is com.calypsan.listenup.client.core.Result.Success)
+            assertTrue(result is com.calypsan.listenup.client.core.Success)
             assertNull(repo.get("book-1"))
         }
 
@@ -96,7 +97,7 @@ class FakePlaybackPositionRepositoryTest {
 
             val result = repo.restartBook("book-1")
 
-            assertTrue(result is com.calypsan.listenup.client.core.Result.Success)
+            assertTrue(result is com.calypsan.listenup.client.core.Success)
             val after = repo.get("book-1")
             assertNotNull(after)
             assertEquals(0L, after.positionMs)

@@ -129,10 +129,7 @@ class AdminInboxViewModelTest {
         runTest {
             val fixture = TestFixture()
             everySuspend { fixture.loadInboxBooksUseCase() } returns
-                Failure(
-                    RuntimeException("Network error"),
-                    "Network error",
-                )
+                Failure(RuntimeException("Network error"))
 
             val viewModel = fixture.build()
             advanceUntilIdle()
@@ -298,10 +295,7 @@ class AdminInboxViewModelTest {
             val fixture = TestFixture()
             everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
             everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns
-                Failure(
-                    RuntimeException("Failed"),
-                    "Failed",
-                )
+                Failure(RuntimeException("Failed"))
 
             val viewModel = fixture.build()
             advanceUntilIdle()
@@ -440,10 +434,7 @@ class AdminInboxViewModelTest {
         runTest {
             val fixture = TestFixture()
             everySuspend { fixture.loadInboxBooksUseCase() } returns
-                Failure(
-                    RuntimeException("Error"),
-                    "Error",
-                )
+                Failure(RuntimeException("Error"))
 
             val viewModel = fixture.build()
             advanceUntilIdle()

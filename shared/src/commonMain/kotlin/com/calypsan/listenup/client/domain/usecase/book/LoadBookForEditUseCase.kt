@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.book
 
-import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.core.notFoundError
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookEditData
@@ -17,6 +16,7 @@ import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import com.calypsan.listenup.client.core.notFoundError
 
 private val logger = KotlinLogging.logger {}
 
@@ -48,7 +48,7 @@ open class LoadBookForEditUseCase(
      * @param bookId The ID of the book to load
      * @return Result containing [BookEditData] on success, or an error if book not found
      */
-    open suspend operator fun invoke(bookId: String): Result<BookEditData> {
+    open suspend operator fun invoke(bookId: String): AppResult<BookEditData> {
         logger.debug { "Loading book for edit: $bookId" }
 
         val book = bookRepository.getBook(bookId)

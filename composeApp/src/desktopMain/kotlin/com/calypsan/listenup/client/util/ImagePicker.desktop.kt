@@ -13,6 +13,7 @@ import java.awt.Frame
 import java.io.File
 import java.io.FilenameFilter
 import javax.swing.SwingUtilities
+import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 

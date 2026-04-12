@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.domain.usecase.contributor
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.ContributorSearchResult
@@ -47,7 +47,7 @@ open class UpdateContributorUseCase(
      * @param request The update request containing all changes
      * @return Result indicating success or failure
      */
-    open suspend operator fun invoke(request: ContributorUpdateRequest): Result<Unit> =
+    open suspend operator fun invoke(request: ContributorUpdateRequest): AppResult<Unit> =
         suspendRunCatching {
             logger.info { "Updating contributor ${request.contributorId}" }
 
@@ -93,7 +93,7 @@ open class UpdateContributorUseCase(
                 }
 
                 is Failure -> {
-                    throw result.exception ?: Exception(result.message)
+                    throw null as Exception? ?: Exception(result.message)
                 }
             }
         }

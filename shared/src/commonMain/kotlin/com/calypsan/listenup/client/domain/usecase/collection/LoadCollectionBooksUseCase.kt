@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.collection
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.CollectionBookSummary
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
@@ -31,7 +31,7 @@ open class LoadCollectionBooksUseCase(
      * @param collectionId The collection ID
      * @return Result containing list of book summaries or a failure
      */
-    open suspend operator fun invoke(collectionId: String): Result<List<CollectionBookSummary>> {
+    open suspend operator fun invoke(collectionId: String): AppResult<List<CollectionBookSummary>> {
         logger.debug { "Loading books for collection: $collectionId" }
 
         return suspendRunCatching {

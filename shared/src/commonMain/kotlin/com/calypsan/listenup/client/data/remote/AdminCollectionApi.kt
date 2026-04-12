@@ -4,12 +4,12 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.AddBooksToCollectionRequest
 import com.calypsan.listenup.client.data.remote.model.AdminCollectionResponse
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.CreateCollectionRequest
 import com.calypsan.listenup.client.data.remote.model.UpdateCollectionRequest
+import com.calypsan.listenup.client.core.error.AppException
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -110,7 +110,7 @@ class AdminCollectionApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.collections
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -124,7 +124,7 @@ class AdminCollectionApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -135,7 +135,7 @@ class AdminCollectionApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -146,7 +146,7 @@ class AdminCollectionApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.books
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -163,7 +163,7 @@ class AdminCollectionApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -175,7 +175,7 @@ class AdminCollectionApi(
             is Success -> { /* Collection deleted successfully */ }
 
             is Failure -> {
-                throw result.exceptionOrFromMessage()
+                throw AppException(result.error)
             }
         }
     }
@@ -196,7 +196,7 @@ class AdminCollectionApi(
                 is Success -> { /* Shouldn't happen */ }
 
                 is Failure -> {
-                    throw result.exceptionOrFromMessage()
+                    throw AppException(result.error)
                 }
             }
         }
@@ -215,7 +215,7 @@ class AdminCollectionApi(
             is Success -> { /* Book removed from collection successfully */ }
 
             is Failure -> {
-                throw result.exceptionOrFromMessage()
+                throw AppException(result.error)
             }
         }
     }
@@ -227,7 +227,7 @@ class AdminCollectionApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.shares
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -245,7 +245,7 @@ class AdminCollectionApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exceptionOrFromMessage()
+            is Failure -> throw AppException(result.error)
         }
     }
 
@@ -257,7 +257,7 @@ class AdminCollectionApi(
             is Success -> { /* Share deleted successfully */ }
 
             is Failure -> {
-                throw result.exceptionOrFromMessage()
+                throw AppException(result.error)
             }
         }
     }

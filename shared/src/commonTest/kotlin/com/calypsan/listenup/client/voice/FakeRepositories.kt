@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.voice
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
@@ -94,7 +94,7 @@ class FakeHomeRepository : HomeRepository {
         continueListeningBooks = books.toList()
     }
 
-    override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningBook>> =
+    override suspend fun getContinueListening(limit: Int): AppResult<List<ContinueListeningBook>> =
         Success(continueListeningBooks.take(limit))
 
     override fun observeContinueListening(limit: Int): Flow<List<ContinueListeningBook>> =
@@ -125,7 +125,7 @@ class FakeBookRepository : BookRepository {
 
     override fun observeBooks(): Flow<List<Book>> = flowOf(books.values.toList())
 
-    override suspend fun refreshBooks(): Result<Unit> = Success(Unit)
+    override suspend fun refreshBooks(): AppResult<Unit> = Success(Unit)
 
     override suspend fun getBook(id: String): Book? = books[id]
 

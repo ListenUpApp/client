@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.RefreshToken
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.data.remote.model.AllProgressResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
 import com.calypsan.listenup.client.data.remote.model.ContributorResponse
@@ -60,7 +60,7 @@ interface SyncApiContract {
     /**
      * Fetch sync manifest with library overview.
      */
-    suspend fun getManifest(): Result<SyncManifestResponse>
+    suspend fun getManifest(): AppResult<SyncManifestResponse>
 
     /**
      * Fetch paginated books for syncing.
@@ -73,7 +73,7 @@ interface SyncApiContract {
         limit: Int = 100,
         cursor: String? = null,
         updatedAfter: String? = null,
-    ): Result<SyncBooksResponse>
+    ): AppResult<SyncBooksResponse>
 
     /**
      * Fetch all books across all pages.
@@ -81,7 +81,7 @@ interface SyncApiContract {
     suspend fun getAllBooks(
         limit: Int = 100,
         updatedAfter: String? = null,
-    ): Result<SyncBooksResponse>
+    ): AppResult<SyncBooksResponse>
 
     /**
      * Fetch paginated series for syncing.
@@ -90,7 +90,7 @@ interface SyncApiContract {
         limit: Int = 100,
         cursor: String? = null,
         updatedAfter: String? = null,
-    ): Result<SyncSeriesResponse>
+    ): AppResult<SyncSeriesResponse>
 
     /**
      * Fetch all series across all pages.
@@ -98,7 +98,7 @@ interface SyncApiContract {
     suspend fun getAllSeries(
         limit: Int = 100,
         updatedAfter: String? = null,
-    ): Result<List<SeriesResponse>>
+    ): AppResult<List<SeriesResponse>>
 
     /**
      * Fetch paginated contributors for syncing.
@@ -107,7 +107,7 @@ interface SyncApiContract {
         limit: Int = 100,
         cursor: String? = null,
         updatedAfter: String? = null,
-    ): Result<SyncContributorsResponse>
+    ): AppResult<SyncContributorsResponse>
 
     /**
      * Fetch all contributors across all pages.
@@ -115,12 +115,12 @@ interface SyncApiContract {
     suspend fun getAllContributors(
         limit: Int = 100,
         updatedAfter: String? = null,
-    ): Result<List<ContributorResponse>>
+    ): AppResult<List<ContributorResponse>>
 
     /**
      * Submit listening events to the server.
      */
-    suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse>
+    suspend fun submitListeningEvents(events: List<ListeningEventRequest>): AppResult<ListeningEventsResponse>
 
     /**
      * Get playback progress for a specific book.
@@ -134,7 +134,7 @@ interface SyncApiContract {
      * @param bookId Book to get progress for
      * @return Result containing PlaybackProgressResponse or null if not found
      */
-    suspend fun getProgress(bookId: String): Result<PlaybackProgressResponse?>
+    suspend fun getProgress(bookId: String): AppResult<PlaybackProgressResponse?>
 
     /**
      * Get list of books with playback progress (Continue Listening).
@@ -148,7 +148,7 @@ interface SyncApiContract {
      * @param limit Maximum number of books to return (default 10)
      * @return Result containing list of ContinueListeningItemResponse
      */
-    suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningItemResponse>>
+    suspend fun getContinueListening(limit: Int = 10): AppResult<List<ContinueListeningItemResponse>>
 
     /**
      * Get all playback progress for the current user (for sync).
@@ -161,7 +161,7 @@ interface SyncApiContract {
      *
      * @return Result containing AllProgressResponse with all progress items
      */
-    suspend fun getAllProgress(): Result<AllProgressResponse>
+    suspend fun getAllProgress(): AppResult<AllProgressResponse>
 
     /**
      * Get a single book by ID.
@@ -175,7 +175,7 @@ interface SyncApiContract {
      * @param bookId Book ID to fetch
      * @return Result containing BookResponse (converted from SingleBookResponse) or error
      */
-    suspend fun getBook(bookId: String): Result<com.calypsan.listenup.client.data.remote.model.BookResponse>
+    suspend fun getBook(bookId: String): AppResult<com.calypsan.listenup.client.data.remote.model.BookResponse>
 
     /**
      * Get listening events for initial sync.
@@ -189,7 +189,7 @@ interface SyncApiContract {
      * @param sinceMs Only return events created after this timestamp (epoch ms), null for all events
      * @return Result containing list of listening events
      */
-    suspend fun getListeningEvents(sinceMs: Long? = null): Result<ListeningEventsApiResponse>
+    suspend fun getListeningEvents(sinceMs: Long? = null): AppResult<ListeningEventsApiResponse>
 
     /**
      * End a playback session and record listening activity.
@@ -207,7 +207,7 @@ interface SyncApiContract {
     suspend fun endPlaybackSession(
         bookId: String,
         durationMs: Long,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Get all active reading sessions for discovery page sync.
@@ -220,7 +220,7 @@ interface SyncApiContract {
      *
      * @return Result containing list of active sessions
      */
-    suspend fun getActiveSessions(): Result<SyncActiveSessionsResponse>
+    suspend fun getActiveSessions(): AppResult<SyncActiveSessionsResponse>
 
     /**
      * Get all reading sessions for offline-first book detail pages.
@@ -231,7 +231,7 @@ interface SyncApiContract {
      * Endpoint: GET /api/v1/sync/reading-sessions
      * Auth: Required
      */
-    suspend fun getReadingSessions(): Result<SyncReadingSessionsResponse>
+    suspend fun getReadingSessions(): AppResult<SyncReadingSessionsResponse>
 
     /**
      * Mark a book as complete.
@@ -251,7 +251,7 @@ interface SyncApiContract {
         bookId: String,
         startedAt: String? = null,
         finishedAt: String? = null,
-    ): Result<PlaybackProgressResponse>
+    ): AppResult<PlaybackProgressResponse>
 
     /**
      * Discard all progress for a book.
@@ -269,7 +269,7 @@ interface SyncApiContract {
     suspend fun discardProgress(
         bookId: String,
         keepHistory: Boolean = true,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Restart a book from the beginning.
@@ -283,7 +283,7 @@ interface SyncApiContract {
      * @param bookId Book to restart
      * @return Result containing updated PlaybackProgressResponse or error
      */
-    suspend fun restartBook(bookId: String): Result<PlaybackProgressResponse>
+    suspend fun restartBook(bookId: String): AppResult<PlaybackProgressResponse>
 }
 
 /**
@@ -423,7 +423,7 @@ interface ImageApiContract {
      * @param bookId Unique identifier for the book
      * @return Result containing image bytes or error
      */
-    suspend fun downloadCover(bookId: BookId): Result<ByteArray>
+    suspend fun downloadCover(bookId: BookId): AppResult<ByteArray>
 
     /**
      * Download profile image for a contributor.
@@ -431,7 +431,7 @@ interface ImageApiContract {
      * @param contributorId Unique identifier for the contributor
      * @return Result containing image bytes or error
      */
-    suspend fun downloadContributorImage(contributorId: String): Result<ByteArray>
+    suspend fun downloadContributorImage(contributorId: String): AppResult<ByteArray>
 
     /**
      * Upload cover image for a book.
@@ -445,7 +445,7 @@ interface ImageApiContract {
         bookId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<ImageUploadResponse>
+    ): AppResult<ImageUploadResponse>
 
     /**
      * Upload profile image for a contributor.
@@ -459,7 +459,7 @@ interface ImageApiContract {
         contributorId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<ImageUploadResponse>
+    ): AppResult<ImageUploadResponse>
 
     /**
      * Download cover image for a series.
@@ -467,7 +467,7 @@ interface ImageApiContract {
      * @param seriesId Unique identifier for the series
      * @return Result containing image bytes or error
      */
-    suspend fun downloadSeriesCover(seriesId: String): Result<ByteArray>
+    suspend fun downloadSeriesCover(seriesId: String): AppResult<ByteArray>
 
     /**
      * Upload cover image for a series.
@@ -481,7 +481,7 @@ interface ImageApiContract {
         seriesId: String,
         imageData: ByteArray,
         filename: String,
-    ): Result<ImageUploadResponse>
+    ): AppResult<ImageUploadResponse>
 
     /**
      * Delete cover image for a series.
@@ -489,7 +489,7 @@ interface ImageApiContract {
      * @param seriesId Unique identifier for the series
      * @return Result with Unit on success or error
      */
-    suspend fun deleteSeriesCover(seriesId: String): Result<Unit>
+    suspend fun deleteSeriesCover(seriesId: String): AppResult<Unit>
 
     /**
      * Download multiple contributor images in a single request.
@@ -504,7 +504,7 @@ interface ImageApiContract {
      * @param contributorIds List of contributor IDs to download images for (max 100)
      * @return Result containing map of contributorId to image bytes for successfully downloaded images
      */
-    suspend fun downloadContributorImageBatch(contributorIds: List<String>): Result<Map<String, ByteArray>>
+    suspend fun downloadContributorImageBatch(contributorIds: List<String>): AppResult<Map<String, ByteArray>>
 
     /**
      * Download avatar image for a user.
@@ -512,7 +512,7 @@ interface ImageApiContract {
      * @param userId Unique identifier for the user
      * @return Result containing image bytes or error
      */
-    suspend fun downloadUserAvatar(userId: String): Result<ByteArray>
+    suspend fun downloadUserAvatar(userId: String): AppResult<ByteArray>
 }
 
 /**
@@ -539,7 +539,7 @@ interface InstanceApiContract {
      *
      * @return Result containing the Instance on success, or an error on failure
      */
-    suspend fun getInstance(): Result<Instance>
+    suspend fun getInstance(): AppResult<Instance>
 }
 
 /**
@@ -562,7 +562,7 @@ interface BookApiContract {
     suspend fun updateBook(
         bookId: String,
         update: BookUpdateRequest,
-    ): Result<BookEditResponse>
+    ): AppResult<BookEditResponse>
 
     /**
      * Set book contributors (replaces all existing contributors).
@@ -580,7 +580,7 @@ interface BookApiContract {
     suspend fun setBookContributors(
         bookId: String,
         contributors: List<ContributorInput>,
-    ): Result<BookEditResponse>
+    ): AppResult<BookEditResponse>
 
     /**
      * Set book series (replaces all existing series relationships).
@@ -598,7 +598,7 @@ interface BookApiContract {
     suspend fun setBookSeries(
         bookId: String,
         series: List<SeriesInput>,
-    ): Result<BookEditResponse>
+    ): AppResult<BookEditResponse>
 }
 
 /**
@@ -622,7 +622,7 @@ interface ContributorApiContract {
     suspend fun searchContributors(
         query: String,
         limit: Int = 10,
-    ): Result<List<ContributorSearchResult>>
+    ): AppResult<List<ContributorSearchResult>>
 
     /**
      * Merge a source contributor into a target contributor.
@@ -642,7 +642,7 @@ interface ContributorApiContract {
     suspend fun mergeContributor(
         targetContributorId: String,
         sourceContributorId: String,
-    ): Result<MergeContributorResponse>
+    ): AppResult<MergeContributorResponse>
 
     /**
      * Unmerge an alias from a contributor, creating a new separate contributor.
@@ -663,7 +663,7 @@ interface ContributorApiContract {
     suspend fun unmergeContributor(
         contributorId: String,
         aliasName: String,
-    ): Result<UnmergeContributorResponse>
+    ): AppResult<UnmergeContributorResponse>
 
     /**
      * Update a contributor's metadata.
@@ -679,7 +679,7 @@ interface ContributorApiContract {
     suspend fun updateContributor(
         contributorId: String,
         request: UpdateContributorRequest,
-    ): Result<UpdateContributorResponse>
+    ): AppResult<UpdateContributorResponse>
 
     /**
      * Delete a contributor.
@@ -692,7 +692,7 @@ interface ContributorApiContract {
      * @param contributorId The contributor to delete
      * @return Result indicating success or failure
      */
-    suspend fun deleteContributor(contributorId: String): Result<Unit>
+    suspend fun deleteContributor(contributorId: String): AppResult<Unit>
 }
 
 /**
@@ -716,7 +716,7 @@ interface SeriesApiContract {
     suspend fun searchSeries(
         query: String,
         limit: Int = 10,
-    ): Result<List<SeriesSearchResult>>
+    ): AppResult<List<SeriesSearchResult>>
 
     /**
      * Update series metadata (PATCH semantics).
@@ -732,7 +732,7 @@ interface SeriesApiContract {
     suspend fun updateSeries(
         seriesId: String,
         request: SeriesUpdateRequest,
-    ): Result<SeriesEditResponse>
+    ): AppResult<SeriesEditResponse>
 }
 
 /**
@@ -916,7 +916,7 @@ interface UserPreferencesApiContract {
      *
      * @return Result containing user settings or error
      */
-    suspend fun getPreferences(): Result<UserPreferencesResponse>
+    suspend fun getPreferences(): AppResult<UserPreferencesResponse>
 
     /**
      * Update user settings on the server.
@@ -929,7 +929,7 @@ interface UserPreferencesApiContract {
      * @param request The settings to update (only non-null fields are sent)
      * @return Result containing updated settings or error
      */
-    suspend fun updatePreferences(request: UserPreferencesRequest): Result<UserPreferencesResponse>
+    suspend fun updatePreferences(request: UserPreferencesRequest): AppResult<UserPreferencesResponse>
 }
 
 /**
@@ -954,7 +954,7 @@ interface SessionApiContract {
     suspend fun getBookReaders(
         bookId: String,
         limit: Int = 10,
-    ): Result<BookReadersResponse>
+    ): AppResult<BookReadersResponse>
 
     /**
      * Get the current user's reading history.
@@ -968,7 +968,7 @@ interface SessionApiContract {
      * @param limit Maximum number of sessions to return (default 20)
      * @return Result containing UserReadingHistoryResponse or error
      */
-    suspend fun getUserReadingHistory(limit: Int = 20): Result<UserReadingHistoryResponse>
+    suspend fun getUserReadingHistory(limit: Int = 20): AppResult<UserReadingHistoryResponse>
 
     /**
      * Get the current authenticated user's profile.
@@ -981,7 +981,7 @@ interface SessionApiContract {
      *
      * @return Result containing CurrentUserResponse or error
      */
-    suspend fun getCurrentUser(): Result<CurrentUserResponse>
+    suspend fun getCurrentUser(): AppResult<CurrentUserResponse>
 }
 
 /**
@@ -1019,7 +1019,7 @@ interface ProfileApiContract {
      *
      * @return Result containing ProfileResponse or error
      */
-    suspend fun getMyProfile(): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
+    suspend fun getMyProfile(): AppResult<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
 
     /**
      * Update the authenticated user's profile.
@@ -1042,7 +1042,7 @@ interface ProfileApiContract {
         firstName: String? = null,
         lastName: String? = null,
         newPassword: String? = null,
-    ): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
+    ): AppResult<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
 
     /**
      * Upload avatar image for the authenticated user.
@@ -1057,7 +1057,7 @@ interface ProfileApiContract {
     suspend fun uploadAvatar(
         imageData: ByteArray,
         contentType: String,
-    ): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
+    ): AppResult<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
 
     /**
      * Get a user's full profile with stats and activity.
@@ -1070,7 +1070,7 @@ interface ProfileApiContract {
      */
     suspend fun getUserProfile(
         userId: String,
-    ): Result<com.calypsan.listenup.client.data.remote.model.FullProfileResponse>
+    ): AppResult<com.calypsan.listenup.client.data.remote.model.FullProfileResponse>
 }
 
 /**
@@ -1129,7 +1129,7 @@ interface AdminSettingsApiContract {
      *
      * @return Result containing server settings
      */
-    suspend fun getServerSettings(): Result<ServerSettingsResponse>
+    suspend fun getServerSettings(): AppResult<ServerSettingsResponse>
 
     /**
      * Update server settings (admin only).
@@ -1140,7 +1140,7 @@ interface AdminSettingsApiContract {
      * @param request Fields to update (only non-null fields are sent)
      * @return Result containing updated settings
      */
-    suspend fun updateServerSettings(request: ServerSettingsRequest): Result<ServerSettingsResponse>
+    suspend fun updateServerSettings(request: ServerSettingsRequest): AppResult<ServerSettingsResponse>
 }
 
 /**
@@ -1184,7 +1184,7 @@ interface AdminInboxApiContract {
      *
      * @return Result containing list of inbox books with staging info
      */
-    suspend fun listInboxBooks(): Result<InboxBooksResponse>
+    suspend fun listInboxBooks(): AppResult<InboxBooksResponse>
 
     /**
      * Release books from inbox to the library (admin only).
@@ -1199,7 +1199,7 @@ interface AdminInboxApiContract {
      * @param bookIds List of book IDs to release
      * @return Result containing release summary
      */
-    suspend fun releaseBooks(bookIds: List<String>): Result<ReleaseInboxBooksResponse>
+    suspend fun releaseBooks(bookIds: List<String>): AppResult<ReleaseInboxBooksResponse>
 
     /**
      * Stage a collection assignment for an inbox book (admin only).
@@ -1217,7 +1217,7 @@ interface AdminInboxApiContract {
     suspend fun stageCollection(
         bookId: String,
         collectionId: String,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Remove a staged collection from an inbox book (admin only).
@@ -1232,7 +1232,7 @@ interface AdminInboxApiContract {
     suspend fun unstageCollection(
         bookId: String,
         collectionId: String,
-    ): Result<Unit>
+    ): AppResult<Unit>
 }
 
 /**

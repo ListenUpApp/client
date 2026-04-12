@@ -315,14 +315,13 @@ class SearchBooksUseCaseTest {
         }
 
     @Test
-    fun `repository exception preserves exception in failure`() =
+    fun `repository exception preserves message in failure`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val expectedException = RuntimeException("Database connection failed")
             everySuspend {
                 fixture.searchRepository.search(any(), any(), any(), any(), any())
-            } throws expectedException
+            } throws RuntimeException("Database connection failed")
             val useCase = fixture.build()
 
             // When
@@ -330,6 +329,6 @@ class SearchBooksUseCaseTest {
 
             // Then
             val failure = assertIs<Failure>(result)
-            assertEquals(expectedException, failure.exception)
+            assertEquals("Database connection failed", failure.message)
         }
 }

@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 
@@ -25,5 +25,6 @@ class GetInstanceUseCase(
      * @param forceRefresh If true, forces a fresh fetch from the server
      * @return Result containing the Instance or an error
      */
-    suspend operator fun invoke(forceRefresh: Boolean = false): Result<Instance> = repository.getInstance(forceRefresh)
+    suspend operator fun invoke(forceRefresh: Boolean = false): AppResult<Instance> =
+        repository.getInstance(forceRefresh)
 }

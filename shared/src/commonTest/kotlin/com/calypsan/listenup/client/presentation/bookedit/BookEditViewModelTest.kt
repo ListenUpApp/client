@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.presentation.bookedit
 
 import com.calypsan.listenup.client.TestData
-import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.BookEditData
 import com.calypsan.listenup.client.domain.model.BookMetadata
@@ -33,6 +32,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.calypsan.listenup.client.core.failureOf
 
 /**
  * Tests for BookEditViewModel.
@@ -198,7 +198,7 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loadBookForEditUseCase("nonexistent") } returns Failure(message = "Book not found")
+            everySuspend { fixture.loadBookForEditUseCase("nonexistent") } returns failureOf("Book not found")
             val viewModel = fixture.build()
 
             // When
@@ -634,7 +634,7 @@ class BookEditViewModelTest {
             val fixture = createFixture()
             val editData = createBookEditData(bookId = "book-1", title = "Original")
             everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
-            everySuspend { fixture.updateBookUseCase(any(), any()) } returns Failure(message = "Save failed")
+            everySuspend { fixture.updateBookUseCase(any(), any()) } returns failureOf("Save failed")
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -672,7 +672,7 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loadBookForEditUseCase("nonexistent") } returns Failure(message = "Book not found")
+            everySuspend { fixture.loadBookForEditUseCase("nonexistent") } returns failureOf("Book not found")
             val viewModel = fixture.build()
             viewModel.loadBook("nonexistent")
             advanceUntilIdle()

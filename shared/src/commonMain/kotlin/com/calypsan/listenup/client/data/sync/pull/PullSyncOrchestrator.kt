@@ -5,7 +5,6 @@ import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.SyncCoordinator
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
@@ -15,6 +14,7 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 
@@ -66,7 +66,7 @@ class PullSyncOrchestrator(
             val manifest =
                 try {
                     val result = syncApi.getManifest()
-                    if (result is Result.Success) {
+                    if (result is Success) {
                         result.data
                     } else {
                         null

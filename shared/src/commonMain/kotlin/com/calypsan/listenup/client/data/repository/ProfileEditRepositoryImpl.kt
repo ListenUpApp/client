@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.EntityType
@@ -47,7 +47,7 @@ class ProfileEditRepositoryImpl(
     /**
      * Update the user's tagline.
      */
-    override suspend fun updateTagline(tagline: String?): Result<Unit> =
+    override suspend fun updateTagline(tagline: String?): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Updating tagline (offline-first)" }
 
@@ -91,7 +91,7 @@ class ProfileEditRepositoryImpl(
     override suspend fun uploadAvatar(
         imageData: ByteArray,
         contentType: String,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Uploading avatar (offline-first), size=${imageData.size}" }
 
@@ -131,7 +131,7 @@ class ProfileEditRepositoryImpl(
     /**
      * Revert to auto-generated avatar.
      */
-    override suspend fun revertToAutoAvatar(): Result<Unit> =
+    override suspend fun revertToAutoAvatar(): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Reverting to auto avatar (offline-first)" }
 
@@ -173,7 +173,7 @@ class ProfileEditRepositoryImpl(
     override suspend fun updateName(
         firstName: String,
         lastName: String,
-    ): Result<Unit> =
+    ): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Updating name (offline-first)" }
 
@@ -217,7 +217,7 @@ class ProfileEditRepositoryImpl(
      *
      * This is NOT an offline-first operation - requires immediate server confirmation.
      */
-    override suspend fun changePassword(newPassword: String): Result<Unit> =
+    override suspend fun changePassword(newPassword: String): AppResult<Unit> =
         withContext(IODispatcher) {
             logger.debug { "Changing password (requires server)" }
 

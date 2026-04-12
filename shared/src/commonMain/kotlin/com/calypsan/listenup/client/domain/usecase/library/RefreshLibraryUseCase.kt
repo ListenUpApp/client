@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.domain.usecase.library
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.SyncState
@@ -61,7 +61,7 @@ open class RefreshLibraryUseCase(
      *
      * @return Result containing RefreshLibraryResult on success, or an error on failure
      */
-    open suspend operator fun invoke(): Result<RefreshLibraryResult> {
+    open suspend operator fun invoke(): AppResult<RefreshLibraryResult> {
         logger.info { "Starting library refresh" }
 
         return suspendRunCatching {
@@ -78,7 +78,7 @@ open class RefreshLibraryUseCase(
                     logger.warn { "Library refresh failed: ${syncResult.message}" }
                     throw RefreshException(
                         message = mapErrorMessage(syncResult),
-                        cause = syncResult.exception,
+                        cause = null,
                     )
                 }
             }
@@ -94,7 +94,7 @@ open class RefreshLibraryUseCase(
      * @param newLibraryId The new library ID to sync with
      * @return Result containing RefreshLibraryResult on success, or an error on failure
      */
-    open suspend fun resetForNewLibrary(newLibraryId: String): Result<RefreshLibraryResult> {
+    open suspend fun resetForNewLibrary(newLibraryId: String): AppResult<RefreshLibraryResult> {
         logger.info { "Resetting for new library: $newLibraryId" }
 
         return suspendRunCatching {
@@ -111,7 +111,7 @@ open class RefreshLibraryUseCase(
                     logger.warn { "Library reset failed: ${syncResult.message}" }
                     throw RefreshException(
                         message = mapErrorMessage(syncResult),
-                        cause = syncResult.exception,
+                        cause = null,
                     )
                 }
             }
@@ -122,27 +122,23 @@ open class RefreshLibraryUseCase(
      * Map technical errors to user-friendly messages.
      */
     private fun mapErrorMessage(failure: Failure): String {
-        val exceptionMessage = failure.exception?.message
+        val message = failure.message
         return when {
-            exceptionMessage?.contains("network", ignoreCase = true) == true -> {
-                "Unable to connect to server. Check your network connection."
-            }
+            message.contains(
+                "network",
+                ignoreCase = true,
+            ) -> "Unable to connect to server. Check your network connection."
 
-            exceptionMessage?.contains("unauthorized", ignoreCase = true) == true -> {
-                "Session expired. Please log in again."
-            }
+            message.contains("unauthorized", ignoreCase = true) -> "Session expired. Please log in again."
 
-            exceptionMessage?.contains("timeout", ignoreCase = true) == true -> {
-                "Server is not responding. Please try again later."
-            }
+            message.contains("timeout", ignoreCase = true) -> "Server is not responding. Please try again later."
 
-            exceptionMessage?.contains("mismatch", ignoreCase = true) == true -> {
-                "Server library has changed. Local data needs to be reset."
-            }
+            message.contains(
+                "mismatch",
+                ignoreCase = true,
+            ) -> "Server library has changed. Local data needs to be reset."
 
-            else -> {
-                failure.message
-            }
+            else -> message
         }
     }
 }

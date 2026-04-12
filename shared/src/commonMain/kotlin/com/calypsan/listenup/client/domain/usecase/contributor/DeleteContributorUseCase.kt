@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.contributor
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.repository.ContributorRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 
@@ -30,7 +30,7 @@ open class DeleteContributorUseCase(
      * @param contributorId The ID of the contributor to delete
      * @return Result indicating success or failure
      */
-    open suspend operator fun invoke(contributorId: String): Result<Unit> {
+    open suspend operator fun invoke(contributorId: String): AppResult<Unit> {
         logger.info { "Deleting contributor $contributorId" }
         return contributorRepository.deleteContributor(contributorId)
     }

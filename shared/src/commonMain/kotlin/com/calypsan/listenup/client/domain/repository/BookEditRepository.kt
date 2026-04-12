@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.AppResult
 
 /**
  * Repository contract for book editing operations.
@@ -42,7 +42,7 @@ interface BookEditRepository {
         isbn: String? = null,
         asin: String? = null,
         abridged: Boolean? = null,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Set book contributors (replaces all existing contributors).
@@ -57,7 +57,7 @@ interface BookEditRepository {
     suspend fun setBookContributors(
         bookId: String,
         contributors: List<BookContributorInput>,
-    ): Result<Unit>
+    ): AppResult<Unit>
 
     /**
      * Set book series (replaces all existing series relationships).
@@ -72,7 +72,7 @@ interface BookEditRepository {
     suspend fun setBookSeries(
         bookId: String,
         series: List<BookSeriesInput>,
-    ): Result<Unit>
+    ): AppResult<Unit>
 }
 
 /**

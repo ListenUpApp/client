@@ -63,10 +63,7 @@ class CreateInviteViewModelTest {
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
             everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    RuntimeException("Name is required"),
-                    "Name is required",
-                )
+                Failure(RuntimeException("Name is required"))
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)
@@ -82,10 +79,7 @@ class CreateInviteViewModelTest {
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
             everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    RuntimeException("Invalid email"),
-                    "Invalid email",
-                )
+                Failure(RuntimeException("Invalid email"))
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "Test User", email = "invalid-email", role = "user", expiresInDays = 7)
@@ -116,10 +110,7 @@ class CreateInviteViewModelTest {
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
             everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    RuntimeException("Email already exists"),
-                    "Email already exists",
-                )
+                Failure(RuntimeException("Email already exists"))
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
@@ -134,10 +125,7 @@ class CreateInviteViewModelTest {
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
             everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    RuntimeException("Network connection failed"),
-                    "Network connection failed",
-                )
+                Failure(RuntimeException("Network connection failed"))
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
@@ -152,10 +140,7 @@ class CreateInviteViewModelTest {
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
             everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
-                Failure(
-                    RuntimeException("Name is required"),
-                    "Name is required",
-                )
+                Failure(RuntimeException("Name is required"))
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)

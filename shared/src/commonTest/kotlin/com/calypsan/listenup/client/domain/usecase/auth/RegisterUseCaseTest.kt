@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.auth
 
 import com.calypsan.listenup.client.checkIs
-import com.calypsan.listenup.client.core.ErrorCode
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.repository.AuthRepository
@@ -84,7 +83,7 @@ class RegisterUseCaseTest {
             // Then
             val failure = assertIs<Failure>(result)
             assertTrue(failure.message.contains("email", ignoreCase = true))
-            assertEquals(ErrorCode.VALIDATION_ERROR, failure.errorCode)
+            assertIs<com.calypsan.listenup.client.core.error.DataError>(failure.error)
         }
 
     @Test
@@ -129,7 +128,7 @@ class RegisterUseCaseTest {
             // Then
             val failure = assertIs<Failure>(result)
             assertTrue(failure.message.contains("8", ignoreCase = true))
-            assertEquals(ErrorCode.VALIDATION_ERROR, failure.errorCode)
+            assertIs<com.calypsan.listenup.client.core.error.DataError>(failure.error)
         }
 
     @Test
