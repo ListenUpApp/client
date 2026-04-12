@@ -49,6 +49,26 @@ private val IDEMPOTENT_METHODS =
     )
 
 /**
+ * Path prefix for endpoints that authenticate themselves (login, refresh, logout) and must
+ * NOT carry a bearer token — the bearer plugin would otherwise try to attach an expired or
+ * missing token and trigger a refresh loop. Shared with the platform-specific streaming
+ * client factories so all clients agree on the prefix. See Finding 04 D2.
+ */
+internal const val AUTH_PATH_PREFIX = "/api/v1/auth/"
+
+/**
+ * Returns true if [request] targets an authentication endpoint that should be exempt from
+ * bearer-token attachment. Uses `Url.encodedPath.startsWith(...)` on the finalized URL
+ * rather than a substring match on the full URL so paths like `/api/v1/books/author/foo`
+ * cannot accidentally match.
+ */
+internal fun isAuthEndpoint(request: io.ktor.client.request.HttpRequestBuilder): Boolean =
+    request.url
+        .build()
+        .encodedPath
+        .startsWith(AUTH_PATH_PREFIX)
+
+/**
  * Factory for creating authenticated HTTP clients with automatic token refresh.
  *
  * Provides a single cached client instance that:
@@ -189,14 +209,10 @@ class ApiClientFactory(
                             refreshAuthTokens(authSession, authApi)
                         }
 
-                        // Control when to send bearer token
-                        sendWithoutRequest { request ->
-                            // Send auth header for all requests except auth endpoints
-                            // (auth endpoints handle their own credentials in request body)
-                            val urlString = request.url.toString()
-                            // Match /api/v1/auth/ paths (login, refresh, logout, etc.)
-                            !urlString.contains("/auth/")
-                        }
+                        // Send bearer for every request EXCEPT auth endpoints (login, refresh,
+                        // logout) — those authenticate themselves via request body, and
+                        // attaching a bearer would trigger a refresh loop. See Finding 04 D2.
+                        sendWithoutRequest { request -> !isAuthEndpoint(request) }
                     }
                 }
 
@@ -320,9 +336,11 @@ internal suspend fun refreshAuthTokens(
     authSession: AuthSession,
     authApi: AuthApiContract,
 ): BearerTokens? {
-    val currentRefreshToken =
-        authSession.getRefreshToken()
-            ?: error("No refresh token available")
+    // No refresh token → the user is effectively logged out. Return null so Ktor's Auth
+    // plugin clears its cached bearer and the 401 reaches call sites as a signal to
+    // re-authenticate. Throwing here (as the pre-W2b.4 code did via `error(...)`) instead
+    // crashed the refresh pipeline and left the client in a wedged state — Finding 04 D2.
+    val currentRefreshToken = authSession.getRefreshToken() ?: return null
 
     return try {
         val response = authApi.refresh(currentRefreshToken)

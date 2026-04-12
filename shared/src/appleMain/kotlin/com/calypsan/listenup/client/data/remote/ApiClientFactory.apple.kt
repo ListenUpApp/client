@@ -69,10 +69,7 @@ internal actual suspend fun createStreamingHttpClient(
                     refreshAuthTokens(authSession, authApi)
                 }
 
-                sendWithoutRequest { request ->
-                    val urlString = request.url.toString()
-                    !urlString.contains("/api/auth/")
-                }
+                sendWithoutRequest { request -> !isAuthEndpoint(request) }
             }
         }
 
