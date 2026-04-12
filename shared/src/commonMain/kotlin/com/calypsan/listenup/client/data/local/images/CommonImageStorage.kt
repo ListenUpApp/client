@@ -49,6 +49,8 @@ class CommonImageStorage(
                 val file = getCoverFile(bookId)
                 writeBytes(file, imageData)
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to save cover for book ${bookId.value}", e))
             }
@@ -64,6 +66,8 @@ class CommonImageStorage(
                 val file = getCoverFile(bookId)
                 deleteIfExists(file)
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to delete cover for book ${bookId.value}", e))
             }
@@ -80,6 +84,8 @@ class CommonImageStorage(
                 val file = getCoverStagingFile(bookId)
                 writeBytes(file, imageData)
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to save staging cover for book ${bookId.value}", e))
             }
@@ -105,6 +111,8 @@ class CommonImageStorage(
                 SystemFileSystem.delete(stagingFile)
 
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to commit staging cover for book ${bookId.value}", e))
             }
@@ -115,6 +123,8 @@ class CommonImageStorage(
             try {
                 deleteIfExists(getCoverStagingFile(bookId))
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to delete staging cover for book ${bookId.value}", e))
             }
@@ -135,6 +145,8 @@ class CommonImageStorage(
                 deletedCount += clearDirectory(avatarsDir)
 
                 Success(deletedCount)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to clear image cache", e))
             }
@@ -151,6 +163,8 @@ class CommonImageStorage(
                 val file = getContributorFile(contributorId)
                 writeBytes(file, imageData)
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to save image for contributor $contributorId", e))
             }
@@ -166,6 +180,8 @@ class CommonImageStorage(
             try {
                 deleteIfExists(getContributorFile(contributorId))
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to delete image for contributor $contributorId", e))
             }
@@ -182,6 +198,8 @@ class CommonImageStorage(
                 val file = getSeriesCoverFile(seriesId)
                 writeBytes(file, imageData)
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to save cover for series $seriesId", e))
             }
@@ -196,6 +214,8 @@ class CommonImageStorage(
             try {
                 deleteIfExists(getSeriesCoverFile(seriesId))
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to delete cover for series $seriesId", e))
             }
@@ -212,6 +232,8 @@ class CommonImageStorage(
                 val file = getSeriesCoverStagingFile(seriesId)
                 writeBytes(file, imageData)
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to save staging cover for series $seriesId", e))
             }
@@ -237,6 +259,8 @@ class CommonImageStorage(
                 SystemFileSystem.delete(stagingFile)
 
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to commit staging cover for series $seriesId", e))
             }
@@ -247,6 +271,8 @@ class CommonImageStorage(
             try {
                 deleteIfExists(getSeriesCoverStagingFile(seriesId))
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to delete staging cover for series $seriesId", e))
             }
@@ -263,6 +289,8 @@ class CommonImageStorage(
                 val file = getUserAvatarFile(userId)
                 writeBytes(file, imageData)
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to save avatar for user $userId", e))
             }
@@ -277,6 +305,8 @@ class CommonImageStorage(
             try {
                 deleteIfExists(getUserAvatarFile(userId))
                 Success(Unit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Failure(IOException("Failed to delete avatar for user $userId", e))
             }

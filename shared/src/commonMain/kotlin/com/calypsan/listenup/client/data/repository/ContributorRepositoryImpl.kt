@@ -151,6 +151,8 @@ class ContributorRepositoryImpl(
         if (networkMonitor.isOnline()) {
             try {
                 return searchServer(sanitizedQuery, limit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "Server contributor search failed, falling back to local FTS" }
             }
@@ -195,6 +197,8 @@ class ContributorRepositoryImpl(
                     val ftsQuery = QueryUtils.toFtsQuery(query)
                     try {
                         searchDao.searchContributors(ftsQuery, limit)
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         logger.warn(e) { "Contributor FTS search failed" }
                         emptyList()
@@ -274,6 +278,8 @@ class ContributorRepositoryImpl(
                         ContributorMetadataResult.Error(result.message)
                     }
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.error(e) { "Error applying contributor metadata" }
                 ContributorMetadataResult.Error(e.message ?: "Unknown error")

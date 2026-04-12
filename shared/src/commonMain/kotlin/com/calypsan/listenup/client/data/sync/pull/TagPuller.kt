@@ -61,6 +61,8 @@ class TagPuller(
                 }
             tagDao.upsertAll(tagEntities)
             logger.info { "Tag sync complete: ${tagEntities.size} tags synced" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to fetch global tags" }
             // Don't throw - tags are not critical for sync

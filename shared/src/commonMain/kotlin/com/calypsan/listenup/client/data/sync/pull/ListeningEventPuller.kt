@@ -114,6 +114,8 @@ class ListeningEventPuller(
                     // Don't throw - listening events are not critical for sync
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to sync listening events" }
             // Don't throw - listening events are not critical for sync
@@ -256,6 +258,8 @@ class ListeningEventPuller(
                     logger.warn(result.exception) { "Full refresh: failed to fetch listening events" }
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Full refresh: failed to sync listening events" }
         }
@@ -273,6 +277,8 @@ class ListeningEventPuller(
     private fun parseTimestamp(isoTimestamp: String): Long =
         try {
             Instant.parse(isoTimestamp).toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn { "Failed to parse timestamp: $isoTimestamp, using current time" }
             currentEpochMilliseconds()

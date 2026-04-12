@@ -145,6 +145,8 @@ class MetadataRepositoryImpl(
                         ContributorMetadataResult.Error(result.message)
                     }
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.error(e) { "Error applying contributor metadata" }
                 ContributorMetadataResult.Error(e.message ?: "Unknown error")

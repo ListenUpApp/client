@@ -315,6 +315,8 @@ internal suspend fun refreshAuthTokens(
             logger.warn(e) { "Token refresh failed with HTTP $status, preserving auth state" }
         }
         null
+    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        throw e
     } catch (e: Exception) {
         logger.warn(e) { "Token refresh failed due to network error, preserving auth state" }
         null

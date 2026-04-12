@@ -117,6 +117,8 @@ fun String.toTimestamp(): Timestamp =
                 "Original error: ${e.message}",
             e,
         )
+    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        throw e
     } catch (e: Exception) {
         // Catch any other parsing errors
         throw IllegalArgumentException(

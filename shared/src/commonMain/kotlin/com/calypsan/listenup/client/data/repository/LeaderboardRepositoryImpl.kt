@@ -358,6 +358,8 @@ class LeaderboardRepositoryImpl(
             userStatsDao.upsertAll(entities)
             logger.info { "Cached ${entities.size} user stats for All-time leaderboard" }
             true
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Failed to fetch user stats for All-time leaderboard" }
             false

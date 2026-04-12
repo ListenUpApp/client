@@ -124,6 +124,8 @@ private fun ActivityResponse.toDomain(): Activity {
     val createdAtMs =
         try {
             Instant.parse(createdAt).toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             currentEpochMilliseconds()
         }

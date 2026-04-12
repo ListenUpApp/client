@@ -221,6 +221,8 @@ internal data class CurrentUserApiResponse(
             kotlin.time.Instant
                 .parse(timestamp)
                 .toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             0L
         }

@@ -190,6 +190,8 @@ class PlaybackManager(
         val audioFiles: List<AudioFileResponse> =
             try {
                 json.decodeFromString(audioFilesJson)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.error(e) { "Failed to parse audio files JSON" }
                 return null
@@ -514,6 +516,8 @@ class PlaybackManager(
             } finally {
                 client.close()
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.debug { "Server reachability check failed: ${e.message}" }
             false

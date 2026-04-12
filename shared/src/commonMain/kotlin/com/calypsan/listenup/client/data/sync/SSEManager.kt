@@ -137,7 +137,7 @@ class SSEManager(
      *
      * Call this after successful login or sync to start receiving real-time updates.
      */
-    @Suppress("MagicNumber")
+    @Suppress("MagicNumber", "CognitiveComplexMethod")
     override fun connect() {
         if (connectionJob?.isActive == true) {
             return // Already connected
@@ -162,6 +162,8 @@ class SSEManager(
                         // If we get here, connection ended gracefully
                         logger.debug { "Connection ended gracefully" }
                         break
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         _isConnected.value = false
 
@@ -335,6 +337,8 @@ class SSEManager(
             val sseEvent =
                 try {
                     json.decodeFromString<SSEEvent>(eventJson)
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     // Skip non-standard events (like initial "connected" message)
                     logger.trace { "Skipping non-standard event: ${e.message}" }
@@ -747,6 +751,8 @@ class SSEManager(
                 }
 
             _eventFlow.emit(eventType)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to parse event" }
         }

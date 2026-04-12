@@ -117,6 +117,8 @@ class CoverDownloadWorker(
                         // App is backgrounding — mark task back to pending so it resumes later
                         coverDownloadDao.updateStatus(task.bookId, CoverDownloadStatus.PENDING)
                         throw e
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         coverDownloadDao.markFailed(task.bookId, e.message)
                         logger.warn(e) { "Cover download error: ${task.bookId.value}" }

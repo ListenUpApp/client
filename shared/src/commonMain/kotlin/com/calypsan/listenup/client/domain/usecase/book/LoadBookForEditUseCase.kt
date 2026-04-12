@@ -93,6 +93,8 @@ open class LoadBookForEditUseCase(
     private suspend fun loadAllGenres(): List<EditableGenre> =
         try {
             genreRepository.getAll().map { it.toEditable() }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Failed to load all genres" }
             emptyList()
@@ -101,6 +103,8 @@ open class LoadBookForEditUseCase(
     private suspend fun loadBookGenres(bookId: String): List<EditableGenre> =
         try {
             genreRepository.getGenresForBook(bookId).map { it.toEditable() }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Failed to load book genres" }
             emptyList()
@@ -109,6 +113,8 @@ open class LoadBookForEditUseCase(
     private suspend fun loadAllTags(): List<EditableTag> =
         try {
             tagRepository.getAll().map { it.toEditable() }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Failed to load all tags" }
             emptyList()
@@ -117,6 +123,8 @@ open class LoadBookForEditUseCase(
     private suspend fun loadBookTags(bookId: String): List<EditableTag> =
         try {
             tagRepository.getTagsForBook(bookId).map { it.toEditable() }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Failed to load book tags" }
             emptyList()

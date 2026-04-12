@@ -71,6 +71,8 @@ class PullSyncOrchestrator(
                     } else {
                         null
                     }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.warn(e) { "Failed to fetch sync manifest, progress will be approximate" }
                     null
@@ -166,6 +168,8 @@ class PullSyncOrchestrator(
 
                 try {
                     awaitAll(seriesJob, contributorsJob)
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     seriesJob.cancel()
                     contributorsJob.cancel()

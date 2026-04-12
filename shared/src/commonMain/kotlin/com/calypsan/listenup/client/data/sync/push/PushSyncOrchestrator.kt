@@ -152,6 +152,8 @@ class PushSyncOrchestrator(
             } else {
                 logger.debug { "Push sync completed: no operations to sync" }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             ErrorBus.emit(SyncError.PushFailed(debugInfo = e.message))
             logger.error(e) { "Push sync flush failed" }

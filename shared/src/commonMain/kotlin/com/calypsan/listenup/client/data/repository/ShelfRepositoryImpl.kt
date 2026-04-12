@@ -158,12 +158,16 @@ fun ShelfResponse.toDomain(): Shelf {
     val createdAtMs =
         try {
             Instant.parse(createdAt).toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             currentEpochMilliseconds()
         }
     val updatedAtMs =
         try {
             Instant.parse(updatedAt).toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             currentEpochMilliseconds()
         }
@@ -189,12 +193,16 @@ private fun ShelfResponse.toEntity(): ShelfEntity {
     val createdAtMs =
         try {
             Instant.parse(createdAt).toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             currentEpochMilliseconds()
         }
     val updatedAtMs =
         try {
             Instant.parse(updatedAt).toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             currentEpochMilliseconds()
         }

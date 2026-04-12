@@ -97,6 +97,8 @@ class FtsPopulator(
                     genres = book.genres,
                 )
                 insertCount++
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "Failed to insert book ${book.id} into FTS" }
             }
@@ -130,6 +132,8 @@ class FtsPopulator(
                     description = contributor.description,
                 )
                 insertCount++
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "Failed to insert contributor ${contributor.id} into FTS" }
             }
@@ -163,6 +167,8 @@ class FtsPopulator(
                     description = s.description,
                 )
                 insertCount++
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "Failed to insert series ${s.id} into FTS" }
             }

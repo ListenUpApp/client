@@ -76,6 +76,8 @@ class SessionRepositoryImpl(
             launch {
                 try {
                     refreshBookReaders(bookId)
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.warn(e) { "Background refresh of readers for book $bookId failed" }
                 }
@@ -199,6 +201,8 @@ class SessionRepositoryImpl(
             kotlin.time.Instant
                 .parse(iso)
                 .toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             currentEpochMilliseconds()
         }
@@ -296,6 +300,8 @@ private fun parseTimestampToEpoch(iso: String): Long =
         kotlin.time.Instant
             .parse(iso)
             .toEpochMilliseconds()
+    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        throw e
     } catch (e: Exception) {
         currentEpochMilliseconds()
     }

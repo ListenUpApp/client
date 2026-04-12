@@ -177,6 +177,8 @@ class ProgressTracker(
                         logger.info {
                             "🎧 ACTIVITY RECORDED: listened to ${totalDurationMs / 1000}s of ${bookId.value}"
                         }
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         logger.warn { "🎧 Failed to record activity: ${e.message}" }
                     }
@@ -285,6 +287,8 @@ class ProgressTracker(
 
             // Signal that progress was saved so Continue Listening shelf refreshes immediately
             ProgressRefreshBus.emit()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Failed to save position: book=${bookId.value}, position=$positionMs" }
         }
@@ -405,6 +409,8 @@ class ProgressTracker(
                     null
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.debug { "Server progress fetch failed: ${e.message}" }
             null
@@ -507,6 +513,8 @@ class ProgressTracker(
                     try {
                         syncApi.endPlaybackSession(bookId.value, totalDurationMs)
                         logger.info { "🎧 ACTIVITY RECORDED (book finished): listened to ${totalDurationMs / 1000}s" }
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         logger.warn { "🎧 Failed to record activity: ${e.message}" }
                     }
@@ -626,6 +634,8 @@ class ProgressTracker(
         try {
             listeningEventDao.upsert(entity)
             logger.info { "🎧 EVENT SAVED TO ROOM: id=$eventId" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "🎧 FAILED TO SAVE EVENT TO ROOM: id=$eventId" }
             // Continue to queue for sync anyway - worst case it syncs without local storage
@@ -653,6 +663,8 @@ class ProgressTracker(
                 handler = listeningEventHandler,
             )
             logger.info { "🎧 EVENT QUEUED FOR SYNC: id=$eventId" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "🎧 FAILED TO QUEUE EVENT FOR SYNC: id=$eventId" }
         }
@@ -667,6 +679,8 @@ class ProgressTracker(
             try {
                 pushSyncOrchestrator.flush()
                 logger.info { "🎧 SYNC FLUSH COMPLETED" }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.error(e) { "🎧 SYNC FLUSH FAILED" }
             }

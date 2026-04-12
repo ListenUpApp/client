@@ -48,6 +48,8 @@ open class GetUsersForSharingUseCase(
             val existingShares =
                 try {
                     collectionRepository.getCollectionShares(collectionId)
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.warn(e) { "Failed to load existing shares, proceeding with all users" }
                     emptyList()

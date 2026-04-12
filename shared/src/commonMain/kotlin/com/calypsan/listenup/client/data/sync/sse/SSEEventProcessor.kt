@@ -304,6 +304,8 @@ class SSEEventProcessor(
                     handleUserStatsUpdated(event)
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Failed to process SSE event: $event" }
         }
@@ -354,6 +356,8 @@ class SSEEventProcessor(
             downloadService.cancelDownload(bookId)
             // Also delete any downloaded files
             downloadService.deleteDownload(bookId)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to cancel/delete download for book ${event.bookId}" }
         }
@@ -489,10 +493,14 @@ class SSEEventProcessor(
                 try {
                     bookDao.touchUpdatedAt(BookId(bookId), Timestamp.now())
                     logger.debug { "Touched book $bookId to trigger UI refresh" }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.warn(e) { "Failed to touch updatedAt for book $bookId" }
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to download cover for book $bookId" }
         }
@@ -674,6 +682,8 @@ class SSEEventProcessor(
         // Touch the book's updatedAt to trigger UI refresh
         try {
             bookDao.touchUpdatedAt(BookId(event.bookId), Timestamp.now())
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to touch book ${event.bookId} after tag added" }
         }
@@ -698,6 +708,8 @@ class SSEEventProcessor(
         // Touch the book's updatedAt to trigger UI refresh
         try {
             bookDao.touchUpdatedAt(BookId(event.bookId), Timestamp.now())
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to touch book ${event.bookId} after tag removed" }
         }
@@ -747,6 +759,8 @@ class SSEEventProcessor(
                 ),
             )
             logger.info { "SSE: Updated local position for ${event.bookId} to ${event.currentPositionMs}ms" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "SSE: Failed to update progress for ${event.bookId}" }
         }
@@ -757,6 +771,8 @@ class SSEEventProcessor(
         try {
             playbackPositionDao.delete(BookId(event.bookId))
             logger.debug { "SSE: Deleted local progress for book ${event.bookId}" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "SSE: Failed to delete progress for book ${event.bookId}" }
         }
@@ -770,6 +786,8 @@ class SSEEventProcessor(
         // When the user later visits this book's detail page, readers data is already available.
         try {
             sessionRepository.refreshBookReaders(event.bookId)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "SSE: Failed to refresh readers for book ${event.bookId}" }
         }
@@ -801,6 +819,8 @@ class SSEEventProcessor(
         try {
             listeningEventDao.upsert(entity)
             logger.debug { "SSE: Saved listening event ${event.id} to Room" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "SSE: Failed to save listening event ${event.id}" }
         }
@@ -845,6 +865,8 @@ class SSEEventProcessor(
         try {
             activityDao.upsert(entity)
             logger.debug { "SSE: Saved activity ${event.id} to Room" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "SSE: Failed to save activity ${event.id}" }
         }
@@ -873,6 +895,8 @@ class SSEEventProcessor(
                     // downloadUserAvatar checks if file exists locally and skips if so
                     imageDownloader.downloadUserAvatar(event.userId, forceRefresh = false)
                     logger.debug { "SSE: Ensured avatar exists for user ${event.userId}" }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.warn(e) { "SSE: Failed to download avatar for user ${event.userId}" }
                 }
@@ -930,6 +954,8 @@ class SSEEventProcessor(
         try {
             userStatsDao.upsert(entity)
             logger.debug { "SSE: Cached user stats for ${event.userId}" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "SSE: Failed to cache user stats for ${event.userId}" }
         }
@@ -950,6 +976,7 @@ class SSEEventProcessor(
      * This enables fully offline profile viewing for any user whose
      * profile update was received while online.
      */
+    @Suppress("ThrowsCount") // Per-field failures each throw; CancellationException rethrow adds one more
     private suspend fun handleProfileUpdated(event: SSEEventType.ProfileUpdated) {
         logger.info { "SSE: Profile updated - ${event.displayName} (${event.userId})" }
 
@@ -963,6 +990,8 @@ class SSEEventProcessor(
             try {
                 imageDownloader.downloadUserAvatar(event.userId, forceRefresh = true)
                 logger.info { "SSE: Downloaded avatar image for user ${event.userId}" }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "SSE: Failed to download avatar for user ${event.userId}" }
             }
@@ -971,6 +1000,8 @@ class SSEEventProcessor(
             try {
                 imageDownloader.deleteUserAvatar(event.userId)
                 logger.info { "SSE: Deleted local avatar for user ${event.userId} (reverted to auto)" }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "SSS: Failed to delete avatar for user ${event.userId}" }
             }
@@ -989,6 +1020,8 @@ class SSEEventProcessor(
                 ),
             )
             logger.debug { "SSE: Cached user profile for ${event.userId}" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "SSE: Failed to cache user profile for ${event.userId}" }
         }
@@ -1025,6 +1058,8 @@ class SSEEventProcessor(
                     "SSE: Updated local UserEntity with profile changes - " +
                         "name=${event.displayName}, avatar=${event.avatarType}/${event.avatarValue}"
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.error(e) { "SSE: Failed to update local UserEntity for profile event" }
             }

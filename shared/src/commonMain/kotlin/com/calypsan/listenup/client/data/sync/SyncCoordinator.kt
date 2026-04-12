@@ -56,6 +56,8 @@ class SyncCoordinator {
                 return block()
             } catch (e: CancellationException) {
                 throw e // Don't retry on cancellation
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 lastException = e
 

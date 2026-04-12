@@ -46,6 +46,8 @@ open class LoadCollectionSharesUseCase(
             val users =
                 try {
                     adminRepository.getUsers()
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.warn(e) { "Failed to load users for share enrichment, using partial data" }
                     emptyList()

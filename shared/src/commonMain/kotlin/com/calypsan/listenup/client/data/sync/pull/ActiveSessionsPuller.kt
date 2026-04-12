@@ -116,6 +116,10 @@ class ActiveSessionsPuller(
                                                 session.userId,
                                                 forceRefresh = false,
                                             )
+                                        } catch (
+                                            e: kotlin.coroutines.cancellation.CancellationException,
+                                        ) {
+                                            throw e
                                         } catch (e: Exception) {
                                             logger.warn(e) { "Failed to download avatar for user ${session.userId}" }
                                             null
@@ -147,6 +151,8 @@ class ActiveSessionsPuller(
                     // Don't throw - active sessions are not critical for sync
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to sync active sessions" }
             // Don't throw - active sessions are not critical for sync
@@ -159,6 +165,8 @@ class ActiveSessionsPuller(
     private fun parseTimestamp(isoTimestamp: String): Long =
         try {
             Instant.parse(isoTimestamp).toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn { "Failed to parse timestamp: $isoTimestamp, using current time" }
             currentEpochMilliseconds()

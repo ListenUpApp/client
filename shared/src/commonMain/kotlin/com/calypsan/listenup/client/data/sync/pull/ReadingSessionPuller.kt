@@ -97,6 +97,8 @@ class ReadingSessionPuller(
                     // Don't throw - reading sessions are not critical for sync
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to sync reading sessions" }
             // Don't throw - reading sessions are not critical for sync
@@ -109,6 +111,8 @@ class ReadingSessionPuller(
     private fun parseTimestamp(isoTimestamp: String): Long =
         try {
             Instant.parse(isoTimestamp).toEpochMilliseconds()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn { "Failed to parse timestamp: $isoTimestamp, using current time" }
             currentEpochMilliseconds()

@@ -97,6 +97,8 @@ class ProgressPuller(
                     // Don't throw - progress sync is not critical for basic functionality
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to sync progress" }
             // Don't throw - progress sync is not critical for basic functionality

@@ -182,6 +182,8 @@ open class UpdateBookUseCase(
             val tagId = original.tags.find { it.slug == slug }?.id ?: continue
             try {
                 tagRepository.removeTagFromBook(current.bookId, slug, tagId)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "Failed to remove tag '$slug' from book ${current.bookId}" }
                 // Continue with other tags - tag removal is non-critical
@@ -193,6 +195,8 @@ open class UpdateBookUseCase(
         for (slug in addedSlugs) {
             try {
                 tagRepository.addTagToBook(current.bookId, slug)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "Failed to add tag '$slug' to book ${current.bookId}" }
                 // Continue with other tags - tag addition is non-critical

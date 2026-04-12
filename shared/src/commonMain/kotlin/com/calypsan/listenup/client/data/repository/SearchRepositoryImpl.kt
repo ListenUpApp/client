@@ -141,6 +141,8 @@ class SearchRepositoryImpl(
                             try {
                                 val bookResults = searchDao.searchBooks(ftsQuery, limit)
                                 addAll(bookResults.map { it.toSearchHit(imageStorage) })
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 logger.warn(e) { "Book FTS search failed" }
                             }
@@ -150,6 +152,8 @@ class SearchRepositoryImpl(
                             try {
                                 val contributors = searchDao.searchContributors(ftsQuery, limit / 2)
                                 addAll(contributors.map { it.toSearchHit() })
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 logger.warn(e) { "Contributor FTS search failed" }
                             }
@@ -159,6 +163,8 @@ class SearchRepositoryImpl(
                             try {
                                 val series = searchDao.searchSeries(ftsQuery, limit / 2)
                                 addAll(series.map { it.toSearchHit() })
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 logger.warn(e) { "Series FTS search failed" }
                             }
@@ -169,6 +175,8 @@ class SearchRepositoryImpl(
                                 // Tags use simple LIKE query, not FTS - use original query without *
                                 val tags = searchDao.searchTags(query, limit / 2)
                                 addAll(tags.map { it.toSearchHit() })
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 logger.warn(e) { "Tag search failed" }
                             }

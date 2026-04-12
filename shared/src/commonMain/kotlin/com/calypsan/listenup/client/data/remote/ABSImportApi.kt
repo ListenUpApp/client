@@ -465,7 +465,7 @@ class ABSImportApi(
 
             // Then create the import from the uploaded path
             createImportFromPath(uploadPath, name)
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.UploadFailed(debugInfo = e.message))
             Failure(e)
         }
@@ -490,7 +490,7 @@ class ABSImportApi(
                 is Success -> Success(result.data)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.UploadFailed(debugInfo = e.message))
             Failure(e)
         }
@@ -506,7 +506,7 @@ class ABSImportApi(
                 is Success -> Success(result.data.imports)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
         }
     }
@@ -521,7 +521,7 @@ class ABSImportApi(
                 is Success -> Success(result.data)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
         }
     }
@@ -536,7 +536,7 @@ class ABSImportApi(
                 is Success -> Success(Unit)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
         }
     }
@@ -560,7 +560,7 @@ class ABSImportApi(
                 is Success -> Success(result.data.users)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.AnalysisFailed(debugInfo = e.message))
             Failure(e)
         }
@@ -582,7 +582,7 @@ class ABSImportApi(
                 is Success -> Success(result.data)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.ApplyFailed(debugInfo = e.message))
             Failure(e)
         }
@@ -601,7 +601,7 @@ class ABSImportApi(
                 is Success -> Success(result.data)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
         }
     }
@@ -624,7 +624,7 @@ class ABSImportApi(
                 is Success -> Success(result.data.users)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
         }
     }
@@ -648,7 +648,7 @@ class ABSImportApi(
                 is Success -> Success(result.data.books)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.AnalysisFailed(debugInfo = e.message))
             Failure(e)
         }
@@ -670,7 +670,7 @@ class ABSImportApi(
                 is Success -> Success(result.data)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.ApplyFailed(debugInfo = e.message))
             Failure(e)
         }
@@ -689,7 +689,7 @@ class ABSImportApi(
                 is Success -> Success(result.data)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             Failure(e)
         }
     }
@@ -713,7 +713,7 @@ class ABSImportApi(
                 is Success -> Success(result.data)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.AnalysisFailed(debugInfo = e.message))
             Failure(e)
         }
@@ -734,7 +734,7 @@ class ABSImportApi(
                 is Success -> Success(result.data)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.ApplyFailed(debugInfo = e.message))
             Failure(e)
         }
@@ -756,7 +756,7 @@ class ABSImportApi(
                 is Success -> Success(Unit)
                 is Failure -> Failure(result.exceptionOrFromMessage())
             }
-        } catch (e: Exception) {
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e } catch (e: Exception) {
             ErrorBus.emit(ImportError.ApplyFailed(debugInfo = e.message))
             Failure(e)
         }

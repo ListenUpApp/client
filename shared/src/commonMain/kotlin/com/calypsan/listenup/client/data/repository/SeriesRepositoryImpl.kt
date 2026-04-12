@@ -135,6 +135,8 @@ class SeriesRepositoryImpl(
         if (networkMonitor.isOnline()) {
             try {
                 return searchServer(sanitizedQuery, limit)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "Server series search failed, falling back to local FTS" }
             }
@@ -178,6 +180,8 @@ class SeriesRepositoryImpl(
                     val ftsQuery = QueryUtils.toFtsQuery(query)
                     try {
                         searchDao.searchSeries(ftsQuery, limit)
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         logger.warn(e) { "Series FTS search failed" }
                         emptyList()

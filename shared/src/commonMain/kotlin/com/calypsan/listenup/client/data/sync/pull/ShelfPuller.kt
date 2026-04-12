@@ -81,6 +81,8 @@ class ShelfPuller(
                     entitiesWithCovers.add(entity)
 
                     allShelfBooks.addAll(shelfBooks)
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.warn(e) { "Failed to fetch details for shelf ${shelfResponse.id}, using basic info" }
                     // Fall back to basic entity without cover paths
@@ -99,6 +101,8 @@ class ShelfPuller(
             logger.info {
                 "Shelf sync complete: ${entitiesWithCovers.size} shelves, ${allShelfBooks.size} shelf-book relationships cached"
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to fetch shelves" }
             // Non-critical — don't throw

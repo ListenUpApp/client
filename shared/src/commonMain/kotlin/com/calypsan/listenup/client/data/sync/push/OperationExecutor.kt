@@ -63,6 +63,8 @@ class OperationExecutor(
             operations.mapNotNull { op ->
                 try {
                     op to handler.parsePayload(op.payload)
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.error(e) { "Failed to parse payload for operation ${op.id}" }
                     null

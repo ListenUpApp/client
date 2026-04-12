@@ -94,6 +94,8 @@ class RegistrationStatusStreamImpl(
                     null
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to parse SSE event" }
             null

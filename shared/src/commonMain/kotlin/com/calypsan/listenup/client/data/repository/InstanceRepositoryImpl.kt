@@ -125,6 +125,8 @@ class InstanceRepositoryImpl(
                     Failure(result.exceptionOrFromMessage())
                 }
             }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Failure(e)
         } finally {
@@ -211,6 +213,8 @@ class InstanceRepositoryImpl(
                     quickClient.get(instanceUrl)
                     logger.info { "Server reachable at $url" }
                     return url
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.debug { "Not reachable at $url: ${e.message}" }
                     continue

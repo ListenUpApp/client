@@ -52,6 +52,8 @@ open class LogoutUseCase(
                 try {
                     authRepository.logout(sessionId)
                     logger.info { "Server session invalidated" }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     // Log but don't fail - local logout should still work
                     logger.warn(e) { "Failed to invalidate server session, continuing with local logout" }

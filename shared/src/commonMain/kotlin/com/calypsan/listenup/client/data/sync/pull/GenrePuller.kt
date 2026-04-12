@@ -53,6 +53,8 @@ class GenrePuller(
             val genreEntities = genres.map { it.toEntity(pathToId) }
             genreDao.upsertAll(genreEntities)
             logger.info { "Genre sync complete: ${genreEntities.size} genres synced" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.warn(e) { "Failed to fetch global genres" }
             // Don't throw - genres are not critical for sync
