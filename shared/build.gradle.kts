@@ -150,6 +150,8 @@ kotlin {
             implementation(libs.mokkery.runtime)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.koin.test)
+            implementation(libs.turbine)
+            implementation(libs.ktor.client.mock)
         }
     }
 }
