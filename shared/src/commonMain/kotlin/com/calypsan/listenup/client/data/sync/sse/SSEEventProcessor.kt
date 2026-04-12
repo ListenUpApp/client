@@ -25,6 +25,7 @@ import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserProfileDao
 import com.calypsan.listenup.client.data.local.db.UserProfileEntity
@@ -74,6 +75,7 @@ private fun parseTimestamp(isoString: String): Timestamp =
  */
 @Suppress("LargeClass", "LongParameterList")
 class SSEEventProcessor(
+    private val transactionRunner: TransactionRunner,
     private val bookDao: BookDao,
     private val bookContributorDao: BookContributorDao,
     private val bookSeriesDao: BookSeriesDao,
@@ -315,10 +317,12 @@ class SSEEventProcessor(
         logger.debug { "SSE: Book created - ${event.book.title}" }
         val entity = event.book.toEntity()
         val withLocalFields = preserveLocalBookFields(entity)
-        bookDao.upsert(withLocalFields)
 
-        saveBookContributors(event.book)
-        saveBookSeries(event.book)
+        transactionRunner.atomically {
+            bookDao.upsert(withLocalFields)
+            saveBookContributors(event.book)
+            saveBookSeries(event.book)
+        }
 
         scope.launch {
             downloadCoverForBook(event.book.id)
@@ -329,10 +333,12 @@ class SSEEventProcessor(
         logger.debug { "SSE: Book updated - ${event.book.title}" }
         val entity = event.book.toEntity()
         val withLocalFields = preserveLocalBookFields(entity)
-        bookDao.upsert(withLocalFields)
 
-        saveBookContributors(event.book)
-        saveBookSeries(event.book)
+        transactionRunner.atomically {
+            bookDao.upsert(withLocalFields)
+            saveBookContributors(event.book)
+            saveBookSeries(event.book)
+        }
 
         scope.launch {
             downloadCoverForBook(event.book.id)

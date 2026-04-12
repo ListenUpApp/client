@@ -116,6 +116,10 @@ class SSEEventProcessorTest {
     private class TestFixture(
         val scope: TestScope,
     ) {
+        val transactionRunner: com.calypsan.listenup.client.data.local.db.TransactionRunner =
+            object : com.calypsan.listenup.client.data.local.db.TransactionRunner {
+                override suspend fun <R> atomically(block: suspend () -> R): R = block()
+            }
         val bookDao: BookDao = mock()
         val bookContributorDao: BookContributorDao = mock()
         val bookSeriesDao: BookSeriesDao = mock()
@@ -194,6 +198,7 @@ class SSEEventProcessorTest {
 
         fun build(): SSEEventProcessor =
             SSEEventProcessor(
+                transactionRunner = transactionRunner,
                 bookDao = bookDao,
                 bookContributorDao = bookContributorDao,
                 bookSeriesDao = bookSeriesDao,

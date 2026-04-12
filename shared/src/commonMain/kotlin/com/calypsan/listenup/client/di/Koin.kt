@@ -864,6 +864,7 @@ val syncModule =
         // SSEEventProcessor - processes real-time SSE events
         single {
             SSEEventProcessor(
+                transactionRunner = get(),
                 bookDao = get(),
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
