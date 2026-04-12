@@ -161,6 +161,8 @@ class ContributorMetadataViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Contributor metadata search failed" }
@@ -203,6 +205,8 @@ class ContributorMetadataViewModel(
                     )
                 }
             } catch (e: CancellationException) {
+                throw e
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
@@ -258,6 +262,8 @@ class ContributorMetadataViewModel(
                     )
                 }
             } catch (e: CancellationException) {
+                throw e
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)

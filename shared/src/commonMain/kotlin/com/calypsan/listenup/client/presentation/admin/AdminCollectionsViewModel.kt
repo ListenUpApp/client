@@ -67,6 +67,8 @@ class AdminCollectionsViewModel(
             try {
                 collectionRepository.refreshFromServer()
                 logger.debug { "Refreshed collections from server" }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.warn(e) { "Failed to refresh collections from server" }

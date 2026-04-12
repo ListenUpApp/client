@@ -59,6 +59,8 @@ class AdminBackupViewModel(
                         isLoading = false,
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to load backups" }
@@ -87,6 +89,8 @@ class AdminBackupViewModel(
                 // Reload list to show new backup
                 loadBackups()
                 state.update { it.copy(isCreating = false) }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to create backup" }
@@ -120,6 +124,8 @@ class AdminBackupViewModel(
                         isDeleting = false,
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to delete backup" }
@@ -153,6 +159,8 @@ class AdminBackupViewModel(
                             ),
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to validate backup" }
@@ -182,6 +190,8 @@ class AdminBackupViewModel(
             createdAt =
                 try {
                     Instant.parse(createdAt)
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     ErrorBus.emit(e)
                     Instant.DISTANT_PAST

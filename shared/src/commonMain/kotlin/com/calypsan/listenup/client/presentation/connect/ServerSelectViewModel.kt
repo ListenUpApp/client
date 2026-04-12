@@ -160,6 +160,8 @@ class ServerSelectViewModel(
                 logger.info { "Server activated: ${server.id} at $serverUrl" }
                 state.update { it.copy(isConnecting = false) }
                 navigationEvents.value = NavigationEvent.ServerActivated
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to activate server" }
@@ -215,6 +217,8 @@ class ServerSelectViewModel(
                         )
                     }
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to activate discovered server" }

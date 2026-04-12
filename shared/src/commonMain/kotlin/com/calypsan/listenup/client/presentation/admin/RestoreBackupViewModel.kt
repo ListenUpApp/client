@@ -126,6 +126,8 @@ class RestoreBackupViewModel(
                             ),
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to validate backup" }
@@ -247,6 +249,8 @@ class RestoreBackupViewModel(
                             ),
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to perform dry run" }
@@ -302,6 +306,8 @@ class RestoreBackupViewModel(
                             ),
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to restore backup" }

@@ -189,6 +189,10 @@ class UserProfileViewModel(
                                         )
                                     }
                                     logger.info { "Downloaded and cached avatar for user ${profile.userId}" }
+                                } catch (
+                                    e: kotlin.coroutines.cancellation.CancellationException,
+                                ) {
+                                    throw e
                                 } catch (e: Exception) {
                                     ErrorBus.emit(e)
                                     logger.warn(e) { "Failed to download avatar for user ${profile.userId}" }

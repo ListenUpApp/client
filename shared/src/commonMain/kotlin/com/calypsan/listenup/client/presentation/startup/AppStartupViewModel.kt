@@ -96,6 +96,10 @@ class AppStartupViewModel(
                             val status = setupApi.getLibraryStatus()
                             logger.info { "AppStartupViewModel: library needsSetup=${status.needsSetup}" }
                             status.needsSetup
+                        } catch (
+                            e: kotlin.coroutines.cancellation.CancellationException,
+                        ) {
+                            throw e
                         } catch (e: Exception) {
                             logger.warn(e) { "AppStartupViewModel: library status check failed, defaulting to false" }
                             false
@@ -105,6 +109,8 @@ class AppStartupViewModel(
                     }
 
                 _state.value = _state.value.copy(isChecking = false, needsLibrarySetup = needsSetup)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "AppStartupViewModel: user check failed, proceeding to main app" }
                 _state.value = _state.value.copy(isChecking = false, needsLibrarySetup = false)

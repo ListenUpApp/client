@@ -304,6 +304,8 @@ class ABSImportViewModel(
                     )
                 }
                 analyzeBackup(uploadResult.path)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to upload ABS backup" }
@@ -338,6 +340,8 @@ class ABSImportViewModel(
                         isLoadingDirectories = false,
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to browse filesystem" }
@@ -488,6 +492,8 @@ class ABSImportViewModel(
                         selectedBookDisplays = initialBookDisplays,
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to analyze ABS backup" }
@@ -639,6 +645,8 @@ class ABSImportViewModel(
                         }
                     }
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "User search failed: ${e.message}" }
@@ -783,6 +791,8 @@ class ABSImportViewModel(
                         isSearchingBooks = false,
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Book search failed: ${e.message}" }
@@ -1017,6 +1027,8 @@ class ABSImportViewModel(
                 // events have historical timestamps that wouldn't be included in normal sync
                 logger.info { "Import complete, refreshing listening history" }
                 syncRepository.refreshListeningHistory()
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to import ABS backup" }

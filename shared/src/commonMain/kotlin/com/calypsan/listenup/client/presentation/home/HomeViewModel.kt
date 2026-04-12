@@ -171,6 +171,8 @@ class HomeViewModel(
                     hasFetchedShelves = true
                     try {
                         shelfRepository.fetchAndCacheMyShelves()
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         ErrorBus.emit(e)
                         logger.warn(e) { "Failed to fetch shelves from network" }

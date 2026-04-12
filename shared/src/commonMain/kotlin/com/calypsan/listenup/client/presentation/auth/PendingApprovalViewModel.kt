@@ -62,6 +62,8 @@ class PendingApprovalViewModel(
                     registrationStatusStream.streamStatus(userId).collect { status ->
                         handleStatusUpdate(status)
                     }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     ErrorBus.emit(e)
                     logger.warn(e) { "SSE connection failed, falling back to polling" }
@@ -116,6 +118,8 @@ class PendingApprovalViewModel(
                                 break
                             }
                         }
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         ErrorBus.emit(e)
                         logger.warn(e) { "Failed to check registration status" }
@@ -147,6 +151,8 @@ class PendingApprovalViewModel(
 
             logger.info { "Auto-login successful!" }
             state.value = state.value.copy(status = PendingApprovalStatus.LoginSuccess)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             ErrorBus.emit(e)
             logger.error(e) { "Auto-login failed" }

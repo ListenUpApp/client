@@ -56,6 +56,8 @@ class LibrarySetupViewModel(
                 if (status.needsSetup) {
                     loadDirectory("/")
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to check library status" }
@@ -90,6 +92,8 @@ class LibrarySetupViewModel(
                         isRoot = response.isRoot,
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to load directory: $path" }
@@ -199,6 +203,8 @@ class LibrarySetupViewModel(
                         needsSetup = false,
                     )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to create library" }

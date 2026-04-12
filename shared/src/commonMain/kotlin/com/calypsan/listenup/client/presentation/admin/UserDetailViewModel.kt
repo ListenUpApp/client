@@ -45,6 +45,8 @@ class UserDetailViewModel(
                         canShare = user.permissions.canShare,
                         isProtected = user.isProtected,
                     )
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to load user: $userId" }
@@ -86,6 +88,8 @@ class UserDetailViewModel(
                         user = updatedUser,
                         canShare = updatedUser.permissions.canShare,
                     )
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to update canShare for user: $userId" }

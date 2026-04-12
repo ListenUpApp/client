@@ -519,6 +519,8 @@ class ABSImportHubViewModel(
                     hubState.update {
                         it.copy(bookSearchResults = response.hits, isSearchingBooks = false)
                     }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     ErrorBus.emit(e)
                     logger.error(e) { "Book search failed" }

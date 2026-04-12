@@ -203,6 +203,8 @@ class MetadataViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Metadata search failed" }
@@ -263,6 +265,8 @@ class MetadataViewModel(
                     )
                 }
             } catch (e: CancellationException) {
+                throw e
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
@@ -419,6 +423,8 @@ class MetadataViewModel(
                     )
                 }
             } catch (e: CancellationException) {
+                throw e
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)

@@ -98,6 +98,8 @@ class AdminCategoriesViewModel(
                     expanded.add(parentId)
                     state.value = state.value.copy(expandedIds = expanded)
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to create genre" }
@@ -119,6 +121,8 @@ class AdminCategoriesViewModel(
             state.value = state.value.copy(isSaving = true, error = null)
             try {
                 genreRepository.updateGenre(id, name)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to rename genre" }
@@ -137,6 +141,8 @@ class AdminCategoriesViewModel(
             state.value = state.value.copy(isSaving = true, error = null)
             try {
                 genreRepository.deleteGenre(id)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to delete genre" }
@@ -164,6 +170,8 @@ class AdminCategoriesViewModel(
                     expanded.add(newParentId)
                     state.value = state.value.copy(expandedIds = expanded)
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to move genre" }

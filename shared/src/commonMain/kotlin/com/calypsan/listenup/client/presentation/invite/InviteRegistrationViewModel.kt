@@ -64,6 +64,8 @@ class InviteRegistrationViewModel(
                             loadingState = InviteLoadingState.Loaded(details),
                         )
                 }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 val message =
@@ -141,6 +143,8 @@ class InviteRegistrationViewModel(
                 userRepository.saveUser(result.user)
 
                 state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Success)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 val errorType = e.toInviteErrorType()

@@ -149,6 +149,7 @@ class AdminSettingsViewModel(
     /**
      * Persist all current settings to the server.
      */
+    @Suppress("ThrowsCount") // Boundary function: rethrow CancellationException + throw per-field failures
     fun saveAll() {
         viewModelScope.launch {
             state.value = state.value.copy(isSaving = true, error = null)
@@ -198,6 +199,8 @@ class AdminSettingsViewModel(
                         isSaving = false,
                     )
                 updateDirty()
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to save settings" }

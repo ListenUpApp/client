@@ -48,6 +48,8 @@ class LibrarySettingsViewModel(
                         accessMode = library.accessMode,
                         skipInbox = library.skipInbox,
                     )
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to load library: $libraryId" }
@@ -88,6 +90,8 @@ class LibrarySettingsViewModel(
                         library = updatedLibrary,
                         accessMode = updatedLibrary.accessMode,
                     )
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to update access mode for library: $libraryId" }
@@ -129,6 +133,8 @@ class LibrarySettingsViewModel(
                         library = updatedLibrary,
                         skipInbox = updatedLibrary.skipInbox,
                     )
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to update skip inbox for library: $libraryId" }
@@ -158,6 +164,8 @@ class LibrarySettingsViewModel(
                         isSaving = false,
                         library = updatedLibrary,
                     )
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to remove scan path from library: $libraryId" }
@@ -185,6 +193,8 @@ class LibrarySettingsViewModel(
                         isSaving = false,
                         library = updatedLibrary,
                     )
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to add scan path to library: $libraryId" }
@@ -208,6 +218,8 @@ class LibrarySettingsViewModel(
                 adminRepository.triggerScan(libraryId)
                 logger.info { "Triggered scan for library $libraryId" }
                 state.value = state.value.copy(isScanning = false)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to trigger scan for library: $libraryId" }
@@ -253,6 +265,8 @@ class LibrarySettingsViewModel(
                         browserEntries = response.entries,
                         browserIsRoot = response.isRoot,
                     )
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to browse directory: $path" }

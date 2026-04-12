@@ -300,6 +300,8 @@ class SearchViewModel(
                     limit = DEFAULT_RESULT_LIMIT,
                 )
             SearchFlowResult.Success(query, result)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             ErrorBus.emit(e)
             SearchFlowResult.Error(query, e)

@@ -125,6 +125,8 @@ class SetupViewModel(
                 userRepository.saveUser(result.user)
 
                 state.value = SetupUiState(status = SetupStatus.Success)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 val errorType = e.toSetupErrorType()

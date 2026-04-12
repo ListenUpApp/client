@@ -247,6 +247,8 @@ class DiscoverViewModel(
             try {
                 val count = shelfRepository.fetchAndCacheDiscoverShelves()
                 logger.info { "Fetched and stored $count discover shelves" }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to fetch discover shelves" }
@@ -263,6 +265,8 @@ class DiscoverViewModel(
             try {
                 val count = shelfRepository.fetchAndCacheDiscoverShelves()
                 logger.debug { "Refreshed $count discover shelves from API" }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to refresh discover shelves" }

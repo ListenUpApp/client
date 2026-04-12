@@ -83,6 +83,8 @@ class AdminCollectionDetailViewModel(
                 // Load books and shares in parallel
                 loadBooks()
                 loadShares()
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to load collection: $collectionId" }

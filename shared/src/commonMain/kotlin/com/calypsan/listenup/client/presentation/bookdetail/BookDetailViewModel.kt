@@ -240,6 +240,8 @@ class BookDetailViewModel(
             try {
                 tagRepository.addTagToBook(bookId, slug)
                 // Observer will update UI automatically
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to add tag '$slug' to book $bookId" }
@@ -262,6 +264,8 @@ class BookDetailViewModel(
             try {
                 tagRepository.removeTagFromBook(bookId, slug, tag.id)
                 // Observer will update UI automatically
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to remove tag '$slug' from book $bookId" }
@@ -287,6 +291,8 @@ class BookDetailViewModel(
                 tagRepository.addTagToBook(bookId, rawInput)
                 // Observer will update UI automatically
                 hideTagPicker()
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to add tag '$rawInput' to book $bookId" }
