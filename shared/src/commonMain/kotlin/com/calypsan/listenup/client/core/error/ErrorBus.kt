@@ -6,27 +6,19 @@ import kotlinx.coroutines.flow.SharedFlow
 /**
  * Global error bus for surfacing errors from any layer to the UI.
  *
- * Any component (repository, sync engine, background task) can emit errors here.
- * The UI subscribes once in AppShell to display them via Snackbar.
+ * Any component (repository, sync engine, background task) emits [AppError]s here and
+ * the UI subscribes once in `AppShell` to display them via Snackbar.
  *
- * This is intentionally a singleton object rather than a DI-provided instance
- * because error reporting needs to work from static contexts (e.g., global
- * exception handlers) where DI isn't available.
+ * **Migration status:** this is still a singleton `object` for backward compatibility —
+ * 73 call sites across 30 files need to be migrated. The rubric target (Finding 01 D9 +
+ * resolved checkpoint) is a DI-provided `single<ErrorBus>` injected into consumers
+ * instead of a global. That conversion lands as part of W2b alongside the
+ * `Result → AppResult` migration (same files touched).
  *
- * Usage from data/domain layer:
+ * Usage (current shape, will evolve to injected `errorBus.emit(...)`):
  * ```kotlin
- * } catch (e: Exception) {
- *     val error = ErrorMapper.map(e)
- *     ErrorBus.emit(error)
- * }
- * ```
- *
- * Usage from UI layer (handled automatically by GlobalErrorSnackbar):
- * ```kotlin
- * LaunchedEffect(Unit) {
- *     ErrorBus.errors.collect { error ->
- *         snackbarHostState.showSnackbar(error.message)
- *     }
+ * } catch (e: AppException) {
+ *     ErrorBus.emit(e.error)
  * }
  * ```
  */
@@ -47,8 +39,20 @@ object ErrorBus {
     }
 
     /**
-     * Convenience: map an exception to AppError and emit it.
+     * Convenience: map a raw [Throwable] to [AppError] and emit it.
+     *
+     * **Deprecated.** Per Finding 01 D9 / the "One error-mapping site per HTTP client"
+     * rubric rule: [ErrorMapper] must run at the Ktor boundary, not at every UI catch
+     * site, so consumers should already hold a typed [AppError] (via `AppException.error`)
+     * by the time they reach the bus. Keep only until every call site has been migrated
+     * in W2b; then delete this overload.
      */
+    @Deprecated(
+        message =
+            "Pass an already-mapped AppError; ErrorMapper runs at the HTTP boundary. " +
+                "Callers that catch AppException should emit(appException.error).",
+        replaceWith = ReplaceWith("emit(ErrorMapper.map(exception))"),
+    )
     fun emit(exception: Throwable) {
         _errors.tryEmit(ErrorMapper.map(exception))
     }
