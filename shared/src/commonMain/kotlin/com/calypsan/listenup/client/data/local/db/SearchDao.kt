@@ -245,4 +245,20 @@ interface SearchDao {
     """,
     )
     suspend fun getSeriesNamesForBook(bookId: String): String?
+
+    /**
+     * Get genre names for a book (comma-separated).
+     *
+     * Returns names of all genres attached to the book via the `book_genres`
+     * junction, joined with `", "`. Used for FTS indexing to make books
+     * searchable by genre name. Returns null when the book has no genres.
+     */
+    @Query(
+        """
+        SELECT GROUP_CONCAT(g.name, ', ') FROM genres g
+        INNER JOIN book_genres bg ON g.id = bg.genreId
+        WHERE bg.bookId = :bookId
+    """,
+    )
+    suspend fun getGenreNamesForBook(bookId: String): String?
 }
