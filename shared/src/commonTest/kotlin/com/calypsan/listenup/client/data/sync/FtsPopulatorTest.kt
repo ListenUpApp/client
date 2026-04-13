@@ -61,6 +61,7 @@ class FtsPopulatorTest {
         everySuspend { fixture.searchDao.getPrimaryAuthorName(any()) } returns null
         everySuspend { fixture.searchDao.getPrimaryNarratorName(any()) } returns null
         everySuspend { fixture.searchDao.getSeriesNamesForBook(any()) } returns null
+        everySuspend { fixture.searchDao.getGenreNamesForBook(any()) } returns null
         everySuspend { fixture.searchDao.insertBookFts(any(), any(), any(), any(), any(), any(), any(), any()) } returns
             Unit
         everySuspend { fixture.searchDao.insertContributorFts(any(), any(), any()) } returns Unit
@@ -76,7 +77,6 @@ class FtsPopulatorTest {
         title: String = "Test Book",
         subtitle: String? = null,
         description: String? = null,
-        genres: String? = null,
     ): BookEntity =
         BookEntity(
             id = BookId(id),
@@ -85,7 +85,6 @@ class FtsPopulatorTest {
             coverUrl = null,
             totalDuration = 3_600_000L,
             description = description,
-            genres = genres,
             publishYear = 2024,
             audioFilesJson = null,
             syncState = SyncState.SYNCED,
@@ -274,22 +273,22 @@ class FtsPopulatorTest {
     @Test
     fun `rebuildAll includes genres in FTS`() =
         runTest {
-            // Given - series names now come from SeriesEntity FTS, not BookEntity
+            // Given - genre names now come from book_genres junction via getGenreNamesForBook
             val fixture = createFixture()
             val book =
                 createBookEntity(
                     id = "book-1",
                     title = "Fantasy Book",
-                    genres = "fantasy,adventure",
                 )
 
             everySuspend { fixture.bookDao.getAll() } returns listOf(book)
+            everySuspend { fixture.searchDao.getGenreNamesForBook("book-1") } returns "Fantasy, Adventure"
             val ftsPopulator = fixture.build()
 
             // When
             ftsPopulator.rebuildAll()
 
-            // Then - series names now come from junction table via getSeriesNamesForBook
+            // Then - both series and genre names come from junction tables, not BookEntity
             verifySuspend {
                 fixture.searchDao.insertBookFts(
                     "book-1",
@@ -298,8 +297,8 @@ class FtsPopulatorTest {
                     null,
                     null,
                     null,
-                    null, // Series comes from junction table, not BookEntity
-                    "fantasy,adventure",
+                    null, // Series comes from junction table
+                    "Fantasy, Adventure", // Genres come from junction table
                 )
             }
         }

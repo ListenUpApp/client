@@ -85,6 +85,7 @@ class FtsPopulator(
                 val authorName = searchDao.getPrimaryAuthorName(book.id.value)
                 val narratorName = searchDao.getPrimaryNarratorName(book.id.value)
                 val seriesNames = searchDao.getSeriesNamesForBook(book.id.value)
+                val genreNames = searchDao.getGenreNamesForBook(book.id.value)
 
                 searchDao.insertBookFts(
                     bookId = book.id.value,
@@ -94,7 +95,7 @@ class FtsPopulator(
                     author = authorName,
                     narrator = narratorName,
                     seriesName = seriesNames,
-                    genres = book.genres,
+                    genres = genreNames,
                 )
                 insertCount++
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
