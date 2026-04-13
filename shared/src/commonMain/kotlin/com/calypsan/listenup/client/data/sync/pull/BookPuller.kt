@@ -5,9 +5,11 @@ import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
+import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.ChapterDao
+import com.calypsan.listenup.client.data.local.db.GenreDao
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
@@ -36,6 +38,7 @@ class BookPuller(
     private val bookContributorDao: BookContributorDao,
     private val bookSeriesDao: BookSeriesDao,
     private val tagDao: TagDao,
+    private val genreDao: GenreDao,
     private val conflictDetector: ConflictDetectorContract,
     private val imageDownloader: ImageDownloaderContract,
     private val coverDownloadDao: com.calypsan.listenup.client.data.local.db.CoverDownloadDao,
@@ -148,6 +151,7 @@ class BookPuller(
             syncBookContributors(response, booksToUpsert)
             syncBookSeries(response, booksToUpsert)
             syncBookTags(response, booksToUpsert)
+            syncBookGenres(response, booksToUpsert)
 
             enqueueCoverDownloads(booksToUpsert)
         }
@@ -301,6 +305,49 @@ class BookPuller(
         if (bookTagCrossRefs.isNotEmpty()) {
             tagDao.insertAllBookTags(bookTagCrossRefs)
             logger.debug { "Created ${bookTagCrossRefs.size} book-tag relationships" }
+        }
+    }
+
+    private suspend fun syncBookGenres(
+        response: SyncBooksResponse,
+        upsertedBooks: List<BookEntity>,
+    ) {
+        val upsertedIds = upsertedBooks.map { it.id.value }.toSet()
+        val perBook: List<Pair<String, List<String>>> =
+            response.books
+                .filter { it.id in upsertedIds }
+                .map { it.id to it.genres.orEmpty() }
+
+        val allNames = perBook.flatMap { it.second }.distinctBy { it.lowercase() }
+
+        if (allNames.isEmpty()) {
+            // Server sent no genres for these books — clear any existing junctions
+            // so the server remains the authoritative source of record.
+            upsertedIds.forEach { genreDao.deleteGenresForBook(BookId(it)) }
+            return
+        }
+
+        val nameToId: Map<String, String> =
+            genreDao.getIdsByNames(allNames).associate { it.name.lowercase() to it.id }
+
+        val crossRefs =
+            perBook.flatMap { (bookIdStr, names) ->
+                val bookId = BookId(bookIdStr)
+                genreDao.deleteGenresForBook(bookId)
+                names.mapNotNull { name ->
+                    val id = nameToId[name.lowercase()]
+                    if (id == null) {
+                        logger.warn { "Genre '$name' not in catalog; skipping for book $bookIdStr" }
+                        null
+                    } else {
+                        BookGenreCrossRef(bookId = bookId, genreId = id)
+                    }
+                }
+            }
+
+        if (crossRefs.isNotEmpty()) {
+            genreDao.insertAllBookGenres(crossRefs)
+            logger.debug { "Created ${crossRefs.size} book-genre relationships" }
         }
     }
 

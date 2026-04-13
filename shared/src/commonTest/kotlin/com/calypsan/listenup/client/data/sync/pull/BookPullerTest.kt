@@ -6,11 +6,14 @@ import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
+import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
+import com.calypsan.listenup.client.data.local.db.GenreDao
+import com.calypsan.listenup.client.data.local.db.GenreIdName
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
@@ -62,6 +65,7 @@ class BookPullerTest {
         contributors: List<BookContributorResponse> = emptyList(),
         seriesInfo: List<BookSeriesInfoResponse> = emptyList(),
         chapters: List<ChapterResponse> = emptyList(),
+        genres: List<String>? = null,
     ): BookResponse =
         BookResponse(
             id = id,
@@ -70,7 +74,7 @@ class BookPullerTest {
             coverImage = null,
             totalDuration = 3_600_000L,
             description = null,
-            genres = null,
+            genres = genres,
             publishYear = null,
             seriesInfo = seriesInfo,
             chapters = chapters,
@@ -127,6 +131,7 @@ class BookPullerTest {
         val bookContributorDao: BookContributorDao = mock()
         val bookSeriesDao: BookSeriesDao = mock()
         val tagDao: TagDao = mock()
+        val genreDao: GenreDao = mock()
         val conflictDetector: ConflictDetectorContract = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val coverDownloadDao: com.calypsan.listenup.client.data.local.db.CoverDownloadDao = mock()
@@ -145,6 +150,9 @@ class BookPullerTest {
             everySuspend { tagDao.upsertAll(any<List<TagEntity>>()) } returns Unit
             everySuspend { tagDao.deleteTagsForBook(any()) } returns Unit
             everySuspend { tagDao.insertAllBookTags(any<List<BookTagCrossRef>>()) } returns Unit
+            everySuspend { genreDao.deleteGenresForBook(any()) } returns Unit
+            everySuspend { genreDao.getIdsByNames(any()) } returns emptyList()
+            everySuspend { genreDao.insertAllBookGenres(any<List<BookGenreCrossRef>>()) } returns Unit
             everySuspend { conflictDetector.detectBookConflicts(any()) } returns emptyList()
             everySuspend { conflictDetector.shouldPreserveLocalChanges(any()) } returns false
             everySuspend { imageDownloader.deleteCover(any()) } returns Success(Unit)
@@ -160,6 +168,7 @@ class BookPullerTest {
                 bookContributorDao = bookContributorDao,
                 bookSeriesDao = bookSeriesDao,
                 tagDao = tagDao,
+                genreDao = genreDao,
                 conflictDetector = conflictDetector,
                 imageDownloader = imageDownloader,
                 coverDownloadDao = coverDownloadDao,
@@ -564,5 +573,86 @@ class BookPullerTest {
 
             // Then - API called with null (full sync)
             verifySuspend { fixture.syncApi.getBooks(any(), any(), null) }
+        }
+
+    // ========== Genre Sync Tests ==========
+
+    @Test
+    fun `syncBookGenres resolves names to ids and writes junction rows`() =
+        runTest {
+            // Given — server sends a book with two genre names that both resolve.
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Success(
+                    SyncBooksResponse(
+                        books =
+                            listOf(
+                                createBookResponse(
+                                    id = "book-1",
+                                    genres = listOf("Fantasy", "Horror"),
+                                ),
+                            ),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            everySuspend { fixture.genreDao.getIdsByNames(any()) } returns
+                listOf(
+                    GenreIdName(id = "g1", name = "Fantasy"),
+                    GenreIdName(id = "g3", name = "Horror"),
+                )
+            val puller = fixture.build()
+
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
+
+            // Then — delete previous junctions for the book, then insert both cross-refs.
+            verifySuspend { fixture.genreDao.deleteGenresForBook(BookId("book-1")) }
+            verifySuspend {
+                fixture.genreDao.insertAllBookGenres(
+                    listOf(
+                        BookGenreCrossRef(bookId = BookId("book-1"), genreId = "g1"),
+                        BookGenreCrossRef(bookId = BookId("book-1"), genreId = "g3"),
+                    ),
+                )
+            }
+        }
+
+    @Test
+    fun `syncBookGenres drops unresolved names with a warning`() =
+        runTest {
+            // Given — server sends two names but only "Fantasy" is in the local catalog.
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Success(
+                    SyncBooksResponse(
+                        books =
+                            listOf(
+                                createBookResponse(
+                                    id = "book-1",
+                                    genres = listOf("Fantasy", "UnknownGenre"),
+                                ),
+                            ),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            everySuspend { fixture.genreDao.getIdsByNames(any()) } returns
+                listOf(GenreIdName(id = "g1", name = "Fantasy"))
+            val puller = fixture.build()
+
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
+
+            // Then — only the resolved cross-ref is inserted; unknown name is dropped.
+            verifySuspend {
+                fixture.genreDao.insertAllBookGenres(
+                    listOf(BookGenreCrossRef(bookId = BookId("book-1"), genreId = "g1")),
+                )
+            }
         }
 }

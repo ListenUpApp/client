@@ -906,6 +906,7 @@ val syncModule =
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
                 tagDao = get(),
+                genreDao = get(),
                 imageDownloader = get(),
                 conflictDetector = get(),
                 coverDownloadDao = get(),

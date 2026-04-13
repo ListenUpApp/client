@@ -116,6 +116,7 @@ class BookPullerAtomicityTest {
                     bookContributorDao = db.bookContributorDao(),
                     bookSeriesDao = db.bookSeriesDao(),
                     tagDao = db.tagDao(),
+                    genreDao = db.genreDao(),
                     conflictDetector = conflictDetector,
                     imageDownloader = imageDownloader,
                     coverDownloadDao = failingCoverDownloadDao,
