@@ -3,21 +3,22 @@ package com.calypsan.listenup.client.data.local.db
 /*
  * Data classes for FTS5 full-text search entries.
  *
- * These are NOT Room entities - FTS5 virtual tables are created manually
- * in migrations and accessed via raw SQL queries in SearchDao.
+ * These are NOT Room entities — the three `*_fts` virtual tables are created
+ * manually by `FtsTableCallback` in the platform DatabaseModules and read via
+ * raw SQL in SearchDao.
  *
- * Room doesn't have @Fts5 annotation, so we manage these tables directly.
- * The FTS5 tables use porter tokenizer for stemming.
+ * Why not @Fts5 @Entity? Room 2.8.4 only ships `@Fts3` and `@Fts4`; the `@Fts5`
+ * annotation is Room 3.0.0-alpha only (not production-ready). Falling back to
+ * @Fts4 would force us onto fts4 virtual tables, losing `bm25()` relevance
+ * ranking and the FTS5 tokenizer pipeline we currently depend on in SearchDao.
  *
- * Why FTS5 over FTS4?
- * - bm25() built-in ranking function
- * - Better performance
- * - Modern SQLite feature (available since SQLite 3.9.0, Android 5.0+)
+ * Revisit when Room 3.x ships a stable release — at that point these data
+ * classes fold into @Fts5 @Entity declarations and the Callback disappears
+ * (restoration-roadmap W4.4 deferred item).
  *
  * Why standalone tables (not external content)?
  * - Simpler sync: delete all + reinsert during sync
  * - No trigger complexity
- * - Room handles it better
  * - Small storage overhead is acceptable for reliability
  */
 
