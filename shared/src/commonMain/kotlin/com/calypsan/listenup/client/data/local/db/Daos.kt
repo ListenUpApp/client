@@ -154,6 +154,18 @@ interface ContributorDao {
     @Query("SELECT * FROM contributors")
     fun observeAll(): Flow<List<ContributorEntity>>
 
+    @Transaction
+    @Query("SELECT * FROM contributors")
+    fun observeAllWithAliases(): Flow<List<ContributorWithAliases>>
+
+    @Transaction
+    @Query("SELECT * FROM contributors WHERE id = :id")
+    fun observeByIdWithAliases(id: String): Flow<ContributorWithAliases?>
+
+    @Transaction
+    @Query("SELECT * FROM contributors WHERE id = :id")
+    suspend fun getByIdWithAliases(id: String): ContributorWithAliases?
+
     /**
      * Get all contributors synchronously.
      * Used by FtsPopulator to populate FTS tables during sync.

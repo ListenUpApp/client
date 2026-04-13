@@ -396,3 +396,26 @@ data class ContributorAliasCrossRef(
     val contributorId: ContributorId,
     val alias: String,
 )
+
+/**
+ * Read projection composing a [ContributorEntity] with its aliases from the
+ * [ContributorAliasCrossRef] junction.
+ *
+ * Room batches the alias lookup across list reads so a single query feeds
+ * N entities — O(1) queries per list read, not O(n). Consumers that don't
+ * need aliases (e.g., `FtsPopulator`, `BrowseTreeProvider`) keep using the
+ * entity-only DAO methods.
+ *
+ * @property contributor The contributor entity
+ * @property aliases Alphabetically sorted list of alias names (case-insensitive)
+ */
+data class ContributorWithAliases(
+    @Embedded val contributor: ContributorEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "contributorId",
+        entity = ContributorAliasCrossRef::class,
+        projection = ["alias"],
+    )
+    val aliases: List<String>,
+)

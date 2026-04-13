@@ -158,4 +158,28 @@ class ContributorAliasDaoTest {
             assertTrue("Bachman" in result)
             assertTrue("BACHMAN" in result)
         }
+
+    @Test
+    fun `observeByIdWithAliases returns contributor with sorted aliases`() =
+        runTest {
+            seedContributor()
+            aliasDao.insertAll(
+                listOf(
+                    ContributorAliasCrossRef(ContributorId("c-1"), "Swithen"),
+                    ContributorAliasCrossRef(ContributorId("c-1"), "Bachman"),
+                ),
+            )
+
+            val result = contributorDao.getByIdWithAliases("c-1")
+
+            kotlin.test.assertNotNull(result)
+            assertEquals("c-1", result.contributor.id.value)
+            assertEquals(listOf("Bachman", "Swithen"), result.aliases)
+        }
+
+    @Test
+    fun `getByIdWithAliases returns null for missing contributor`() =
+        runTest {
+            assertEquals(null, contributorDao.getByIdWithAliases("no-such-id"))
+        }
 }
