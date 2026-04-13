@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
+import com.calypsan.listenup.client.data.local.db.ContributorWithAliases
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
@@ -61,7 +62,6 @@ class ContributorRepositoryImplTest {
         website: String? = null,
         birthDate: String? = null,
         deathDate: String? = null,
-        aliases: String? = null,
         syncState: SyncState = SyncState.SYNCED,
         lastModified: Long = 1000L,
         serverVersion: Long = 1000L,
@@ -79,13 +79,18 @@ class ContributorRepositoryImplTest {
             website = website,
             birthDate = birthDate,
             deathDate = deathDate,
-            aliases = aliases,
+            aliases = null,
             syncState = syncState,
             lastModified = Timestamp(lastModified),
             serverVersion = Timestamp(serverVersion),
             createdAt = Timestamp(createdAt),
             updatedAt = Timestamp(updatedAt),
         )
+
+    private fun createTestContributorWithAliases(
+        entity: ContributorEntity = createTestContributorEntity(),
+        aliases: List<String> = emptyList(),
+    ): ContributorWithAliases = ContributorWithAliases(contributor = entity, aliases = aliases)
 
     // ========== observeAll Tests ==========
 
@@ -94,7 +99,7 @@ class ContributorRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            every { dao.observeAll() } returns flowOf(emptyList())
+            every { dao.observeAllWithAliases() } returns flowOf(emptyList())
             val repository = createRepository(dao)
 
             // When
@@ -108,21 +113,27 @@ class ContributorRepositoryImplTest {
     fun `observeAll transforms entities to domain models`() =
         runTest {
             // Given
-            val entities =
+            val rows =
                 listOf(
-                    createTestContributorEntity(
-                        id = "contrib-1",
-                        name = "Brandon Sanderson",
-                        description = "Fantasy author",
+                    createTestContributorWithAliases(
+                        entity =
+                            createTestContributorEntity(
+                                id = "contrib-1",
+                                name = "Brandon Sanderson",
+                                description = "Fantasy author",
+                            ),
                     ),
-                    createTestContributorEntity(
-                        id = "contrib-2",
-                        name = "Michael Kramer",
-                        description = "Audiobook narrator",
+                    createTestContributorWithAliases(
+                        entity =
+                            createTestContributorEntity(
+                                id = "contrib-2",
+                                name = "Michael Kramer",
+                                description = "Audiobook narrator",
+                            ),
                     ),
                 )
             val dao = createMockDao()
-            every { dao.observeAll() } returns flowOf(entities)
+            every { dao.observeAllWithAliases() } returns flowOf(rows)
             val repository = createRepository(dao)
 
             // When
@@ -142,14 +153,14 @@ class ContributorRepositoryImplTest {
     fun `observeAll preserves entity order from dao`() =
         runTest {
             // Given - entities ordered by name
-            val entities =
+            val rows =
                 listOf(
-                    createTestContributorEntity(id = "c1", name = "Aaron"),
-                    createTestContributorEntity(id = "c2", name = "Brandon"),
-                    createTestContributorEntity(id = "c3", name = "Cory"),
+                    createTestContributorWithAliases(entity = createTestContributorEntity(id = "c1", name = "Aaron")),
+                    createTestContributorWithAliases(entity = createTestContributorEntity(id = "c2", name = "Brandon")),
+                    createTestContributorWithAliases(entity = createTestContributorEntity(id = "c3", name = "Cory")),
                 )
             val dao = createMockDao()
-            every { dao.observeAll() } returns flowOf(entities)
+            every { dao.observeAllWithAliases() } returns flowOf(rows)
             val repository = createRepository(dao)
 
             // When
@@ -162,18 +173,18 @@ class ContributorRepositoryImplTest {
         }
 
     @Test
-    fun `observeAll delegates to dao observeAll`() =
+    fun `observeAll delegates to dao observeAllWithAliases`() =
         runTest {
             // Given
             val dao = createMockDao()
-            every { dao.observeAll() } returns flowOf(emptyList())
+            every { dao.observeAllWithAliases() } returns flowOf(emptyList())
             val repository = createRepository(dao)
 
             // When
             repository.observeAll().first()
 
             // Then
-            verify { dao.observeAll() }
+            verify { dao.observeAllWithAliases() }
         }
 
     // ========== observeById Tests ==========
@@ -183,7 +194,7 @@ class ContributorRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            every { dao.observeById("nonexistent") } returns flowOf(null)
+            every { dao.observeByIdWithAliases("nonexistent") } returns flowOf(null)
             val repository = createRepository(dao)
 
             // When
@@ -197,15 +208,18 @@ class ContributorRepositoryImplTest {
     fun `observeById returns contributor when found`() =
         runTest {
             // Given
-            val entity =
-                createTestContributorEntity(
-                    id = "contrib-1",
-                    name = "Stephen King",
-                    description = "Horror author",
-                    website = "https://stephenking.com",
+            val row =
+                createTestContributorWithAliases(
+                    entity =
+                        createTestContributorEntity(
+                            id = "contrib-1",
+                            name = "Stephen King",
+                            description = "Horror author",
+                            website = "https://stephenking.com",
+                        ),
                 )
             val dao = createMockDao()
-            every { dao.observeById("contrib-1") } returns flowOf(entity)
+            every { dao.observeByIdWithAliases("contrib-1") } returns flowOf(row)
             val repository = createRepository(dao)
 
             // When
@@ -222,21 +236,24 @@ class ContributorRepositoryImplTest {
     @Test
     fun `observeById transforms entity correctly`() =
         runTest {
-            // Given
-            val entity =
-                createTestContributorEntity(
-                    id = "contrib-42",
-                    name = "Test Author",
-                    description = "Test description",
-                    imagePath = "/images/author.jpg",
-                    imageBlurHash = "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
-                    website = "https://example.com",
-                    birthDate = "1947-09-21",
-                    deathDate = null,
-                    aliases = "Richard Bachman, John Swithen",
+            // Given — aliases seeded in arbitrary order to prove repository-level sorting
+            val row =
+                createTestContributorWithAliases(
+                    entity =
+                        createTestContributorEntity(
+                            id = "contrib-42",
+                            name = "Test Author",
+                            description = "Test description",
+                            imagePath = "/images/author.jpg",
+                            imageBlurHash = "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+                            website = "https://example.com",
+                            birthDate = "1947-09-21",
+                            deathDate = null,
+                        ),
+                    aliases = listOf("Richard Bachman", "John Swithen"),
                 )
             val dao = createMockDao()
-            every { dao.observeById("contrib-42") } returns flowOf(entity)
+            every { dao.observeByIdWithAliases("contrib-42") } returns flowOf(row)
             val repository = createRepository(dao)
 
             // When
@@ -252,7 +269,8 @@ class ContributorRepositoryImplTest {
             assertEquals("https://example.com", result.website)
             assertEquals("1947-09-21", result.birthDate)
             assertNull(result.deathDate)
-            assertEquals(listOf("Richard Bachman", "John Swithen"), result.aliases)
+            // Sorted case-insensitively at the domain boundary
+            assertEquals(listOf("John Swithen", "Richard Bachman"), result.aliases)
         }
 
     @Test
@@ -260,14 +278,14 @@ class ContributorRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            every { dao.observeById("target-id") } returns flowOf(null)
+            every { dao.observeByIdWithAliases("target-id") } returns flowOf(null)
             val repository = createRepository(dao)
 
             // When
             repository.observeById("target-id").first()
 
             // Then
-            verify { dao.observeById("target-id") }
+            verify { dao.observeByIdWithAliases("target-id") }
         }
 
     // ========== getById Tests ==========
@@ -277,7 +295,7 @@ class ContributorRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            everySuspend { dao.getById("nonexistent") } returns null
+            everySuspend { dao.getByIdWithAliases("nonexistent") } returns null
             val repository = createRepository(dao)
 
             // When
@@ -291,14 +309,17 @@ class ContributorRepositoryImplTest {
     fun `getById returns contributor when found`() =
         runTest {
             // Given
-            val entity =
-                createTestContributorEntity(
-                    id = "contrib-1",
-                    name = "Neil Gaiman",
-                    description = "Fantasy/Horror author",
+            val row =
+                createTestContributorWithAliases(
+                    entity =
+                        createTestContributorEntity(
+                            id = "contrib-1",
+                            name = "Neil Gaiman",
+                            description = "Fantasy/Horror author",
+                        ),
                 )
             val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
+            everySuspend { dao.getByIdWithAliases("contrib-1") } returns row
             val repository = createRepository(dao)
 
             // When
@@ -314,21 +335,24 @@ class ContributorRepositoryImplTest {
     @Test
     fun `getById transforms all entity fields correctly`() =
         runTest {
-            // Given
-            val entity =
-                createTestContributorEntity(
-                    id = "complete-contrib",
-                    name = "Complete Author",
-                    description = "Full biography here",
-                    imagePath = "/path/to/image.jpg",
-                    imageBlurHash = "ABC123",
-                    website = "https://author.com",
-                    birthDate = "1960-01-15",
-                    deathDate = "2020-12-31",
-                    aliases = "Pen Name One, Pen Name Two, Pen Name Three",
+            // Given — seed in arbitrary order to prove repository-level sorting
+            val row =
+                createTestContributorWithAliases(
+                    entity =
+                        createTestContributorEntity(
+                            id = "complete-contrib",
+                            name = "Complete Author",
+                            description = "Full biography here",
+                            imagePath = "/path/to/image.jpg",
+                            imageBlurHash = "ABC123",
+                            website = "https://author.com",
+                            birthDate = "1960-01-15",
+                            deathDate = "2020-12-31",
+                        ),
+                    aliases = listOf("Pen Name Two", "Pen Name One", "Pen Name Three"),
                 )
             val dao = createMockDao()
-            everySuspend { dao.getById("complete-contrib") } returns entity
+            everySuspend { dao.getByIdWithAliases("complete-contrib") } returns row
             val repository = createRepository(dao)
 
             // When
@@ -344,10 +368,12 @@ class ContributorRepositoryImplTest {
             assertEquals("https://author.com", result.website)
             assertEquals("1960-01-15", result.birthDate)
             assertEquals("2020-12-31", result.deathDate)
+            // Sorted case-insensitively at the domain boundary:
+            // "Pen Name One" < "Pen Name Three" < "Pen Name Two" (O < Th < Tw)
             assertEquals(3, result.aliases.size)
             assertEquals("Pen Name One", result.aliases[0])
-            assertEquals("Pen Name Two", result.aliases[1])
-            assertEquals("Pen Name Three", result.aliases[2])
+            assertEquals("Pen Name Three", result.aliases[1])
+            assertEquals("Pen Name Two", result.aliases[2])
         }
 
     @Test
@@ -355,14 +381,14 @@ class ContributorRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            everySuspend { dao.getById("target-id") } returns null
+            everySuspend { dao.getByIdWithAliases("target-id") } returns null
             val repository = createRepository(dao)
 
             // When
             repository.getById("target-id")
 
             // Then
-            verifySuspend { dao.getById("target-id") }
+            verifySuspend { dao.getByIdWithAliases("target-id") }
         }
 
     // ========== observeByBookId Tests ==========
@@ -413,7 +439,6 @@ class ContributorRepositoryImplTest {
                     id = "contrib-1",
                     name = "Kate Reading",
                     description = "Narrator",
-                    aliases = "Katherine Reading",
                 )
             val dao = createMockDao()
             every { dao.observeByBookId("book-42") } returns flowOf(listOf(entity))
@@ -422,12 +447,12 @@ class ContributorRepositoryImplTest {
             // When
             val result = repository.observeByBookId("book-42").first()
 
-            // Then
+            // Then — aliases come from the junction table and are not covered by this path;
+            // task 8 removes the entity field entirely. Scope this test to the non-alias fields.
             assertEquals(1, result.size)
             assertEquals("contrib-1", result[0].id.value)
             assertEquals("Kate Reading", result[0].name)
             assertEquals("Narrator", result[0].description)
-            assertEquals(listOf("Katherine Reading"), result[0].aliases)
         }
 
     @Test
@@ -634,26 +659,29 @@ class ContributorRepositoryImplTest {
     fun `toDomain converts all entity fields correctly`() =
         runTest {
             // Given
-            val entity =
-                createTestContributorEntity(
-                    id = "conversion-test",
-                    name = "Full Name",
-                    description = "Full description",
-                    imagePath = "/full/path.jpg",
-                    imageBlurHash = "BLURHASH",
-                    website = "https://full.website.com",
-                    birthDate = "1980-06-15",
-                    deathDate = "2050-12-31",
-                    aliases = "Alias One, Alias Two",
+            val row =
+                createTestContributorWithAliases(
+                    entity =
+                        createTestContributorEntity(
+                            id = "conversion-test",
+                            name = "Full Name",
+                            description = "Full description",
+                            imagePath = "/full/path.jpg",
+                            imageBlurHash = "BLURHASH",
+                            website = "https://full.website.com",
+                            birthDate = "1980-06-15",
+                            deathDate = "2050-12-31",
+                        ),
+                    aliases = listOf("Alias Two", "Alias One"),
                 )
             val dao = createMockDao()
-            everySuspend { dao.getById("conversion-test") } returns entity
+            everySuspend { dao.getByIdWithAliases("conversion-test") } returns row
             val repository = createRepository(dao)
 
             // When
             val result = repository.getById("conversion-test")
 
-            // Then - verify all fields are mapped
+            // Then - verify all fields are mapped, aliases sorted case-insensitively
             assertNotNull(result)
             assertEquals("conversion-test", result.id.value)
             assertEquals("Full Name", result.name)
@@ -672,20 +700,23 @@ class ContributorRepositoryImplTest {
     fun `toDomain handles null optional fields`() =
         runTest {
             // Given
-            val entity =
-                createTestContributorEntity(
-                    id = "minimal-contrib",
-                    name = "Minimal Author",
-                    description = null,
-                    imagePath = null,
-                    imageBlurHash = null,
-                    website = null,
-                    birthDate = null,
-                    deathDate = null,
-                    aliases = null,
+            val row =
+                createTestContributorWithAliases(
+                    entity =
+                        createTestContributorEntity(
+                            id = "minimal-contrib",
+                            name = "Minimal Author",
+                            description = null,
+                            imagePath = null,
+                            imageBlurHash = null,
+                            website = null,
+                            birthDate = null,
+                            deathDate = null,
+                        ),
+                    aliases = emptyList(),
                 )
             val dao = createMockDao()
-            everySuspend { dao.getById("minimal-contrib") } returns entity
+            everySuspend { dao.getByIdWithAliases("minimal-contrib") } returns row
             val repository = createRepository(dao)
 
             // When
@@ -704,15 +735,22 @@ class ContributorRepositoryImplTest {
             assertTrue(result.aliases.isEmpty())
         }
 
-    // ========== Alias Parsing Tests ==========
+    // ========== Alias Projection + Sorting Tests ==========
+    // Aliases are sourced from the `contributor_aliases` junction table (projected by
+    // ContributorWithAliases) and sorted case-insensitively at the domain boundary, since
+    // Room's @Relation does not support ORDER BY on the projected child collection.
 
     @Test
-    fun `toDomain parses single alias correctly`() =
+    fun `toDomain returns single alias unchanged`() =
         runTest {
             // Given
-            val entity = createTestContributorEntity(aliases = "Richard Bachman")
+            val row =
+                createTestContributorWithAliases(
+                    entity = createTestContributorEntity(),
+                    aliases = listOf("Richard Bachman"),
+                )
             val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
+            everySuspend { dao.getByIdWithAliases("contrib-1") } returns row
             val repository = createRepository(dao)
 
             // When
@@ -725,12 +763,16 @@ class ContributorRepositoryImplTest {
         }
 
     @Test
-    fun `toDomain parses multiple aliases correctly`() =
+    fun `toDomain sorts multiple aliases alphabetically`() =
         runTest {
-            // Given
-            val entity = createTestContributorEntity(aliases = "Alias One, Alias Two, Alias Three")
+            // Given — seed in arbitrary order
+            val row =
+                createTestContributorWithAliases(
+                    entity = createTestContributorEntity(),
+                    aliases = listOf("Alias Three", "Alias One", "Alias Two"),
+                )
             val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
+            everySuspend { dao.getByIdWithAliases("contrib-1") } returns row
             val repository = createRepository(dao)
 
             // When
@@ -740,17 +782,21 @@ class ContributorRepositoryImplTest {
             assertNotNull(result)
             assertEquals(3, result.aliases.size)
             assertEquals("Alias One", result.aliases[0])
-            assertEquals("Alias Two", result.aliases[1])
-            assertEquals("Alias Three", result.aliases[2])
+            assertEquals("Alias Three", result.aliases[1])
+            assertEquals("Alias Two", result.aliases[2])
         }
 
     @Test
-    fun `toDomain trims whitespace from aliases`() =
+    fun `toDomain sorts aliases case-insensitively`() =
         runTest {
-            // Given
-            val entity = createTestContributorEntity(aliases = "  Padded Start,Padded End  ,  Both Padded  ")
+            // Given — mixed case; case-insensitive sort must group regardless of case
+            val row =
+                createTestContributorWithAliases(
+                    entity = createTestContributorEntity(),
+                    aliases = listOf("charlie", "Bravo", "alpha", "Delta"),
+                )
             val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
+            everySuspend { dao.getByIdWithAliases("contrib-1") } returns row
             val repository = createRepository(dao)
 
             // When
@@ -758,72 +804,20 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals(3, result.aliases.size)
-            assertEquals("Padded Start", result.aliases[0])
-            assertEquals("Padded End", result.aliases[1])
-            assertEquals("Both Padded", result.aliases[2])
+            assertEquals(listOf("alpha", "Bravo", "charlie", "Delta"), result.aliases)
         }
 
     @Test
-    fun `toDomain filters empty aliases`() =
+    fun `toDomain returns empty list when no aliases projected`() =
         runTest {
             // Given
-            val entity = createTestContributorEntity(aliases = "Valid Alias, , Another Valid,  ,")
+            val row =
+                createTestContributorWithAliases(
+                    entity = createTestContributorEntity(),
+                    aliases = emptyList(),
+                )
             val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
-            val repository = createRepository(dao)
-
-            // When
-            val result = repository.getById("contrib-1")
-
-            // Then
-            assertNotNull(result)
-            assertEquals(2, result.aliases.size)
-            assertEquals("Valid Alias", result.aliases[0])
-            assertEquals("Another Valid", result.aliases[1])
-        }
-
-    @Test
-    fun `toDomain returns empty list for null aliases`() =
-        runTest {
-            // Given
-            val entity = createTestContributorEntity(aliases = null)
-            val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
-            val repository = createRepository(dao)
-
-            // When
-            val result = repository.getById("contrib-1")
-
-            // Then
-            assertNotNull(result)
-            assertTrue(result.aliases.isEmpty())
-        }
-
-    @Test
-    fun `toDomain returns empty list for empty aliases string`() =
-        runTest {
-            // Given
-            val entity = createTestContributorEntity(aliases = "")
-            val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
-            val repository = createRepository(dao)
-
-            // When
-            val result = repository.getById("contrib-1")
-
-            // Then
-            assertNotNull(result)
-            assertTrue(result.aliases.isEmpty())
-        }
-
-    @Test
-    fun `toDomain returns empty list for whitespace-only aliases`() =
-        runTest {
-            // Given
-            val entity = createTestContributorEntity(aliases = "   ")
-            val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
+            everySuspend { dao.getByIdWithAliases("contrib-1") } returns row
             val repository = createRepository(dao)
 
             // When
@@ -840,15 +834,18 @@ class ContributorRepositoryImplTest {
     fun `observeAll handles large number of contributors`() =
         runTest {
             // Given
-            val entities =
+            val rows =
                 (1..100).map { i ->
-                    createTestContributorEntity(
-                        id = "contrib-$i",
-                        name = "Contributor $i",
+                    createTestContributorWithAliases(
+                        entity =
+                            createTestContributorEntity(
+                                id = "contrib-$i",
+                                name = "Contributor $i",
+                            ),
                     )
                 }
             val dao = createMockDao()
-            every { dao.observeAll() } returns flowOf(entities)
+            every { dao.observeAllWithAliases() } returns flowOf(rows)
             val repository = createRepository(dao)
 
             // When
@@ -906,9 +903,13 @@ class ContributorRepositoryImplTest {
     fun `domain model matchesName matches primary name case-insensitively`() =
         runTest {
             // Given
-            val entity = createTestContributorEntity(name = "Stephen King", aliases = null)
+            val row =
+                createTestContributorWithAliases(
+                    entity = createTestContributorEntity(name = "Stephen King"),
+                    aliases = emptyList(),
+                )
             val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
+            everySuspend { dao.getByIdWithAliases("contrib-1") } returns row
             val repository = createRepository(dao)
 
             // When
@@ -925,9 +926,13 @@ class ContributorRepositoryImplTest {
     fun `domain model matchesName matches alias case-insensitively`() =
         runTest {
             // Given
-            val entity = createTestContributorEntity(name = "Stephen King", aliases = "Richard Bachman")
+            val row =
+                createTestContributorWithAliases(
+                    entity = createTestContributorEntity(name = "Stephen King"),
+                    aliases = listOf("Richard Bachman"),
+                )
             val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
+            everySuspend { dao.getByIdWithAliases("contrib-1") } returns row
             val repository = createRepository(dao)
 
             // When
@@ -944,9 +949,13 @@ class ContributorRepositoryImplTest {
     fun `domain model matchesName returns false for non-matching names`() =
         runTest {
             // Given
-            val entity = createTestContributorEntity(name = "Stephen King", aliases = "Richard Bachman")
+            val row =
+                createTestContributorWithAliases(
+                    entity = createTestContributorEntity(name = "Stephen King"),
+                    aliases = listOf("Richard Bachman"),
+                )
             val dao = createMockDao()
-            everySuspend { dao.getById("contrib-1") } returns entity
+            everySuspend { dao.getByIdWithAliases("contrib-1") } returns row
             val repository = createRepository(dao)
 
             // When

@@ -10,6 +10,7 @@ import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
+import com.calypsan.listenup.client.data.local.db.ContributorWithAliases
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.toDomain
 import com.calypsan.listenup.client.domain.repository.ImageStorage
@@ -67,16 +68,17 @@ class ContributorRepositoryImpl(
     // ========== Basic Observation Methods ==========
 
     override fun observeAll(): Flow<List<Contributor>> =
-        contributorDao.observeAll().map { entities ->
-            entities.map { it.toDomain() }
+        contributorDao.observeAllWithAliases().map { rows ->
+            rows.map { it.toDomain() }
         }
 
     override fun observeById(id: String): Flow<Contributor?> =
-        contributorDao.observeById(id).map { entity ->
-            entity?.toDomain()
+        contributorDao.observeByIdWithAliases(id).map { row ->
+            row?.toDomain()
         }
 
-    override suspend fun getById(id: String): Contributor? = contributorDao.getById(id)?.toDomain()
+    override suspend fun getById(id: String): Contributor? =
+        contributorDao.getByIdWithAliases(id)?.toDomain()
 
     override fun observeByBookId(bookId: String): Flow<List<Contributor>> =
         contributorDao.observeByBookId(bookId).map { entities ->
@@ -300,6 +302,19 @@ private fun ContributorEntity.toDomain(): Contributor =
         birthDate = birthDate,
         deathDate = deathDate,
         aliases = aliasList(),
+    )
+
+private fun ContributorWithAliases.toDomain(): Contributor =
+    Contributor(
+        id = contributor.id,
+        name = contributor.name,
+        description = contributor.description,
+        imagePath = contributor.imagePath,
+        imageBlurHash = contributor.imageBlurHash,
+        website = contributor.website,
+        birthDate = contributor.birthDate,
+        deathDate = contributor.deathDate,
+        aliases = aliases.sortedWith(String.CASE_INSENSITIVE_ORDER),
     )
 
 private fun ContributorEntity.toSearchResult(): ContributorSearchResult =
