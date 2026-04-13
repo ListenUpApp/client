@@ -160,7 +160,7 @@ class ContributorAliasDaoTest {
         }
 
     @Test
-    fun `observeByIdWithAliases returns contributor with sorted aliases`() =
+    fun `observeByIdWithAliases returns contributor with aliases from junction`() =
         runTest {
             seedContributor()
             aliasDao.insertAll(

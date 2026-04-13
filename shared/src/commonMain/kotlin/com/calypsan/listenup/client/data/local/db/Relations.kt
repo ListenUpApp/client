@@ -399,7 +399,8 @@ data class ContributorAliasCrossRef(
 
 /**
  * Read projection composing a [ContributorEntity] with its aliases from the
- * [ContributorAliasCrossRef] junction.
+ * [ContributorAliasCrossRef] junction. Ordering is deferred to the repository
+ * layer — this wrapper only composes entity + aliases.
  *
  * Room batches the alias lookup across list reads so a single query feeds
  * N entities — O(1) queries per list read, not O(n). Consumers that don't
@@ -407,7 +408,11 @@ data class ContributorAliasCrossRef(
  * entity-only DAO methods.
  *
  * @property contributor The contributor entity
- * @property aliases Alphabetically sorted list of alias names (case-insensitive)
+ * @property aliases List of alias names in database row order. Consumers that
+ *   need alphabetical display should sort at the domain boundary using
+ *   `sortedWith(String.CASE_INSENSITIVE_ORDER)` — Room's `@Relation` does not
+ *   support `ORDER BY` on the projected child collection, so the repository is
+ *   the canonical ordering seam.
  */
 data class ContributorWithAliases(
     @Embedded val contributor: ContributorEntity,
