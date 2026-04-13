@@ -143,6 +143,7 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.slf4j.simple) // Simple backend for tests only
+            implementation(libs.androidx.room.testing) // MigrationTestHelper for W4.5+
         }
 
         commonTest.dependencies {
