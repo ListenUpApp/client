@@ -936,8 +936,10 @@ val syncModule =
                     .named("contributorPuller"),
         ) {
             ContributorPuller(
+                transactionRunner = get(),
                 syncApi = get<SyncApiContract>(),
                 contributorDao = get(),
+                contributorAliasDao = get(),
                 imageDownloader = get(),
                 scope =
                     get(

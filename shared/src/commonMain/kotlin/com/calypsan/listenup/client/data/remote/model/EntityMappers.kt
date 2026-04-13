@@ -33,12 +33,10 @@ fun ContributorResponse.toEntity(): ContributorEntity {
     val serverUpdatedAt = updatedAt.parseToTimestampOrNow()
     val serverCreatedAt = createdAt.parseToTimestampOrNow()
 
-    // Convert aliases list to comma-separated string for storage
-    val aliasesString = aliases?.takeIf { it.isNotEmpty() }?.joinToString(", ")
-
     // Note: imagePath is intentionally null here. The server returns a relative URL
     // (e.g., "/api/v1/contributors/{id}/image") which is not a local file path.
     // Images must be downloaded separately and the local path set afterward.
+    // Aliases are written separately through `contributor_aliases` by `ContributorPuller`.
     return ContributorEntity(
         id = ContributorId(id),
         name = name,
@@ -47,7 +45,6 @@ fun ContributorResponse.toEntity(): ContributorEntity {
         description = biography,
         imagePath = null,
         imageBlurHash = imageBlurHash,
-        aliases = aliasesString,
         website = website,
         birthDate = birthDate,
         deathDate = deathDate,

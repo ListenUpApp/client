@@ -1,6 +1,10 @@
 package com.calypsan.listenup.client.data.sync.pull
 
+import com.calypsan.listenup.client.core.ContributorId
+import com.calypsan.listenup.client.data.local.db.ContributorAliasCrossRef
+import com.calypsan.listenup.client.data.local.db.ContributorAliasDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
@@ -19,8 +23,10 @@ private val logger = KotlinLogging.logger {}
  * Handles paginated contributor fetching and image downloads.
  */
 class ContributorPuller(
+    private val transactionRunner: TransactionRunner,
     private val syncApi: SyncApiContract,
     private val contributorDao: ContributorDao,
+    private val contributorAliasDao: ContributorAliasDao,
     private val imageDownloader: ImageDownloaderContract,
     private val scope: CoroutineScope,
 ) : Puller {
@@ -96,7 +102,28 @@ class ContributorPuller(
                                         }
                                     }
 
-                                contributorDao.upsertAll(merged)
+                                val aliasRows =
+                                    response.contributors.flatMap { resp ->
+                                        resp.aliases
+                                            .orEmpty()
+                                            .distinctBy { it.lowercase() }
+                                            .map {
+                                                ContributorAliasCrossRef(
+                                                    contributorId = ContributorId(resp.id),
+                                                    alias = it,
+                                                )
+                                            }
+                                    }
+
+                                transactionRunner.atomically {
+                                    contributorDao.upsertAll(merged)
+                                    merged.forEach { entity ->
+                                        contributorAliasDao.deleteForContributor(entity.id.value)
+                                    }
+                                    if (aliasRows.isNotEmpty()) {
+                                        contributorAliasDao.insertAll(aliasRows)
+                                    }
+                                }
                             }
 
                             itemsSynced += serverContributors.size + deletedContributorIds.size
