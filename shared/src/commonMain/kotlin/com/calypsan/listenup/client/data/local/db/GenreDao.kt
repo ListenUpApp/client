@@ -37,6 +37,19 @@ interface GenreDao {
     suspend fun getAllGenres(): List<GenreEntity>
 
     /**
+     * Resolve genre names to (id, name) pairs, case-insensitive.
+     *
+     * Used by sync paths to map server-sent genre names to local genre IDs.
+     * Names without a matching [GenreEntity] row are simply absent from the result;
+     * callers are responsible for logging unresolved names.
+     *
+     * @param names Genre display names to resolve
+     * @return Rows for names that matched; unmatched names are absent
+     */
+    @Query("SELECT id, name FROM genres WHERE name COLLATE NOCASE IN (:names)")
+    suspend fun getIdsByNames(names: List<String>): List<GenreIdName>
+
+    /**
      * Get a genre by ID.
      *
      * @param id The genre ID
@@ -221,3 +234,15 @@ interface GenreDao {
         }
     }
 }
+
+/**
+ * Projection for resolving genre names to IDs during sync.
+ *
+ * Server responses ([BookResponse.genres]) carry genre names only; the client
+ * maintains genre IDs via [GenreEntity]. This projection is the minimal shape
+ * BookPuller and SSEEventProcessor need to build [BookGenreCrossRef] rows.
+ */
+data class GenreIdName(
+    val id: String,
+    val name: String,
+)
