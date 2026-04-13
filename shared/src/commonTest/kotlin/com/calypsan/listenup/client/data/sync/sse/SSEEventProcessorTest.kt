@@ -9,6 +9,7 @@ import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
+import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
@@ -16,6 +17,8 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
+import com.calypsan.listenup.client.data.local.db.GenreDao
+import com.calypsan.listenup.client.data.local.db.GenreIdName
 import com.calypsan.listenup.client.data.local.db.ShelfDao
 import com.calypsan.listenup.client.data.local.db.ShelfEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
@@ -41,6 +44,7 @@ import dev.mokkery.answering.throws
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
+import dev.mokkery.matcher.matches
 import dev.mokkery.mock
 import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
@@ -72,6 +76,7 @@ class SSEEventProcessorTest {
         title: String = "Test Book",
         contributors: List<BookContributorResponse> = emptyList(),
         seriesInfo: List<BookSeriesInfoResponse> = emptyList(),
+        genres: List<String>? = null,
     ): BookResponse =
         BookResponse(
             id = id,
@@ -80,7 +85,7 @@ class SSEEventProcessorTest {
             coverImage = null,
             totalDuration = 3_600_000L,
             description = null,
-            genres = null,
+            genres = genres,
             publishYear = null,
             seriesInfo = seriesInfo,
             chapters = emptyList(),
@@ -126,6 +131,7 @@ class SSEEventProcessorTest {
         val collectionDao: CollectionDao = mock()
         val shelfDao: ShelfDao = mock()
         val tagDao: TagDao = mock()
+        val genreDao: GenreDao = mock()
         val listeningEventDao: ListeningEventDao = mock()
         val activityDao: ActivityDao = mock()
         val userDao: UserDao = mock()
@@ -161,6 +167,9 @@ class SSEEventProcessorTest {
             everySuspend { tagDao.insertBookTag(any<BookTagCrossRef>()) } returns Unit
             everySuspend { tagDao.deleteBookTag(any(), any()) } returns Unit
             everySuspend { tagDao.getById(any()) } returns null
+            everySuspend { genreDao.deleteGenresForBook(any()) } returns Unit
+            everySuspend { genreDao.getIdsByNames(any()) } returns emptyList()
+            everySuspend { genreDao.insertAllBookGenres(any<List<BookGenreCrossRef>>()) } returns Unit
             everySuspend { listeningEventDao.upsert(any<ListeningEventEntity>()) } returns Unit
             everySuspend { activityDao.upsert(any<ActivityEntity>()) } returns Unit
             everySuspend { userDao.getCurrentUser() } returns null
@@ -205,6 +214,7 @@ class SSEEventProcessorTest {
                 collectionDao = collectionDao,
                 shelfDao = shelfDao,
                 tagDao = tagDao,
+                genreDao = genreDao,
                 listeningEventDao = listeningEventDao,
                 activityDao = activityDao,
                 userDao = userDao,
@@ -609,5 +619,67 @@ class SSEEventProcessorTest {
 
             // Then - insertAll is called (with 2 cross refs for 2 roles)
             verifySuspend { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
+        }
+
+    // ========== Genre Junction Tests ==========
+
+    @Test
+    fun `BookCreated event writes resolved genre junction rows`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.genreDao.getIdsByNames(any()) } returns
+                listOf(GenreIdName(id = "g1", name = "Fantasy"))
+            val processor = fixture.build()
+            val bookResponse =
+                createBookResponse(
+                    id = "book-1",
+                    genres = listOf("Fantasy", "Horror"),
+                )
+
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
+
+            // Then - existing junction is wiped, resolved name becomes a row, unresolved is dropped
+            verifySuspend { fixture.genreDao.deleteGenresForBook(BookId("book-1")) }
+            verifySuspend {
+                fixture.genreDao.insertAllBookGenres(
+                    matches { refs: List<BookGenreCrossRef> ->
+                        refs.size == 1 &&
+                            refs.first().bookId == BookId("book-1") &&
+                            refs.first().genreId == "g1"
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `BookUpdated event replaces genre junction rows`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.genreDao.getIdsByNames(any()) } returns
+                listOf(GenreIdName(id = "g2", name = "Sci-Fi"))
+            val processor = fixture.build()
+            val bookResponse =
+                createBookResponse(
+                    id = "book-1",
+                    genres = listOf("Sci-Fi"),
+                )
+
+            // When
+            processor.process(SSEEventType.BookUpdated(bookResponse))
+            advanceUntilIdle()
+
+            // Then - old rows deleted, resolved row inserted
+            verifySuspend { fixture.genreDao.deleteGenresForBook(BookId("book-1")) }
+            verifySuspend {
+                fixture.genreDao.insertAllBookGenres(
+                    matches { refs: List<BookGenreCrossRef> ->
+                        refs.map { it.genreId } == listOf("g2")
+                    },
+                )
+            }
         }
 }

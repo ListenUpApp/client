@@ -12,10 +12,12 @@ import com.calypsan.listenup.client.data.local.db.ActivityEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
+import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
+import com.calypsan.listenup.client.data.local.db.GenreDao
 import com.calypsan.listenup.client.data.local.db.ShelfDao
 import com.calypsan.listenup.client.data.local.db.ShelfEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
@@ -82,6 +84,7 @@ class SSEEventProcessor(
     private val collectionDao: CollectionDao,
     private val shelfDao: ShelfDao,
     private val tagDao: TagDao,
+    private val genreDao: GenreDao,
     private val listeningEventDao: ListeningEventDao,
     private val activityDao: ActivityDao,
     private val userDao: UserDao,
@@ -322,6 +325,7 @@ class SSEEventProcessor(
             bookDao.upsert(withLocalFields)
             saveBookContributors(event.book)
             saveBookSeries(event.book)
+            saveBookGenres(event.book)
         }
 
         scope.launch {
@@ -338,6 +342,7 @@ class SSEEventProcessor(
             bookDao.upsert(withLocalFields)
             saveBookContributors(event.book)
             saveBookSeries(event.book)
+            saveBookGenres(event.book)
         }
 
         scope.launch {
@@ -486,6 +491,40 @@ class SSEEventProcessor(
         if (crossRefs.isNotEmpty()) {
             bookSeriesDao.insertAll(crossRefs)
             logger.debug { "SSE: Saved ${crossRefs.size} series relationships for book ${book.id}" }
+        }
+    }
+
+    /**
+     * Save book-genre relationships from an SSE event.
+     *
+     * Server-sent [BookResponse.genres] carries names; resolve them to IDs via
+     * [GenreDao.getIdsByNames]. Unresolved names (genres not yet in the local
+     * catalog — e.g., SSE fired for a book whose genres haven't been pulled
+     * yet) are logged and dropped; the next full sync will reconcile them.
+     * Replaces existing junction rows for the book — server is authoritative.
+     */
+    private suspend fun saveBookGenres(book: BookResponse) {
+        val bookId = BookId(book.id)
+        genreDao.deleteGenresForBook(bookId)
+
+        val names = book.genres.orEmpty().distinctBy { it.lowercase() }
+        if (names.isEmpty()) return
+
+        val nameToId = genreDao.getIdsByNames(names).associate { it.name.lowercase() to it.id }
+        val crossRefs =
+            names.mapNotNull { name ->
+                val id = nameToId[name.lowercase()]
+                if (id == null) {
+                    logger.warn { "SSE: Genre '$name' not in catalog; skipping for book ${book.id}" }
+                    null
+                } else {
+                    BookGenreCrossRef(bookId = bookId, genreId = id)
+                }
+            }
+
+        if (crossRefs.isNotEmpty()) {
+            genreDao.insertAllBookGenres(crossRefs)
+            logger.debug { "SSE: Saved ${crossRefs.size} genre relationships for book ${book.id}" }
         }
     }
 

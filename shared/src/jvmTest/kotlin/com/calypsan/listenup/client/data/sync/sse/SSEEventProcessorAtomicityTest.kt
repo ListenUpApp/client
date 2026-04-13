@@ -7,6 +7,7 @@ import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.CollectionDao
+import com.calypsan.listenup.client.data.local.db.GenreDao
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -62,6 +63,7 @@ class SSEEventProcessorAtomicityTest {
             val collectionDao: CollectionDao = mock()
             val shelfDao: ShelfDao = mock()
             val tagDao: TagDao = mock()
+            val genreDao: GenreDao = mock()
             val listeningEventDao: ListeningEventDao = mock()
             val activityDao: ActivityDao = mock()
             val userDao: UserDao = mock()
@@ -122,6 +124,7 @@ class SSEEventProcessorAtomicityTest {
                     collectionDao = collectionDao,
                     shelfDao = shelfDao,
                     tagDao = tagDao,
+                    genreDao = genreDao,
                     listeningEventDao = listeningEventDao,
                     activityDao = activityDao,
                     userDao = userDao,

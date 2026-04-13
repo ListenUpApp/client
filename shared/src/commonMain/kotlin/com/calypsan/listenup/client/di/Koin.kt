@@ -872,6 +872,7 @@ val syncModule =
                 collectionDao = get(),
                 shelfDao = get(),
                 tagDao = get(),
+                genreDao = get(),
                 listeningEventDao = get(),
                 activityDao = get(),
                 userDao = get(),
