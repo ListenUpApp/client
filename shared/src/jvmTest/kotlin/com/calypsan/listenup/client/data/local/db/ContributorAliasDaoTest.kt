@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.local.db
 
+import app.cash.turbine.test
 import com.calypsan.listenup.client.core.ContributorId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
@@ -87,20 +88,46 @@ class ContributorAliasDaoTest {
         }
 
     @Test
-    fun `cascade delete removes aliases when contributor is deleted`() =
+    fun `cascade delete removes only the deleted contributor's aliases`() =
         runTest {
-            seedContributor(id = "c-1")
+            seedContributor(id = "c-1", name = "King")
+            seedContributor(id = "c-2", name = "Gaiman")
 
             aliasDao.insertAll(
                 listOf(
                     ContributorAliasCrossRef(ContributorId("c-1"), "Bachman"),
                     ContributorAliasCrossRef(ContributorId("c-1"), "Swithen"),
+                    ContributorAliasCrossRef(ContributorId("c-2"), "Pinkerton"),
                 ),
             )
 
             contributorDao.deleteById("c-1")
 
             assertTrue(aliasDao.getForContributor("c-1").isEmpty())
+            assertEquals(listOf("Pinkerton"), aliasDao.getForContributor("c-2"))
+        }
+
+    @Test
+    fun `observeForContributor emits initial list and re-emits on change`() =
+        runTest {
+            seedContributor()
+            aliasDao.insertAll(
+                listOf(ContributorAliasCrossRef(ContributorId("c-1"), "Bachman")),
+            )
+
+            aliasDao.observeForContributor("c-1").test {
+                assertEquals(listOf("Bachman"), awaitItem())
+
+                aliasDao.insertAll(
+                    listOf(ContributorAliasCrossRef(ContributorId("c-1"), "Swithen")),
+                )
+                assertEquals(listOf("Bachman", "Swithen"), awaitItem())
+
+                aliasDao.deleteForContributor("c-1")
+                assertEquals(emptyList(), awaitItem())
+
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
