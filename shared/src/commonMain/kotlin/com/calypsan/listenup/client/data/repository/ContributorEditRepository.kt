@@ -10,6 +10,8 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
+import com.calypsan.listenup.client.data.local.db.ContributorAliasCrossRef
+import com.calypsan.listenup.client.data.local.db.ContributorAliasDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.EntityType
@@ -122,6 +124,7 @@ interface ContributorEditRepositoryContract {
 class ContributorEditRepository(
     private val transactionRunner: TransactionRunner,
     private val contributorDao: ContributorDao,
+    private val contributorAliasDao: ContributorAliasDao,
     private val bookContributorDao: BookContributorDao,
     private val pendingOperationRepository: PendingOperationRepositoryContract,
     private val contributorUpdateHandler: ContributorUpdateHandler,
@@ -167,14 +170,12 @@ class ContributorEditRepository(
         withContext(IODispatcher) {
             logger.debug { "Updating contributor (offline-first): $contributorId" }
 
-            // Get existing contributor
             val existing = contributorDao.getById(contributorId)
             if (existing == null) {
                 logger.error { "Contributor not found: $contributorId" }
                 return@withContext Failure(Exception("Contributor not found: $contributorId"))
             }
 
-            // Apply optimistic update
             val updated =
                 existing.copy(
                     name = update.name ?: existing.name,
@@ -182,7 +183,6 @@ class ContributorEditRepository(
                     website = update.website ?: existing.website,
                     birthDate = update.birthDate ?: existing.birthDate,
                     deathDate = update.deathDate ?: existing.deathDate,
-                    aliases = update.aliases?.joinToString(", ") ?: existing.aliases,
                     imagePath = update.imagePath ?: existing.imagePath,
                     syncState = SyncState.NOT_SYNCED,
                     lastModified = Timestamp.now(),
@@ -198,8 +198,19 @@ class ContributorEditRepository(
                     aliases = update.aliases,
                 )
 
+            val newAliasRows =
+                update.aliases
+                    ?.distinctBy { it.lowercase() }
+                    ?.map { ContributorAliasCrossRef(ContributorId(contributorId), it) }
+
             transactionRunner.atomically {
                 contributorDao.upsert(updated)
+                if (newAliasRows != null) {
+                    contributorAliasDao.deleteForContributor(contributorId)
+                    if (newAliasRows.isNotEmpty()) {
+                        contributorAliasDao.insertAll(newAliasRows)
+                    }
+                }
                 pendingOperationRepository.queue(
                     type = OperationType.CONTRIBUTOR_UPDATE,
                     entityType = EntityType.CONTRIBUTOR,
@@ -240,15 +251,14 @@ class ContributorEditRepository(
                 return@withContext Failure(Exception("Cannot merge contributor into itself"))
             }
 
-            // 1. Read existing book relationships for source outside the transaction (pure reads).
             val sourceRelations = bookContributorDao.getByContributorId(sourceId)
+            val currentTargetAliases = contributorAliasDao.getForContributor(targetId)
+            val newAliases = (currentTargetAliases + source.name).distinctBy { it.lowercase() }
+            val newAliasRows =
+                newAliases.map { ContributorAliasCrossRef(ContributorId(targetId), it) }
 
-            // 2. Compute target's new alias set.
-            val currentAliases = target.aliasList()
-            val newAliases = (currentAliases + source.name).distinct()
             val updatedTarget =
                 target.copy(
-                    aliases = newAliases.joinToString(", "),
                     syncState = SyncState.NOT_SYNCED,
                     lastModified = Timestamp.now(),
                 )
@@ -260,7 +270,6 @@ class ContributorEditRepository(
                 )
 
             transactionRunner.atomically {
-                // Re-link book relationships from source to target
                 for (relation in sourceRelations) {
                     val existingTarget =
                         bookContributorDao.get(
@@ -282,6 +291,10 @@ class ContributorEditRepository(
                 }
 
                 contributorDao.upsert(updatedTarget)
+                contributorAliasDao.deleteForContributor(targetId)
+                if (newAliasRows.isNotEmpty()) {
+                    contributorAliasDao.insertAll(newAliasRows)
+                }
                 contributorDao.deleteById(sourceId)
 
                 pendingOperationRepository.queue(
@@ -313,9 +326,8 @@ class ContributorEditRepository(
                 return@withContext Failure(Exception("Contributor not found: $contributorId"))
             }
 
-            // Check alias exists
-            val aliases = contributor.aliasList()
-            if (!aliases.any { it.equals(aliasName, ignoreCase = true) }) {
+            val currentAliases = contributorAliasDao.getForContributor(contributorId)
+            if (!currentAliases.any { it.equals(aliasName, ignoreCase = true) }) {
                 logger.error { "Alias '$aliasName' not found for contributor $contributorId" }
                 return@withContext Failure(Exception("Alias not found: $aliasName"))
             }
@@ -338,14 +350,15 @@ class ContributorEditRepository(
                     aliases = null,
                 )
 
-            // Read current relations outside the transaction — the subsequent writes
-            // require consistent state but the read itself is idempotent.
             val relations = bookContributorDao.getByContributorId(contributorId)
 
-            val updatedAliases = aliases.filter { !it.equals(aliasName, ignoreCase = true) }
+            val updatedAliases =
+                currentAliases.filter { !it.equals(aliasName, ignoreCase = true) }
+            val updatedAliasRows =
+                updatedAliases.map { ContributorAliasCrossRef(ContributorId(contributorId), it) }
+
             val updatedContributor =
                 contributor.copy(
-                    aliases = updatedAliases.takeIf { it.isNotEmpty() }?.joinToString(", "),
                     syncState = SyncState.NOT_SYNCED,
                     lastModified = Timestamp.now(),
                 )
@@ -374,6 +387,10 @@ class ContributorEditRepository(
                 }
 
                 contributorDao.upsert(updatedContributor)
+                contributorAliasDao.deleteForContributor(contributorId)
+                if (updatedAliasRows.isNotEmpty()) {
+                    contributorAliasDao.insertAll(updatedAliasRows)
+                }
 
                 pendingOperationRepository.queue(
                     type = OperationType.UNMERGE_CONTRIBUTOR,

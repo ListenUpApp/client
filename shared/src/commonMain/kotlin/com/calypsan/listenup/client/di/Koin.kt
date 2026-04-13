@@ -348,6 +348,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().chapterDao() }
         single { get<ListenUpDatabase>().seriesDao() }
         single { get<ListenUpDatabase>().contributorDao() }
+        single { get<ListenUpDatabase>().contributorAliasDao() }
         single { get<ListenUpDatabase>().bookContributorDao() }
         single { get<ListenUpDatabase>().bookSeriesDao() }
         single { get<ListenUpDatabase>().playbackPositionDao() }
@@ -1308,6 +1309,7 @@ val syncModule =
             ContributorEditRepositoryImpl(
                 transactionRunner = get(),
                 contributorDao = get(),
+                contributorAliasDao = get(),
                 bookContributorDao = get(),
                 pendingOperationRepository = get(),
                 contributorUpdateHandler = get(),
