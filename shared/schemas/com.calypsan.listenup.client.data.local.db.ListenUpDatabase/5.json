@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "68b766285cbad4640cc95eeb190eba5d",
+    "identityHash": "79534d18e4f88238911a6ad2020cc018",
     "entities": [
       {
         "tableName": "users",
@@ -471,7 +471,7 @@
       },
       {
         "tableName": "contributors",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `sortName` TEXT, `asin` TEXT, `description` TEXT, `imagePath` TEXT, `imageBlurHash` TEXT, `website` TEXT, `birthDate` TEXT, `deathDate` TEXT, `aliases` TEXT, `syncState` TEXT NOT NULL, `lastModified` INTEGER NOT NULL, `serverVersion` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `sortName` TEXT, `asin` TEXT, `description` TEXT, `imagePath` TEXT, `imageBlurHash` TEXT, `website` TEXT, `birthDate` TEXT, `deathDate` TEXT, `syncState` TEXT NOT NULL, `lastModified` INTEGER NOT NULL, `serverVersion` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -523,11 +523,6 @@
           {
             "fieldPath": "deathDate",
             "columnName": "deathDate",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "aliases",
-            "columnName": "aliases",
             "affinity": "TEXT"
           },
           {
@@ -2174,7 +2169,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '68b766285cbad4640cc95eeb190eba5d')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '79534d18e4f88238911a6ad2020cc018')"
     ]
   }
 }

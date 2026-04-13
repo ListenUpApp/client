@@ -347,7 +347,6 @@ class ContributorEditRepository(
                     website = null,
                     birthDate = null,
                     deathDate = null,
-                    aliases = null,
                 )
 
             val relations = bookContributorDao.getByContributorId(contributorId)

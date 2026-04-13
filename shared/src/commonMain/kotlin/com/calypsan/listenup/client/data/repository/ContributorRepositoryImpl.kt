@@ -301,7 +301,7 @@ private fun ContributorEntity.toDomain(): Contributor =
         website = website,
         birthDate = birthDate,
         deathDate = deathDate,
-        aliases = aliasList(),
+        aliases = emptyList(),
     )
 
 private fun ContributorWithAliases.toDomain(): Contributor =
@@ -356,7 +356,6 @@ private fun Contributor.toEntity(): ContributorEntity {
         website = website,
         birthDate = birthDate,
         deathDate = deathDate,
-        aliases = aliases.joinToString(", "),
         // SYNCED because this entity was just received from the server (via metadata API)
         syncState = com.calypsan.listenup.client.data.local.db.SyncState.SYNCED,
         lastModified = now,

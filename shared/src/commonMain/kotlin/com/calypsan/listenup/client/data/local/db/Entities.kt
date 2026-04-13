@@ -216,27 +216,13 @@ data class ContributorEntity(
     val website: String? = null,
     val birthDate: String? = null, // ISO 8601 date (e.g., "1947-09-21")
     val deathDate: String? = null, // ISO 8601 date (e.g., "2024-01-15")
-    // Merged pen names, comma-separated (e.g., "Richard Bachman, John Swithen")
-    val aliases: String? = null,
     // Sync fields
     override val syncState: SyncState,
     override val lastModified: Timestamp,
     override val serverVersion: Timestamp?,
     val createdAt: Timestamp,
     val updatedAt: Timestamp,
-) : Syncable {
-    /**
-     * Parse aliases into a list.
-     */
-    fun aliasList(): List<String> = aliases?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
-
-    /**
-     * Check if a name matches this contributor (either primary name or alias).
-     */
-    fun matchesName(searchName: String): Boolean =
-        name.equals(searchName, ignoreCase = true) ||
-            aliasList().any { it.equals(searchName, ignoreCase = true) }
-}
+) : Syncable
 
 /**
  * Key-value store for sync metadata.

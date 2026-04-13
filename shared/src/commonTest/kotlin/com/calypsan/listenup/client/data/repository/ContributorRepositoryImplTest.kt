@@ -79,7 +79,6 @@ class ContributorRepositoryImplTest {
             website = website,
             birthDate = birthDate,
             deathDate = deathDate,
-            aliases = null,
             syncState = syncState,
             lastModified = Timestamp(lastModified),
             serverVersion = Timestamp(serverVersion),
