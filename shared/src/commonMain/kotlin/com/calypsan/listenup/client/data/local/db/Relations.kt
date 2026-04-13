@@ -364,3 +364,35 @@ data class ShelfBookCrossRef(
     val bookId: String,
     val addedAt: Long, // Unix epoch milliseconds
 )
+
+/**
+ * Junction entity mapping contributors to their aliases (pen names, former names).
+ *
+ * Replaces the legacy [ContributorEntity.aliases] comma-separated string, which
+ * silently corrupted any alias containing a comma (e.g., "King, Stephen").
+ *
+ * Ordering semantics: aliases have no intrinsic order — DAO queries sort
+ * alphabetically via `COLLATE NOCASE` for stable display across merges and
+ * syncs. See Finding 05 D3 in the architecture audit.
+ *
+ * @property contributorId Foreign key to the contributor
+ * @property alias Single alias name (stored as typed — dedup is case-insensitive
+ *   at the repository layer)
+ */
+@Entity(
+    tableName = "contributor_aliases",
+    primaryKeys = ["contributorId", "alias"],
+    foreignKeys = [
+        ForeignKey(
+            entity = ContributorEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["contributorId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index(value = ["contributorId"])],
+)
+data class ContributorAliasCrossRef(
+    val contributorId: ContributorId,
+    val alias: String,
+)

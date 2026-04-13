@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 4,
-    "identityHash": "c5eb146d6795b468f21ab491115ac712",
+    "version": 5,
+    "identityHash": "68b766285cbad4640cc95eeb190eba5d",
     "entities": [
       {
         "tableName": "users",
@@ -646,6 +646,55 @@
               "id"
             ]
           },
+          {
+            "table": "contributors",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "contributorId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "contributor_aliases",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`contributorId` TEXT NOT NULL, `alias` TEXT NOT NULL, PRIMARY KEY(`contributorId`, `alias`), FOREIGN KEY(`contributorId`) REFERENCES `contributors`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "contributorId",
+            "columnName": "contributorId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "alias",
+            "columnName": "alias",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "contributorId",
+            "alias"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_contributor_aliases_contributorId",
+            "unique": false,
+            "columnNames": [
+              "contributorId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_contributor_aliases_contributorId` ON `${TABLE_NAME}` (`contributorId`)"
+          }
+        ],
+        "foreignKeys": [
           {
             "table": "contributors",
             "onDelete": "CASCADE",
@@ -2125,7 +2174,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c5eb146d6795b468f21ab491115ac712')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '68b766285cbad4640cc95eeb190eba5d')"
     ]
   }
 }

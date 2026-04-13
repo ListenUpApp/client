@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.data.local.db
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RewriteQueriesToDropUnusedColumns
 import androidx.room.Transaction
@@ -370,4 +372,38 @@ interface ContributorDao {
      */
     @Query("SELECT DISTINCT bookId FROM book_contributors WHERE contributorId = :contributorId")
     fun observeBookIdsForContributor(contributorId: String): Flow<List<String>>
+}
+
+/**
+ * DAO for the [ContributorAliasCrossRef] junction.
+ *
+ * Reads are alphabetical and case-insensitive via `COLLATE NOCASE`. Writes
+ * use `OnConflictStrategy.IGNORE` for exact-case duplicates; the repository
+ * layer is responsible for case-insensitive dedup before calling `insertAll`.
+ *
+ * No `@Transaction`-annotated `replaceForContributor` — callers compose
+ * `deleteForContributor` + `insertAll` inside their existing
+ * `TransactionRunner.atomically { }` block to keep the transaction layer single.
+ */
+@Dao
+interface ContributorAliasDao {
+    @Query(
+        "SELECT alias FROM contributor_aliases " +
+            "WHERE contributorId = :id " +
+            "ORDER BY alias COLLATE NOCASE ASC",
+    )
+    suspend fun getForContributor(id: String): List<String>
+
+    @Query(
+        "SELECT alias FROM contributor_aliases " +
+            "WHERE contributorId = :id " +
+            "ORDER BY alias COLLATE NOCASE ASC",
+    )
+    fun observeForContributor(id: String): Flow<List<String>>
+
+    @Query("DELETE FROM contributor_aliases WHERE contributorId = :id")
+    suspend fun deleteForContributor(id: String)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(aliases: List<ContributorAliasCrossRef>)
 }
