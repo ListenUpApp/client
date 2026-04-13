@@ -526,7 +526,7 @@ data class ActivityEntity(
 )
 data class UserStatsEntity(
     @PrimaryKey
-    val oduserId: String,
+    val userId: String,
     /** User display name for leaderboard display */
     val displayName: String,
     /** Avatar color (hex) for generated avatars */
@@ -543,10 +543,7 @@ data class UserStatsEntity(
     val currentStreak: Int,
     /** When this cache was last updated (epoch ms) */
     val updatedAt: Long,
-) {
-    /** Convenience property for userId (primary key is named oduserId due to Room bug) */
-    val userId: String get() = oduserId
-}
+)
 
 /**
  * Cached reading session data for the "Readers" section on book detail page.
@@ -557,14 +554,14 @@ data class UserStatsEntity(
  * - SSE reading_session_updated events (real-time updates)
  *
  * User info is denormalized for immediate display without joins.
- * Sessions are keyed by a composite of bookId + oduserId to allow upserts.
+ * Sessions are keyed by a composite of bookId + userId to allow upserts.
  */
 @Entity(
     tableName = "reading_sessions",
     indices = [
         Index(value = ["bookId"]),
-        Index(value = ["oduserId"]),
-        Index(value = ["bookId", "oduserId"], unique = true),
+        Index(value = ["userId"]),
+        Index(value = ["bookId", "userId"], unique = true),
     ],
 )
 data class ReadingSessionEntity(
@@ -572,8 +569,8 @@ data class ReadingSessionEntity(
     val id: String,
     /** Book being read */
     val bookId: String,
-    /** User reading the book (named oduserId due to Room keyword issues) */
-    val oduserId: String,
+    /** User reading the book */
+    val userId: String,
     // Denormalized user info for offline display
     val userDisplayName: String,
     val userAvatarColor: String,
@@ -591,7 +588,4 @@ data class ReadingSessionEntity(
     val completionCount: Int,
     /** When this cache entry was last updated (epoch ms) */
     val updatedAt: Long,
-) {
-    /** Convenience property for userId */
-    val userId: String get() = oduserId
-}
+)

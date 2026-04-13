@@ -57,7 +57,7 @@ interface ReadingSessionDao {
      * @param userId The user ID
      * @return The reading session or null if not found
      */
-    @Query("SELECT * FROM reading_sessions WHERE bookId = :bookId AND oduserId = :userId")
+    @Query("SELECT * FROM reading_sessions WHERE bookId = :bookId AND userId = :userId")
     suspend fun getByBookAndUser(
         bookId: String,
         userId: String,

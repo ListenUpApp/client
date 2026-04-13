@@ -119,7 +119,7 @@ interface ActivityDao {
     @Query(
         """
         SELECT
-            us.oduserId as userId,
+            us.userId,
             us.displayName,
             us.avatarColor,
             us.avatarType,
@@ -127,8 +127,8 @@ interface ActivityDao {
             COALESCE(SUM(CASE WHEN a.type = 'listening_session' AND a.durationMs > 0 THEN a.durationMs ELSE 0 END), 0) as totalTimeMs,
             COUNT(DISTINCT CASE WHEN a.type = 'finished_book' THEN a.bookId END) as booksCount
         FROM user_stats us
-        LEFT JOIN activities a ON a.userId = us.oduserId AND a.createdAt >= :sinceMs
-        GROUP BY us.oduserId
+        LEFT JOIN activities a ON a.userId = us.userId AND a.createdAt >= :sinceMs
+        GROUP BY us.userId
         ORDER BY totalTimeMs DESC
     """,
     )
@@ -151,7 +151,7 @@ interface ActivityDao {
             COUNT(DISTINCT CASE WHEN a.type = 'finished_book' THEN a.bookId END) as totalBooks,
             (SELECT COUNT(*) FROM user_stats) as activeUsers
         FROM user_stats us
-        LEFT JOIN activities a ON a.userId = us.oduserId AND a.createdAt >= :sinceMs
+        LEFT JOIN activities a ON a.userId = us.userId AND a.createdAt >= :sinceMs
     """,
     )
     fun observeCommunityStats(sinceMs: Long): Flow<CommunityStatsProjection>

@@ -23,16 +23,19 @@ class SchemaMigrationSmokeTest {
     }
 
     @Test
-    fun `creates v1 database and opens a live connection`() {
-        val connection = helper.createDatabase(version = 1)
+    fun `creates current schema database and opens a live connection`() {
+        // Pin to the latest exported schema — when W4.4 lands further schema
+        // changes, bump this and start asserting actual v(N-1) → v(N) migration
+        // behaviour. For now this just proves the harness can load the schema
+        // bundle and drive [androidx.sqlite.SQLiteConnection].
+        val connection = helper.createDatabase(version = 2)
         connection.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").use { stmt ->
-            val tables =
-                buildList {
-                    while (stmt.step()) add(stmt.getText(0))
-                }
+            val tables = buildList {
+                while (stmt.step()) add(stmt.getText(0))
+            }
             assertTrue(
                 "books" in tables,
-                "v1 schema must define the `books` table — saw $tables",
+                "schema must define the `books` table — saw $tables",
             )
         }
     }

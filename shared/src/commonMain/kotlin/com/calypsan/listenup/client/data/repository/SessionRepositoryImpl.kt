@@ -127,7 +127,7 @@ class SessionRepositoryImpl(
                             ReadingSessionEntity(
                                 id = "self-$bookId-$currentUserId",
                                 bookId = bookId,
-                                oduserId = currentUserId,
+                                userId = currentUserId,
                                 userDisplayName = "You", // Placeholder, will be filtered in UI
                                 userAvatarColor = "",
                                 userAvatarType = "auto",
@@ -278,7 +278,7 @@ private fun ReaderSummary.toEntity(
     ReadingSessionEntity(
         id = "$bookId-$userId",
         bookId = bookId,
-        oduserId = userId,
+        userId = userId,
         userDisplayName = displayName,
         userAvatarColor = avatarColor,
         userAvatarType = avatarType,

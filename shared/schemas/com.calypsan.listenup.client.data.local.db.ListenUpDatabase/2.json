@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 1,
-    "identityHash": "4eedb11d2de9bd8f1c0dc2f800074eda",
+    "version": 2,
+    "identityHash": "3adc6cb14064233d9a453f6b443830f8",
     "entities": [
       {
         "tableName": "users",
@@ -1895,11 +1895,11 @@
       },
       {
         "tableName": "user_stats",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`oduserId` TEXT NOT NULL, `displayName` TEXT NOT NULL, `avatarColor` TEXT NOT NULL, `avatarType` TEXT NOT NULL, `avatarValue` TEXT, `totalTimeMs` INTEGER NOT NULL, `totalBooks` INTEGER NOT NULL, `currentStreak` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`oduserId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `displayName` TEXT NOT NULL, `avatarColor` TEXT NOT NULL, `avatarType` TEXT NOT NULL, `avatarValue` TEXT, `totalTimeMs` INTEGER NOT NULL, `totalBooks` INTEGER NOT NULL, `currentStreak` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`userId`))",
         "fields": [
           {
-            "fieldPath": "oduserId",
-            "columnName": "oduserId",
+            "fieldPath": "userId",
+            "columnName": "userId",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -1954,13 +1954,13 @@
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": [
-            "oduserId"
+            "userId"
           ]
         }
       },
       {
         "tableName": "reading_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `bookId` TEXT NOT NULL, `oduserId` TEXT NOT NULL, `userDisplayName` TEXT NOT NULL, `userAvatarColor` TEXT NOT NULL, `userAvatarType` TEXT NOT NULL, `userAvatarValue` TEXT, `isCurrentlyReading` INTEGER NOT NULL, `currentProgress` REAL NOT NULL, `startedAt` INTEGER NOT NULL, `finishedAt` INTEGER, `completionCount` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `bookId` TEXT NOT NULL, `userId` TEXT NOT NULL, `userDisplayName` TEXT NOT NULL, `userAvatarColor` TEXT NOT NULL, `userAvatarType` TEXT NOT NULL, `userAvatarValue` TEXT, `isCurrentlyReading` INTEGER NOT NULL, `currentProgress` REAL NOT NULL, `startedAt` INTEGER NOT NULL, `finishedAt` INTEGER, `completionCount` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -1975,8 +1975,8 @@
             "notNull": true
           },
           {
-            "fieldPath": "oduserId",
-            "columnName": "oduserId",
+            "fieldPath": "userId",
+            "columnName": "userId",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -2056,23 +2056,23 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_sessions_bookId` ON `${TABLE_NAME}` (`bookId`)"
           },
           {
-            "name": "index_reading_sessions_oduserId",
+            "name": "index_reading_sessions_userId",
             "unique": false,
             "columnNames": [
-              "oduserId"
+              "userId"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_sessions_oduserId` ON `${TABLE_NAME}` (`oduserId`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_sessions_userId` ON `${TABLE_NAME}` (`userId`)"
           },
           {
-            "name": "index_reading_sessions_bookId_oduserId",
+            "name": "index_reading_sessions_bookId_userId",
             "unique": true,
             "columnNames": [
               "bookId",
-              "oduserId"
+              "userId"
             ],
             "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_reading_sessions_bookId_oduserId` ON `${TABLE_NAME}` (`bookId`, `oduserId`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_reading_sessions_bookId_userId` ON `${TABLE_NAME}` (`bookId`, `userId`)"
           }
         ]
       },
@@ -2125,7 +2125,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4eedb11d2de9bd8f1c0dc2f800074eda')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3adc6cb14064233d9a453f6b443830f8')"
     ]
   }
 }

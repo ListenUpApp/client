@@ -28,7 +28,7 @@ interface UserStatsDao {
      * @param userId The user ID to look up
      * @return The cached stats or null if not found
      */
-    @Query("SELECT * FROM user_stats WHERE oduserId = :userId")
+    @Query("SELECT * FROM user_stats WHERE userId = :userId")
     suspend fun getById(userId: String): UserStatsEntity?
 
     /**
@@ -37,7 +37,7 @@ interface UserStatsDao {
      * @param userId The user ID to observe
      * @return Flow emitting the user's stats or null
      */
-    @Query("SELECT * FROM user_stats WHERE oduserId = :userId")
+    @Query("SELECT * FROM user_stats WHERE userId = :userId")
     fun observeById(userId: String): Flow<UserStatsEntity?>
 
     /**
@@ -61,7 +61,7 @@ interface UserStatsDao {
      *
      * @param userId The user ID to delete
      */
-    @Query("DELETE FROM user_stats WHERE oduserId = :userId")
+    @Query("DELETE FROM user_stats WHERE userId = :userId")
     suspend fun deleteById(userId: String)
 
     /**

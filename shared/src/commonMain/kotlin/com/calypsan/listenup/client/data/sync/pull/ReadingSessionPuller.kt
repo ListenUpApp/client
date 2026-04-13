@@ -75,7 +75,7 @@ class ReadingSessionPuller(
                             ReadingSessionEntity(
                                 id = "${reader.bookId}-${reader.userId}",
                                 bookId = reader.bookId,
-                                oduserId = reader.userId,
+                                userId = reader.userId,
                                 userDisplayName = reader.displayName,
                                 userAvatarColor = reader.avatarColor,
                                 userAvatarType = reader.avatarType,

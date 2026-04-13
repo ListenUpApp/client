@@ -343,7 +343,7 @@ class LeaderboardRepositoryImpl(
                     }
 
                     UserStatsEntity(
-                        oduserId = entry.userId,
+                        userId = entry.userId,
                         displayName = entry.displayName,
                         avatarColor = entry.avatarColor,
                         avatarType = entry.avatarType,

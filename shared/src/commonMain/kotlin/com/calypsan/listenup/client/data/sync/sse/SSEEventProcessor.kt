@@ -946,7 +946,7 @@ class SSEEventProcessor(
 
         val entity =
             UserStatsEntity(
-                oduserId = event.userId,
+                userId = event.userId,
                 displayName = event.displayName,
                 avatarColor = event.avatarColor,
                 avatarType = event.avatarType,
