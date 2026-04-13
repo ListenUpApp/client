@@ -64,7 +64,6 @@ class BookRepositoryTest {
         coverUrl: String? = null,
         totalDuration: Long = 3_600_000L,
         description: String? = null,
-        genres: String? = null,
         publishYear: Int? = null,
     ): BookEntity =
         BookEntity(
@@ -74,7 +73,6 @@ class BookRepositoryTest {
             coverUrl = coverUrl,
             totalDuration = totalDuration,
             description = description,
-            genres = genres,
             publishYear = publishYear,
             audioFilesJson = null,
             syncState = SyncState.SYNCED,

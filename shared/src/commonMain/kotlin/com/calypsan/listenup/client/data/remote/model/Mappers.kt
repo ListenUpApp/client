@@ -41,7 +41,6 @@ fun BookResponse.toEntity(): BookEntity =
         coverBlurHash = coverImage?.blurHash,
         totalDuration = totalDuration,
         description = description,
-        genres = genres?.joinToString(", "),
         // Series is now stored via book_series junction table (many-to-many)
         publishYear = publishYear?.toIntOrNull(),
         publisher = publisher,

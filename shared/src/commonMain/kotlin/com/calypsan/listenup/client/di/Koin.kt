@@ -1271,7 +1271,7 @@ val syncModule =
         single<StatsRepository> {
             StatsRepositoryImpl(
                 listeningEventDao = get(),
-                bookDao = get(),
+                genreDao = get(),
             )
         }
 

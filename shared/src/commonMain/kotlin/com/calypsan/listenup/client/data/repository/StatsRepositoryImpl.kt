@@ -3,7 +3,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.GenreDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -34,7 +34,7 @@ private const val MS_PER_DAY = 86_400_000L
  * This enables offline-first stats that update instantly when events are added.
  *
  * @property listeningEventDao DAO for listening events
- * @property bookDao DAO for book metadata (genres)
+ * @property genreDao DAO for book_genres junction (genre name resolution per book)
  */
 private typealias DomainHomeStats = com.calypsan.listenup.client.domain.repository.HomeStats
 private typealias DomainDailyListening = com.calypsan.listenup.client.domain.repository.DailyListening
@@ -42,7 +42,7 @@ private typealias DomainGenreListening = com.calypsan.listenup.client.domain.rep
 
 class StatsRepositoryImpl(
     private val listeningEventDao: ListeningEventDao,
-    private val bookDao: BookDao,
+    private val genreDao: GenreDao,
 ) : com.calypsan.listenup.client.domain.repository.StatsRepository {
     /**
      * Observe weekly stats (7 days) for the home screen.
@@ -150,19 +150,17 @@ class StatsRepositoryImpl(
                 bookEvents.sumOf { it.durationMs }
             }
 
-        // Get genre info for each book
+        // Get genre info for each book (via book_genres junction)
         val genreDurations = mutableMapOf<String, Long>()
 
         for ((bookIdStr, durationMs) in bookDurations) {
-            val book = bookDao.getById(BookId(bookIdStr))
             val genres =
-                book
-                    ?.genres
-                    ?.split(",")
-                    ?.map { it.trim() }
-                    ?.filter { it.isNotEmpty() }
+                genreDao
+                    .getGenresForBook(BookId(bookIdStr))
+                    .map { it.name }
+                    .filter { it.isNotEmpty() }
 
-            if (genres.isNullOrEmpty()) {
+            if (genres.isEmpty()) {
                 // Unknown genre
                 genreDurations["Unknown"] = (genreDurations["Unknown"] ?: 0L) + durationMs
             } else {

@@ -59,7 +59,6 @@ class SearchRepositoryTest {
                     coverUrl = null,
                     totalDuration = 3600000,
                     description = null,
-                    genres = null,
                     publishYear = null,
                     audioFilesJson = null,
                     syncState = SyncState.SYNCED,

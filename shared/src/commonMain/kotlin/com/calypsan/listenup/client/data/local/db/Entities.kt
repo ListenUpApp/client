@@ -122,7 +122,6 @@ data class BookEntity(
     val vibrantColor: Int? = null,
     val totalDuration: Long, // Total audiobook duration in milliseconds
     val description: String? = null,
-    val genres: String? = null, // Comma-separated genres
     // Series is now managed via book_series junction table (many-to-many)
     val publishYear: Int? = null,
     val publisher: String? = null, // Publisher name
