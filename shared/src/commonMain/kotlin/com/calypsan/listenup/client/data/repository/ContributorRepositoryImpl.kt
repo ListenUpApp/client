@@ -77,8 +77,7 @@ class ContributorRepositoryImpl(
             row?.toDomain()
         }
 
-    override suspend fun getById(id: String): Contributor? =
-        contributorDao.getByIdWithAliases(id)?.toDomain()
+    override suspend fun getById(id: String): Contributor? = contributorDao.getByIdWithAliases(id)?.toDomain()
 
     override fun observeByBookId(bookId: String): Flow<List<Contributor>> =
         contributorDao.observeByBookId(bookId).map { entities ->

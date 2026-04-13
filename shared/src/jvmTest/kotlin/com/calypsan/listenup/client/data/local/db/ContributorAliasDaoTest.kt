@@ -27,7 +27,10 @@ class ContributorAliasDaoTest {
         db.close()
     }
 
-    private suspend fun seedContributor(id: String = "c-1", name: String = "Stephen King") {
+    private suspend fun seedContributor(
+        id: String = "c-1",
+        name: String = "Stephen King",
+    ) {
         contributorDao.upsert(
             ContributorEntity(
                 id = ContributorId(id),
