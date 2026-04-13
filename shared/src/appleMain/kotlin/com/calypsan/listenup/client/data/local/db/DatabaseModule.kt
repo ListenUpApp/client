@@ -37,7 +37,9 @@ actual val platformDatabaseModule: Module =
                     name = dbFile,
                 ).setDriver(BundledSQLiteDriver())
                 .setQueryCoroutineContext(Dispatchers.Default)
-                .fallbackToDestructiveMigration(false)
+                // No public installs yet — every schema change nukes and re-creates local
+                // data. Flip back to `false` + a proper Migration chain before launch.
+                .fallbackToDestructiveMigration(true)
                 .build()
         }
     }
