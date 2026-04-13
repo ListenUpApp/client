@@ -131,19 +131,13 @@ interface BookDao {
      * @return List of books requiring sync
      */
     @Query("SELECT * FROM books WHERE syncState IN (:states)")
-    suspend fun getByStates(states: List<Int>): List<BookEntity>
+    suspend fun getByStates(states: List<SyncState>): List<BookEntity>
 
     /**
      * Get books with pending changes (NOT_SYNCED or CONFLICT states).
      * Convenience method wrapping getByStates.
      */
-    suspend fun getPendingChanges(): List<BookEntity> =
-        getByStates(
-            listOf(
-                SyncState.NOT_SYNCED_ORDINAL,
-                SyncState.CONFLICT_ORDINAL,
-            ),
-        )
+    suspend fun getPendingChanges(): List<BookEntity> = getByStates(listOf(SyncState.NOT_SYNCED, SyncState.CONFLICT))
 
     /**
      * Mark a book as successfully synced with server.
@@ -157,7 +151,7 @@ interface BookDao {
     @Query(
         """
         UPDATE books
-        SET syncState = ${SyncState.SYNCED_ORDINAL},
+        SET syncState = ${SyncState.SYNCED_NAME},
             serverVersion = :serverVersion
         WHERE id = :id
     """,
@@ -179,7 +173,7 @@ interface BookDao {
     @Query(
         """
         UPDATE books
-        SET syncState = ${SyncState.CONFLICT_ORDINAL},
+        SET syncState = ${SyncState.CONFLICT_NAME},
             serverVersion = :serverVersion
         WHERE id = :id
     """,

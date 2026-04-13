@@ -7,58 +7,50 @@ class TypeConvertersTest {
     private val converters = Converters()
 
     @Test
-    fun fromSyncState_synced_returnsOrdinal() {
-        val result = converters.fromSyncState(SyncState.SYNCED)
-        assertEquals(0, result)
+    fun fromSyncState_synced_returnsName() {
+        assertEquals("SYNCED", converters.fromSyncState(SyncState.SYNCED))
     }
 
     @Test
-    fun fromSyncState_notSynced_returnsOrdinal() {
-        val result = converters.fromSyncState(SyncState.NOT_SYNCED)
-        assertEquals(1, result)
+    fun fromSyncState_notSynced_returnsName() {
+        assertEquals("NOT_SYNCED", converters.fromSyncState(SyncState.NOT_SYNCED))
     }
 
     @Test
-    fun fromSyncState_syncing_returnsOrdinal() {
-        val result = converters.fromSyncState(SyncState.SYNCING)
-        assertEquals(2, result)
+    fun fromSyncState_syncing_returnsName() {
+        assertEquals("SYNCING", converters.fromSyncState(SyncState.SYNCING))
     }
 
     @Test
-    fun fromSyncState_conflict_returnsOrdinal() {
-        val result = converters.fromSyncState(SyncState.CONFLICT)
-        assertEquals(3, result)
+    fun fromSyncState_conflict_returnsName() {
+        assertEquals("CONFLICT", converters.fromSyncState(SyncState.CONFLICT))
     }
 
     @Test
-    fun toSyncState_0_returnsSynced() {
-        val result = converters.toSyncState(0)
-        assertEquals(SyncState.SYNCED, result)
+    fun toSyncState_syncedName_returnsSynced() {
+        assertEquals(SyncState.SYNCED, converters.toSyncState("SYNCED"))
     }
 
     @Test
-    fun toSyncState_1_returnsNotSynced() {
-        val result = converters.toSyncState(1)
-        assertEquals(SyncState.NOT_SYNCED, result)
+    fun toSyncState_notSyncedName_returnsNotSynced() {
+        assertEquals(SyncState.NOT_SYNCED, converters.toSyncState("NOT_SYNCED"))
     }
 
     @Test
-    fun toSyncState_2_returnsSyncing() {
-        val result = converters.toSyncState(2)
-        assertEquals(SyncState.SYNCING, result)
+    fun toSyncState_syncingName_returnsSyncing() {
+        assertEquals(SyncState.SYNCING, converters.toSyncState("SYNCING"))
     }
 
     @Test
-    fun toSyncState_3_returnsConflict() {
-        val result = converters.toSyncState(3)
-        assertEquals(SyncState.CONFLICT, result)
+    fun toSyncState_conflictName_returnsConflict() {
+        assertEquals(SyncState.CONFLICT, converters.toSyncState("CONFLICT"))
     }
 
     @Test
     fun syncStateConversion_roundTrip_preservesValue() {
         SyncState.entries.forEach { state ->
-            val ordinal = converters.fromSyncState(state)
-            val restored = converters.toSyncState(ordinal)
+            val name = converters.fromSyncState(state)
+            val restored = converters.toSyncState(name)
             assertEquals(state, restored)
         }
     }

@@ -71,16 +71,17 @@ enum class SyncState {
 
     companion object {
         /**
-         * Ordinal constants for Room @Query annotations.
+         * Name constants for Room @Query annotations.
          *
          * Room requires compile-time constants in query strings, so these
-         * constants ensure single source of truth while enabling type-safe queries.
-         *
-         * Example: `UPDATE books SET syncState = ${SyncState.SYNCED_ORDINAL} WHERE id = :id`
+         * constants ensure single source of truth while enabling type-safe
+         * queries. Stored values now match [Enum.name] so the SQL literals are
+         * quoted strings rather than integer ordinals — e.g.
+         * `UPDATE books SET syncState = ${SyncState.SYNCED_NAME} WHERE id = :id`.
          */
-        const val SYNCED_ORDINAL = 0
-        const val NOT_SYNCED_ORDINAL = 1
-        const val SYNCING_ORDINAL = 2
-        const val CONFLICT_ORDINAL = 3
+        const val SYNCED_NAME = "'SYNCED'"
+        const val NOT_SYNCED_NAME = "'NOT_SYNCED'"
+        const val SYNCING_NAME = "'SYNCING'"
+        const val CONFLICT_NAME = "'CONFLICT'"
     }
 }

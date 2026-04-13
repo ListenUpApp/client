@@ -89,36 +89,28 @@ class ValueClassConverters {
 }
 
 /**
- * Room type converters for custom types used in database entities.
+ * Room type converters for sync-state and download-state enums.
  *
- * Room cannot persist enum classes directly, so we convert them to
- * their integer ordinal values for storage and back to enum instances
- * when reading from the database.
+ * Stores enums by their declared `name` instead of their ordinal index — ordinal
+ * storage silently corrupts data when an enum constant is inserted, reordered,
+ * or removed, since previously-written rows then map to the wrong case.
+ * Storing by name is resilient to reorderings (Finding 05 D3) and makes the
+ * SQLite column human-readable in ad-hoc inspection. `valueOf` throws on an
+ * unknown value, which is what we want: the app refuses to interpret a state
+ * it no longer understands rather than silently remap it.
  */
 class Converters {
-    /**
-     * Converts [SyncState] enum to integer ordinal for database storage.
-     *
-     * @param value The SyncState enum value to convert
-     * @return Integer ordinal (0-3) representing the sync state
-     */
     @TypeConverter
-    fun fromSyncState(value: SyncState): Int = value.ordinal
-
-    /**
-     * Converts integer ordinal from database to [SyncState] enum.
-     *
-     * @param value Integer ordinal (0-3) from database
-     * @return Corresponding SyncState enum value
-     */
-    @TypeConverter
-    fun toSyncState(value: Int): SyncState = SyncState.entries[value]
+    fun fromSyncState(value: SyncState): String = value.name
 
     @TypeConverter
-    fun fromDownloadState(state: DownloadState): Int = state.ordinal
+    fun toSyncState(value: String): SyncState = SyncState.valueOf(value)
 
     @TypeConverter
-    fun toDownloadState(ordinal: Int): DownloadState = DownloadState.entries[ordinal]
+    fun fromDownloadState(state: DownloadState): String = state.name
+
+    @TypeConverter
+    fun toDownloadState(value: String): DownloadState = DownloadState.valueOf(value)
 }
 
 /**
@@ -140,23 +132,22 @@ enum class DownloadState {
  */
 class PendingOperationConverters {
     @TypeConverter
-    fun fromOperationType(value: OperationType): Int = value.ordinal
+    fun fromOperationType(value: OperationType): String = value.name
 
     @TypeConverter
-    fun toOperationType(value: Int): OperationType =
-        OperationType.entries.getOrElse(value) { OperationType.BOOK_UPDATE }
+    fun toOperationType(value: String): OperationType = OperationType.valueOf(value)
 
     @TypeConverter
-    fun fromNullableEntityType(value: EntityType?): Int? = value?.ordinal
+    fun fromNullableEntityType(value: EntityType?): String? = value?.name
 
     @TypeConverter
-    fun toNullableEntityType(value: Int?): EntityType? = value?.let { EntityType.entries[it] }
+    fun toNullableEntityType(value: String?): EntityType? = value?.let { EntityType.valueOf(it) }
 
     @TypeConverter
-    fun fromOperationStatus(value: OperationStatus): Int = value.ordinal
+    fun fromOperationStatus(value: OperationStatus): String = value.name
 
     @TypeConverter
-    fun toOperationStatus(value: Int): OperationStatus = OperationStatus.entries[value]
+    fun toOperationStatus(value: String): OperationStatus = OperationStatus.valueOf(value)
 }
 
 /**

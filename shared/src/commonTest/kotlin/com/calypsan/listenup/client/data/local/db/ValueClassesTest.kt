@@ -168,19 +168,20 @@ class ValueClassesTest {
     // ========== SyncState Tests ==========
 
     @Test
-    fun `SyncState ordinal constants match enum ordinals`() {
-        assertEquals(SyncState.SYNCED.ordinal, SyncState.SYNCED_ORDINAL)
-        assertEquals(SyncState.NOT_SYNCED.ordinal, SyncState.NOT_SYNCED_ORDINAL)
-        assertEquals(SyncState.SYNCING.ordinal, SyncState.SYNCING_ORDINAL)
-        assertEquals(SyncState.CONFLICT.ordinal, SyncState.CONFLICT_ORDINAL)
+    fun `SyncState name constants are quoted for SQL embedding`() {
+        // Room requires compile-time constants in @Query strings. The _NAME
+        // constants must be pre-quoted so they embed as SQL string literals.
+        assertEquals("'SYNCED'", SyncState.SYNCED_NAME)
+        assertEquals("'NOT_SYNCED'", SyncState.NOT_SYNCED_NAME)
+        assertEquals("'SYNCING'", SyncState.SYNCING_NAME)
+        assertEquals("'CONFLICT'", SyncState.CONFLICT_NAME)
     }
 
     @Test
-    fun `SyncState has expected ordinal values`() {
-        // These values are used in Room queries - verify they don't change
-        assertEquals(0, SyncState.SYNCED_ORDINAL)
-        assertEquals(1, SyncState.NOT_SYNCED_ORDINAL)
-        assertEquals(2, SyncState.SYNCING_ORDINAL)
-        assertEquals(3, SyncState.CONFLICT_ORDINAL)
+    fun `SyncState name constants match enum name values`() {
+        assertEquals("'${SyncState.SYNCED.name}'", SyncState.SYNCED_NAME)
+        assertEquals("'${SyncState.NOT_SYNCED.name}'", SyncState.NOT_SYNCED_NAME)
+        assertEquals("'${SyncState.SYNCING.name}'", SyncState.SYNCING_NAME)
+        assertEquals("'${SyncState.CONFLICT.name}'", SyncState.CONFLICT_NAME)
     }
 }

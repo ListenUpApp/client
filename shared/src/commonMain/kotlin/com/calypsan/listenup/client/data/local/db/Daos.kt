@@ -76,13 +76,13 @@ interface SeriesDao {
     @Upsert
     suspend fun upsertAll(series: List<SeriesEntity>)
 
-    @Query("UPDATE series SET syncState = ${SyncState.SYNCED_ORDINAL}, serverVersion = :version WHERE id = :id")
+    @Query("UPDATE series SET syncState = ${SyncState.SYNCED_NAME}, serverVersion = :version WHERE id = :id")
     suspend fun markSynced(
         id: String,
         version: Timestamp,
     )
 
-    @Query("UPDATE series SET syncState = ${SyncState.CONFLICT_ORDINAL}, serverVersion = :serverVersion WHERE id = :id")
+    @Query("UPDATE series SET syncState = ${SyncState.CONFLICT_NAME}, serverVersion = :serverVersion WHERE id = :id")
     suspend fun markConflict(
         id: String,
         serverVersion: Timestamp,
@@ -168,14 +168,14 @@ interface ContributorDao {
     @Upsert
     suspend fun upsertAll(contributors: List<ContributorEntity>)
 
-    @Query("UPDATE contributors SET syncState = ${SyncState.SYNCED_ORDINAL}, serverVersion = :version WHERE id = :id")
+    @Query("UPDATE contributors SET syncState = ${SyncState.SYNCED_NAME}, serverVersion = :version WHERE id = :id")
     suspend fun markSynced(
         id: String,
         version: Timestamp,
     )
 
     @Query(
-        "UPDATE contributors SET syncState = ${SyncState.CONFLICT_ORDINAL}, serverVersion = :serverVersion WHERE id = :id",
+        "UPDATE contributors SET syncState = ${SyncState.CONFLICT_NAME}, serverVersion = :serverVersion WHERE id = :id",
     )
     suspend fun markConflict(
         id: String,

@@ -18,6 +18,6 @@ data class CollectionEntity(
     val bookCount: Int,
     val createdAt: Timestamp,
     val updatedAt: Timestamp,
-    val syncState: Int = SyncState.SYNCED_ORDINAL,
+    val syncState: SyncState = SyncState.SYNCED,
     val serverVersion: Timestamp = Timestamp(0),
 )
