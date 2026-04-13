@@ -45,15 +45,15 @@ import androidx.room.TypeConverters
         ReadingSessionEntity::class,
         CoverDownloadTaskEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(
     ValueClassConverters::class,
     Converters::class,
     PendingOperationConverters::class,
-    StringListConverter::class,
     CoverDownloadStatusConverter::class,
+    StringListJsonConverter::class,
 )
 @ConstructedBy(ListenUpDatabaseConstructor::class)
 @Suppress("TooManyFunctions")

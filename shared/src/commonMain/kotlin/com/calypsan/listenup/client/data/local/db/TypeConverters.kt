@@ -6,6 +6,9 @@ import com.calypsan.listenup.client.core.ContributorId
 import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.core.UserId
+import com.calypsan.listenup.client.core.appJson
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 /**
  * Room type converters for value classes.
@@ -151,17 +154,6 @@ class PendingOperationConverters {
 }
 
 /**
- * Room type converter for List<String> stored as JSON.
- */
-class StringListConverter {
-    @TypeConverter
-    fun fromStringList(value: List<String>): String = value.joinToString(separator = "|||")
-
-    @TypeConverter
-    fun toStringList(value: String): List<String> = if (value.isEmpty()) emptyList() else value.split("|||")
-}
-
-/**
  * Room type converter for [CoverDownloadStatus] enum.
  * Uses string names (not ordinals) for readable queries and forward compatibility.
  */
@@ -171,4 +163,29 @@ class CoverDownloadStatusConverter {
 
     @TypeConverter
     fun toStatus(value: String): CoverDownloadStatus = CoverDownloadStatus.valueOf(value)
+}
+
+/**
+ * Round-trips a small `List<String>` as a JSON array using [appJson].
+ *
+ * Replaces the deleted `StringListConverter` (Finding 05 D3): the old split-on-`|||`
+ * approach silently corrupted any entry that happened to contain the literal
+ * delimiter. JSON has no such collision surface and is human-readable in ad-hoc
+ * database inspection.
+ *
+ * Intended for short, bounded lists (shelf cover previews, etc.) where a
+ * columnar approach or junction table would be over-engineering. Do not use
+ * for unbounded collections — those still belong in a separate table.
+ */
+class StringListJsonConverter {
+    @TypeConverter
+    fun fromList(value: List<String>): String = appJson.encodeToString(ListSerializer(String.serializer()), value)
+
+    @TypeConverter
+    fun toList(value: String): List<String> =
+        if (value.isEmpty()) {
+            emptyList()
+        } else {
+            appJson.decodeFromString(ListSerializer(String.serializer()), value)
+        }
 }
