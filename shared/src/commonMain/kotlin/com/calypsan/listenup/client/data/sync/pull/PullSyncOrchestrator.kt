@@ -136,7 +136,7 @@ class PullSyncOrchestrator(
                     onProgress(SyncStatus.Retrying(attempt = attempt, maxAttempts = max))
                 },
             ) {
-                // Phase 1: Series + Contributors in parallel
+                // Phase 1: Series + Contributors + Genres in parallel (reference data)
                 val seriesJob =
                     async {
                         seriesPuller.pull(updatedAfter) { status ->
@@ -165,14 +165,28 @@ class PullSyncOrchestrator(
                             }
                         }
                     }
+                val genresJob =
+                    async {
+                        genrePuller.pull(updatedAfter) { status ->
+                            if (status is SyncStatus.Progress) {
+                                onProgress(
+                                    status.copy(
+                                        totalItemsSynced = itemsSynced.value,
+                                        totalItems = knownTotal,
+                                    ),
+                                )
+                            }
+                        }
+                    }
 
                 try {
-                    awaitAll(seriesJob, contributorsJob)
+                    awaitAll(seriesJob, contributorsJob, genresJob)
                 } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     seriesJob.cancel()
                     contributorsJob.cancel()
+                    genresJob.cancel()
                     throw e
                 }
 
@@ -190,7 +204,6 @@ class PullSyncOrchestrator(
 
                 // Remaining phases — no known totals, just pass through
                 tagPuller.pull(updatedAfter, onProgress)
-                genrePuller.pull(updatedAfter, onProgress)
                 shelfPuller.pull(updatedAfter, onProgress)
                 progressPuller.pull(updatedAfter, onProgress)
                 listeningEventPuller.pull(updatedAfter, onProgress)
