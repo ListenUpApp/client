@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.sync.pull
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.CoverDownloadDao
+import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.RoomTransactionRunner
 import com.calypsan.listenup.client.data.remote.SyncApiContract
@@ -60,7 +61,7 @@ class BookPullerAtomicityTest {
                     coverImage = null,
                     totalDuration = 3_600_000L,
                     description = null,
-                    genres = null,
+                    genres = listOf("Fantasy"),
                     publishYear = null,
                     seriesInfo =
                         listOf(
@@ -107,6 +108,22 @@ class BookPullerAtomicityTest {
             everySuspend { failingCoverDownloadDao.enqueueAll(any()) } throws
                 RuntimeException("boom — cover enqueue failed")
 
+            // Seed the genre catalog so name resolution succeeds for the book in this test
+            db.genreDao().upsertAll(
+                listOf(
+                    GenreEntity(
+                        id = "g-fantasy",
+                        name = "Fantasy",
+                        slug = "fantasy",
+                        path = "/fantasy",
+                        bookCount = 0,
+                        parentId = null,
+                        depth = 0,
+                        sortOrder = 0,
+                    ),
+                ),
+            )
+
             val puller =
                 BookPuller(
                     transactionRunner = RoomTransactionRunner(db),
@@ -140,6 +157,11 @@ class BookPullerAtomicityTest {
                 0,
                 db.bookSeriesDao().getSeriesForBook(bookId).size,
                 "series cross-ref write must roll back",
+            )
+            assertEquals(
+                0,
+                db.genreDao().getGenresForBook(bookId).size,
+                "genre cross-ref write must roll back",
             )
         }
 }
