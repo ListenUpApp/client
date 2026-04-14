@@ -43,8 +43,8 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.features.bookdetail.formatFileSize
+import com.calypsan.listenup.client.domain.model.DownloadedBookSummary
 import com.calypsan.listenup.client.presentation.storage.DeleteConfirmation
-import com.calypsan.listenup.client.presentation.storage.DownloadedBook
 import com.calypsan.listenup.client.presentation.storage.StorageUiState
 import com.calypsan.listenup.client.presentation.storage.StorageViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -154,7 +154,7 @@ fun StorageScreen(
 @Composable
 private fun StorageContent(
     state: StorageUiState,
-    onDeleteBook: (DownloadedBook) -> Unit,
+    onDeleteBook: (DownloadedBookSummary) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.isLoading) {
@@ -294,7 +294,7 @@ private fun EmptyDownloadsMessage() {
 
 @Composable
 private fun DownloadedBookItem(
-    book: DownloadedBook,
+    book: DownloadedBookSummary,
     onDelete: () -> Unit,
     isDeleting: Boolean,
 ) {
@@ -331,9 +331,9 @@ private fun DownloadedBookItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                book.authorName?.let { author ->
+                if (book.authorNames.isNotEmpty()) {
                     Text(
-                        text = author,
+                        text = book.authorNames,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

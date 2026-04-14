@@ -4,11 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.error.ErrorBus
-import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.DownloadDao
-import com.calypsan.listenup.client.data.local.db.DownloadState
-import com.calypsan.listenup.client.download.DownloadFileManager
+import com.calypsan.listenup.client.domain.model.DownloadedBookSummary
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.download.DownloadService
+import com.calypsan.listenup.client.download.StorageSpaceProvider
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,25 +20,13 @@ import kotlinx.coroutines.launch
 private val logger = KotlinLogging.logger {}
 
 /**
- * Represents a downloaded book for display in the storage screen.
- */
-data class DownloadedBook(
-    val bookId: String,
-    val title: String,
-    val authorName: String?,
-    val coverBlurHash: String?,
-    val sizeBytes: Long,
-    val fileCount: Int,
-)
-
-/**
  * UI state for the Storage screen.
  */
 data class StorageUiState(
     val isLoading: Boolean = true,
     val totalStorageUsed: Long = 0,
     val availableStorage: Long = 0,
-    val downloadedBooks: List<DownloadedBook> = emptyList(),
+    val downloadedBooks: List<DownloadedBookSummary> = emptyList(),
     val deleteConfirmation: DeleteConfirmation? = null,
     val isDeleting: Boolean = false,
 )
@@ -49,7 +36,7 @@ data class StorageUiState(
  */
 sealed interface DeleteConfirmation {
     data class SingleBook(
-        val book: DownloadedBook,
+        val book: DownloadedBookSummary,
     ) : DeleteConfirmation
 
     data object AllDownloads : DeleteConfirmation
@@ -62,60 +49,24 @@ sealed interface DeleteConfirmation {
  * Allows deleting individual downloads or clearing all.
  */
 class StorageViewModel(
-    private val downloadDao: DownloadDao,
-    private val bookDao: BookDao,
+    private val downloadRepository: DownloadRepository,
     private val downloadService: DownloadService,
-    private val downloadFileManager: DownloadFileManager,
+    private val storageSpaceProvider: StorageSpaceProvider,
 ) : ViewModel() {
     private val internalState = MutableStateFlow(StorageUiState())
 
     val state: StateFlow<StorageUiState> =
         combine(
             internalState,
-            downloadDao.observeAll(),
-        ) { internal, downloads ->
-            // Group downloads by book, filter to completed only
-            val completedByBook =
-                downloads
-                    .filter { it.state == DownloadState.COMPLETED }
-                    .groupBy { it.bookId }
-
-            // Build list of downloaded books with metadata
-            val downloadedBooks =
-                completedByBook
-                    .mapNotNull { (bookId, files) ->
-                        bookDao.getById(BookId(bookId))?.let { book ->
-                            // Get primary author from the relation
-                            val bookWithContributors = bookDao.getByIdWithContributors(BookId(bookId))
-                            val authorName =
-                                bookWithContributors?.let { bwc ->
-                                    // Find the author role from contributorRoles, then get the contributor
-                                    val authorRole = bwc.contributorRoles.firstOrNull { it.role == "author" }
-                                    authorRole?.let { role ->
-                                        // Use creditedAs if available, otherwise find contributor by ID
-                                        role.creditedAs ?: bwc.contributors.find { it.id == role.contributorId }?.name
-                                    }
-                                }
-
-                            DownloadedBook(
-                                bookId = bookId,
-                                title = book.title,
-                                authorName = authorName,
-                                coverBlurHash = book.coverBlurHash,
-                                sizeBytes = files.sumOf { it.downloadedBytes },
-                                fileCount = files.size,
-                            )
-                        }
-                    }.sortedByDescending { it.sizeBytes }
-
-            val totalUsed = downloadFileManager.calculateStorageUsed()
-            val available = downloadFileManager.getAvailableSpace()
-
+            downloadRepository.observeDownloadedBooks(),
+        ) { internal, books ->
+            val totalUsed = storageSpaceProvider.calculateStorageUsed()
+            val available = storageSpaceProvider.getAvailableSpace()
             internal.copy(
                 isLoading = false,
                 totalStorageUsed = totalUsed,
                 availableStorage = available,
-                downloadedBooks = downloadedBooks,
+                downloadedBooks = books,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -126,28 +77,22 @@ class StorageViewModel(
     /**
      * Show confirmation dialog for deleting a single book.
      */
-    fun confirmDeleteBook(book: DownloadedBook) {
-        internalState.update {
-            it.copy(deleteConfirmation = DeleteConfirmation.SingleBook(book))
-        }
+    fun confirmDeleteBook(book: DownloadedBookSummary) {
+        internalState.update { it.copy(deleteConfirmation = DeleteConfirmation.SingleBook(book)) }
     }
 
     /**
      * Show confirmation dialog for clearing all downloads.
      */
     fun confirmClearAll() {
-        internalState.update {
-            it.copy(deleteConfirmation = DeleteConfirmation.AllDownloads)
-        }
+        internalState.update { it.copy(deleteConfirmation = DeleteConfirmation.AllDownloads) }
     }
 
     /**
      * Cancel the delete confirmation dialog.
      */
     fun cancelDelete() {
-        internalState.update {
-            it.copy(deleteConfirmation = null)
-        }
+        internalState.update { it.copy(deleteConfirmation = null) }
     }
 
     /**
@@ -155,10 +100,8 @@ class StorageViewModel(
      */
     fun executeDelete() {
         val confirmation = internalState.value.deleteConfirmation ?: return
-
         viewModelScope.launch {
             internalState.update { it.copy(isDeleting = true, deleteConfirmation = null) }
-
             try {
                 when (confirmation) {
                     is DeleteConfirmation.SingleBook -> {
@@ -168,7 +111,6 @@ class StorageViewModel(
 
                     is DeleteConfirmation.AllDownloads -> {
                         logger.info { "Clearing all downloads" }
-                        // Delete each book individually to properly track deletion state
                         state.value.downloadedBooks.forEach { book ->
                             downloadService.deleteDownload(BookId(book.bookId))
                         }

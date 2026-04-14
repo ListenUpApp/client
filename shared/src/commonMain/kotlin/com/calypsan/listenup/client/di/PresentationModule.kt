@@ -12,6 +12,9 @@ import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewMo
 import com.calypsan.listenup.client.presentation.library.LibraryActionsViewModel
 import com.calypsan.listenup.client.presentation.library.LibrarySelectionManager
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
+import com.calypsan.listenup.client.download.DownloadFileManager
+import com.calypsan.listenup.client.download.DownloadFileManagerStorageAdapter
+import com.calypsan.listenup.client.download.StorageSpaceProvider
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
 import com.calypsan.listenup.client.presentation.storage.StorageViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
@@ -424,12 +427,12 @@ val settingsPresentationModule =
         // SyncIndicatorViewModel as singleton for app-wide sync status
         single { SyncIndicatorViewModel(pendingOperationRepository = get(), syncRepository = get()) }
         // StorageViewModel for storage management screen
+        factory<StorageSpaceProvider> { DownloadFileManagerStorageAdapter(get<DownloadFileManager>()) }
         factory {
             StorageViewModel(
-                downloadDao = get(),
-                bookDao = get(),
+                downloadRepository = get(),
                 downloadService = get(),
-                downloadFileManager = get(),
+                storageSpaceProvider = get(),
             )
         }
     }
