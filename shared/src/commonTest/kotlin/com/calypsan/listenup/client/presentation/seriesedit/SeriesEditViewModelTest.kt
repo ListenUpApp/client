@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.presentation.seriesedit
 
-import com.calypsan.listenup.client.checkIs
+import app.cash.turbine.test
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Series
@@ -169,10 +169,11 @@ class SeriesEditViewModelTest {
             viewModel.loadSeries("series-1")
             advanceUntilIdle()
 
-            viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
-            advanceUntilIdle()
-
-            checkIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
+            viewModel.navActions.test {
+                viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
+                advanceUntilIdle()
+                assertEquals(SeriesEditNavAction.NavigateBack, awaitItem())
+            }
         }
 
     @Test
@@ -189,11 +190,12 @@ class SeriesEditViewModelTest {
             advanceUntilIdle()
             viewModel.onEvent(SeriesEditUiEvent.NameChanged("Updated Name"))
 
-            viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
-            advanceUntilIdle()
-
-            verifySuspend { fixture.updateSeriesUseCase.invoke(any()) }
-            checkIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
+            viewModel.navActions.test {
+                viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
+                advanceUntilIdle()
+                verifySuspend { fixture.updateSeriesUseCase.invoke(any()) }
+                assertEquals(SeriesEditNavAction.NavigateBack, awaitItem())
+            }
         }
 
     @Test
@@ -215,7 +217,9 @@ class SeriesEditViewModelTest {
             advanceUntilIdle()
 
             assertEquals("Failed to save: Save failed", viewModel.state.value.error)
-            assertNull(viewModel.navActions.value)
+            viewModel.navActions.test {
+                expectNoEvents()
+            }
         }
 
     // ========== Cancel Tests ==========
@@ -233,10 +237,11 @@ class SeriesEditViewModelTest {
             viewModel.loadSeries("series-1")
             advanceUntilIdle()
 
-            viewModel.onEvent(SeriesEditUiEvent.CancelClicked)
-            advanceUntilIdle()
-
-            checkIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
+            viewModel.navActions.test {
+                viewModel.onEvent(SeriesEditUiEvent.CancelClicked)
+                advanceUntilIdle()
+                assertEquals(SeriesEditNavAction.NavigateBack, awaitItem())
+            }
         }
 
     // ========== Error Handling Tests ==========
@@ -255,27 +260,5 @@ class SeriesEditViewModelTest {
             viewModel.onEvent(SeriesEditUiEvent.ErrorDismissed)
 
             assertNull(viewModel.state.value.error)
-        }
-
-    // ========== Navigation Tests ==========
-
-    @Test
-    fun `consumeNavAction clears navigation action`() =
-        runTest {
-            val fixture = createFixture()
-            everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
-            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
-            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
-
-            val viewModel = fixture.build()
-            viewModel.loadSeries("series-1")
-            advanceUntilIdle()
-            viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
-            advanceUntilIdle()
-            assertTrue(viewModel.navActions.value != null)
-
-            viewModel.consumeNavAction()
-
-            assertNull(viewModel.navActions.value)
         }
 }

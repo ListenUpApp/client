@@ -99,21 +99,13 @@ fun ContributorEditScreen(
     }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val navAction by viewModel.navActions.collectAsStateWithLifecycle()
 
-    LaunchedEffect(navAction) {
-        when (navAction) {
-            is ContributorEditNavAction.NavigateBack -> {
-                onBackClick()
-                viewModel.clearNavAction()
+    LaunchedEffect(viewModel) {
+        viewModel.navActions.collect { navAction ->
+            when (navAction) {
+                is ContributorEditNavAction.NavigateBack -> onBackClick()
+                is ContributorEditNavAction.SaveSuccess -> onSaveSuccess()
             }
-
-            is ContributorEditNavAction.SaveSuccess -> {
-                onSaveSuccess()
-                viewModel.clearNavAction()
-            }
-
-            null -> { /* no action */ }
         }
     }
 

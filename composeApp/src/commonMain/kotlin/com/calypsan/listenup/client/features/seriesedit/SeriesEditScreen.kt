@@ -103,16 +103,12 @@ fun SeriesEditScreen(
     }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val navAction by viewModel.navActions.collectAsStateWithLifecycle()
 
-    LaunchedEffect(navAction) {
-        when (navAction) {
-            is SeriesEditNavAction.NavigateBack -> {
-                onSaveSuccess()
-                viewModel.consumeNavAction()
+    LaunchedEffect(viewModel) {
+        viewModel.navActions.collect { navAction ->
+            when (navAction) {
+                is SeriesEditNavAction.NavigateBack -> onSaveSuccess()
             }
-
-            null -> { /* no action */ }
         }
     }
 

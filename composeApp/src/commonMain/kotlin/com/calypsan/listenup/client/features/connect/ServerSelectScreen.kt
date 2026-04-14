@@ -79,22 +79,14 @@ fun ServerSelectScreen(
     viewModel: ServerSelectViewModel = koinInject(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val navigationEvent by viewModel.navigationEvents.collectAsStateWithLifecycle()
 
     // Handle navigation events
-    LaunchedEffect(navigationEvent) {
-        when (navigationEvent) {
-            ServerSelectViewModel.NavigationEvent.ServerActivated -> {
-                viewModel.onNavigationHandled()
-                onServerActivated()
+    LaunchedEffect(viewModel) {
+        viewModel.navigationEvents.collect { event ->
+            when (event) {
+                ServerSelectViewModel.NavigationEvent.ServerActivated -> onServerActivated()
+                ServerSelectViewModel.NavigationEvent.GoToManualEntry -> onManualEntryRequested()
             }
-
-            ServerSelectViewModel.NavigationEvent.GoToManualEntry -> {
-                viewModel.onNavigationHandled()
-                onManualEntryRequested()
-            }
-
-            null -> {}
         }
     }
 

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.contributoredit
 
+import app.cash.turbine.test
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Contributor
@@ -325,16 +326,18 @@ class ContributorEditViewModelTest {
             // Change name
             viewModel.onEvent(ContributorEditUiEvent.NameChanged("Stephen Edwin King"))
 
-            // When
-            viewModel.onEvent(ContributorEditUiEvent.Save)
-            advanceUntilIdle()
+            // When / Then
+            viewModel.navActions.test {
+                viewModel.onEvent(ContributorEditUiEvent.Save)
+                advanceUntilIdle()
 
-            // Then - verify use case was called
-            verifySuspend(VerifyMode.exactly(1)) {
-                fixture.updateContributorUseCase.invoke(any())
+                // Verify use case was called
+                verifySuspend(VerifyMode.exactly(1)) {
+                    fixture.updateContributorUseCase.invoke(any())
+                }
+
+                // Verify navigation
+                assertEquals(ContributorEditNavAction.SaveSuccess, awaitItem())
             }
-
-            // Verify navigation
-            assertEquals(ContributorEditNavAction.SaveSuccess, viewModel.navActions.value)
         }
 }

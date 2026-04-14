@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.presentation.search
 
-import com.calypsan.listenup.client.checkIs
+import app.cash.turbine.test
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.domain.model.SearchResult
@@ -370,13 +370,13 @@ class SearchViewModelTest {
             advanceUntilIdle()
             val bookHit = createBookHit(id = "book-123")
 
-            // When
-            viewModel.onEvent(SearchUiEvent.ResultClicked(bookHit))
-            advanceUntilIdle()
-
-            // Then
-            val action = assertIs<SearchNavAction.NavigateToBook>(viewModel.navActions.value)
-            assertEquals("book-123", action.bookId)
+            // When / Then
+            viewModel.navActions.test {
+                viewModel.onEvent(SearchUiEvent.ResultClicked(bookHit))
+                advanceUntilIdle()
+                val action = assertIs<SearchNavAction.NavigateToBook>(awaitItem())
+                assertEquals("book-123", action.bookId)
+            }
         }
 
     @Test
@@ -388,13 +388,13 @@ class SearchViewModelTest {
             advanceUntilIdle()
             val contributorHit = createContributorHit(id = "author-456")
 
-            // When
-            viewModel.onEvent(SearchUiEvent.ResultClicked(contributorHit))
-            advanceUntilIdle()
-
-            // Then
-            val action = assertIs<SearchNavAction.NavigateToContributor>(viewModel.navActions.value)
-            assertEquals("author-456", action.contributorId)
+            // When / Then
+            viewModel.navActions.test {
+                viewModel.onEvent(SearchUiEvent.ResultClicked(contributorHit))
+                advanceUntilIdle()
+                val action = assertIs<SearchNavAction.NavigateToContributor>(awaitItem())
+                assertEquals("author-456", action.contributorId)
+            }
         }
 
     @Test
@@ -406,13 +406,13 @@ class SearchViewModelTest {
             advanceUntilIdle()
             val seriesHit = createSeriesHit(id = "series-789")
 
-            // When
-            viewModel.onEvent(SearchUiEvent.ResultClicked(seriesHit))
-            advanceUntilIdle()
-
-            // Then
-            val action = assertIs<SearchNavAction.NavigateToSeries>(viewModel.navActions.value)
-            assertEquals("series-789", action.seriesId)
+            // When / Then
+            viewModel.navActions.test {
+                viewModel.onEvent(SearchUiEvent.ResultClicked(seriesHit))
+                advanceUntilIdle()
+                val action = assertIs<SearchNavAction.NavigateToSeries>(awaitItem())
+                assertEquals("series-789", action.seriesId)
+            }
         }
 
     @Test
@@ -431,23 +431,6 @@ class SearchViewModelTest {
 
             // Then
             assertFalse(viewModel.state.value.isExpanded)
-        }
-
-    @Test
-    fun `clearNavAction clears navigation action`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-            viewModel.onEvent(SearchUiEvent.ResultClicked(createBookHit()))
-            advanceUntilIdle()
-            assertNotNull(viewModel.navActions.value)
-
-            // When
-            viewModel.clearNavAction()
-
-            // Then
-            assertNull(viewModel.navActions.value)
         }
 
     // ========== Expand/Collapse/Clear Tests ==========

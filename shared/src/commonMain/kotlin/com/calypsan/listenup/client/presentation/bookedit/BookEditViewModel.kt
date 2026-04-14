@@ -21,8 +21,11 @@ import com.calypsan.listenup.client.presentation.bookedit.delegates.CoverUploadD
 import com.calypsan.listenup.client.presentation.bookedit.delegates.GenreTagEditDelegate
 import com.calypsan.listenup.client.presentation.bookedit.delegates.SeriesEditDelegate
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -53,8 +56,8 @@ class BookEditViewModel(
     private val _state = MutableStateFlow(BookEditUiState())
     val state: StateFlow<BookEditUiState> = _state
 
-    private val _navActions = MutableStateFlow<BookEditNavAction?>(null)
-    val navActions: StateFlow<BookEditNavAction?> = _navActions
+    private val _navActions = Channel<BookEditNavAction>(Channel.BUFFERED)
+    val navActions: Flow<BookEditNavAction> = _navActions.receiveAsFlow()
 
     // Original state for change detection (set when book is loaded)
     private var originalState: BookEditData? = null
@@ -329,13 +332,6 @@ class BookEditViewModel(
     }
 
     /**
-     * Clear navigation action after handling.
-     */
-    fun clearNavAction() {
-        _navActions.value = null
-    }
-
-    /**
      * Clean up staging files when ViewModel is destroyed.
      */
     override fun onCleared() {
@@ -347,7 +343,7 @@ class BookEditViewModel(
 
     private fun cancelAndCleanup() {
         coverDelegate.cleanupStagingOnCancel()
-        _navActions.value = BookEditNavAction.NavigateBack
+        _navActions.trySend(BookEditNavAction.NavigateBack)
     }
 
     /**
@@ -384,7 +380,7 @@ class BookEditViewModel(
         val current = _state.value
 
         if (!current.hasChanges) {
-            _navActions.value = BookEditNavAction.NavigateBack
+            _navActions.trySend(BookEditNavAction.NavigateBack)
             return
         }
 
@@ -404,7 +400,7 @@ class BookEditViewModel(
                             stagingCoverPath = null,
                         )
                     }
-                    _navActions.value = BookEditNavAction.NavigateBack
+                    _navActions.trySend(BookEditNavAction.NavigateBack)
                 }
 
                 is Failure -> {

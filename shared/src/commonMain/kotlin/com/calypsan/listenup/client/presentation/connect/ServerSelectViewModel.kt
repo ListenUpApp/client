@@ -10,10 +10,13 @@ import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.ServerRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -73,8 +76,8 @@ class ServerSelectViewModel(
     val state: StateFlow<ServerSelectUiState>
         field = MutableStateFlow(ServerSelectUiState())
 
-    val navigationEvents: StateFlow<NavigationEvent?>
-        field = MutableStateFlow<NavigationEvent?>(null)
+    private val _navigationEvents = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvents: Flow<NavigationEvent> = _navigationEvents.receiveAsFlow()
 
     /**
      * Navigation events that the UI should handle.
@@ -103,13 +106,6 @@ class ServerSelectViewModel(
             ServerSelectUiEvent.RefreshClicked -> handleRefreshClicked()
             ServerSelectUiEvent.ErrorDismissed -> state.update { it.copy(error = null) }
         }
-    }
-
-    /**
-     * Clear navigation event after UI has handled it.
-     */
-    fun onNavigationHandled() {
-        navigationEvents.value = null
     }
 
     private fun startDiscovery() {
@@ -159,7 +155,7 @@ class ServerSelectViewModel(
                 serverConfig.setServerUrl(ServerUrl(serverUrl))
                 logger.info { "Server activated: ${server.id} at $serverUrl" }
                 state.update { it.copy(isConnecting = false) }
-                navigationEvents.value = NavigationEvent.ServerActivated
+                _navigationEvents.trySend(NavigationEvent.ServerActivated)
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -205,7 +201,7 @@ class ServerSelectViewModel(
                     serverConfig.setServerUrl(ServerUrl(reachableUrl))
                     logger.info { "Server activated: ${discovered.id} at $reachableUrl" }
                     state.update { it.copy(isConnecting = false) }
-                    navigationEvents.value = NavigationEvent.ServerActivated
+                    _navigationEvents.trySend(NavigationEvent.ServerActivated)
                 } else {
                     logger.warn { "Server discovered but not reachable at any URL: $urlsToTry" }
                     state.update {
@@ -234,7 +230,7 @@ class ServerSelectViewModel(
 
     private fun handleManualEntryClicked() {
         logger.info { "Manual entry requested" }
-        navigationEvents.value = NavigationEvent.GoToManualEntry
+        _navigationEvents.trySend(NavigationEvent.GoToManualEntry)
     }
 
     private fun handleRefreshClicked() {

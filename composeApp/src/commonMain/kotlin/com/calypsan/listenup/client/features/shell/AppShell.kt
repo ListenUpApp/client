@@ -164,34 +164,18 @@ fun AppShell(
     val syncState by syncRepository.syncState.collectAsStateWithLifecycle()
     val user by userRepository.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
     val searchState by searchViewModel.state.collectAsStateWithLifecycle()
-    val searchNavAction by searchViewModel.navActions.collectAsStateWithLifecycle()
     val syncIndicatorState by syncIndicatorViewModel.state.collectAsStateWithLifecycle()
     val isSyncDetailsExpanded by syncIndicatorViewModel.isExpanded.collectAsStateWithLifecycle()
 
     // Handle search navigation
-    LaunchedEffect(searchNavAction) {
-        when (val action = searchNavAction) {
-            is SearchNavAction.NavigateToBook -> {
-                onBookClick(action.bookId)
-                searchViewModel.clearNavAction()
+    LaunchedEffect(searchViewModel) {
+        searchViewModel.navActions.collect { action ->
+            when (action) {
+                is SearchNavAction.NavigateToBook -> onBookClick(action.bookId)
+                is SearchNavAction.NavigateToContributor -> onContributorClick(action.contributorId)
+                is SearchNavAction.NavigateToSeries -> onSeriesClick(action.seriesId)
+                is SearchNavAction.NavigateToTag -> onTagClick(action.tagId)
             }
-
-            is SearchNavAction.NavigateToContributor -> {
-                onContributorClick(action.contributorId)
-                searchViewModel.clearNavAction()
-            }
-
-            is SearchNavAction.NavigateToSeries -> {
-                onSeriesClick(action.seriesId)
-                searchViewModel.clearNavAction()
-            }
-
-            is SearchNavAction.NavigateToTag -> {
-                onTagClick(action.tagId)
-                searchViewModel.clearNavAction()
-            }
-
-            null -> {}
         }
     }
 

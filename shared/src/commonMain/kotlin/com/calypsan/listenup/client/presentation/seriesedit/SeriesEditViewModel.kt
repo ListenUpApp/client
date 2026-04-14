@@ -9,8 +9,11 @@ import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.usecase.series.SeriesUpdateRequest
 import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -100,8 +103,8 @@ class SeriesEditViewModel(
     val state: StateFlow<SeriesEditUiState>
         field = MutableStateFlow(SeriesEditUiState())
 
-    val navActions: StateFlow<SeriesEditNavAction?>
-        field = MutableStateFlow<SeriesEditNavAction?>(null)
+    private val _navActions = Channel<SeriesEditNavAction>(Channel.BUFFERED)
+    val navActions: Flow<SeriesEditNavAction> = _navActions.receiveAsFlow()
 
     // Track original values for change detection
     private var originalName: String = ""
@@ -186,13 +189,6 @@ class SeriesEditViewModel(
                 state.update { it.copy(error = null) }
             }
         }
-    }
-
-    /**
-     * Clear navigation action after handling.
-     */
-    fun consumeNavAction() {
-        navActions.value = null
     }
 
     /**
@@ -293,7 +289,7 @@ class SeriesEditViewModel(
     private fun saveChanges() {
         val current = state.value
         if (!current.hasChanges) {
-            navActions.value = SeriesEditNavAction.NavigateBack
+            _navActions.trySend(SeriesEditNavAction.NavigateBack)
             return
         }
 
@@ -327,7 +323,7 @@ class SeriesEditViewModel(
                             stagingCoverPath = null,
                         )
                     }
-                    navActions.value = SeriesEditNavAction.NavigateBack
+                    _navActions.trySend(SeriesEditNavAction.NavigateBack)
                 }
 
                 is Failure -> {
@@ -349,7 +345,7 @@ class SeriesEditViewModel(
                 logger.debug { "Staging cover cleaned up on cancel" }
             }
         }
-        navActions.value = SeriesEditNavAction.NavigateBack
+        _navActions.trySend(SeriesEditNavAction.NavigateBack)
     }
 
     /**

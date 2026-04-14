@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.usecase.book.LoadBookForEditUseCase
 import com.calypsan.listenup.client.domain.usecase.book.UpdateBookUseCase
+import app.cash.turbine.test
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -597,12 +598,12 @@ class BookEditViewModelTest {
             advanceUntilIdle()
             assertFalse(viewModel.state.value.hasChanges)
 
-            // When
-            viewModel.onEvent(BookEditUiEvent.Save)
-            advanceUntilIdle()
-
-            // Then
-            assertEquals(BookEditNavAction.NavigateBack, viewModel.navActions.value)
+            // When / Then
+            viewModel.navActions.test {
+                viewModel.onEvent(BookEditUiEvent.Save)
+                advanceUntilIdle()
+                assertEquals(BookEditNavAction.NavigateBack, awaitItem())
+            }
         }
 
     @Test
@@ -617,14 +618,14 @@ class BookEditViewModelTest {
             viewModel.loadBook("book-1")
             advanceUntilIdle()
 
-            // When
-            viewModel.onEvent(BookEditUiEvent.TitleChanged("Updated"))
-            viewModel.onEvent(BookEditUiEvent.Save)
-            advanceUntilIdle()
-
-            // Then
-            verifySuspend { fixture.updateBookUseCase(any(), any()) }
-            assertEquals(BookEditNavAction.NavigateBack, viewModel.navActions.value)
+            // When / Then
+            viewModel.navActions.test {
+                viewModel.onEvent(BookEditUiEvent.TitleChanged("Updated"))
+                viewModel.onEvent(BookEditUiEvent.Save)
+                advanceUntilIdle()
+                verifySuspend { fixture.updateBookUseCase(any(), any()) }
+                assertEquals(BookEditNavAction.NavigateBack, awaitItem())
+            }
         }
 
     @Test
@@ -646,7 +647,10 @@ class BookEditViewModelTest {
 
             // Then
             assertEquals("Save failed", viewModel.state.value.error)
-            assertNull(viewModel.navActions.value) // Should not navigate
+            // No nav action emitted on failure — Channel stays silent.
+            viewModel.navActions.test {
+                expectNoEvents()
+            }
         }
 
     @Test
@@ -660,11 +664,11 @@ class BookEditViewModelTest {
             viewModel.loadBook("book-1")
             advanceUntilIdle()
 
-            // When
-            viewModel.onEvent(BookEditUiEvent.Cancel)
-
-            // Then
-            assertEquals(BookEditNavAction.NavigateBack, viewModel.navActions.value)
+            // When / Then
+            viewModel.navActions.test {
+                viewModel.onEvent(BookEditUiEvent.Cancel)
+                assertEquals(BookEditNavAction.NavigateBack, awaitItem())
+            }
         }
 
     @Test

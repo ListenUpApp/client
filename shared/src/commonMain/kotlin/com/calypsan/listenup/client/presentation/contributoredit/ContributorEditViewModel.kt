@@ -15,6 +15,8 @@ import com.calypsan.listenup.client.domain.usecase.contributor.UpdateContributor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -154,8 +157,8 @@ class ContributorEditViewModel(
     val state: StateFlow<ContributorEditUiState>
         field = MutableStateFlow(ContributorEditUiState())
 
-    val navActions: StateFlow<ContributorEditNavAction?>
-        field = MutableStateFlow<ContributorEditNavAction?>(null)
+    private val _navActions = Channel<ContributorEditNavAction>(Channel.BUFFERED)
+    val navActions: Flow<ContributorEditNavAction> = _navActions.receiveAsFlow()
 
     // Alias search - flatMapLatest handles cancellation automatically
     private val aliasQueryFlow = MutableStateFlow("")
@@ -324,20 +327,13 @@ class ContributorEditViewModel(
             }
 
             is ContributorEditUiEvent.Cancel -> {
-                navActions.value = ContributorEditNavAction.NavigateBack
+                _navActions.trySend(ContributorEditNavAction.NavigateBack)
             }
 
             is ContributorEditUiEvent.DismissError -> {
                 state.update { it.copy(error = null) }
             }
         }
-    }
-
-    /**
-     * Clear navigation action after handling.
-     */
-    fun clearNavAction() {
-        navActions.value = null
     }
 
     /**
@@ -570,7 +566,7 @@ class ContributorEditViewModel(
     private fun saveChanges() {
         val current = state.value
         if (!current.hasChanges) {
-            navActions.value = ContributorEditNavAction.NavigateBack
+            _navActions.trySend(ContributorEditNavAction.NavigateBack)
             return
         }
 
@@ -597,7 +593,7 @@ class ContributorEditViewModel(
             when (result) {
                 is Success -> {
                     state.update { it.copy(isSaving = false, hasChanges = false) }
-                    navActions.value = ContributorEditNavAction.SaveSuccess
+                    _navActions.trySend(ContributorEditNavAction.SaveSuccess)
                 }
 
                 is Failure -> {

@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.presentation.connect
 
-import com.calypsan.listenup.client.checkIs
+import app.cash.turbine.test
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.model.Server
 import com.calypsan.listenup.client.domain.model.ServerWithStatus
@@ -28,7 +28,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -130,10 +129,11 @@ class ServerSelectViewModelTest {
             val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
 
-            viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
-            advanceUntilIdle()
-
-            checkIs<ServerSelectViewModel.NavigationEvent.GoToManualEntry>(viewModel.navigationEvents.value)
+            viewModel.navigationEvents.test {
+                viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
+                advanceUntilIdle()
+                assertEquals(ServerSelectViewModel.NavigationEvent.GoToManualEntry, awaitItem())
+            }
         }
 
     @Test
@@ -171,12 +171,14 @@ class ServerSelectViewModelTest {
             val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
 
-            viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
-            advanceUntilIdle()
+            viewModel.navigationEvents.test {
+                viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
+                advanceUntilIdle()
 
-            verifySuspend { serverRepository.setActiveServer(server.id) }
-            verifySuspend { serverConfig.setServerUrl(ServerUrl(server.localUrl!!)) }
-            checkIs<ServerSelectViewModel.NavigationEvent.ServerActivated>(viewModel.navigationEvents.value)
+                verifySuspend { serverRepository.setActiveServer(server.id) }
+                verifySuspend { serverConfig.setServerUrl(ServerUrl(server.localUrl!!)) }
+                assertEquals(ServerSelectViewModel.NavigationEvent.ServerActivated, awaitItem())
+            }
         }
 
     @Test
@@ -220,26 +222,6 @@ class ServerSelectViewModelTest {
             viewModel.onEvent(ServerSelectUiEvent.ErrorDismissed)
 
             assertNull(viewModel.state.value.error)
-        }
-
-    @Test
-    fun `onNavigationHandled clears navigation event`() =
-        runTest {
-            val serverRepository: ServerRepository = mock()
-            val serverConfig: ServerConfig = mock()
-            val instanceRepository: InstanceRepository = mock()
-            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-            every { serverRepository.startDiscovery() } returns Unit
-
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
-            advanceUntilIdle()
-            viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
-            advanceUntilIdle()
-            assertTrue(viewModel.navigationEvents.value != null)
-
-            viewModel.onNavigationHandled()
-
-            assertNull(viewModel.navigationEvents.value)
         }
 
     @Test

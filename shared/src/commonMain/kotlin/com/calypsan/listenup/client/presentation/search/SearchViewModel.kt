@@ -10,6 +10,8 @@ import com.calypsan.listenup.client.domain.repository.SearchRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import com.calypsan.listenup.client.core.Success
 
@@ -140,8 +143,8 @@ class SearchViewModel(
     val state: StateFlow<SearchUiState>
         field = MutableStateFlow(SearchUiState())
 
-    val navActions: StateFlow<SearchNavAction?>
-        field = MutableStateFlow<SearchNavAction?>(null)
+    private val _navActions = Channel<SearchNavAction>(Channel.BUFFERED)
+    val navActions: Flow<SearchNavAction> = _navActions.receiveAsFlow()
 
     // Internal query flow for debouncing - flatMapLatest handles cancellation automatically
     private val queryFlow = MutableStateFlow("")
@@ -278,13 +281,6 @@ class SearchViewModel(
     }
 
     /**
-     * Clear navigation action after handling.
-     */
-    fun clearNavAction() {
-        navActions.value = null
-    }
-
-    /**
      * Perform a search and return the result.
      * Called from flatMapLatest flow - cancellation is handled automatically.
      */
@@ -316,7 +312,7 @@ class SearchViewModel(
                 SearchHitType.SERIES -> SearchNavAction.NavigateToSeries(hit.id)
                 SearchHitType.TAG -> SearchNavAction.NavigateToTag(hit.id)
             }
-        navActions.value = action
+        _navActions.trySend(action)
 
         // Collapse search after navigation
         state.update { it.copy(isExpanded = false) }

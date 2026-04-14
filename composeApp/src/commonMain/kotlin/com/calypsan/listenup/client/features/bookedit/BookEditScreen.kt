@@ -97,21 +97,13 @@ fun BookEditScreen(
     }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val navAction by viewModel.navActions.collectAsStateWithLifecycle()
 
-    LaunchedEffect(navAction) {
-        when (navAction) {
-            is BookEditNavAction.NavigateBack -> {
-                onBackClick()
-                viewModel.clearNavAction()
+    LaunchedEffect(viewModel) {
+        viewModel.navActions.collect { navAction ->
+            when (navAction) {
+                is BookEditNavAction.NavigateBack -> onBackClick()
+                is BookEditNavAction.ShowSaveSuccess -> onBackClick()
             }
-
-            is BookEditNavAction.ShowSaveSuccess -> {
-                onBackClick()
-                viewModel.clearNavAction()
-            }
-
-            null -> { /* no action */ }
         }
     }
 
