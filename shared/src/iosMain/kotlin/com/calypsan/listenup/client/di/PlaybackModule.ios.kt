@@ -67,6 +67,7 @@ val iosPlaybackModule: Module =
             AppleDownloadService(
                 downloadDao = get(),
                 bookDao = get(),
+                audioFileDao = get(),
                 serverConfig = get(),
                 tokenProvider = get(),
                 fileManager = get(),
@@ -100,9 +101,11 @@ val iosPlaybackModule: Module =
         // Playback manager
         single {
             PlaybackManager(
+                transactionRunner = get(),
                 serverConfig = get(),
                 playbackPreferences = get(),
                 bookDao = get(),
+                audioFileDao = get(),
                 chapterDao = get(),
                 imageStorage = get(),
                 progressTracker = get(),

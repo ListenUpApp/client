@@ -7,6 +7,7 @@ import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.RoomTransactionRunner
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
@@ -79,7 +80,17 @@ class BookPullerAtomicityTest {
                                 endTime = 1_000L,
                             ),
                         ),
-                    audioFiles = emptyList(),
+                    audioFiles =
+                        listOf(
+                            AudioFileResponse(
+                                id = "af-rollback-1",
+                                filename = "chapter01.m4b",
+                                format = "m4b",
+                                codec = "aac",
+                                duration = 1_800_000L,
+                                size = 45_000_000L,
+                            ),
+                        ),
                     contributors =
                         listOf(
                             BookContributorResponse(
@@ -130,10 +141,14 @@ class BookPullerAtomicityTest {
                     syncApi = syncApi,
                     bookDao = db.bookDao(),
                     chapterDao = db.chapterDao(),
-                    bookContributorDao = db.bookContributorDao(),
-                    bookSeriesDao = db.bookSeriesDao(),
-                    tagDao = db.tagDao(),
-                    genreDao = db.genreDao(),
+                    relationshipDaos =
+                        BookRelationshipDaos(
+                            bookContributorDao = db.bookContributorDao(),
+                            bookSeriesDao = db.bookSeriesDao(),
+                            tagDao = db.tagDao(),
+                            genreDao = db.genreDao(),
+                            audioFileDao = db.audioFileDao(),
+                        ),
                     conflictDetector = conflictDetector,
                     imageDownloader = imageDownloader,
                     coverDownloadDao = failingCoverDownloadDao,
@@ -162,6 +177,11 @@ class BookPullerAtomicityTest {
                 0,
                 db.genreDao().getGenresForBook(bookId).size,
                 "genre cross-ref write must roll back",
+            )
+            assertEquals(
+                0,
+                db.audioFileDao().getForBook("book-rollback").size,
+                "audio_files rows must roll back when cover enqueue throws",
             )
         }
 }

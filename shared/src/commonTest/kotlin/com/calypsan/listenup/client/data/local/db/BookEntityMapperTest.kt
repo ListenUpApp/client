@@ -55,7 +55,6 @@ class BookEntityMapperTest {
             totalDuration = totalDuration,
             description = description,
             publishYear = publishYear,
-            audioFilesJson = null,
             syncState = SyncState.SYNCED,
             lastModified = Timestamp(1704067200000L),
             serverVersion = Timestamp(1704067200000L),

@@ -109,7 +109,6 @@ class ReadingSessionPullerAtomicityTest {
                 isbn = null,
                 asin = null,
                 abridged = false,
-                audioFilesJson = null,
                 syncState = SyncState.SYNCED,
                 lastModified = Timestamp(1L),
                 serverVersion = Timestamp(1L),

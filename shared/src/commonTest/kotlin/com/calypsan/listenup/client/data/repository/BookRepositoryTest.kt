@@ -74,7 +74,6 @@ class BookRepositoryTest {
             totalDuration = totalDuration,
             description = description,
             publishYear = publishYear,
-            audioFilesJson = null,
             syncState = SyncState.SYNCED,
             lastModified = Timestamp(0L),
             serverVersion = Timestamp(0L),

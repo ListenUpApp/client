@@ -11,9 +11,11 @@ package com.calypsan.listenup.client.playback
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.appJson
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
@@ -54,9 +56,11 @@ private val logger = KotlinLogging.logger {}
  * - Negotiate audio format with server for transcoding support
  */
 class PlaybackManager(
+    private val transactionRunner: TransactionRunner,
     private val serverConfig: ServerConfig,
     private val playbackPreferences: PlaybackPreferences,
     private val bookDao: BookDao,
+    private val audioFileDao: AudioFileDao,
     private val chapterDao: ChapterDao,
     private val imageStorage: ImageStorage,
     private val progressTracker: ProgressTracker,
@@ -108,8 +112,6 @@ class PlaybackManager(
 
     // Callback for chapter changes - used by PlaybackService to update notification
     var onChapterChanged: ((ChapterInfo) -> Unit)? = null
-
-    private val json = appJson
 
     /** Set the current book ID — call this only when playback is confirmed to proceed. */
     fun activateBook(bookId: BookId) {
@@ -173,34 +175,24 @@ class PlaybackManager(
                 null
             }
 
-        // 4. Parse audio files from JSON, or fetch from server if missing
-        var audioFilesJson = book.audioFilesJson
-        if (audioFilesJson.isNullOrBlank()) {
+        // 4. Load audio files from the junction. Fallback-fetch if empty locally.
+        var audioFileEntities = audioFileDao.getForBook(bookId.value)
+        if (audioFileEntities.isEmpty()) {
             logger.info { "No audio files for book: ${bookId.value}, fetching from server..." }
 
-            // Try to fetch book from server
-            val fetchedAudioFiles = fetchBookFromServer(bookId)
-            if (fetchedAudioFiles == null) {
+            val fetched = fetchBookFromServer(bookId)
+            if (!fetched) {
                 logger.error { "Failed to fetch book from server: ${bookId.value}" }
                 return null
             }
-            audioFilesJson = fetchedAudioFiles
-        }
-
-        val audioFiles: List<AudioFileResponse> =
-            try {
-                json.decodeFromString(audioFilesJson)
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to parse audio files JSON" }
+            audioFileEntities = audioFileDao.getForBook(bookId.value)
+            if (audioFileEntities.isEmpty()) {
+                logger.error { "Audio files still empty after fallback fetch for ${bookId.value}" }
                 return null
             }
-
-        if (audioFiles.isEmpty()) {
-            logger.error { "Empty audio files list for book: ${bookId.value}" }
-            return null
         }
+
+        val audioFiles: List<AudioFileResponse> = audioFileEntities.map { it.toAudioFileResponse() }
 
         // Log detailed audio file info for diagnostics
         logger.debug { "=== Audio Files for book ${bookId.value} ===" }
@@ -656,20 +648,26 @@ class PlaybackManager(
         )
 
     /**
-     * Fetch book from server and save to local database.
+     * Fetch book data from server and persist locally.
      *
-     * Used as a fallback when local book data is incomplete (e.g., audioFilesJson is missing).
-     * This can happen when a user tries to play a book from Continue Listening before
-     * the full sync has completed.
+     * Used as a fallback when local book data is incomplete (e.g., book synced
+     * before audio files were indexed). Writes both the book entity AND its
+     * audio-file junction rows in a single atomically block, so a partial
+     * persistence failure doesn't leave the DB holding a book with stale or
+     * missing audio files.
      *
-     * @param bookId The book ID to fetch
-     * @return The audioFilesJson string if successful, null otherwise
+     * Internal visibility allows [PlaybackManagerFallbackFetchAtomicityTest] to
+     * invoke the method directly. Not part of the public API.
+     *
+     * @param bookId The book ID to fetch.
+     * @return true if the fetch + persist succeeded, false otherwise. Callers
+     *   re-query [audioFileDao] after a successful fetch to obtain the rows.
      */
-    private suspend fun fetchBookFromServer(bookId: BookId): String? {
+    internal suspend fun fetchBookFromServer(bookId: BookId): Boolean {
         val api = syncApi
         if (api == null) {
             logger.error { "SyncApi not available for fetching book" }
-            return null
+            return false
         }
 
         return when (val result = api.getBook(bookId.value)) {
@@ -677,18 +675,36 @@ class PlaybackManager(
                 val bookResponse = result.data
                 logger.info { "Fetched book from server: ${bookResponse.title}" }
 
-                // Convert to entity and save to database
                 val entity = bookResponse.toEntity()
-                bookDao.upsert(entity)
-                logger.debug { "Saved fetched book to local database" }
+                val audioFileRows =
+                    bookResponse.audioFiles.mapIndexed { idx, af ->
+                        AudioFileEntity(
+                            bookId = bookId,
+                            index = idx,
+                            id = af.id,
+                            filename = af.filename,
+                            format = af.format,
+                            codec = af.codec,
+                            duration = af.duration,
+                            size = af.size,
+                        )
+                    }
 
-                // Return the audio files JSON
-                entity.audioFilesJson
+                transactionRunner.atomically {
+                    bookDao.upsert(entity)
+                    audioFileDao.deleteForBook(bookId.value)
+                    if (audioFileRows.isNotEmpty()) {
+                        audioFileDao.upsertAll(audioFileRows)
+                    }
+                }
+
+                logger.debug { "Saved fetched book + ${audioFileRows.size} audio files to local database" }
+                true
             }
 
             is Failure -> {
                 logger.error { "Failed to fetch book from server: ${bookId.value}" }
-                null
+                false
             }
         }
     }
@@ -816,6 +832,24 @@ class PlaybackManager(
  */
 private fun AudioFileResponse.toDomain(): AudioFile =
     AudioFile(
+        id = id,
+        filename = filename,
+        format = format,
+        codec = codec,
+        duration = duration,
+        size = size,
+    )
+
+/**
+ * Convert an [AudioFileEntity] to the API-shaped [AudioFileResponse] that
+ * downstream playback code (timeline building, codec negotiation) consumes.
+ *
+ * This mapper exists because the domain `AudioFile` conversion downstream
+ * still operates on `AudioFileResponse`. W6 or later can migrate the whole
+ * pipeline to operate on entities or a domain type directly.
+ */
+private fun AudioFileEntity.toAudioFileResponse(): AudioFileResponse =
+    AudioFileResponse(
         id = id,
         filename = filename,
         format = format,

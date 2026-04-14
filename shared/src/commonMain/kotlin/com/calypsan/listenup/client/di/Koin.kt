@@ -99,6 +99,7 @@ import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
+import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
 import com.calypsan.listenup.client.data.sync.pull.ShelfPuller
@@ -362,6 +363,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().shelfBookDao() }
         single { get<ListenUpDatabase>().tagDao() }
         single { get<ListenUpDatabase>().genreDao() }
+        single { get<ListenUpDatabase>().audioFileDao() }
         single { get<ListenUpDatabase>().listeningEventDao() }
         single { get<ListenUpDatabase>().activeSessionDao() }
         single { get<ListenUpDatabase>().activityDao() }
@@ -874,6 +876,7 @@ val syncModule =
                 shelfDao = get(),
                 tagDao = get(),
                 genreDao = get(),
+                audioFileDao = get(),
                 listeningEventDao = get(),
                 activityDao = get(),
                 userDao = get(),
@@ -905,10 +908,14 @@ val syncModule =
                 syncApi = get<SyncApiContract>(),
                 bookDao = get(),
                 chapterDao = get(),
-                bookContributorDao = get(),
-                bookSeriesDao = get(),
-                tagDao = get(),
-                genreDao = get(),
+                relationshipDaos =
+                    BookRelationshipDaos(
+                        bookContributorDao = get(),
+                        bookSeriesDao = get(),
+                        tagDao = get(),
+                        genreDao = get(),
+                        audioFileDao = get(),
+                    ),
                 imageDownloader = get(),
                 conflictDetector = get(),
                 coverDownloadDao = get(),

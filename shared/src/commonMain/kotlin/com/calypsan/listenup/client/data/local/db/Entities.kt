@@ -129,8 +129,6 @@ data class BookEntity(
     val isbn: String? = null, // ISBN for metadata lookup
     val asin: String? = null, // Amazon ASIN for metadata lookup
     val abridged: Boolean = false, // Whether this is an abridged version
-    // Audio files as JSON (parsed at runtime for playback)
-    val audioFilesJson: String? = null,
     // Sync fields (implements Syncable)
     override val syncState: SyncState,
     override val lastModified: Timestamp,
