@@ -98,16 +98,14 @@ class CoverUploadDelegate(
      * Clean up staging files.
      * Called when ViewModel is cleared and user navigated away without saving.
      *
-     * Note: This uses a provided dispatcher since viewModelScope is cancelled by this point.
+     * Non-suspend fire-and-forget — [ImageStagingRepository] runs the work on an
+     * application-scoped CoroutineScope, so `viewModelScope` cancellation doesn't
+     * interrupt it.
      */
-    fun cleanupStagingOnClear(dispatcher: kotlinx.coroutines.CoroutineDispatcher) {
+    fun cleanupStagingOnClear() {
         val bookId = state.value.bookId
         if (bookId.isNotBlank() && state.value.stagingCoverPath != null) {
-            @Suppress("OPT_IN_USAGE")
-            kotlinx.coroutines.GlobalScope.launch(dispatcher) {
-                imageStagingRepository.deleteBookCoverStaging(BookId(bookId))
-                logger.debug { "Staging cover cleaned up on ViewModel cleared" }
-            }
+            imageStagingRepository.requestBookCoverStagingCleanup(BookId(bookId))
         }
     }
 }
