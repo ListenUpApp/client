@@ -819,6 +819,15 @@ val syncModule =
         single<com.calypsan.listenup.client.domain.repository.ImageRepository> { get<ImageRepositoryImpl>() }
         single<com.calypsan.listenup.client.domain.repository.ImageStagingRepository> { get<ImageRepositoryImpl>() }
 
+        // DownloadRepository — read-side of download state. Per-book commands still live
+        // on DownloadService; W8 will consolidate.
+        single<com.calypsan.listenup.client.domain.repository.DownloadRepository> {
+            com.calypsan.listenup.client.data.repository.DownloadRepositoryImpl(
+                downloadDao = get(),
+                bookRepository = get(),
+            )
+        }
+
         // EventStreamRepository for real-time events (SOLID: interface in domain, impl in data)
         single<com.calypsan.listenup.client.domain.repository.EventStreamRepository> {
             EventStreamRepositoryImpl(
