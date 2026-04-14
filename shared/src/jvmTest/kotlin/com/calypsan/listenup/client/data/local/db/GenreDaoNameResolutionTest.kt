@@ -23,7 +23,11 @@ class GenreDaoNameResolutionTest {
         db.close()
     }
 
-    private suspend fun seedGenre(id: String, name: String, slug: String = id) {
+    private suspend fun seedGenre(
+        id: String,
+        name: String,
+        slug: String = id,
+    ) {
         genreDao.upsertAll(
             listOf(
                 GenreEntity(
