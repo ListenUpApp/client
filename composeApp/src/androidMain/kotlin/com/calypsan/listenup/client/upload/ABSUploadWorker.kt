@@ -157,7 +157,7 @@ class ABSUploadWorker(
                     }
 
                     is Failure -> {
-                        val error = importResult.exception?.message ?: "Failed to create import"
+                        val error = importResult.message
                         logger.error { "Import creation failed: $error" }
                         val result = retryOrFail(error)
                         if (result is Failure) {
