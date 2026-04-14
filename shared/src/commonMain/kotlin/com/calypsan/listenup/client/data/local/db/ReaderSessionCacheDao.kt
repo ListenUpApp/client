@@ -21,7 +21,10 @@ interface ReaderSessionCacheDao {
         ORDER BY isCurrentlyReading DESC, updatedAt DESC
         """,
     )
-    fun observeForBook(bookId: String, excludingUserId: String): Flow<List<ReaderSessionCacheEntity>>
+    fun observeForBook(
+        bookId: String,
+        excludingUserId: String,
+    ): Flow<List<ReaderSessionCacheEntity>>
 
     @Query(
         """
@@ -30,7 +33,10 @@ interface ReaderSessionCacheDao {
         ORDER BY isCurrentlyReading DESC, updatedAt DESC
         """,
     )
-    suspend fun getForBook(bookId: String, excludingUserId: String): List<ReaderSessionCacheEntity>
+    suspend fun getForBook(
+        bookId: String,
+        excludingUserId: String,
+    ): List<ReaderSessionCacheEntity>
 
     @Upsert
     suspend fun upsertAll(entries: List<ReaderSessionCacheEntity>)

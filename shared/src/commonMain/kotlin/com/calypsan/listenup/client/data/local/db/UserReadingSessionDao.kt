@@ -23,7 +23,10 @@ interface UserReadingSessionDao {
         ORDER BY startedAt DESC
         """,
     )
-    fun observeForBook(bookId: String, userId: String): Flow<List<UserReadingSessionEntity>>
+    fun observeForBook(
+        bookId: String,
+        userId: String,
+    ): Flow<List<UserReadingSessionEntity>>
 
     @Query(
         """
@@ -32,13 +35,19 @@ interface UserReadingSessionDao {
         ORDER BY startedAt DESC
         """,
     )
-    suspend fun getForBook(bookId: String, userId: String): List<UserReadingSessionEntity>
+    suspend fun getForBook(
+        bookId: String,
+        userId: String,
+    ): List<UserReadingSessionEntity>
 
     @Upsert
     suspend fun upsertAll(sessions: List<UserReadingSessionEntity>)
 
     @Query("DELETE FROM user_reading_sessions WHERE bookId = :bookId AND userId = :userId")
-    suspend fun deleteForBook(bookId: String, userId: String)
+    suspend fun deleteForBook(
+        bookId: String,
+        userId: String,
+    )
 
     @Query("DELETE FROM user_reading_sessions")
     suspend fun deleteAll()

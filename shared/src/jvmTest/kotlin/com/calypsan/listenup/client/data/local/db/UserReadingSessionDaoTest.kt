@@ -26,7 +26,10 @@ class UserReadingSessionDaoTest {
         db.close()
     }
 
-    private suspend fun seedBook(id: String = "b1", title: String = "Test Book") {
+    private suspend fun seedBook(
+        id: String = "b1",
+        title: String = "Test Book",
+    ) {
         bookDao.upsert(
             BookEntity(
                 id = BookId(id),

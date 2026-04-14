@@ -529,4 +529,3 @@ data class UserStatsEntity(
     /** When this cache was last updated (epoch ms) */
     val updatedAt: Long,
 )
-

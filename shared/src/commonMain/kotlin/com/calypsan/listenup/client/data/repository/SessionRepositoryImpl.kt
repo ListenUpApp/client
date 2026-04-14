@@ -110,9 +110,10 @@ class SessionRepositoryImpl(
                 BookReadersResult(
                     yourSessions = userSessions.map { it.toDomain() },
                     otherReaders = otherEntries.map { it.toDomain() },
-                    totalReaders = otherEntries.size + (if (userSessions.isNotEmpty()) 1 else 0),
-                    totalCompletions = otherEntries.sumOf { it.completionCount } +
-                        userSessions.count { it.isCompleted },
+                    totalReaders = otherEntries.size + if (userSessions.isNotEmpty()) 1 else 0,
+                    totalCompletions =
+                        otherEntries.sumOf { it.completionCount } +
+                            userSessions.count { it.isCompleted },
                 )
             }.collect { send(it) }
         }
@@ -217,7 +218,10 @@ private fun UserReadingSessionEntity.toDomain(): SessionSummary =
 /**
  * Convert ReaderSummary API model to ReaderSessionCacheEntity for caching.
  */
-private fun ReaderSummary.toCacheEntity(bookId: String, updatedAt: Long): ReaderSessionCacheEntity =
+private fun ReaderSummary.toCacheEntity(
+    bookId: String,
+    updatedAt: Long,
+): ReaderSessionCacheEntity =
     ReaderSessionCacheEntity(
         bookId = bookId,
         userId = userId,
