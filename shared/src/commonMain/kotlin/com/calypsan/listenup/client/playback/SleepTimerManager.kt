@@ -6,11 +6,12 @@ package com.calypsan.listenup.client.playback
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -36,8 +37,8 @@ class SleepTimerManager(
         field = MutableStateFlow<SleepTimerState>(SleepTimerState.Inactive)
 
     // Event emitted when timer fires - consumer performs fade and pause
-    val sleepEvent: SharedFlow<Unit>
-        field = MutableSharedFlow<Unit>(replay = 0)
+    private val _sleepEvent = Channel<Unit>(Channel.BUFFERED)
+    val sleepEvent: Flow<Unit> = _sleepEvent.receiveAsFlow()
 
     private var timerJob: Job? = null
     private var endOfChapterJob: Job? = null
@@ -173,8 +174,6 @@ class SleepTimerManager(
 
     private fun triggerSleep() {
         state.value = SleepTimerState.FadingOut
-        scope.launch {
-            sleepEvent.emit(Unit)
-        }
+        _sleepEvent.trySend(Unit)
     }
 }
