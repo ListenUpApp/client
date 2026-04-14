@@ -30,6 +30,19 @@ import com.calypsan.listenup.client.core.Failure
 private val logger = KotlinLogging.logger {}
 
 /**
+ * Bundle of junction-table DAOs BookPuller writes to when replacing a book's
+ * relationships on each sync. Grouped to keep the puller's constructor focused
+ * on distinct collaborators rather than individual relationship tables.
+ */
+data class BookRelationshipDaos(
+    val bookContributorDao: BookContributorDao,
+    val bookSeriesDao: BookSeriesDao,
+    val tagDao: TagDao,
+    val genreDao: GenreDao,
+    val audioFileDao: AudioFileDao,
+)
+
+/**
  * Handles paginated book fetching, processing, and relationship syncing.
  */
 class BookPuller(
@@ -37,15 +50,17 @@ class BookPuller(
     private val syncApi: SyncApiContract,
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
-    private val bookContributorDao: BookContributorDao,
-    private val bookSeriesDao: BookSeriesDao,
-    private val tagDao: TagDao,
-    private val genreDao: GenreDao,
-    private val audioFileDao: AudioFileDao,
+    relationshipDaos: BookRelationshipDaos,
     private val conflictDetector: ConflictDetectorContract,
     private val imageDownloader: ImageDownloaderContract,
     private val coverDownloadDao: com.calypsan.listenup.client.data.local.db.CoverDownloadDao,
 ) : Puller {
+    private val bookContributorDao: BookContributorDao = relationshipDaos.bookContributorDao
+    private val bookSeriesDao: BookSeriesDao = relationshipDaos.bookSeriesDao
+    private val tagDao: TagDao = relationshipDaos.tagDao
+    private val genreDao: GenreDao = relationshipDaos.genreDao
+    private val audioFileDao: AudioFileDao = relationshipDaos.audioFileDao
+
     /**
      * Pull all books from server with pagination.
      *

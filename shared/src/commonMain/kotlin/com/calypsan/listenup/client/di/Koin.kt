@@ -99,6 +99,7 @@ import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
+import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
 import com.calypsan.listenup.client.data.sync.pull.ShelfPuller
@@ -907,11 +908,14 @@ val syncModule =
                 syncApi = get<SyncApiContract>(),
                 bookDao = get(),
                 chapterDao = get(),
-                bookContributorDao = get(),
-                bookSeriesDao = get(),
-                tagDao = get(),
-                genreDao = get(),
-                audioFileDao = get(),
+                relationshipDaos =
+                    BookRelationshipDaos(
+                        bookContributorDao = get(),
+                        bookSeriesDao = get(),
+                        tagDao = get(),
+                        genreDao = get(),
+                        audioFileDao = get(),
+                    ),
                 imageDownloader = get(),
                 conflictDetector = get(),
                 coverDownloadDao = get(),
