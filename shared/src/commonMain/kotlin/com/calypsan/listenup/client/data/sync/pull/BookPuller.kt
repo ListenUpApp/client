@@ -2,6 +2,8 @@ package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
@@ -39,6 +41,7 @@ class BookPuller(
     private val bookSeriesDao: BookSeriesDao,
     private val tagDao: TagDao,
     private val genreDao: GenreDao,
+    private val audioFileDao: AudioFileDao,
     private val conflictDetector: ConflictDetectorContract,
     private val imageDownloader: ImageDownloaderContract,
     private val coverDownloadDao: com.calypsan.listenup.client.data.local.db.CoverDownloadDao,
@@ -152,6 +155,7 @@ class BookPuller(
             syncBookSeries(response, booksToUpsert)
             syncBookTags(response, booksToUpsert)
             syncBookGenres(response, booksToUpsert)
+            syncBookAudioFiles(response, booksToUpsert)
 
             enqueueCoverDownloads(booksToUpsert)
         }
@@ -348,6 +352,36 @@ class BookPuller(
         if (crossRefs.isNotEmpty()) {
             genreDao.insertAllBookGenres(crossRefs)
             logger.debug { "Created ${crossRefs.size} book-genre relationships" }
+        }
+    }
+
+    private suspend fun syncBookAudioFiles(
+        response: SyncBooksResponse,
+        upsertedBooks: List<BookEntity>,
+    ) {
+        val upsertedIds = upsertedBooks.map { it.id.value }.toSet()
+        val rows =
+            response.books
+                .filter { it.id in upsertedIds }
+                .flatMap { bookResponse ->
+                    audioFileDao.deleteForBook(bookResponse.id)
+                    bookResponse.audioFiles.mapIndexed { idx, af ->
+                        AudioFileEntity(
+                            bookId = BookId(bookResponse.id),
+                            index = idx,
+                            id = af.id,
+                            filename = af.filename,
+                            format = af.format,
+                            codec = af.codec,
+                            duration = af.duration,
+                            size = af.size,
+                        )
+                    }
+                }
+
+        if (rows.isNotEmpty()) {
+            audioFileDao.upsertAll(rows)
+            logger.debug { "Created ${rows.size} audio-file rows across ${upsertedIds.size} books" }
         }
     }
 

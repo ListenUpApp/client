@@ -2,6 +2,8 @@ package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -17,6 +19,7 @@ import com.calypsan.listenup.client.data.local.db.GenreIdName
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
@@ -30,6 +33,7 @@ import dev.mokkery.answering.returns
 import dev.mokkery.answering.sequentially
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
+import dev.mokkery.matcher.matches
 import dev.mokkery.mock
 import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
@@ -66,6 +70,7 @@ class BookPullerTest {
         seriesInfo: List<BookSeriesInfoResponse> = emptyList(),
         chapters: List<ChapterResponse> = emptyList(),
         genres: List<String>? = null,
+        audioFiles: List<AudioFileResponse> = emptyList(),
     ): BookResponse =
         BookResponse(
             id = id,
@@ -78,7 +83,7 @@ class BookPullerTest {
             publishYear = null,
             seriesInfo = seriesInfo,
             chapters = chapters,
-            audioFiles = emptyList(),
+            audioFiles = audioFiles,
             contributors = contributors,
             createdAt = "2024-01-01T00:00:00Z",
             updatedAt = "2024-01-01T00:00:00Z",
@@ -132,6 +137,7 @@ class BookPullerTest {
         val bookSeriesDao: BookSeriesDao = mock()
         val tagDao: TagDao = mock()
         val genreDao: GenreDao = mock()
+        val audioFileDao: AudioFileDao = mock()
         val conflictDetector: ConflictDetectorContract = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val coverDownloadDao: com.calypsan.listenup.client.data.local.db.CoverDownloadDao = mock()
@@ -153,6 +159,8 @@ class BookPullerTest {
             everySuspend { genreDao.deleteGenresForBook(any()) } returns Unit
             everySuspend { genreDao.getIdsByNames(any()) } returns emptyList()
             everySuspend { genreDao.insertAllBookGenres(any<List<BookGenreCrossRef>>()) } returns Unit
+            everySuspend { audioFileDao.deleteForBook(any()) } returns Unit
+            everySuspend { audioFileDao.upsertAll(any<List<AudioFileEntity>>()) } returns Unit
             everySuspend { conflictDetector.detectBookConflicts(any()) } returns emptyList()
             everySuspend { conflictDetector.shouldPreserveLocalChanges(any()) } returns false
             everySuspend { imageDownloader.deleteCover(any()) } returns Success(Unit)
@@ -169,6 +177,7 @@ class BookPullerTest {
                 bookSeriesDao = bookSeriesDao,
                 tagDao = tagDao,
                 genreDao = genreDao,
+                audioFileDao = audioFileDao,
                 conflictDetector = conflictDetector,
                 imageDownloader = imageDownloader,
                 coverDownloadDao = coverDownloadDao,
@@ -654,5 +663,106 @@ class BookPullerTest {
                     listOf(BookGenreCrossRef(bookId = BookId("book-1"), genreId = "g1")),
                 )
             }
+        }
+
+    // ========== Audio File Sync Tests ==========
+
+    @Test
+    fun `syncBookAudioFiles writes junction rows for each audio file`() =
+        runTest {
+            // Given — server sends a book with two audio files.
+            val fixture = TestFixture(this)
+            val audioFiles =
+                listOf(
+                    AudioFileResponse(
+                        id = "af-1",
+                        filename = "chapter01.m4b",
+                        format = "m4b",
+                        codec = "aac",
+                        duration = 1_800_000L,
+                        size = 45_000_000L,
+                    ),
+                    AudioFileResponse(
+                        id = "af-2",
+                        filename = "chapter02.m4b",
+                        format = "m4b",
+                        codec = "aac",
+                        duration = 1_800_000L,
+                        size = 45_000_000L,
+                    ),
+                )
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Success(
+                    SyncBooksResponse(
+                        books =
+                            listOf(
+                                createBookResponse(
+                                    id = "book-1",
+                                    audioFiles = audioFiles,
+                                ),
+                            ),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            val puller = fixture.build()
+
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
+
+            // Then — indexed rows for each audio file are upserted into the junction.
+            verifySuspend {
+                fixture.audioFileDao.upsertAll(
+                    matches { rows: List<AudioFileEntity> ->
+                        rows.size == 2 &&
+                            rows.all { it.bookId == BookId("book-1") } &&
+                            rows.map { it.index } == listOf(0, 1) &&
+                            rows.map { it.id } == listOf("af-1", "af-2")
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `syncBookAudioFiles deletes existing rows before inserting`() =
+        runTest {
+            // Given — server sends a book with one audio file.
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Success(
+                    SyncBooksResponse(
+                        books =
+                            listOf(
+                                createBookResponse(
+                                    id = "book-1",
+                                    audioFiles =
+                                        listOf(
+                                            AudioFileResponse(
+                                                id = "af-1",
+                                                filename = "chapter01.m4b",
+                                                format = "m4b",
+                                                codec = "aac",
+                                                duration = 1_800_000L,
+                                                size = 45_000_000L,
+                                            ),
+                                        ),
+                                ),
+                            ),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            val puller = fixture.build()
+
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
+
+            // Then — server-authoritative: delete existing rows first, then insert.
+            verifySuspend { fixture.audioFileDao.deleteForBook("book-1") }
+            verifySuspend { fixture.audioFileDao.upsertAll(any<List<AudioFileEntity>>()) }
         }
 }

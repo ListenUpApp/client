@@ -362,6 +362,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().shelfBookDao() }
         single { get<ListenUpDatabase>().tagDao() }
         single { get<ListenUpDatabase>().genreDao() }
+        single { get<ListenUpDatabase>().audioFileDao() }
         single { get<ListenUpDatabase>().listeningEventDao() }
         single { get<ListenUpDatabase>().activeSessionDao() }
         single { get<ListenUpDatabase>().activityDao() }
@@ -909,6 +910,7 @@ val syncModule =
                 bookSeriesDao = get(),
                 tagDao = get(),
                 genreDao = get(),
+                audioFileDao = get(),
                 imageDownloader = get(),
                 conflictDetector = get(),
                 coverDownloadDao = get(),
