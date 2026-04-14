@@ -86,7 +86,6 @@ class FtsPopulatorTest {
             totalDuration = 3_600_000L,
             description = description,
             publishYear = 2024,
-            audioFilesJson = null,
             syncState = SyncState.SYNCED,
             lastModified = Timestamp(1704067200000L),
             serverVersion = Timestamp(1704067200000L),

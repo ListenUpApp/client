@@ -48,7 +48,7 @@ import androidx.room.TypeConverters
         ReaderSessionCacheEntity::class,
         CoverDownloadTaskEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 @TypeConverters(

@@ -7,8 +7,6 @@ import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -48,8 +46,6 @@ fun BookResponse.toEntity(): BookEntity =
         isbn = isbn,
         asin = asin,
         abridged = abridged,
-        // Audio files serialized as JSON for runtime parsing during playback
-        audioFilesJson = audioFiles.takeIf { it.isNotEmpty() }?.let { Json.encodeToString(it) },
         // Sync fields - newly synced book is clean
         syncState = SyncState.SYNCED,
         lastModified = updatedAt.toTimestamp(),

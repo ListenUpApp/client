@@ -60,7 +60,6 @@ class SearchRepositoryTest {
                     totalDuration = 3600000,
                     description = null,
                     publishYear = null,
-                    audioFilesJson = null,
                     syncState = SyncState.SYNCED,
                     lastModified = Timestamp(0),
                     serverVersion = Timestamp(1),
