@@ -29,7 +29,9 @@ private const val MS_PER_DAY = 86_400_000L
  * - Daily listening: group events by day, sum durations
  * - Total time: sum all event durations in period
  * - Streaks: count consecutive days with listening activity
- * - Genres: join with BookDao to get genre data, aggregate by genre
+ * - Genres: per book in the period, query [GenreDao.getGenresForBook] through
+ *   the `book_genres` junction to resolve genre names, then aggregate listening
+ *   time per genre
  *
  * This enables offline-first stats that update instantly when events are added.
  *

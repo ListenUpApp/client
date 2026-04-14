@@ -11,10 +11,13 @@ import androidx.room.TypeConverters
  *
  * Stores user data, books, and sync metadata for offline-first functionality.
  *
- * Schema reset to version 1 — no prior users exist, so all legacy migrations
- * (v1-v38) were removed. The current schema is the v1 baseline.
- *
- * Destructive migration enabled as a safety net during early development.
+ * Schema is at v10 after the W4.4 restoration (reset from legacy to v1 baseline,
+ * then bumped through v2-v10 as each junction split landed). Pre-launch policy:
+ * `fallbackToDestructiveMigration(true)` is set on each `DatabaseModule` and
+ * [Migrations] is a no-op stub. Before launch, flip the fallback to `false` and
+ * populate a real migration chain in [Migrations]; the `@Database.exportSchema`
+ * on-disk JSON for every version (v1-v10 prior to the cleanups) is the authoritative
+ * source for writing those migrations.
  */
 @Database(
     entities = [

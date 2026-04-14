@@ -290,6 +290,12 @@ class ContributorRepositoryImpl(
 
 // ========== Entity to Domain Mappers ==========
 
+/**
+ * Entity-only mapper used by paths that don't carry aliases (observeByBookId,
+ * getByBookId, observeContributorsByRole). Aliases are intentionally empty here —
+ * those consumers don't display alias lists, so paying the junction-join cost is
+ * wasted work. Callers that need aliases use [ContributorWithAliases.toDomain].
+ */
 private fun ContributorEntity.toDomain(): Contributor =
     Contributor(
         id = id,

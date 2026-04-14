@@ -167,7 +167,7 @@ interface SyncApiContract {
      * Get a single book by ID.
      *
      * Used to fetch book data on-demand when local data is incomplete
-     * (e.g., audioFilesJson is missing during playback).
+     * (e.g., the `audio_files` junction has no rows for this book during playback).
      *
      * Endpoint: GET /api/v1/books/{id}
      * Auth: Required

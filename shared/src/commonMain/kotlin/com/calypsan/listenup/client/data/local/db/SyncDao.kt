@@ -75,7 +75,7 @@ suspend fun SyncDao.setLastSyncTime(timestamp: Timestamp) {
  *
  * This forces the next sync to be a full sync (not delta),
  * re-fetching all books from the server. Useful when:
- * - audioFilesJson is missing for existing books
+ * - The `audio_files` junction is missing rows for existing books
  * - Database was corrupted or needs to be refreshed
  * - Migration requires re-population of data
  */

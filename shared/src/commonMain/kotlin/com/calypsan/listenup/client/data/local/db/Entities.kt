@@ -185,15 +185,15 @@ data class SeriesEntity(
 /**
  * Local database entity for contributors (authors, narrators, etc.).
  *
- * Aliases: Pen names that have been merged into this contributor.
- * When "Richard Bachman" is added as an alias of "Stephen King":
+ * Aliases: pen names that have been merged into this contributor, stored in the
+ * `contributor_aliases` junction (see [ContributorAliasCrossRef]) — NOT on this
+ * entity. When "Richard Bachman" is merged into "Stephen King":
  * - All books by Richard Bachman get re-linked to Stephen King
- * - Richard Bachman contributor is deleted
- * - "Richard Bachman" is added to Stephen King's aliases field
+ * - The Richard Bachman contributor row is deleted
+ * - "Richard Bachman" lands in `contributor_aliases` as a row under Stephen King
  *
- * Future sync: When a book arrives with author "Richard Bachman",
- * the system checks if any contributor has this in their aliases
- * and links to that contributor instead.
+ * Future sync: when a book arrives with author "Richard Bachman", the system
+ * looks up the junction and links to the canonical contributor instead.
  */
 @Entity(
     tableName = "contributors",
