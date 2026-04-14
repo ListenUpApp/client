@@ -6,8 +6,11 @@ import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.core.map
-import com.calypsan.listenup.client.data.local.db.ReadingSessionDao
-import com.calypsan.listenup.client.data.local.db.ReadingSessionEntity
+import com.calypsan.listenup.client.data.local.db.ReaderSessionCacheDao
+import com.calypsan.listenup.client.data.local.db.ReaderSessionCacheEntity
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
+import com.calypsan.listenup.client.data.local.db.UserReadingSessionDao
+import com.calypsan.listenup.client.data.local.db.UserReadingSessionEntity
 import com.calypsan.listenup.client.data.remote.ReaderSummary
 import com.calypsan.listenup.client.data.remote.SessionApiContract
 import com.calypsan.listenup.client.domain.model.BookReadersResult
@@ -16,9 +19,14 @@ import com.calypsan.listenup.client.domain.model.SessionSummary
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlin.time.Instant
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
 
@@ -26,17 +34,23 @@ private val logger = KotlinLogging.logger {}
  * Implementation of SessionRepository with offline-first architecture.
  *
  * Data flow:
- * 1. ReadingSessionPuller populates Room during initial sync
- * 2. UI observes Room database via [observeBookReaders]
- * 3. SSE events update Room for real-time updates
+ * 1. ReadingSessionPuller populates the split tables during initial sync.
+ * 2. UI observes Room via [observeBookReaders], which combines per-session user rows
+ *    with per-(book,user) cache rows for other readers.
+ * 3. SSE events trigger refreshBookReaders which re-fetches per-book.
  *
- * @property sessionApi API client for session operations
- * @property readingSessionDao Room DAO for local cache
- * @property authSession Provider for current user ID
+ * Writes to [userReadingSessionDao] and [readerSessionCacheDao] are wrapped in a
+ * single atomically block so a mid-refresh failure doesn't leave one table stale.
+ *
+ * Bug 1's fixes (persist API's authoritative totalReaders; drop synthetic-self entirely;
+ * ViewModel migration) live in W6 — this implementation still derives totalReaders
+ * locally to match W4 scope.
  */
 class SessionRepositoryImpl(
     private val sessionApi: SessionApiContract,
-    private val readingSessionDao: ReadingSessionDao,
+    private val userReadingSessionDao: UserReadingSessionDao,
+    private val readerSessionCacheDao: ReaderSessionCacheDao,
+    private val transactionRunner: TransactionRunner,
     private val authSession: AuthSession,
 ) : SessionRepository {
     // ═══════════════════════════════════════════════════════════════════════════
@@ -66,31 +80,47 @@ class SessionRepositoryImpl(
     // OFFLINE-FIRST REACTIVE METHODS
     // ═══════════════════════════════════════════════════════════════════════════
 
-    override fun observeBookReaders(bookId: String): Flow<BookReadersResult> {
-        logger.debug { "Starting observation of readers for book $bookId" }
-
-        return kotlinx.coroutines.flow.channelFlow {
-            val currentUserId = authSession.getUserId()
-            logger.debug { "Observing Room for book $bookId (currentUserId=$currentUserId)" }
-
-            // Trigger a background refresh so the cache is always up-to-date
-            launch {
-                try {
-                    refreshBookReaders(bookId)
-                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logger.warn(e) { "Background refresh of readers for book $bookId failed" }
+    override fun observeBookReaders(bookId: String): Flow<BookReadersResult> =
+        flow {
+            // Trigger background refresh on subscription so the cache stays warm.
+            // W6 will migrate this to .onStart { } with a proper error channel.
+            coroutineScope {
+                launch {
+                    try {
+                        refreshBookReaders(bookId)
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.warn(e) { "Background refresh of readers for book $bookId failed" }
+                    }
                 }
             }
 
-            // Emit from Room cache immediately (optimistic UI)
-            readingSessionDao.observeByBookId(bookId).collect { entities ->
-                logger.debug { "Room emitted ${entities.size} reading sessions for book $bookId" }
-                send(entitiesToBookReadersResult(entities, currentUserId))
-            }
+            val currentUserId = authSession.getUserId()
+            logger.debug { "Observing readers for book $bookId (currentUserId=$currentUserId)" }
+
+            val userFlow =
+                currentUserId
+                    ?.let { userReadingSessionDao.observeForBook(bookId = bookId, userId = it) }
+                    ?: flowOf(emptyList<UserReadingSessionEntity>())
+            val cacheFlow =
+                readerSessionCacheDao.observeForBook(
+                    bookId = bookId,
+                    excludingUserId = currentUserId ?: "",
+                )
+
+            emitAll(
+                combine(userFlow, cacheFlow) { userSessions, otherEntries ->
+                    BookReadersResult(
+                        yourSessions = userSessions.map { it.toDomain() },
+                        otherReaders = otherEntries.map { it.toDomain() },
+                        totalReaders = otherEntries.size + (if (userSessions.isNotEmpty()) 1 else 0),
+                        totalCompletions = otherEntries.sumOf { it.completionCount } +
+                            userSessions.count { it.isCompleted },
+                    )
+                },
+            )
         }
-    }
 
     override suspend fun refreshBookReaders(bookId: String) {
         logger.info { "Refreshing readers for book $bookId..." }
@@ -99,54 +129,29 @@ class SessionRepositoryImpl(
             is Success -> {
                 val response = result.data
                 val now = currentEpochMilliseconds()
-
-                logger.info {
-                    "API returned: ${response.yourSessions.size} your sessions, " +
-                        "${response.otherReaders.size} other readers, " +
-                        "total=${response.totalReaders}, completions=${response.totalCompletions}"
-                }
-
-                // Convert API response to entities
-                val entities = mutableListOf<ReadingSessionEntity>()
-
-                // Add other readers
-                response.otherReaders.forEach { reader ->
-                    entities.add(reader.toEntity(bookId, now))
-                }
-
-                // Add user's own sessions (represented as a single aggregated entry)
                 val currentUserId = authSession.getUserId()
-                if (currentUserId != null && response.yourSessions.isNotEmpty()) {
-                    // Create a summary entity from user's sessions
-                    val mostRecent =
-                        response.yourSessions.maxByOrNull {
-                            it.finishedAt ?: it.startedAt
+
+                val userSessions =
+                    currentUserId?.let { uid ->
+                        response.yourSessions.map { it.toUserSessionEntity(bookId, uid, now) }
+                    } ?: emptyList()
+                val cacheEntries = response.otherReaders.map { it.toCacheEntity(bookId, now) }
+
+                transactionRunner.atomically {
+                    if (currentUserId != null) {
+                        userReadingSessionDao.deleteForBook(bookId = bookId, userId = currentUserId)
+                        if (userSessions.isNotEmpty()) {
+                            userReadingSessionDao.upsertAll(userSessions)
                         }
-                    if (mostRecent != null) {
-                        entities.add(
-                            ReadingSessionEntity(
-                                id = "self-$bookId-$currentUserId",
-                                bookId = bookId,
-                                userId = currentUserId,
-                                userDisplayName = "You", // Placeholder, will be filtered in UI
-                                userAvatarColor = "",
-                                userAvatarType = "auto",
-                                userAvatarValue = null,
-                                isCurrentlyReading = mostRecent.finishedAt == null,
-                                currentProgress = 0.0, // Not tracked for self
-                                startedAt = parseTimestamp(response.yourSessions.minOf { it.startedAt }),
-                                finishedAt = mostRecent.finishedAt?.let { parseTimestamp(it) },
-                                completionCount = response.yourSessions.count { it.isCompleted },
-                                updatedAt = now,
-                            ),
-                        )
+                    }
+                    readerSessionCacheDao.deleteForBook(bookId)
+                    if (cacheEntries.isNotEmpty()) {
+                        readerSessionCacheDao.upsertAll(cacheEntries)
                     }
                 }
 
-                // Upsert all entities
-                if (entities.isNotEmpty()) {
-                    readingSessionDao.upsertAll(entities)
-                    logger.debug { "Cached ${entities.size} reading sessions for book $bookId" }
+                logger.debug {
+                    "Cached ${userSessions.size} user sessions + ${cacheEntries.size} readers for book $bookId"
                 }
             }
 
@@ -154,63 +159,6 @@ class SessionRepositoryImpl(
                 logger.error { "Failed to refresh readers for book $bookId: ${result.message}" }
             }
         }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // PRIVATE HELPERS
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Convert list of entities to BookReadersResult, separating user's own sessions.
-     */
-    private fun entitiesToBookReadersResult(
-        entities: List<ReadingSessionEntity>,
-        currentUserId: String?,
-    ): BookReadersResult {
-        val (userEntities, otherEntities) = entities.partition { it.userId == currentUserId }
-
-        // Convert user's entity to SessionSummary list
-        val yourSessions =
-            userEntities.firstOrNull()?.let { entity ->
-                // We store aggregated data, create summary from it
-                listOf(
-                    SessionSummary(
-                        id = entity.id,
-                        startedAt = formatTimestamp(entity.startedAt),
-                        finishedAt = entity.finishedAt?.let { formatTimestamp(it) },
-                        isCompleted = entity.completionCount > 0,
-                        listenTimeMs = 0L, // Not tracked in cache
-                    ),
-                )
-            } ?: emptyList()
-
-        // Convert other entities to ReaderInfo
-        val otherReaders = otherEntities.map { it.toDomain() }
-
-        return BookReadersResult(
-            yourSessions = yourSessions,
-            otherReaders = otherReaders,
-            totalReaders = entities.size,
-            totalCompletions = entities.sumOf { it.completionCount },
-        )
-    }
-
-    private fun parseTimestamp(iso: String): Long =
-        try {
-            kotlin.time.Instant
-                .parse(iso)
-                .toEpochMilliseconds()
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            currentEpochMilliseconds()
-        }
-
-    private fun formatTimestamp(epochMs: Long): String {
-        // Convert epoch ms to ISO 8601 string
-        return kotlin.time.Instant
-            .fromEpochMilliseconds(epochMs)
-            .toString()
     }
 }
 
@@ -237,10 +185,9 @@ private fun ReaderSummary.toDomain(): ReaderInfo =
     )
 
 /**
- * Convert ReadingSessionEntity to ReaderInfo domain model.
+ * Convert ReaderSessionCacheEntity to ReaderInfo domain model.
  */
-private fun ReadingSessionEntity.toDomain(): ReaderInfo {
-    // Compute last activity: use finishedAt if available, otherwise startedAt
+private fun ReaderSessionCacheEntity.toDomain(): ReaderInfo {
     val lastActivity = finishedAt?.takeIf { it > startedAt } ?: startedAt
     return ReaderInfo(
         userId = userId,
@@ -250,33 +197,33 @@ private fun ReadingSessionEntity.toDomain(): ReaderInfo {
         avatarColor = userAvatarColor,
         isCurrentlyReading = isCurrentlyReading,
         currentProgress = currentProgress,
-        startedAt =
-            kotlin.time.Instant
-                .fromEpochMilliseconds(startedAt)
-                .toString(),
-        finishedAt =
-            finishedAt?.let {
-                kotlin.time.Instant
-                    .fromEpochMilliseconds(it)
-                    .toString()
-            },
-        lastActivityAt =
-            kotlin.time.Instant
-                .fromEpochMilliseconds(lastActivity)
-                .toString(),
+        startedAt = Instant.fromEpochMilliseconds(startedAt).toString(),
+        finishedAt = finishedAt?.let { Instant.fromEpochMilliseconds(it).toString() },
+        lastActivityAt = Instant.fromEpochMilliseconds(lastActivity).toString(),
         completionCount = completionCount,
     )
 }
 
 /**
- * Convert ReaderSummary API model to ReadingSessionEntity for caching.
+ * Convert UserReadingSessionEntity to domain SessionSummary.
+ *
+ * Compared to the old synthetic-self flow, this mapper preserves `listenTimeMs`
+ * and per-session timestamps verbatim — no fabricated zeros.
  */
-private fun ReaderSummary.toEntity(
-    bookId: String,
-    updatedAt: Long,
-): ReadingSessionEntity =
-    ReadingSessionEntity(
-        id = "$bookId-$userId",
+private fun UserReadingSessionEntity.toDomain(): SessionSummary =
+    SessionSummary(
+        id = id,
+        startedAt = Instant.fromEpochMilliseconds(startedAt).toString(),
+        finishedAt = finishedAt?.let { Instant.fromEpochMilliseconds(it).toString() },
+        isCompleted = isCompleted,
+        listenTimeMs = listenTimeMs,
+    )
+
+/**
+ * Convert ReaderSummary API model to ReaderSessionCacheEntity for caching.
+ */
+private fun ReaderSummary.toCacheEntity(bookId: String, updatedAt: Long): ReaderSessionCacheEntity =
+    ReaderSessionCacheEntity(
         bookId = bookId,
         userId = userId,
         userDisplayName = displayName,
@@ -292,13 +239,30 @@ private fun ReaderSummary.toEntity(
     )
 
 /**
+ * Convert API SessionSummary to UserReadingSessionEntity.
+ */
+private fun com.calypsan.listenup.client.data.remote.SessionSummary.toUserSessionEntity(
+    bookId: String,
+    userId: String,
+    updatedAt: Long,
+): UserReadingSessionEntity =
+    UserReadingSessionEntity(
+        id = id,
+        bookId = bookId,
+        userId = userId,
+        startedAt = parseTimestampToEpoch(startedAt),
+        finishedAt = finishedAt?.let { parseTimestampToEpoch(it) },
+        isCompleted = isCompleted,
+        listenTimeMs = listenTimeMs,
+        updatedAt = updatedAt,
+    )
+
+/**
  * Parse ISO timestamp string to epoch milliseconds.
  */
 private fun parseTimestampToEpoch(iso: String): Long =
     try {
-        kotlin.time.Instant
-            .parse(iso)
-            .toEpochMilliseconds()
+        Instant.parse(iso).toEpochMilliseconds()
     } catch (e: kotlin.coroutines.cancellation.CancellationException) {
         throw e
     } catch (e: Exception) {

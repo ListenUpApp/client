@@ -367,6 +367,8 @@ val repositoryModule =
         single { get<ListenUpDatabase>().activityDao() }
         single { get<ListenUpDatabase>().userStatsDao() }
         single { get<ListenUpDatabase>().readingSessionDao() }
+        single { get<ListenUpDatabase>().userReadingSessionDao() }
+        single { get<ListenUpDatabase>().readerSessionCacheDao() }
 
         single<com.calypsan.listenup.client.data.local.db.TransactionRunner> {
             com.calypsan.listenup.client.data.local.db
@@ -1431,7 +1433,9 @@ val syncModule =
         single<SessionRepository> {
             SessionRepositoryImpl(
                 sessionApi = get(),
-                readingSessionDao = get(),
+                userReadingSessionDao = get(),
+                readerSessionCacheDao = get(),
+                transactionRunner = get(),
                 authSession = get(),
             )
         }
