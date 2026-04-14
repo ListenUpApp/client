@@ -39,6 +39,7 @@ import androidx.room.TypeConverters
         BookTagCrossRef::class,
         GenreEntity::class,
         BookGenreCrossRef::class,
+        AudioFileEntity::class,
         ListeningEventEntity::class,
         ActiveSessionEntity::class,
         ActivityEntity::class,
@@ -47,7 +48,7 @@ import androidx.room.TypeConverters
         ReaderSessionCacheEntity::class,
         CoverDownloadTaskEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 @TypeConverters(
@@ -99,6 +100,8 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun tagDao(): TagDao
 
     abstract fun genreDao(): GenreDao
+
+    abstract fun audioFileDao(): AudioFileDao
 
     abstract fun listeningEventDao(): ListeningEventDao
 
