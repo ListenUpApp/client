@@ -144,8 +144,8 @@ kotlin {
                     libs.versions.ffmpeg.javacpp
                         .get()
                 listOf("linux-x86_64", "windows-x86_64").forEach { platform ->
-                    implementation("org.bytedeco:javacpp:\$javacppVersion:\$platform")
-                    implementation("org.bytedeco:ffmpeg:\$ffmpegVersion:\$platform")
+                    implementation("org.bytedeco:javacpp:$javacppVersion:$platform")
+                    implementation("org.bytedeco:ffmpeg:$ffmpegVersion:$platform")
                 }
             }
         }
