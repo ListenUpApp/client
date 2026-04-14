@@ -44,9 +44,11 @@ import androidx.room.TypeConverters
         ActivityEntity::class,
         UserStatsEntity::class,
         ReadingSessionEntity::class,
+        UserReadingSessionEntity::class,
+        ReaderSessionCacheEntity::class,
         CoverDownloadTaskEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(
@@ -108,6 +110,10 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun userStatsDao(): UserStatsDao
 
     abstract fun readingSessionDao(): ReadingSessionDao
+
+    abstract fun userReadingSessionDao(): UserReadingSessionDao
+
+    abstract fun readerSessionCacheDao(): ReaderSessionCacheDao
 
     abstract fun coverDownloadDao(): CoverDownloadDao
 }
