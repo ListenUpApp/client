@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.domain.repository.SeriesEditRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 
@@ -39,6 +40,7 @@ private val logger = KotlinLogging.logger {}
 open class UpdateSeriesUseCase(
     private val seriesEditRepository: SeriesEditRepository,
     private val imageRepository: ImageRepository,
+    private val imageStagingRepository: ImageStagingRepository,
 ) {
     /**
      * Update series with optional cover upload.
@@ -88,7 +90,7 @@ open class UpdateSeriesUseCase(
         val pendingFilename = request.pendingCoverFilename ?: return
 
         // First, commit staging to main cover location
-        when (val commitResult = imageRepository.commitSeriesCoverStaging(request.seriesId)) {
+        when (val commitResult = imageStagingRepository.commitSeriesCoverStaging(request.seriesId)) {
             is Success -> {
                 logger.info { "Staging cover committed to main location" }
             }

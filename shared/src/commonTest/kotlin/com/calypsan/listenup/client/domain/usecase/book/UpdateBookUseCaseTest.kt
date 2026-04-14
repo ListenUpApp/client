@@ -15,6 +15,7 @@ import com.calypsan.listenup.client.domain.repository.BookEditRepository
 import com.calypsan.listenup.client.domain.repository.BookSeriesInput
 import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.presentation.bookedit.ContributorRole
 import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
@@ -56,6 +57,7 @@ class UpdateBookUseCaseTest {
         val genreRepository: GenreRepository = mock()
         val tagRepository: TagRepository = mock()
         val imageRepository: ImageRepository = mock()
+        val imageStagingRepository: ImageStagingRepository = mock()
 
         fun build(): UpdateBookUseCase =
             UpdateBookUseCase(
@@ -63,6 +65,7 @@ class UpdateBookUseCaseTest {
                 genreRepository = genreRepository,
                 tagRepository = tagRepository,
                 imageRepository = imageRepository,
+                imageStagingRepository = imageStagingRepository,
             )
     }
 
@@ -76,7 +79,7 @@ class UpdateBookUseCaseTest {
         everySuspend { fixture.genreRepository.setGenresForBook(any(), any()) } returns Unit
         everySuspend { fixture.tagRepository.addTagToBook(any(), any()) } returns TestData.tag()
         everySuspend { fixture.tagRepository.removeTagFromBook(any(), any(), any()) } returns Unit
-        everySuspend { fixture.imageRepository.commitBookCoverStaging(any()) } returns Success(Unit)
+        everySuspend { fixture.imageStagingRepository.commitBookCoverStaging(any()) } returns Success(Unit)
         everySuspend { fixture.imageRepository.uploadBookCover(any(), any(), any()) } returns Success("https://example.com/cover.jpg")
 
         return fixture
@@ -551,7 +554,7 @@ class UpdateBookUseCaseTest {
 
             // Then
             checkIs<Success<Unit>>(result)
-            verifySuspend { fixture.imageRepository.commitBookCoverStaging(BookId("book-1")) }
+            verifySuspend { fixture.imageStagingRepository.commitBookCoverStaging(BookId("book-1")) }
             verifySuspend { fixture.imageRepository.uploadBookCover("book-1", any(), "cover.jpg") }
         }
 
@@ -569,7 +572,7 @@ class UpdateBookUseCaseTest {
             useCase(current, original)
 
             // Then
-            verifySuspend(VerifyMode.not) { fixture.imageRepository.commitBookCoverStaging(any()) }
+            verifySuspend(VerifyMode.not) { fixture.imageStagingRepository.commitBookCoverStaging(any()) }
             verifySuspend(VerifyMode.not) { fixture.imageRepository.uploadBookCover(any(), any(), any()) }
         }
 
@@ -740,7 +743,7 @@ class UpdateBookUseCaseTest {
             verifySuspend { fixture.genreRepository.setGenresForBook(any(), any()) }
             verifySuspend { fixture.tagRepository.removeTagFromBook(any(), any(), any()) }
             verifySuspend { fixture.tagRepository.addTagToBook(any(), any()) }
-            verifySuspend { fixture.imageRepository.commitBookCoverStaging(any()) }
+            verifySuspend { fixture.imageStagingRepository.commitBookCoverStaging(any()) }
             verifySuspend { fixture.imageRepository.uploadBookCover(any(), any(), any()) }
         }
 }

@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.presentation.bookedit.delegates
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -22,13 +22,13 @@ private val logger = KotlinLogging.logger {}
  * - Clean up staging files on cancel/clear
  *
  * @property state Shared state flow owned by ViewModel
- * @property imageRepository Repository for cover image operations
+ * @property imageStagingRepository Repository for staging cover image operations
  * @property scope CoroutineScope for launching operations
  * @property onChangesMade Callback to notify ViewModel of changes
  */
 class CoverUploadDelegate(
     private val state: MutableStateFlow<BookEditUiState>,
-    private val imageRepository: ImageRepository,
+    private val imageStagingRepository: ImageStagingRepository,
     private val scope: CoroutineScope,
     private val onChangesMade: () -> Unit,
 ) {
@@ -51,9 +51,9 @@ class CoverUploadDelegate(
             state.update { it.copy(isUploadingCover = true, error = null) }
 
             // Save to staging location for preview (doesn't overwrite original)
-            when (val saveResult = imageRepository.saveBookCoverStaging(BookId(bookId), imageData)) {
+            when (val saveResult = imageStagingRepository.saveBookCoverStaging(BookId(bookId), imageData)) {
                 is Success -> {
-                    val stagingPath = imageRepository.getBookCoverStagingPath(BookId(bookId))
+                    val stagingPath = imageStagingRepository.getBookCoverStagingPath(BookId(bookId))
                     logger.info { "Cover saved to staging for preview: $stagingPath" }
 
                     // Store pending data for upload when Save Changes is clicked
@@ -88,7 +88,7 @@ class CoverUploadDelegate(
         val bookId = state.value.bookId
         if (bookId.isNotBlank() && state.value.stagingCoverPath != null) {
             scope.launch {
-                imageRepository.deleteBookCoverStaging(BookId(bookId))
+                imageStagingRepository.deleteBookCoverStaging(BookId(bookId))
                 logger.debug { "Staging cover cleaned up on cancel" }
             }
         }
@@ -105,7 +105,7 @@ class CoverUploadDelegate(
         if (bookId.isNotBlank() && state.value.stagingCoverPath != null) {
             @Suppress("OPT_IN_USAGE")
             kotlinx.coroutines.GlobalScope.launch(dispatcher) {
-                imageRepository.deleteBookCoverStaging(BookId(bookId))
+                imageStagingRepository.deleteBookCoverStaging(BookId(bookId))
                 logger.debug { "Staging cover cleaned up on ViewModel cleared" }
             }
         }

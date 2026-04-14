@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Series
 import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
 import dev.mokkery.answering.returns
@@ -37,12 +38,14 @@ class SeriesEditViewModelTest {
         val seriesRepository: SeriesRepository = mock()
         val updateSeriesUseCase: UpdateSeriesUseCase = mock()
         val imageRepository: ImageRepository = mock()
+        val imageStagingRepository: ImageStagingRepository = mock()
 
         fun build(): SeriesEditViewModel =
             SeriesEditViewModel(
                 seriesRepository = seriesRepository,
                 updateSeriesUseCase = updateSeriesUseCase,
                 imageRepository = imageRepository,
+                imageStagingRepository = imageStagingRepository,
             )
     }
 
@@ -231,7 +234,7 @@ class SeriesEditViewModelTest {
             everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
             everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
             everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
-            everySuspend { fixture.imageRepository.deleteSeriesCoverStaging(any()) } returns Success(Unit)
+            everySuspend { fixture.imageStagingRepository.deleteSeriesCoverStaging(any()) } returns Success(Unit)
 
             val viewModel = fixture.build()
             viewModel.loadSeries("series-1")

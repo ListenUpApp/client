@@ -257,7 +257,7 @@ val bookPresentationModule =
                 updateBookUseCase = get(),
                 contributorRepository = get(),
                 seriesRepository = get(),
-                imageRepository = get(),
+                imageStagingRepository = get(),
             )
         }
         // MetadataViewModel for Audible metadata search and matching
@@ -285,6 +285,7 @@ val seriesPresentationModule =
                 seriesRepository = get<com.calypsan.listenup.client.domain.repository.SeriesRepository>(),
                 updateSeriesUseCase = get(),
                 imageRepository = get(),
+                imageStagingRepository = get(),
             )
         }
     }

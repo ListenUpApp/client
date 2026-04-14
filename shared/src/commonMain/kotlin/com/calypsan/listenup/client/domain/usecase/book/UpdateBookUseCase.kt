@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.domain.repository.BookEditRepository
 import com.calypsan.listenup.client.domain.repository.BookSeriesInput
 import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 
@@ -40,6 +41,7 @@ open class UpdateBookUseCase(
     private val genreRepository: GenreRepository,
     private val tagRepository: TagRepository,
     private val imageRepository: ImageRepository,
+    private val imageStagingRepository: ImageStagingRepository,
 ) {
     /**
      * Save book changes.
@@ -213,7 +215,7 @@ open class UpdateBookUseCase(
         logger.debug { "Committing and uploading cover for book ${current.bookId}" }
 
         // Commit staging to main location
-        when (val commitResult = imageRepository.commitBookCoverStaging(bookId)) {
+        when (val commitResult = imageStagingRepository.commitBookCoverStaging(bookId)) {
             is Success -> logger.debug { "Staging cover committed to main location" }
             is Failure -> logger.error { "Failed to commit staging cover: ${commitResult.message}" }
         }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.usecase.series.SeriesUpdateRequest
 import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
@@ -93,12 +94,14 @@ sealed interface SeriesEditNavAction {
  *
  * @property seriesRepository Repository for loading series data
  * @property updateSeriesUseCase Use case for saving series changes
- * @property imageRepository Repository for cover image operations
+ * @property imageRepository Repository for persistent cover image operations
+ * @property imageStagingRepository Repository for staging cover image operations
  */
 class SeriesEditViewModel(
     private val seriesRepository: SeriesRepository,
     private val updateSeriesUseCase: UpdateSeriesUseCase,
     private val imageRepository: ImageRepository,
+    private val imageStagingRepository: ImageStagingRepository,
 ) : ViewModel() {
     val state: StateFlow<SeriesEditUiState>
         field = MutableStateFlow(SeriesEditUiState())
@@ -223,9 +226,9 @@ class SeriesEditViewModel(
             state.update { it.copy(isUploadingCover = true, error = null) }
 
             // Save to staging location for preview (doesn't overwrite original)
-            when (val saveResult = imageRepository.saveSeriesCoverStaging(seriesId, imageData)) {
+            when (val saveResult = imageStagingRepository.saveSeriesCoverStaging(seriesId, imageData)) {
                 is Success -> {
-                    val stagingPath = imageRepository.getSeriesCoverStagingPath(seriesId)
+                    val stagingPath = imageStagingRepository.getSeriesCoverStagingPath(seriesId)
                     logger.info { "Cover saved to staging for preview: $stagingPath" }
 
                     // Store pending data for upload when Save Changes is clicked
@@ -267,7 +270,7 @@ class SeriesEditViewModel(
         viewModelScope.launch {
             // Delete staging cover if it exists
             if (state.value.stagingCoverPath != null) {
-                imageRepository.deleteSeriesCoverStaging(seriesId)
+                imageStagingRepository.deleteSeriesCoverStaging(seriesId)
             }
 
             state.update {
@@ -341,7 +344,7 @@ class SeriesEditViewModel(
         val seriesId = state.value.seriesId
         if (seriesId.isNotBlank() && state.value.stagingCoverPath != null) {
             viewModelScope.launch {
-                imageRepository.deleteSeriesCoverStaging(seriesId)
+                imageStagingRepository.deleteSeriesCoverStaging(seriesId)
                 logger.debug { "Staging cover cleaned up on cancel" }
             }
         }
@@ -359,7 +362,7 @@ class SeriesEditViewModel(
             // viewModelScope is cancelled by this point, use GlobalScope for cleanup
             @Suppress("OPT_IN_USAGE")
             kotlinx.coroutines.GlobalScope.launch(com.calypsan.listenup.client.core.IODispatcher) {
-                imageRepository.deleteSeriesCoverStaging(seriesId)
+                imageStagingRepository.deleteSeriesCoverStaging(seriesId)
                 logger.debug { "Staging cover cleaned up on ViewModel cleared" }
             }
         }

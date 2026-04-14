@@ -4,11 +4,11 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.AppResult
 
 /**
- * Domain repository for image operations.
+ * Domain repository for persistent image operations.
  *
- * Provides a unified interface for image download, upload, and local storage
- * operations. Use cases depend on this interface; implementations live in
- * the data layer.
+ * Covers download, upload, path queries, and main-cover management for books,
+ * series, contributors, and user avatars. Staging-lifecycle operations live in
+ * [ImageStagingRepository].
  *
  * This abstracts:
  * - ImageDownloaderContract (download operations)
@@ -40,57 +40,6 @@ interface ImageRepository {
     suspend fun downloadBookCover(bookId: BookId): AppResult<Boolean>
 
     /**
-     * Save book cover to staging location for preview.
-     *
-     * Used during book editing to preview cover changes before committing.
-     *
-     * @param bookId Unique identifier for the book
-     * @param imageData Raw image bytes
-     * @return Result indicating success or failure
-     */
-    suspend fun saveBookCoverStaging(
-        bookId: BookId,
-        imageData: ByteArray,
-    ): AppResult<Unit>
-
-    /**
-     * Get the local file path for a book's staging cover.
-     *
-     * @param bookId Unique identifier for the book
-     * @return Absolute file path where the staging cover is stored
-     */
-    fun getBookCoverStagingPath(bookId: BookId): String
-
-    /**
-     * Delete staging cover file.
-     *
-     * Used when canceling edits or cleaning up.
-     *
-     * @param bookId Unique identifier for the book
-     * @return Result indicating success or failure
-     */
-    suspend fun deleteBookCoverStaging(bookId: BookId): AppResult<Unit>
-
-    /**
-     * Request fire-and-forget cleanup of any staging cover file for this book.
-     *
-     * Runs on an application-scoped CoroutineScope so the caller may invoke this
-     * from `ViewModel.onCleared()` safely. Errors are logged but not surfaced —
-     * a stale staging file is benign.
-     */
-    fun requestBookCoverStagingCleanup(bookId: BookId)
-
-    /**
-     * Commit staged book cover to the main location.
-     *
-     * Used when saving book edits - moves the staged cover to the main cover path.
-     *
-     * @param bookId Unique identifier for the book
-     * @return Result indicating success or failure
-     */
-    suspend fun commitBookCoverStaging(bookId: BookId): AppResult<Unit>
-
-    /**
      * Upload book cover to the server.
      *
      * @param bookId Unique identifier for the book
@@ -105,53 +54,6 @@ interface ImageRepository {
     ): AppResult<String>
 
     // ========== Series Cover Operations ==========
-
-    /**
-     * Save series cover to staging location for preview.
-     *
-     * Used during series editing to preview cover changes before committing.
-     *
-     * @param seriesId Unique identifier for the series
-     * @param imageData Raw image bytes
-     * @return Result indicating success or failure
-     */
-    suspend fun saveSeriesCoverStaging(
-        seriesId: String,
-        imageData: ByteArray,
-    ): AppResult<Unit>
-
-    /**
-     * Get the local file path for a series's staging cover.
-     *
-     * @param seriesId Unique identifier for the series
-     * @return Absolute file path where the staging cover is stored
-     */
-    fun getSeriesCoverStagingPath(seriesId: String): String
-
-    /**
-     * Delete series staging cover file.
-     *
-     * Used when canceling edits or cleaning up.
-     *
-     * @param seriesId Unique identifier for the series
-     * @return Result indicating success or failure
-     */
-    suspend fun deleteSeriesCoverStaging(seriesId: String): AppResult<Unit>
-
-    /**
-     * Request fire-and-forget cleanup of any staging cover file for this series.
-     *
-     * Same semantics as [requestBookCoverStagingCleanup].
-     */
-    fun requestSeriesCoverStagingCleanup(seriesId: String)
-
-    /**
-     * Commit staged series cover to the main location.
-     *
-     * @param seriesId Unique identifier for the series
-     * @return Result indicating success or failure
-     */
-    suspend fun commitSeriesCoverStaging(seriesId: String): AppResult<Unit>
 
     /**
      * Upload series cover to the server.

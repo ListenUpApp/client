@@ -471,6 +471,7 @@ val useCaseModule =
                 genreRepository = get(),
                 tagRepository = get(),
                 imageRepository = get(),
+                imageStagingRepository = get(),
             )
         }
         // Metadata use cases
@@ -503,6 +504,7 @@ val useCaseModule =
             UpdateSeriesUseCase(
                 seriesEditRepository = get(),
                 imageRepository = get(),
+                imageStagingRepository = get(),
             )
         }
         // Shelf use cases
@@ -800,8 +802,8 @@ val syncModule =
             MetadataRepositoryImpl(metadataApi = get())
         }
 
-        // ImageRepository for image operations (SOLID: interface in domain, impl in data)
-        single<com.calypsan.listenup.client.domain.repository.ImageRepository> {
+        // ImageRepositoryImpl — one concrete instance bound to both interfaces
+        single {
             ImageRepositoryImpl(
                 imageDownloader = get(),
                 imageStorage = get(),
@@ -814,6 +816,8 @@ val syncModule =
                     ),
             )
         }
+        single<com.calypsan.listenup.client.domain.repository.ImageRepository> { get<ImageRepositoryImpl>() }
+        single<com.calypsan.listenup.client.domain.repository.ImageStagingRepository> { get<ImageRepositoryImpl>() }
 
         // EventStreamRepository for real-time events (SOLID: interface in domain, impl in data)
         single<com.calypsan.listenup.client.domain.repository.EventStreamRepository> {

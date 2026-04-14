@@ -9,7 +9,7 @@ import com.calypsan.listenup.client.domain.model.ContributorSearchResult
 import com.calypsan.listenup.client.domain.model.SeriesSearchResponse
 import com.calypsan.listenup.client.domain.model.SeriesSearchResult
 import com.calypsan.listenup.client.domain.repository.ContributorRepository
-import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.usecase.book.LoadBookForEditUseCase
 import com.calypsan.listenup.client.domain.usecase.book.UpdateBookUseCase
@@ -60,7 +60,7 @@ class BookEditViewModelTest {
         val updateBookUseCase: UpdateBookUseCase = mock()
         val contributorRepository: ContributorRepository = mock()
         val seriesRepository: SeriesRepository = mock()
-        val imageRepository: ImageRepository = mock()
+        val imageStagingRepository: ImageStagingRepository = mock()
 
         fun build(): BookEditViewModel =
             BookEditViewModel(
@@ -68,7 +68,7 @@ class BookEditViewModelTest {
                 updateBookUseCase = updateBookUseCase,
                 contributorRepository = contributorRepository,
                 seriesRepository = seriesRepository,
-                imageRepository = imageRepository,
+                imageStagingRepository = imageStagingRepository,
             )
     }
 

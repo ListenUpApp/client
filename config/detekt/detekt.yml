@@ -70,7 +70,7 @@ complexity:
     active: true
     thresholdInFiles: 20
     thresholdInClasses: 25  # Repositories and ViewModels can be large
-    thresholdInInterfaces: 30  # DAOs and repository interfaces can be large
+    thresholdInInterfaces: 25  # DAOs have many query methods
     thresholdInObjects: 15
     thresholdInEnums: 15
     ignoreDeprecated: true

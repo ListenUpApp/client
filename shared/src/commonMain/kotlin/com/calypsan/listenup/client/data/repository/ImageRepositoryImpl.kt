@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.core.map
 import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -29,7 +30,8 @@ class ImageRepositoryImpl(
     private val imageStorage: ImageStorage,
     private val imageApi: ImageApiContract,
     private val appScope: CoroutineScope,
-) : ImageRepository {
+) : ImageRepository,
+    ImageStagingRepository {
     // ========== Book Cover Operations ==========
 
     override suspend fun deleteBookCover(bookId: BookId): AppResult<Unit> = imageDownloader.deleteCover(bookId)

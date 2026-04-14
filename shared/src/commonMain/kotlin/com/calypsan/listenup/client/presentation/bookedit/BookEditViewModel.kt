@@ -12,7 +12,7 @@ import com.calypsan.listenup.client.domain.model.BookMetadata
 import com.calypsan.listenup.client.domain.model.BookUpdateRequest
 import com.calypsan.listenup.client.domain.model.PendingCover
 import com.calypsan.listenup.client.domain.repository.ContributorRepository
-import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.usecase.book.LoadBookForEditUseCase
 import com.calypsan.listenup.client.domain.usecase.book.UpdateBookUseCase
@@ -50,7 +50,7 @@ class BookEditViewModel(
     private val updateBookUseCase: UpdateBookUseCase,
     contributorRepository: ContributorRepository,
     seriesRepository: SeriesRepository,
-    private val imageRepository: ImageRepository,
+    private val imageStagingRepository: ImageStagingRepository,
 ) : ViewModel() {
     // Use traditional pattern for mutable state shared with delegates
     private val _state = MutableStateFlow(BookEditUiState())
@@ -90,7 +90,7 @@ class BookEditViewModel(
     private val coverDelegate =
         CoverUploadDelegate(
             state = _state,
-            imageRepository = imageRepository,
+            imageStagingRepository = imageStagingRepository,
             scope = viewModelScope,
             onChangesMade = ::updateHasChanges,
         )
