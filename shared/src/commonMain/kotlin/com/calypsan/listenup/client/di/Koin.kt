@@ -1023,7 +1023,10 @@ val syncModule =
         ) {
             ReadingSessionPuller(
                 syncApi = get<SyncApiContract>(),
-                readingSessionDao = get(),
+                userReadingSessionDao = get(),
+                readerSessionCacheDao = get(),
+                transactionRunner = get(),
+                authSession = get(),
             )
         }
 
