@@ -20,11 +20,9 @@ import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Instant
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
@@ -81,18 +79,17 @@ class SessionRepositoryImpl(
     // ═══════════════════════════════════════════════════════════════════════════
 
     override fun observeBookReaders(bookId: String): Flow<BookReadersResult> =
-        flow {
-            // Trigger background refresh on subscription so the cache stays warm.
-            // W6 will migrate this to .onStart { } with a proper error channel.
-            coroutineScope {
-                launch {
-                    try {
-                        refreshBookReaders(bookId)
-                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        logger.warn(e) { "Background refresh of readers for book $bookId failed" }
-                    }
+        channelFlow {
+            // Fire-and-forget background refresh on subscription — runs concurrent with collection
+            // so cached data is emitted immediately. W6 will migrate to .onStart { } with an
+            // injected CoroutineScope.
+            launch {
+                try {
+                    refreshBookReaders(bookId)
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.warn(e) { "Background refresh of readers for book $bookId failed" }
                 }
             }
 
@@ -109,17 +106,15 @@ class SessionRepositoryImpl(
                     excludingUserId = currentUserId ?: "",
                 )
 
-            emitAll(
-                combine(userFlow, cacheFlow) { userSessions, otherEntries ->
-                    BookReadersResult(
-                        yourSessions = userSessions.map { it.toDomain() },
-                        otherReaders = otherEntries.map { it.toDomain() },
-                        totalReaders = otherEntries.size + (if (userSessions.isNotEmpty()) 1 else 0),
-                        totalCompletions = otherEntries.sumOf { it.completionCount } +
-                            userSessions.count { it.isCompleted },
-                    )
-                },
-            )
+            combine(userFlow, cacheFlow) { userSessions, otherEntries ->
+                BookReadersResult(
+                    yourSessions = userSessions.map { it.toDomain() },
+                    otherReaders = otherEntries.map { it.toDomain() },
+                    totalReaders = otherEntries.size + (if (userSessions.isNotEmpty()) 1 else 0),
+                    totalCompletions = otherEntries.sumOf { it.completionCount } +
+                        userSessions.count { it.isCompleted },
+                )
+            }.collect { send(it) }
         }
 
     override suspend fun refreshBookReaders(bookId: String) {
