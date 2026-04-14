@@ -7,14 +7,15 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.usecase.auth.LoginUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
  * ViewModel for the login screen.
  *
  * Thin coordinator that:
- * - Manages UI state (Loading, Success, Error)
- * - Delegates business logic to LoginUseCase
+ * - Manages UI state as a sealed [LoginUiState] hierarchy
+ * - Delegates business logic to [LoginUseCase]
  * - Maps use case results to UI states
  *
  * On success, auth tokens are stored by the use case which triggers
@@ -25,8 +26,8 @@ import kotlinx.coroutines.launch
 class LoginViewModel(
     private val loginUseCase: LoginUseCase,
 ) : ViewModel() {
-    val state: StateFlow<LoginUiState>
-        field = MutableStateFlow(LoginUiState())
+    private val _state = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
+    val state: StateFlow<LoginUiState> = _state.asStateFlow()
 
     /**
      * Submit the login form with user credentials.
@@ -39,40 +40,30 @@ class LoginViewModel(
         password: String,
     ) {
         viewModelScope.launch {
-            state.value = LoginUiState(status = LoginStatus.Loading)
+            _state.value = LoginUiState.Loading
 
             when (val result = loginUseCase(email, password)) {
-                is Success -> {
-                    state.value = LoginUiState(status = LoginStatus.Success)
-                }
-
-                is Failure -> {
-                    val errorType = mapFailureToErrorType(result)
-                    state.value = LoginUiState(status = LoginStatus.Error(errorType))
-                }
+                is Success -> _state.value = LoginUiState.Success
+                is Failure -> _state.value = LoginUiState.Error(mapFailureToErrorType(result))
             }
         }
     }
 
-    /**
-     * Clear the error state to allow retry.
-     */
+    /** Clear the error state to allow retry. */
     fun clearError() {
-        if (state.value.status is LoginStatus.Error) {
-            state.value = LoginUiState(status = LoginStatus.Idle)
+        if (_state.value is LoginUiState.Error) {
+            _state.value = LoginUiState.Idle
         }
     }
 
     /**
      * Map use case failure to UI error type.
      *
-     * Handles both validation errors (from use case) and
-     * network/server errors (via error mapper).
+     * Handles both validation errors (from use case) and network/server errors.
      */
     private fun mapFailureToErrorType(failure: Failure): LoginErrorType {
         val message = failure.message
 
-        // Validation errors from the use case surface as DataError (AppError variant).
         if (failure.error is com.calypsan.listenup.client.core.error.DataError) {
             return when {
                 message.contains("email", ignoreCase = true) -> {
@@ -89,9 +80,6 @@ class LoginViewModel(
             }
         }
 
-        // Network/server/auth errors flow through as the already-typed AppError. For
-        // legacy Throwable flows that land as UnknownError, fall back to string-matching
-        // on the message until callers start producing typed AppError variants directly.
         return when (failure.error) {
             is com.calypsan.listenup.client.core.error.NetworkError -> LoginErrorType.NetworkError(message)
             is com.calypsan.listenup.client.core.error.AuthError -> LoginErrorType.InvalidCredentials

@@ -46,7 +46,7 @@ import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.presentation.auth.LoginErrorType
 import com.calypsan.listenup.client.presentation.auth.LoginField
-import com.calypsan.listenup.client.presentation.auth.LoginStatus
+import com.calypsan.listenup.client.presentation.auth.LoginUiState
 import com.calypsan.listenup.client.presentation.auth.LoginViewModel
 import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.stringResource
@@ -82,34 +82,20 @@ fun LoginScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Show snackbar for non-validation errors
-    LaunchedEffect(state.status) {
-        when (val status = state.status) {
-            is LoginStatus.Error -> {
-                val message =
-                    when (val type = status.type) {
-                        is LoginErrorType.InvalidCredentials -> {
-                            "Invalid email or password."
-                        }
-
-                        is LoginErrorType.NetworkError -> {
-                            type.detail ?: "Network error. Check your connection."
-                        }
-
-                        is LoginErrorType.ServerError -> {
-                            type.detail ?: "Server error. Please try again."
-                        }
-
-                        is LoginErrorType.ValidationError -> {
-                            null
-                        } // Handled inline
-                    }
-                message?.let {
-                    snackbarHostState.showSnackbar(it)
-                    viewModel.clearError()
+    LaunchedEffect(state) {
+        val current = state
+        if (current is LoginUiState.Error) {
+            val message =
+                when (val type = current.type) {
+                    is LoginErrorType.InvalidCredentials -> "Invalid email or password."
+                    is LoginErrorType.NetworkError -> type.detail ?: "Network error. Check your connection."
+                    is LoginErrorType.ServerError -> type.detail ?: "Server error. Please try again."
+                    is LoginErrorType.ValidationError -> null // Handled inline
                 }
+            message?.let {
+                snackbarHostState.showSnackbar(it)
+                viewModel.clearError()
             }
-
-            else -> {}
         }
     }
 
@@ -129,7 +115,7 @@ fun LoginScreen(
  */
 @Composable
 private fun LoginContent(
-    state: com.calypsan.listenup.client.presentation.auth.LoginUiState,
+    state: LoginUiState,
     openRegistration: Boolean,
     onSubmit: (String, String) -> Unit,
     onChangeServer: () -> Unit,
@@ -261,7 +247,7 @@ private fun LoginContent(
  */
 @Composable
 private fun LoginForm(
-    state: com.calypsan.listenup.client.presentation.auth.LoginUiState,
+    state: LoginUiState,
     onSubmit: (String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -269,7 +255,9 @@ private fun LoginForm(
     var password by remember { mutableStateOf("") }
 
     val focusManager = LocalFocusManager.current
-    val isLoading = state.status is LoginStatus.Loading
+    val isLoading = state is LoginUiState.Loading
+    val validationField =
+        ((state as? LoginUiState.Error)?.type as? LoginErrorType.ValidationError)?.field
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -294,21 +282,8 @@ private fun LoginForm(
             onValueChange = { email = it },
             label = "Email",
             enabled = !isLoading,
-            isError =
-                state.status is LoginStatus.Error &&
-                    (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
-                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError)
-                        .field == LoginField.EMAIL,
-            supportingText =
-                if (state.status is LoginStatus.Error &&
-                    (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
-                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError)
-                        .field == LoginField.EMAIL
-                ) {
-                    "Invalid email address"
-                } else {
-                    null
-                },
+            isError = validationField == LoginField.EMAIL,
+            supportingText = if (validationField == LoginField.EMAIL) "Invalid email address" else null,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -318,9 +293,7 @@ private fun LoginForm(
                 KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) },
                 ),
-            modifier =
-                Modifier
-                    .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
         )
 
         // Password
@@ -330,21 +303,8 @@ private fun LoginForm(
             label = "Password",
             enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
-            isError =
-                state.status is LoginStatus.Error &&
-                    (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
-                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError).field ==
-                    LoginField.PASSWORD,
-            supportingText =
-                if (state.status is LoginStatus.Error &&
-                    (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
-                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError).field ==
-                    LoginField.PASSWORD
-                ) {
-                    "Password is required"
-                } else {
-                    null
-                },
+            isError = validationField == LoginField.PASSWORD,
+            supportingText = if (validationField == LoginField.PASSWORD) "Password is required" else null,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -364,9 +324,7 @@ private fun LoginForm(
 
         // Submit button
         ListenUpButton(
-            onClick = {
-                onSubmit(email, password)
-            },
+            onClick = { onSubmit(email, password) },
             text = stringResource(Res.string.auth_sign_in),
             enabled = !isLoading,
             isLoading = isLoading,
