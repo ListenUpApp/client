@@ -5,6 +5,8 @@ import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
 import com.calypsan.listenup.client.data.local.db.ActivityDao
 import com.calypsan.listenup.client.data.local.db.ActivityEntity
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -31,6 +33,7 @@ import com.calypsan.listenup.client.data.local.db.UserProfileDao
 import com.calypsan.listenup.client.data.local.db.UserProfileEntity
 import com.calypsan.listenup.client.data.local.db.UserStatsDao
 import com.calypsan.listenup.client.data.local.db.UserStatsEntity
+import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
@@ -77,6 +80,7 @@ class SSEEventProcessorTest {
         contributors: List<BookContributorResponse> = emptyList(),
         seriesInfo: List<BookSeriesInfoResponse> = emptyList(),
         genres: List<String>? = null,
+        audioFiles: List<AudioFileResponse> = emptyList(),
     ): BookResponse =
         BookResponse(
             id = id,
@@ -89,7 +93,7 @@ class SSEEventProcessorTest {
             publishYear = null,
             seriesInfo = seriesInfo,
             chapters = emptyList(),
-            audioFiles = emptyList(),
+            audioFiles = audioFiles,
             contributors = contributors,
             createdAt = "2024-01-01T00:00:00Z",
             updatedAt = "2024-01-01T00:00:00Z",
@@ -132,6 +136,7 @@ class SSEEventProcessorTest {
         val shelfDao: ShelfDao = mock()
         val tagDao: TagDao = mock()
         val genreDao: GenreDao = mock()
+        val audioFileDao: AudioFileDao = mock()
         val listeningEventDao: ListeningEventDao = mock()
         val activityDao: ActivityDao = mock()
         val userDao: UserDao = mock()
@@ -170,6 +175,8 @@ class SSEEventProcessorTest {
             everySuspend { genreDao.deleteGenresForBook(any()) } returns Unit
             everySuspend { genreDao.getIdsByNames(any()) } returns emptyList()
             everySuspend { genreDao.insertAllBookGenres(any<List<BookGenreCrossRef>>()) } returns Unit
+            everySuspend { audioFileDao.deleteForBook(any()) } returns Unit
+            everySuspend { audioFileDao.upsertAll(any()) } returns Unit
             everySuspend { listeningEventDao.upsert(any<ListeningEventEntity>()) } returns Unit
             everySuspend { activityDao.upsert(any<ActivityEntity>()) } returns Unit
             everySuspend { userDao.getCurrentUser() } returns null
@@ -215,6 +222,7 @@ class SSEEventProcessorTest {
                 shelfDao = shelfDao,
                 tagDao = tagDao,
                 genreDao = genreDao,
+                audioFileDao = audioFileDao,
                 listeningEventDao = listeningEventDao,
                 activityDao = activityDao,
                 userDao = userDao,
@@ -679,6 +687,83 @@ class SSEEventProcessorTest {
                     matches { refs: List<BookGenreCrossRef> ->
                         refs.map { it.genreId } == listOf("g2")
                     },
+                )
+            }
+        }
+
+    // ========== Audio File Junction Tests ==========
+
+    @Test
+    fun `BookCreated event writes audio_files junction rows`() =
+        runTest {
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val event =
+                SSEEventType.BookCreated(
+                    book =
+                        createBookResponse(
+                            id = "book-1",
+                            audioFiles =
+                                listOf(
+                                    AudioFileResponse(
+                                        id = "af-1",
+                                        filename = "chapter01.m4b",
+                                        format = "m4b",
+                                        codec = "aac",
+                                        duration = 1_800_000L,
+                                        size = 45_000_000L,
+                                    ),
+                                ),
+                        ),
+                )
+
+            processor.process(event)
+            advanceUntilIdle()
+
+            verifySuspend { fixture.audioFileDao.deleteForBook("book-1") }
+            verifySuspend {
+                fixture.audioFileDao.upsertAll(
+                    matches { rows: List<AudioFileEntity> ->
+                        rows.size == 1 &&
+                            rows.first().bookId == BookId("book-1") &&
+                            rows.first().index == 0 &&
+                            rows.first().id == "af-1"
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `BookUpdated event replaces audio_files junction rows`() =
+        runTest {
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val event =
+                SSEEventType.BookUpdated(
+                    book =
+                        createBookResponse(
+                            id = "book-1",
+                            audioFiles =
+                                listOf(
+                                    AudioFileResponse(
+                                        id = "af-new",
+                                        filename = "chapter01-updated.m4b",
+                                        format = "m4b",
+                                        codec = "aac",
+                                        duration = 1_800_000L,
+                                        size = 45_000_000L,
+                                    ),
+                                ),
+                        ),
+                )
+
+            processor.process(event)
+            advanceUntilIdle()
+
+            verifySuspend { fixture.audioFileDao.deleteForBook("book-1") }
+            verifySuspend {
+                fixture.audioFileDao.upsertAll(
+                    matches { rows: List<AudioFileEntity> -> rows.map { it.id } == listOf("af-new") },
                 )
             }
         }

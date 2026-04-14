@@ -875,6 +875,7 @@ val syncModule =
                 shelfDao = get(),
                 tagDao = get(),
                 genreDao = get(),
+                audioFileDao = get(),
                 listeningEventDao = get(),
                 activityDao = get(),
                 userDao = get(),

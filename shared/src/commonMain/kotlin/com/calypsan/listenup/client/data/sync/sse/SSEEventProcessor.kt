@@ -9,6 +9,8 @@ import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
 import com.calypsan.listenup.client.data.local.db.ActivityDao
 import com.calypsan.listenup.client.data.local.db.ActivityEntity
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
@@ -85,6 +87,7 @@ class SSEEventProcessor(
     private val shelfDao: ShelfDao,
     private val tagDao: TagDao,
     private val genreDao: GenreDao,
+    private val audioFileDao: AudioFileDao,
     private val listeningEventDao: ListeningEventDao,
     private val activityDao: ActivityDao,
     private val userDao: UserDao,
@@ -326,6 +329,7 @@ class SSEEventProcessor(
             saveBookContributors(event.book)
             saveBookSeries(event.book)
             saveBookGenres(event.book)
+            saveBookAudioFiles(event.book)
         }
 
         scope.launch {
@@ -343,6 +347,7 @@ class SSEEventProcessor(
             saveBookContributors(event.book)
             saveBookSeries(event.book)
             saveBookGenres(event.book)
+            saveBookAudioFiles(event.book)
         }
 
         scope.launch {
@@ -525,6 +530,34 @@ class SSEEventProcessor(
         if (crossRefs.isNotEmpty()) {
             genreDao.insertAllBookGenres(crossRefs)
             logger.debug { "SSE: Saved ${crossRefs.size} genre relationships for book ${book.id}" }
+        }
+    }
+
+    /**
+     * Save book audio files from an SSE event.
+     *
+     * Replaces existing junction rows for the book — server is authoritative.
+     * Empty `audioFiles` → just delete existing rows (handles the case where
+     * a server update clarifies a book has no playable files).
+     */
+    private suspend fun saveBookAudioFiles(book: BookResponse) {
+        audioFileDao.deleteForBook(book.id)
+        val rows =
+            book.audioFiles.mapIndexed { idx, af ->
+                AudioFileEntity(
+                    bookId = BookId(book.id),
+                    index = idx,
+                    id = af.id,
+                    filename = af.filename,
+                    format = af.format,
+                    codec = af.codec,
+                    duration = af.duration,
+                    size = af.size,
+                )
+            }
+        if (rows.isNotEmpty()) {
+            audioFileDao.upsertAll(rows)
+            logger.debug { "SSE: Saved ${rows.size} audio file rows for book ${book.id}" }
         }
     }
 

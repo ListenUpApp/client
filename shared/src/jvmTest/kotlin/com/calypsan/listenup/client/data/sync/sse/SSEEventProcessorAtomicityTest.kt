@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.sync.sse
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActivityDao
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
@@ -20,6 +21,7 @@ import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserProfileDao
 import com.calypsan.listenup.client.data.local.db.UserStatsDao
+import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
@@ -128,6 +130,7 @@ class SSEEventProcessorAtomicityTest {
                     shelfDao = shelfDao,
                     tagDao = tagDao,
                     genreDao = genreDao,
+                    audioFileDao = db.audioFileDao(),
                     listeningEventDao = listeningEventDao,
                     activityDao = activityDao,
                     userDao = userDao,
@@ -249,6 +252,7 @@ class SSEEventProcessorAtomicityTest {
                     shelfDao = shelfDao,
                     tagDao = tagDao,
                     genreDao = failingGenreDao,
+                    audioFileDao = db.audioFileDao(),
                     listeningEventDao = listeningEventDao,
                     activityDao = activityDao,
                     userDao = userDao,
@@ -274,6 +278,116 @@ class SSEEventProcessorAtomicityTest {
                 0,
                 db.genreDao().getGenresForBook(BookId("book-sse-genre-rollback")).size,
                 "genre cross-ref write must roll back",
+            )
+        }
+
+    /**
+     * `saveBookAudioFiles` is the LAST write inside the SSE `atomically` block. Forcing
+     * `audioFileDao.upsertAll` to throw proves that audio-file-junction writes
+     * participate in the same transaction as the earlier `bookDao.upsert` — i.e.,
+     * when the audio-file insert fails, the book row that was written just before it
+     * rolls back too.
+     */
+    @Test
+    fun `rollback when audio file insert throws`() =
+        runTest {
+            val bookContributorDao: BookContributorDao = mock()
+            val bookSeriesDao: BookSeriesDao = mock()
+            val collectionDao: CollectionDao = mock()
+            val shelfDao: ShelfDao = mock()
+            val tagDao: TagDao = mock()
+            val genreDao: GenreDao = mock()
+            val failingAudioFileDao: AudioFileDao = mock()
+            val listeningEventDao: ListeningEventDao = mock()
+            val activityDao: ActivityDao = mock()
+            val userDao: UserDao = mock()
+            val userProfileDao: UserProfileDao = mock()
+            val activeSessionDao: ActiveSessionDao = mock()
+            val userStatsDao: UserStatsDao = mock()
+            val playbackPositionDao: PlaybackPositionDao = mock()
+            val sessionRepository: SessionRepository = mock()
+            val imageDownloader: ImageDownloaderContract = mock()
+            val playbackStateProvider: PlaybackStateProvider = mock()
+            val downloadService: DownloadService = mock()
+
+            everySuspend { bookContributorDao.deleteContributorsForBook(any()) } returns Unit
+            everySuspend {
+                bookContributorDao.insertAll(any<List<BookContributorCrossRef>>())
+            } returns Unit
+            everySuspend { bookSeriesDao.deleteSeriesForBook(any()) } returns Unit
+            everySuspend { bookSeriesDao.insertAll(any()) } returns Unit
+            everySuspend { genreDao.deleteGenresForBook(any()) } returns Unit
+            everySuspend { genreDao.getIdsByNames(any()) } returns emptyList()
+            everySuspend { genreDao.insertAllBookGenres(any<List<BookGenreCrossRef>>()) } returns Unit
+            everySuspend { failingAudioFileDao.deleteForBook(any()) } returns Unit
+            everySuspend { failingAudioFileDao.upsertAll(any()) } throws
+                RuntimeException("boom — audio file insert failed")
+            every { playbackStateProvider.currentBookId } returns MutableStateFlow(null)
+
+            val bookResponse =
+                BookResponse(
+                    id = "book-sse-audio-rollback",
+                    title = "SSE Audio Rollback",
+                    subtitle = null,
+                    coverImage = null,
+                    totalDuration = 3_600_000L,
+                    description = null,
+                    genres = null,
+                    publishYear = null,
+                    seriesInfo = emptyList(),
+                    chapters = emptyList(),
+                    audioFiles =
+                        listOf(
+                            AudioFileResponse(
+                                id = "af-1",
+                                filename = "chapter01.m4b",
+                                format = "m4b",
+                                codec = "aac",
+                                duration = 1_800_000L,
+                                size = 45_000_000L,
+                            ),
+                        ),
+                    contributors = emptyList(),
+                    createdAt = "2024-01-01T00:00:00Z",
+                    updatedAt = "2024-01-01T00:00:00Z",
+                )
+
+            val processor =
+                SSEEventProcessor(
+                    transactionRunner = RoomTransactionRunner(db),
+                    bookDao = db.bookDao(),
+                    bookContributorDao = bookContributorDao,
+                    bookSeriesDao = bookSeriesDao,
+                    collectionDao = collectionDao,
+                    shelfDao = shelfDao,
+                    tagDao = tagDao,
+                    genreDao = genreDao,
+                    audioFileDao = failingAudioFileDao,
+                    listeningEventDao = listeningEventDao,
+                    activityDao = activityDao,
+                    userDao = userDao,
+                    userProfileDao = userProfileDao,
+                    activeSessionDao = activeSessionDao,
+                    userStatsDao = userStatsDao,
+                    playbackPositionDao = playbackPositionDao,
+                    sessionRepository = sessionRepository,
+                    imageDownloader = imageDownloader,
+                    playbackStateProvider = playbackStateProvider,
+                    downloadService = downloadService,
+                    scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
+                )
+
+            processor.process(SSEEventType.BookCreated(bookResponse))
+
+            assertEquals(
+                0,
+                db.bookDao().count(),
+                "book row write must roll back when audio file insert fails",
+            )
+            assertEquals(
+                0,
+                db.audioFileDao().getForBook("book-sse-audio-rollback").size,
+                "audio file rows must not persist when insert throws",
             )
         }
 }
