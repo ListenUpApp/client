@@ -11,7 +11,6 @@ package com.calypsan.listenup.client.playback
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -114,8 +113,6 @@ class PlaybackManager(
     // Callback for chapter changes - used by PlaybackService to update notification
     var onChapterChanged: ((ChapterInfo) -> Unit)? = null
 
-    private val json = appJson
-
     /** Set the current book ID — call this only when playback is confirmed to proceed. */
     fun activateBook(bookId: BookId) {
         _currentBookId.value = bookId
@@ -178,34 +175,24 @@ class PlaybackManager(
                 null
             }
 
-        // 4. Parse audio files from JSON, or fetch from server if missing
-        var audioFilesJson = book.audioFilesJson
-        if (audioFilesJson.isNullOrBlank()) {
+        // 4. Load audio files from the junction. Fallback-fetch if empty locally.
+        var audioFileEntities = audioFileDao.getForBook(bookId.value)
+        if (audioFileEntities.isEmpty()) {
             logger.info { "No audio files for book: ${bookId.value}, fetching from server..." }
 
-            // Try to fetch book from server
-            val fetchedAudioFiles = fetchBookFromServer(bookId)
-            if (fetchedAudioFiles == null) {
+            val fetched = fetchBookFromServer(bookId)
+            if (!fetched) {
                 logger.error { "Failed to fetch book from server: ${bookId.value}" }
                 return null
             }
-            audioFilesJson = fetchedAudioFiles
-        }
-
-        val audioFiles: List<AudioFileResponse> =
-            try {
-                json.decodeFromString(audioFilesJson)
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to parse audio files JSON" }
+            audioFileEntities = audioFileDao.getForBook(bookId.value)
+            if (audioFileEntities.isEmpty()) {
+                logger.error { "Audio files still empty after fallback fetch for ${bookId.value}" }
                 return null
             }
-
-        if (audioFiles.isEmpty()) {
-            logger.error { "Empty audio files list for book: ${bookId.value}" }
-            return null
         }
+
+        val audioFiles: List<AudioFileResponse> = audioFileEntities.map { it.toAudioFileResponse() }
 
         // Log detailed audio file info for diagnostics
         logger.debug { "=== Audio Files for book ${bookId.value} ===" }
@@ -673,15 +660,14 @@ class PlaybackManager(
      * invoke the method directly. Not part of the public API.
      *
      * @param bookId The book ID to fetch.
-     * @return The audioFilesJson string if successful, null otherwise. The return
-     *   value is kept as-is during W4 Item B Task 4 for bisectability — Task 5
-     *   swaps both this return and the caller to use the junction directly.
+     * @return true if the fetch + persist succeeded, false otherwise. Callers
+     *   re-query [audioFileDao] after a successful fetch to obtain the rows.
      */
-    internal suspend fun fetchBookFromServer(bookId: BookId): String? {
+    internal suspend fun fetchBookFromServer(bookId: BookId): Boolean {
         val api = syncApi
         if (api == null) {
             logger.error { "SyncApi not available for fetching book" }
-            return null
+            return false
         }
 
         return when (val result = api.getBook(bookId.value)) {
@@ -713,12 +699,12 @@ class PlaybackManager(
                 }
 
                 logger.debug { "Saved fetched book + ${audioFileRows.size} audio files to local database" }
-                entity.audioFilesJson
+                true
             }
 
             is Failure -> {
                 logger.error { "Failed to fetch book from server: ${bookId.value}" }
-                null
+                false
             }
         }
     }
@@ -846,6 +832,24 @@ class PlaybackManager(
  */
 private fun AudioFileResponse.toDomain(): AudioFile =
     AudioFile(
+        id = id,
+        filename = filename,
+        format = format,
+        codec = codec,
+        duration = duration,
+        size = size,
+    )
+
+/**
+ * Convert an [AudioFileEntity] to the API-shaped [AudioFileResponse] that
+ * downstream playback code (timeline building, codec negotiation) consumes.
+ *
+ * This mapper exists because the domain `AudioFile` conversion downstream
+ * still operates on `AudioFileResponse`. W6 or later can migrate the whole
+ * pipeline to operate on entities or a domain type directly.
+ */
+private fun AudioFileEntity.toAudioFileResponse(): AudioFileResponse =
+    AudioFileResponse(
         id = id,
         filename = filename,
         format = format,
