@@ -131,7 +131,10 @@ import com.calypsan.listenup.client.data.sync.push.SetBookContributorsHandler
 import com.calypsan.listenup.client.data.sync.push.SetBookSeriesHandler
 import com.calypsan.listenup.client.data.sync.push.UnmergeContributorHandler
 import com.calypsan.listenup.client.data.sync.push.UserPreferencesHandler
+import com.calypsan.listenup.client.data.sync.SessionDaos
+import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
+import com.calypsan.listenup.client.data.sync.sse.SSEExternalServices
 import com.calypsan.listenup.client.domain.repository.ActiveSessionRepository
 import com.calypsan.listenup.client.domain.repository.ActivityRepository
 import com.calypsan.listenup.client.domain.repository.AdminRepository
@@ -889,24 +892,36 @@ val syncModule =
             SSEEventProcessor(
                 transactionRunner = get(),
                 bookDao = get(),
-                bookContributorDao = get(),
-                bookSeriesDao = get(),
+                bookRelationshipDaos =
+                    BookRelationshipDaos(
+                        bookContributorDao = get(),
+                        bookSeriesDao = get(),
+                        tagDao = get(),
+                        genreDao = get(),
+                        audioFileDao = get(),
+                    ),
                 collectionDao = get(),
                 shelfDao = get(),
-                tagDao = get(),
-                genreDao = get(),
-                audioFileDao = get(),
-                listeningEventDao = get(),
+                userDaos =
+                    UserDaos(
+                        userDao = get(),
+                        userProfileDao = get(),
+                        userStatsDao = get(),
+                    ),
+                sessionDaos =
+                    SessionDaos(
+                        activeSessionDao = get(),
+                        listeningEventDao = get(),
+                        playbackPositionDao = get(),
+                    ),
+                sseExternalServices =
+                    SSEExternalServices(
+                        sessionRepository = get(),
+                        imageDownloader = get(),
+                        playbackStateProvider = get<PlaybackManager>(),
+                        downloadService = get(),
+                    ),
                 activityDao = get(),
-                userDao = get(),
-                userProfileDao = get(),
-                activeSessionDao = get(),
-                userStatsDao = get(),
-                playbackPositionDao = get(),
-                sessionRepository = get(),
-                imageDownloader = get(),
-                playbackStateProvider = get<PlaybackManager>(),
-                downloadService = get(),
                 scope =
                     get(
                         qualifier =

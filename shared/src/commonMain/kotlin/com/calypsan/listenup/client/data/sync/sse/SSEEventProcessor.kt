@@ -5,42 +5,32 @@ package com.calypsan.listenup.client.data.sync.sse
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
 import com.calypsan.listenup.client.data.local.db.ActivityDao
 import com.calypsan.listenup.client.data.local.db.ActivityEntity
-import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
-import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
-import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.data.local.db.GenreDao
 import com.calypsan.listenup.client.data.local.db.ShelfDao
 import com.calypsan.listenup.client.data.local.db.ShelfEntity
-import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserProfileDao
 import com.calypsan.listenup.client.data.local.db.UserProfileEntity
-import com.calypsan.listenup.client.data.local.db.UserStatsDao
 import com.calypsan.listenup.client.data.local.db.UserStatsEntity
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
-import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEEventType
-import com.calypsan.listenup.client.domain.repository.SessionRepository
-import com.calypsan.listenup.client.download.DownloadService
+import com.calypsan.listenup.client.data.sync.SessionDaos
+import com.calypsan.listenup.client.data.sync.UserDaos
+import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -76,31 +66,38 @@ private fun parseTimestamp(isoString: String): Timestamp =
  * - Heartbeat: Connection keep-alive
  * - Collection events: Update local collection cache (admin-only)
  * - Tag events: Update local tag cache and book-tag relationships
+ *
+ * TODO: Class body is above detekt's LargeClass threshold; split into focused handlers is a future task.
  */
-@Suppress("LargeClass", "LongParameterList")
+@Suppress("LargeClass")
 class SSEEventProcessor(
     private val transactionRunner: TransactionRunner,
     private val bookDao: BookDao,
-    private val bookContributorDao: BookContributorDao,
-    private val bookSeriesDao: BookSeriesDao,
+    bookRelationshipDaos: BookRelationshipDaos,
     private val collectionDao: CollectionDao,
     private val shelfDao: ShelfDao,
-    private val tagDao: TagDao,
-    private val genreDao: GenreDao,
-    private val audioFileDao: AudioFileDao,
-    private val listeningEventDao: ListeningEventDao,
+    userDaos: UserDaos,
+    sessionDaos: SessionDaos,
+    sseExternalServices: SSEExternalServices,
     private val activityDao: ActivityDao,
-    private val userDao: UserDao,
-    private val userProfileDao: UserProfileDao,
-    private val activeSessionDao: ActiveSessionDao,
-    private val userStatsDao: UserStatsDao,
-    private val playbackPositionDao: PlaybackPositionDao,
-    private val sessionRepository: SessionRepository,
-    private val imageDownloader: ImageDownloaderContract,
-    private val playbackStateProvider: PlaybackStateProvider,
-    private val downloadService: DownloadService,
     private val scope: CoroutineScope,
 ) {
+    private val bookContributorDao = bookRelationshipDaos.bookContributorDao
+    private val bookSeriesDao = bookRelationshipDaos.bookSeriesDao
+    private val tagDao = bookRelationshipDaos.tagDao
+    private val genreDao = bookRelationshipDaos.genreDao
+    private val audioFileDao = bookRelationshipDaos.audioFileDao
+    private val userDao = userDaos.userDao
+    private val userProfileDao = userDaos.userProfileDao
+    private val userStatsDao = userDaos.userStatsDao
+    private val activeSessionDao = sessionDaos.activeSessionDao
+    private val listeningEventDao = sessionDaos.listeningEventDao
+    private val playbackPositionDao = sessionDaos.playbackPositionDao
+    private val sessionRepository = sseExternalServices.sessionRepository
+    private val imageDownloader = sseExternalServices.imageDownloader
+    private val playbackStateProvider = sseExternalServices.playbackStateProvider
+    private val downloadService = sseExternalServices.downloadService
+
     private val _accessRevokedEvents = MutableSharedFlow<AccessRevokedEvent>(extraBufferCapacity = 16)
 
     /**

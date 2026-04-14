@@ -38,6 +38,9 @@ import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
+import com.calypsan.listenup.client.data.sync.SessionDaos
+import com.calypsan.listenup.client.data.sync.UserDaos
+import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.data.sync.SSEEventType
 import com.calypsan.listenup.client.download.DownloadResult
@@ -216,24 +219,36 @@ class SSEEventProcessorTest {
             SSEEventProcessor(
                 transactionRunner = transactionRunner,
                 bookDao = bookDao,
-                bookContributorDao = bookContributorDao,
-                bookSeriesDao = bookSeriesDao,
+                bookRelationshipDaos =
+                    BookRelationshipDaos(
+                        bookContributorDao = bookContributorDao,
+                        bookSeriesDao = bookSeriesDao,
+                        tagDao = tagDao,
+                        genreDao = genreDao,
+                        audioFileDao = audioFileDao,
+                    ),
                 collectionDao = collectionDao,
                 shelfDao = shelfDao,
-                tagDao = tagDao,
-                genreDao = genreDao,
-                audioFileDao = audioFileDao,
-                listeningEventDao = listeningEventDao,
+                userDaos =
+                    UserDaos(
+                        userDao = userDao,
+                        userProfileDao = userProfileDao,
+                        userStatsDao = userStatsDao,
+                    ),
+                sessionDaos =
+                    SessionDaos(
+                        activeSessionDao = activeSessionDao,
+                        listeningEventDao = listeningEventDao,
+                        playbackPositionDao = playbackPositionDao,
+                    ),
+                sseExternalServices =
+                    SSEExternalServices(
+                        sessionRepository = sessionRepository,
+                        imageDownloader = imageDownloader,
+                        playbackStateProvider = playbackStateProvider,
+                        downloadService = downloadService,
+                    ),
                 activityDao = activityDao,
-                userDao = userDao,
-                userProfileDao = userProfileDao,
-                activeSessionDao = activeSessionDao,
-                userStatsDao = userStatsDao,
-                playbackPositionDao = playbackPositionDao,
-                sessionRepository = sessionRepository,
-                imageDownloader = imageDownloader,
-                playbackStateProvider = playbackStateProvider,
-                downloadService = downloadService,
                 scope = scope,
             )
     }
