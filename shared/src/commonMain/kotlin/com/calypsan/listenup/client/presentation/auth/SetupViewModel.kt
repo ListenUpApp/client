@@ -10,8 +10,8 @@ import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import com.calypsan.listenup.client.core.Success
 
 /**
  * ViewModel for the root user setup screen.
@@ -25,8 +25,8 @@ class SetupViewModel(
     private val authSession: AuthSession,
     private val userRepository: UserRepository,
 ) : ViewModel() {
-    val state: StateFlow<SetupUiState>
-        field = MutableStateFlow(SetupUiState())
+    private val _state = MutableStateFlow<SetupUiState>(SetupUiState.Idle)
+    val state: StateFlow<SetupUiState> = _state.asStateFlow()
 
     /**
      * Submit the setup form to create the root user.
@@ -47,63 +47,33 @@ class SetupViewModel(
         val trimmedEmail = email.trim()
 
         if (trimmedFirstName.isBlank()) {
-            state.value =
-                SetupUiState(
-                    status =
-                        SetupStatus.Error(
-                            SetupErrorType.ValidationError(SetupField.FIRST_NAME),
-                        ),
-                )
+            _state.value = SetupUiState.Error(SetupErrorType.ValidationError(SetupField.FIRST_NAME))
             return
         }
 
         if (trimmedLastName.isBlank()) {
-            state.value =
-                SetupUiState(
-                    status =
-                        SetupStatus.Error(
-                            SetupErrorType.ValidationError(SetupField.LAST_NAME),
-                        ),
-                )
+            _state.value = SetupUiState.Error(SetupErrorType.ValidationError(SetupField.LAST_NAME))
             return
         }
 
         if (!isValidEmail(trimmedEmail)) {
-            state.value =
-                SetupUiState(
-                    status =
-                        SetupStatus.Error(
-                            SetupErrorType.ValidationError(SetupField.EMAIL),
-                        ),
-                )
+            _state.value = SetupUiState.Error(SetupErrorType.ValidationError(SetupField.EMAIL))
             return
         }
 
         if (password.length < 8) {
-            state.value =
-                SetupUiState(
-                    status =
-                        SetupStatus.Error(
-                            SetupErrorType.ValidationError(SetupField.PASSWORD),
-                        ),
-                )
+            _state.value = SetupUiState.Error(SetupErrorType.ValidationError(SetupField.PASSWORD))
             return
         }
 
         if (password != passwordConfirm) {
-            state.value =
-                SetupUiState(
-                    status =
-                        SetupStatus.Error(
-                            SetupErrorType.ValidationError(SetupField.PASSWORD_CONFIRM),
-                        ),
-                )
+            _state.value = SetupUiState.Error(SetupErrorType.ValidationError(SetupField.PASSWORD_CONFIRM))
             return
         }
 
         // Submit to server
         viewModelScope.launch {
-            state.value = SetupUiState(status = SetupStatus.Loading)
+            _state.value = SetupUiState.Loading
 
             try {
                 val result =
@@ -125,7 +95,7 @@ class SetupViewModel(
                 // Save user data to local database for avatar display
                 userRepository.saveUser(result.user)
 
-                state.value = SetupUiState(status = SetupStatus.Success)
+                _state.value = SetupUiState.Success
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -139,17 +109,15 @@ class SetupViewModel(
                     authSession.checkServerStatus()
                 }
 
-                state.value = SetupUiState(status = SetupStatus.Error(errorType))
+                _state.value = SetupUiState.Error(errorType)
             }
         }
     }
 
-    /**
-     * Clear the error state to allow retry.
-     */
+    /** Clear the error state to allow retry. */
     fun clearError() {
-        if (state.value.status is SetupStatus.Error) {
-            state.value = SetupUiState(status = SetupStatus.Idle)
+        if (_state.value is SetupUiState.Error) {
+            _state.value = SetupUiState.Idle
         }
     }
 

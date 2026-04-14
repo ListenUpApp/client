@@ -45,7 +45,7 @@ import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.presentation.auth.SetupErrorType
 import com.calypsan.listenup.client.presentation.auth.SetupField
-import com.calypsan.listenup.client.presentation.auth.SetupStatus
+import com.calypsan.listenup.client.presentation.auth.SetupUiState
 import com.calypsan.listenup.client.presentation.auth.SetupViewModel
 import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.stringResource
@@ -76,34 +76,20 @@ fun SetupScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Show snackbar for non-validation errors
-    LaunchedEffect(state.status) {
-        when (val status = state.status) {
-            is SetupStatus.Error -> {
-                val message =
-                    when (status.type) {
-                        is SetupErrorType.NetworkError -> {
-                            "Network error. Please check your connection."
-                        }
-
-                        is SetupErrorType.ServerError -> {
-                            "Server error. Please try again."
-                        }
-
-                        is SetupErrorType.AlreadyConfigured -> {
-                            "Server is already configured."
-                        }
-
-                        is SetupErrorType.ValidationError -> {
-                            null
-                        } // Handled inline
-                    }
-                message?.let {
-                    snackbarHostState.showSnackbar(it)
-                    viewModel.clearError()
+    LaunchedEffect(state) {
+        val current = state
+        if (current is SetupUiState.Error) {
+            val message =
+                when (current.type) {
+                    is SetupErrorType.NetworkError -> "Network error. Please check your connection."
+                    is SetupErrorType.ServerError -> "Server error. Please try again."
+                    is SetupErrorType.AlreadyConfigured -> "Server is already configured."
+                    is SetupErrorType.ValidationError -> null // Handled inline
                 }
+            message?.let {
+                snackbarHostState.showSnackbar(it)
+                viewModel.clearError()
             }
-
-            else -> {}
         }
     }
 
@@ -120,7 +106,7 @@ fun SetupScreen(
  */
 @Composable
 private fun SetupContent(
-    state: com.calypsan.listenup.client.presentation.auth.SetupUiState,
+    state: SetupUiState,
     onSubmit: (String, String, String, String, String) -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
@@ -228,7 +214,7 @@ private fun SetupContent(
 @Suppress("LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod")
 @Composable
 private fun SetupForm(
-    state: com.calypsan.listenup.client.presentation.auth.SetupUiState,
+    state: SetupUiState,
     onSubmit: (String, String, String, String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -239,7 +225,9 @@ private fun SetupForm(
     var passwordConfirm by remember { mutableStateOf("") }
 
     val focusManager = LocalFocusManager.current
-    val isLoading = state.status is SetupStatus.Loading
+    val isLoading = state is SetupUiState.Loading
+    val validationField =
+        ((state as? SetupUiState.Error)?.type as? SetupErrorType.ValidationError)?.field
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -264,21 +252,8 @@ private fun SetupForm(
             onValueChange = { firstName = it },
             label = stringResource(Res.string.auth_first_name),
             enabled = !isLoading,
-            isError =
-                state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.FIRST_NAME,
-            supportingText =
-                if (state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.FIRST_NAME
-                ) {
-                    "First name is required"
-                } else {
-                    null
-                },
+            isError = validationField == SetupField.FIRST_NAME,
+            supportingText = if (validationField == SetupField.FIRST_NAME) "First name is required" else null,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -297,21 +272,8 @@ private fun SetupForm(
             onValueChange = { lastName = it },
             label = stringResource(Res.string.auth_last_name),
             enabled = !isLoading,
-            isError =
-                state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.LAST_NAME,
-            supportingText =
-                if (state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.LAST_NAME
-                ) {
-                    "Last name is required"
-                } else {
-                    null
-                },
+            isError = validationField == SetupField.LAST_NAME,
+            supportingText = if (validationField == SetupField.LAST_NAME) "Last name is required" else null,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -330,21 +292,8 @@ private fun SetupForm(
             onValueChange = { email = it },
             label = "Email",
             enabled = !isLoading,
-            isError =
-                state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.EMAIL,
-            supportingText =
-                if (state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.EMAIL
-                ) {
-                    "Invalid email address"
-                } else {
-                    null
-                },
+            isError = validationField == SetupField.EMAIL,
+            supportingText = if (validationField == SetupField.EMAIL) "Invalid email address" else null,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -364,16 +313,10 @@ private fun SetupForm(
             label = "Password",
             enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
-            isError =
-                state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.PASSWORD,
+            isError = validationField == SetupField.PASSWORD,
             supportingText =
-                if (state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.PASSWORD
+                if (validationField ==
+                    SetupField.PASSWORD
                 ) {
                     "Password must be at least 8 characters"
                 } else {
@@ -398,21 +341,8 @@ private fun SetupForm(
             label = stringResource(Res.string.auth_confirm_password),
             enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
-            isError =
-                state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.PASSWORD_CONFIRM,
-            supportingText =
-                if (state.status is SetupStatus.Error &&
-                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
-                        .field == SetupField.PASSWORD_CONFIRM
-                ) {
-                    "Passwords do not match"
-                } else {
-                    null
-                },
+            isError = validationField == SetupField.PASSWORD_CONFIRM,
+            supportingText = if (validationField == SetupField.PASSWORD_CONFIRM) "Passwords do not match" else null,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -432,9 +362,7 @@ private fun SetupForm(
 
         // Submit button
         ListenUpButton(
-            onClick = {
-                onSubmit(firstName, lastName, email, password, passwordConfirm)
-            },
+            onClick = { onSubmit(firstName, lastName, email, password, passwordConfirm) },
             text = stringResource(Res.string.auth_create_account),
             enabled = !isLoading,
             isLoading = isLoading,

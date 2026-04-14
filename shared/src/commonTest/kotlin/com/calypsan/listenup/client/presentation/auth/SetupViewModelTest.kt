@@ -122,7 +122,7 @@ class SetupViewModelTest {
             val viewModel = fixture.build()
 
             // Then
-            assertEquals(SetupStatus.Idle, viewModel.state.value.status)
+            assertEquals(SetupUiState.Idle, viewModel.state.value)
         }
 
     // ========== First Name Validation Tests ==========
@@ -145,7 +145,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.FIRST_NAME, validation.field)
         }
@@ -168,7 +168,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.FIRST_NAME, validation.field)
         }
@@ -193,7 +193,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.LAST_NAME, validation.field)
         }
@@ -216,7 +216,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.LAST_NAME, validation.field)
         }
@@ -241,7 +241,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.EMAIL, validation.field)
         }
@@ -264,7 +264,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.EMAIL, validation.field)
         }
@@ -287,7 +287,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.EMAIL, validation.field)
         }
@@ -312,7 +312,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.PASSWORD, validation.field)
         }
@@ -336,7 +336,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then - should proceed to API call, not validation error
-            checkIs<SetupStatus.Success>(viewModel.state.value.status)
+            checkIs<SetupUiState.Success>(viewModel.state.value)
         }
 
     @Test
@@ -357,7 +357,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.PASSWORD, validation.field)
         }
@@ -382,7 +382,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             val validation = assertIs<SetupErrorType.ValidationError>(error.type)
             assertEquals(SetupField.PASSWORD_CONFIRM, validation.field)
         }
@@ -406,7 +406,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            checkIs<SetupStatus.Success>(viewModel.state.value.status)
+            checkIs<SetupUiState.Success>(viewModel.state.value)
         }
 
     // ========== Successful Setup Flow Tests ==========
@@ -488,7 +488,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            checkIs<SetupStatus.Success>(viewModel.state.value.status)
+            checkIs<SetupUiState.Success>(viewModel.state.value)
         }
 
     @Test
@@ -510,7 +510,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then - should succeed with trimmed values
-            checkIs<SetupStatus.Success>(viewModel.state.value.status)
+            checkIs<SetupUiState.Success>(viewModel.state.value)
             verifySuspend {
                 fixture.authRepository.setup(
                     email = "admin@example.com",
@@ -545,7 +545,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             checkIs<SetupErrorType.AlreadyConfigured>(error.type)
         }
 
@@ -597,7 +597,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             checkIs<SetupErrorType.NetworkError>(error.type)
         }
 
@@ -620,7 +620,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             checkIs<SetupErrorType.NetworkError>(error.type)
         }
 
@@ -643,7 +643,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<SetupUiState.Error>(viewModel.state.value)
             checkIs<SetupErrorType.ServerError>(error.type)
         }
 
@@ -663,13 +663,13 @@ class SetupViewModelTest {
                 passwordConfirm = "password123",
             )
             advanceUntilIdle()
-            checkIs<SetupStatus.Error>(viewModel.state.value.status)
+            checkIs<SetupUiState.Error>(viewModel.state.value)
 
             // When
             viewModel.clearError()
 
             // Then
-            assertEquals(SetupStatus.Idle, viewModel.state.value.status)
+            assertEquals(SetupUiState.Idle, viewModel.state.value)
         }
 
     @Test
@@ -678,13 +678,13 @@ class SetupViewModelTest {
             // Given - viewModel in Idle state
             val fixture = createFixture()
             val viewModel = fixture.build()
-            assertEquals(SetupStatus.Idle, viewModel.state.value.status)
+            assertEquals(SetupUiState.Idle, viewModel.state.value)
 
             // When
             viewModel.clearError()
 
             // Then - still Idle
-            assertEquals(SetupStatus.Idle, viewModel.state.value.status)
+            assertEquals(SetupUiState.Idle, viewModel.state.value)
         }
 
     @Test
@@ -702,12 +702,12 @@ class SetupViewModelTest {
                 passwordConfirm = "password123",
             )
             advanceUntilIdle()
-            checkIs<SetupStatus.Success>(viewModel.state.value.status)
+            checkIs<SetupUiState.Success>(viewModel.state.value)
 
             // When
             viewModel.clearError()
 
             // Then - still Success
-            checkIs<SetupStatus.Success>(viewModel.state.value.status)
+            checkIs<SetupUiState.Success>(viewModel.state.value)
         }
 }

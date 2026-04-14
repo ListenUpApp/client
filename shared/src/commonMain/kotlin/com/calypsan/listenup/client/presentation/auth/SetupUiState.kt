@@ -3,72 +3,49 @@ package com.calypsan.listenup.client.presentation.auth
 /**
  * UI state for the root user setup screen.
  *
- * This screen is shown when the server has no users configured yet.
- * The user creates the initial admin account.
+ * Sealed hierarchy — the screen is always in exactly one of these states.
+ * Shown when the server has no users configured yet.
  */
-data class SetupUiState(
-    val status: SetupStatus = SetupStatus.Idle,
-)
+sealed interface SetupUiState {
+    /** Initial state — ready for user input. */
+    data object Idle : SetupUiState
 
-/**
- * Status of the setup operation.
- */
-sealed interface SetupStatus {
-    /**
-     * Initial state - ready for user input.
-     */
-    data object Idle : SetupStatus
-
-    /**
-     * Setup request in progress.
-     */
-    data object Loading : SetupStatus
+    /** Setup request in progress. */
+    data object Loading : SetupUiState
 
     /**
      * Setup completed successfully.
-     * Navigation will happen automatically via AuthState change.
+     * Navigation happens automatically via AuthState change.
      */
-    data object Success : SetupStatus
+    data object Success : SetupUiState
 
-    /**
-     * Setup failed with an error.
-     */
+    /** Setup failed. */
     data class Error(
         val type: SetupErrorType,
-    ) : SetupStatus
+    ) : SetupUiState
 }
 
 /**
  * Types of errors that can occur during setup.
- * These are semantic error types - platforms decide how to display them.
+ * Semantic error types — platforms decide how to display them.
  */
 sealed interface SetupErrorType {
-    /**
-     * Network connection error.
-     */
+    /** Network connection error. */
     data object NetworkError : SetupErrorType
 
-    /**
-     * Server returned an error (500, etc).
-     */
+    /** Server returned an error (500, etc). */
     data object ServerError : SetupErrorType
 
-    /**
-     * Client-side validation error on a specific field.
-     */
+    /** Client-side validation error on a specific field. */
     data class ValidationError(
         val field: SetupField,
     ) : SetupErrorType
 
-    /**
-     * Server is already configured (shouldn't happen in normal flow).
-     */
+    /** Server is already configured (shouldn't happen in normal flow). */
     data object AlreadyConfigured : SetupErrorType
 }
 
-/**
- * Fields in the setup form.
- */
+/** Fields in the setup form. */
 enum class SetupField {
     FIRST_NAME,
     LAST_NAME,
