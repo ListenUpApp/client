@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.BrandLogo
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
-import com.calypsan.listenup.client.presentation.auth.PendingApprovalStatus
+import com.calypsan.listenup.client.presentation.auth.PendingApprovalUiState
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
@@ -58,19 +58,18 @@ fun PendingApprovalScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Handle status changes
-    LaunchedEffect(state.status) {
-        when (val status = state.status) {
-            is PendingApprovalStatus.ApprovedManualLogin -> {
-                snackbarHostState.showSnackbar(status.message)
+    LaunchedEffect(state) {
+        val current = state
+        when {
+            current is PendingApprovalUiState.ApprovedManualLogin -> {
+                snackbarHostState.showSnackbar(current.message)
                 onNavigateToLogin()
             }
 
-            is PendingApprovalStatus.Denied -> {
-                snackbarHostState.showSnackbar(status.message)
+            current is PendingApprovalUiState.Denied -> {
+                snackbarHostState.showSnackbar(current.message)
                 onNavigateToLogin()
             }
-
-            else -> {}
         }
     }
 
@@ -111,8 +110,9 @@ fun PendingApprovalScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
-                    when (state.status) {
-                        PendingApprovalStatus.Waiting -> {
+                    val current = state
+                    when (current) {
+                        PendingApprovalUiState.Waiting -> {
                             ListenUpLoadingIndicator()
 
                             Text(
@@ -142,7 +142,7 @@ fun PendingApprovalScreen(
                             )
                         }
 
-                        PendingApprovalStatus.LoggingIn -> {
+                        PendingApprovalUiState.LoggingIn -> {
                             ListenUpLoadingIndicator()
 
                             Text(
@@ -158,20 +158,20 @@ fun PendingApprovalScreen(
                             )
                         }
 
-                        PendingApprovalStatus.LoginSuccess -> {
+                        PendingApprovalUiState.LoginSuccess -> {
                             // Will navigate automatically via AuthState
                             ListenUpLoadingIndicator()
                         }
 
-                        is PendingApprovalStatus.ApprovedManualLogin,
-                        is PendingApprovalStatus.Denied,
+                        is PendingApprovalUiState.ApprovedManualLogin,
+                        is PendingApprovalUiState.Denied,
                         -> {
                             // Handled via snackbar and navigation
                         }
                     }
 
                     // Cancel button (only show when waiting)
-                    if (state.status == PendingApprovalStatus.Waiting) {
+                    if (state == PendingApprovalUiState.Waiting) {
                         Spacer(modifier = Modifier.height(8.dp))
 
                         OutlinedButton(

@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -33,8 +34,8 @@ class PendingApprovalViewModel(
     val email: String,
     private val password: String,
 ) : ViewModel() {
-    val state: StateFlow<PendingApprovalUiState>
-        field = MutableStateFlow(PendingApprovalUiState())
+    private val _state = MutableStateFlow<PendingApprovalUiState>(PendingApprovalUiState.Waiting)
+    val state: StateFlow<PendingApprovalUiState> = _state.asStateFlow()
 
     private var sseJob: Job? = null
     private var pollingJob: Job? = null
@@ -87,7 +88,7 @@ class PendingApprovalViewModel(
 
             is StreamedRegistrationStatus.Pending -> {
                 // Still pending, update UI
-                state.value = state.value.copy(status = PendingApprovalStatus.Waiting)
+                _state.value = PendingApprovalUiState.Waiting
             }
         }
     }
@@ -133,7 +134,7 @@ class PendingApprovalViewModel(
      * Attempts to log in automatically after approval.
      */
     private suspend fun attemptAutoLogin() {
-        state.value = state.value.copy(status = PendingApprovalStatus.LoggingIn)
+        _state.value = PendingApprovalUiState.LoggingIn
 
         try {
             val loginResult = authRepository.login(email, password)
@@ -150,7 +151,7 @@ class PendingApprovalViewModel(
             authSession.clearPendingRegistration()
 
             logger.info { "Auto-login successful!" }
-            state.value = state.value.copy(status = PendingApprovalStatus.LoginSuccess)
+            _state.value = PendingApprovalUiState.LoginSuccess
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -158,24 +159,18 @@ class PendingApprovalViewModel(
             logger.error(e) { "Auto-login failed" }
             // Clear pending and let user log in manually
             authSession.clearPendingRegistration()
-            state.value =
-                state.value.copy(
-                    status =
-                        PendingApprovalStatus.ApprovedManualLogin(
-                            "Your account has been approved! Please log in with your credentials.",
-                        ),
+            _state.value =
+                PendingApprovalUiState.ApprovedManualLogin(
+                    "Your account has been approved! Please log in with your credentials.",
                 )
         }
     }
 
     private suspend fun handleDenied(message: String? = null) {
         authSession.clearPendingRegistration()
-        state.value =
-            state.value.copy(
-                status =
-                    PendingApprovalStatus.Denied(
-                        message ?: "Your registration was denied by an administrator.",
-                    ),
+        _state.value =
+            PendingApprovalUiState.Denied(
+                message ?: "Your registration was denied by an administrator.",
             )
     }
 
@@ -187,35 +182,4 @@ class PendingApprovalViewModel(
             authSession.clearPendingRegistration()
         }
     }
-}
-
-/**
- * UI state for the pending approval screen.
- */
-data class PendingApprovalUiState(
-    val status: PendingApprovalStatus = PendingApprovalStatus.Waiting,
-)
-
-/**
- * Status of the pending approval.
- */
-sealed interface PendingApprovalStatus {
-    /** Waiting for admin approval. */
-    data object Waiting : PendingApprovalStatus
-
-    /** Approved, logging in automatically. */
-    data object LoggingIn : PendingApprovalStatus
-
-    /** Login successful, will navigate to home. */
-    data object LoginSuccess : PendingApprovalStatus
-
-    /** Approved but auto-login failed. User should log in manually. */
-    data class ApprovedManualLogin(
-        val message: String,
-    ) : PendingApprovalStatus
-
-    /** Registration was denied. */
-    data class Denied(
-        val message: String,
-    ) : PendingApprovalStatus
 }
