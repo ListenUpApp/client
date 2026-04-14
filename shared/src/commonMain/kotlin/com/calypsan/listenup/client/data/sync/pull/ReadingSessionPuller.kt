@@ -91,6 +91,10 @@ class ReadingSessionPuller(
                     }
 
                     transactionRunner.atomically {
+                        // Full-sync semantic: wipe user sessions; per-book refresh via
+                        // SessionRepositoryImpl.refreshBookReaders repopulates them on
+                        // demand (the sync endpoint returns aggregate shape that can't
+                        // faithfully build per-session UserReadingSessionEntity rows).
                         userReadingSessionDao.deleteAll()
                         readerSessionCacheDao.deleteAll()
                         if (cacheEntries.isNotEmpty()) {
