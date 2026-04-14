@@ -4,7 +4,8 @@
 package com.calypsan.listenup.client.download
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.appJson
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
@@ -55,13 +56,12 @@ private val logger = KotlinLogging.logger {}
 class AppleDownloadService(
     private val downloadDao: DownloadDao,
     private val bookDao: BookDao,
+    private val audioFileDao: AudioFileDao,
     private val serverConfig: ServerConfig,
     private val tokenProvider: AudioTokenProvider,
     private val fileManager: DownloadFileManager,
     private val scope: CoroutineScope,
 ) : DownloadService {
-    private val json = appJson
-
     /**
      * Delegate handles download progress and completion.
      * Must be held as a strong reference (ObjC weak delegate pattern).
@@ -103,22 +103,11 @@ class AppleDownloadService(
                 return DownloadResult.Error("Book not found")
             }
 
-        val audioFilesJson = bookEntity.audioFilesJson
-        if (audioFilesJson.isNullOrBlank()) {
+        val audioFileEntities = audioFileDao.getForBook(bookId.value)
+        if (audioFileEntities.isEmpty()) {
             return DownloadResult.Error("No audio files available")
         }
-
-        val audioFiles: List<AudioFileResponse> =
-            try {
-                json.decodeFromString(audioFilesJson)
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to parse audio files JSON" }
-                return DownloadResult.Error("Failed to parse audio files")
-            }
-
-        if (audioFiles.isEmpty()) {
-            return DownloadResult.Error("No audio files available")
-        }
+        val audioFiles: List<AudioFileResponse> = audioFileEntities.map { it.toAudioFileResponse() }
 
         // Skip files already completed, downloading, or queued
         val activeIds =
@@ -541,3 +530,13 @@ private class DownloadSessionDelegate(
         safeResume(pending.continuation, false)
     }
 }
+
+private fun AudioFileEntity.toAudioFileResponse(): AudioFileResponse =
+    AudioFileResponse(
+        id = id,
+        filename = filename,
+        format = format,
+        codec = codec,
+        duration = duration,
+        size = size,
+    )

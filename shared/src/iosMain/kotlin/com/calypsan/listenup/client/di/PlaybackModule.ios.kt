@@ -67,6 +67,7 @@ val iosPlaybackModule: Module =
             AppleDownloadService(
                 downloadDao = get(),
                 bookDao = get(),
+                audioFileDao = get(),
                 serverConfig = get(),
                 tokenProvider = get(),
                 fileManager = get(),
