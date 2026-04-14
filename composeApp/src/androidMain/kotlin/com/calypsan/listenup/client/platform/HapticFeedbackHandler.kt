@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.platform
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -43,7 +43,7 @@ private class AndroidHapticFeedbackHandler(
 actual fun rememberHapticFeedback(): HapticFeedbackHandler {
     val localPreferences: LocalPreferences = koinInject()
     val platformHaptics = LocalHapticFeedback.current
-    val hapticEnabled by localPreferences.hapticFeedbackEnabled.collectAsState()
+    val hapticEnabled by localPreferences.hapticFeedbackEnabled.collectAsStateWithLifecycle()
 
     return remember(platformHaptics, hapticEnabled) {
         AndroidHapticFeedbackHandler(platformHaptics, hapticEnabled)

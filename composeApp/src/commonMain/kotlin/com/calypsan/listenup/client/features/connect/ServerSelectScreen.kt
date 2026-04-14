@@ -34,7 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,8 +78,8 @@ fun ServerSelectScreen(
     modifier: Modifier = Modifier,
     viewModel: ServerSelectViewModel = koinInject(),
 ) {
-    val state by viewModel.state.collectAsState()
-    val navigationEvent by viewModel.navigationEvents.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val navigationEvent by viewModel.navigationEvents.collectAsStateWithLifecycle()
 
     // Handle navigation events
     LaunchedEffect(navigationEvent) {

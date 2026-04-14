@@ -13,7 +13,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -212,7 +212,7 @@ private fun DesktopAuthenticatedNavigation() {
     val playerViewModel: DesktopPlayerViewModel = koinInject()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val playerState by playerViewModel.state.collectAsState()
+    val playerState by playerViewModel.state.collectAsStateWithLifecycle()
 
     var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
     val backStack: SnapshotStateList<DetailDestination> =
@@ -477,7 +477,7 @@ private fun DetailScreen(
         }
 
         is DetailDestination.NowPlaying -> {
-            val state by playerViewModel.state.collectAsState()
+            val state by playerViewModel.state.collectAsStateWithLifecycle()
             DesktopNowPlayingScreen(
                 state = state,
                 onPlayPause = { playerViewModel.playPause() },
@@ -510,7 +510,7 @@ private fun DetailScreen(
         is DetailDestination.Admin -> {
             val viewModel: AdminViewModel = koinInject()
             val settingsViewModel: AdminSettingsViewModel = koinInject()
-            val settingsState by settingsViewModel.state.collectAsState()
+            val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
 
             AdminScreen(
                 viewModel = viewModel,

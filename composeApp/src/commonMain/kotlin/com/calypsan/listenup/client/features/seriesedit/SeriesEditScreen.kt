@@ -37,7 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -102,8 +102,8 @@ fun SeriesEditScreen(
         viewModel.loadSeries(seriesId)
     }
 
-    val state by viewModel.state.collectAsState()
-    val navAction by viewModel.navActions.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val navAction by viewModel.navActions.collectAsStateWithLifecycle()
 
     LaunchedEffect(navAction) {
         when (navAction) {

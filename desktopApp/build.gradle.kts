@@ -31,6 +31,7 @@ kotlin {
 
             // Lifecycle (needed for ViewModel supertype from composeApp)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
+            implementation(libs.androidx.lifecycle.runtimeCompose)
 
             // Global media key support
             implementation(libs.jnativehook)

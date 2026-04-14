@@ -64,7 +64,7 @@ import androidx.compose.ui.draw.clip
 import com.calypsan.listenup.client.design.util.rememberCopyToClipboard
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
@@ -144,7 +144,7 @@ fun AdminScreen(
     onClearSettingsError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val copyToClipboard = rememberCopyToClipboard()

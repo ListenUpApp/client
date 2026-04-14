@@ -16,7 +16,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.LocalPreferences
@@ -60,7 +60,7 @@ fun ListenUpWindow(
                 .painterResource("icon.png"),
     ) {
         val localPreferences: LocalPreferences = koinInject()
-        val themeMode by localPreferences.themeMode.collectAsState()
+        val themeMode by localPreferences.themeMode.collectAsStateWithLifecycle()
         val isDark =
             when (themeMode) {
                 ThemeMode.DARK -> true

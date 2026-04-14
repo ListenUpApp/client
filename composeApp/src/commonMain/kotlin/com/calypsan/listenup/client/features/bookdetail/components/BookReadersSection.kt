@@ -16,7 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import com.calypsan.listenup.client.presentation.bookdetail.BookReadersViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -51,7 +51,7 @@ fun BookReadersSection(
         viewModel.loadReaders(bookId)
     }
 
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     // Offline-first: show cached data immediately or hide section entirely.
     // Background refresh will populate Room, triggering a re-render when data arrives.

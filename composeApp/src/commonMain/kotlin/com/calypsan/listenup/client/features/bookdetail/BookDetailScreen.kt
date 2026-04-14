@@ -28,7 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -107,18 +107,18 @@ fun BookDetailScreen(
         viewModel.loadBook(bookId)
     }
 
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val isAdminFlow = remember { userRepository.observeIsAdmin() }
-    val isAdmin by isAdminFlow.collectAsState(initial = false)
+    val isAdmin by isAdminFlow.collectAsStateWithLifecycle(initialValue = false)
     val downloadStatusFlow = remember(bookId) { platformActions.observeBookStatus(BookId(bookId)) }
     val downloadStatus by downloadStatusFlow
-        .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
+        .collectAsStateWithLifecycle(initialValue = BookDownloadStatus.notDownloaded(bookId))
 
     // WiFi-only download state detection
     val wifiOnlyFlow = remember { platformActions.observeWifiOnlyDownloads() }
-    val wifiOnlyDownloads by wifiOnlyFlow.collectAsState(initial = false)
+    val wifiOnlyDownloads by wifiOnlyFlow.collectAsStateWithLifecycle(initialValue = false)
     val unmeteredFlow = remember { platformActions.observeIsOnUnmeteredNetwork() }
-    val isOnUnmeteredNetwork by unmeteredFlow.collectAsState(initial = true)
+    val isOnUnmeteredNetwork by unmeteredFlow.collectAsStateWithLifecycle(initialValue = true)
 
     // Show "Waiting for WiFi" when:
     // - Download is queued AND
@@ -294,7 +294,7 @@ fun BookDetailScreen(
     }
 
     if (state.showShelfPicker) {
-        val myShelves by viewModel.myShelves.collectAsState()
+        val myShelves by viewModel.myShelves.collectAsStateWithLifecycle()
 
         ShelfPickerSheet(
             shelves = myShelves,

@@ -14,7 +14,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -159,14 +159,14 @@ fun AppShell(
     }
 
     // Collect reactive state - use collectAsState for multiplatform compatibility
-    val isServerScanning by syncRepository.isServerScanning.collectAsState()
-    val scanProgress by syncRepository.scanProgress.collectAsState()
-    val syncState by syncRepository.syncState.collectAsState()
-    val user by userRepository.observeCurrentUser().collectAsState(initial = null)
-    val searchState by searchViewModel.state.collectAsState()
-    val searchNavAction by searchViewModel.navActions.collectAsState()
-    val syncIndicatorState by syncIndicatorViewModel.state.collectAsState()
-    val isSyncDetailsExpanded by syncIndicatorViewModel.isExpanded.collectAsState()
+    val isServerScanning by syncRepository.isServerScanning.collectAsStateWithLifecycle()
+    val scanProgress by syncRepository.scanProgress.collectAsStateWithLifecycle()
+    val syncState by syncRepository.syncState.collectAsStateWithLifecycle()
+    val user by userRepository.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
+    val searchState by searchViewModel.state.collectAsStateWithLifecycle()
+    val searchNavAction by searchViewModel.navActions.collectAsStateWithLifecycle()
+    val syncIndicatorState by syncIndicatorViewModel.state.collectAsStateWithLifecycle()
+    val isSyncDetailsExpanded by syncIndicatorViewModel.isExpanded.collectAsStateWithLifecycle()
 
     // Handle search navigation
     LaunchedEffect(searchNavAction) {

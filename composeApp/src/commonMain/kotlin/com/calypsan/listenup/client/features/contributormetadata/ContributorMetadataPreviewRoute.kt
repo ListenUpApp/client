@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.features.contributormetadata
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -21,7 +21,7 @@ fun ContributorMetadataPreviewRoute(
     onBack: () -> Unit,
     viewModel: ContributorMetadataViewModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     // Initialize if needed and load profile
     LaunchedEffect(contributorId, asin) {

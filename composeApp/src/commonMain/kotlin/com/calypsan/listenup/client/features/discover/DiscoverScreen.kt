@@ -29,7 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -76,7 +76,7 @@ fun DiscoverScreen(
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = koinViewModel(),
 ) {
-    val shelvesState by viewModel.discoverShelvesState.collectAsState()
+    val shelvesState by viewModel.discoverShelvesState.collectAsStateWithLifecycle()
 
     PullToRefreshBox(
         isRefreshing = shelvesState.isLoading,

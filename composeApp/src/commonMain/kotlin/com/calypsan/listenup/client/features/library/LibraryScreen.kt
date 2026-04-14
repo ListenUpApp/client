@@ -14,7 +14,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,7 +83,7 @@ fun LibraryScreen(
     // ═══════════════════════════════════════════════════════════════════════
     // CONTENT STATE (from LibraryViewModel)
     // ═══════════════════════════════════════════════════════════════════════
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Destructure uiState for convenience
     val books = uiState.books
@@ -108,11 +108,11 @@ fun LibraryScreen(
     // ═══════════════════════════════════════════════════════════════════════
     // ACTION STATE (from LibraryActionsViewModel)
     // ═══════════════════════════════════════════════════════════════════════
-    val isAdmin by actionsViewModel.isAdmin.collectAsState()
-    val collections by actionsViewModel.collections.collectAsState()
-    val isAddingToCollection by actionsViewModel.isAddingToCollection.collectAsState()
-    val myShelves by actionsViewModel.myShelves.collectAsState()
-    val isAddingToShelf by actionsViewModel.isAddingToShelf.collectAsState()
+    val isAdmin by actionsViewModel.isAdmin.collectAsStateWithLifecycle()
+    val collections by actionsViewModel.collections.collectAsStateWithLifecycle()
+    val isAddingToCollection by actionsViewModel.isAddingToCollection.collectAsStateWithLifecycle()
+    val myShelves by actionsViewModel.myShelves.collectAsStateWithLifecycle()
+    val isAddingToShelf by actionsViewModel.isAddingToShelf.collectAsStateWithLifecycle()
 
     // Derive selection state
     val isInSelectionMode = selectionMode is SelectionMode.Active

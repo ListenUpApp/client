@@ -15,7 +15,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -103,10 +103,10 @@ fun ListenUpNavigation(
     }
 
     // Observe pending invite deep link
-    val pendingInvite by deepLinkManager.pendingInvite.collectAsState()
+    val pendingInvite by deepLinkManager.pendingInvite.collectAsStateWithLifecycle()
 
     // Observe auth state changes
-    val authState by authSession.authState.collectAsState()
+    val authState by authSession.authState.collectAsStateWithLifecycle()
 
     // Check for pending invite BEFORE auth state routing
     // This allows invite registration even when already authenticated
@@ -216,7 +216,7 @@ private fun InviteRegistrationNavigation(
         }
 
     // Watch for successful registration to trigger completion
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.submissionStatus) {
         if (state.submissionStatus is InviteSubmissionStatus.Success) {
             onComplete()
@@ -394,7 +394,7 @@ private fun AuthenticatedNavigation(
     // foreground resume. The ViewModel lives in the Activity's ViewModelStore, so it is only
     // discarded on process death (true cold start).
     val startupViewModel: AppStartupViewModel = koinViewModel()
-    val startupState by startupViewModel.state.collectAsState()
+    val startupState by startupViewModel.state.collectAsStateWithLifecycle()
 
     // Hoist navigation state above the isChecking check so it survives loading periods.
     // Using remember without key ensures the backStack persists when isChecking toggles,
@@ -419,7 +419,7 @@ private fun AuthenticatedNavigation(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Handle pending shortcut actions
-    val pendingAction by shortcutActionManager.pendingAction.collectAsState()
+    val pendingAction by shortcutActionManager.pendingAction.collectAsStateWithLifecycle()
     LaunchedEffect(pendingAction) {
         val action = pendingAction ?: return@LaunchedEffect
 
@@ -534,7 +534,7 @@ private fun AuthenticatedNavigation(
                                 onDestinationChange = { currentShellDestination = it },
                                 nowPlayingContent = {
                                     NowPlayingBar(
-                                        state = nowPlayingViewModel.state.collectAsState().value,
+                                        state = nowPlayingViewModel.state.collectAsStateWithLifecycle().value,
                                         onTap = nowPlayingViewModel::expand,
                                         onPlayPause = nowPlayingViewModel::playPause,
                                         onSkipBack = { nowPlayingViewModel.skipBack() },
@@ -832,7 +832,7 @@ private fun AuthenticatedNavigation(
                         entry<Admin> {
                             val viewModel: AdminViewModel = koinInject()
                             val settingsViewModel: AdminSettingsViewModel = koinInject()
-                            val settingsState by settingsViewModel.state.collectAsState()
+                            val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
 
                             AdminScreen(
                                 viewModel = viewModel,

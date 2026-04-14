@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.features.library.BookCard
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import com.calypsan.listenup.client.presentation.discover.RecentlyAddedUiBook
@@ -37,7 +37,7 @@ fun RecentlyAddedSection(
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = koinViewModel(),
 ) {
-    val state by viewModel.recentlyAddedState.collectAsState()
+    val state by viewModel.recentlyAddedState.collectAsStateWithLifecycle()
 
     // Don't show section if empty or loading
     if (state.isEmpty) return

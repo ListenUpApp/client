@@ -13,7 +13,7 @@ import androidx.compose.ui.platform.LocalView
  *
  * Usage:
  * ```
- * val hapticEnabled by settingsRepository.hapticFeedbackEnabled.collectAsState()
+ * val hapticEnabled by settingsRepository.hapticFeedbackEnabled.collectAsStateWithLifecycle()
  * val haptics = rememberHapticFeedback { hapticEnabled }
  *
  * IconButton(onClick = {

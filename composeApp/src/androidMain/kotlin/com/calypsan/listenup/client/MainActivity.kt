@@ -22,7 +22,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -228,8 +228,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ListenUpApp(localPreferences: LocalPreferences = koinInject()) {
     // Observe theme preferences
-    val themeMode by localPreferences.themeMode.collectAsState()
-    val dynamicColorsEnabled by localPreferences.dynamicColorsEnabled.collectAsState()
+    val themeMode by localPreferences.themeMode.collectAsStateWithLifecycle()
+    val dynamicColorsEnabled by localPreferences.dynamicColorsEnabled.collectAsStateWithLifecycle()
 
     // Derive dark theme from user preference
     val isSystemDark = isSystemInDarkTheme()
@@ -253,7 +253,7 @@ fun ListenUpApp(localPreferences: LocalPreferences = koinInject()) {
  */
 @Composable
 fun InstanceScreen(viewModel: InstanceViewModel = koinViewModel()) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     Box(
         modifier =
