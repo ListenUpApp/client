@@ -232,32 +232,41 @@ interface SearchDao {
     suspend fun getPrimaryNarratorName(bookId: String): String?
 
     /**
-     * Get series names for a book (comma-separated).
+     * Get series names for a book (comma-separated, alphabetically sorted).
      *
      * Returns names of all series the book belongs to, joined with comma.
-     * Used for FTS indexing to make books searchable by series name.
+     * Used for FTS indexing to make books searchable by series name. The
+     * `ORDER BY` makes FTS content deterministic across sync runs — same
+     * joined string every time the index rebuilds.
      */
     @Query(
         """
-        SELECT GROUP_CONCAT(s.name, ', ') FROM series s
-        INNER JOIN book_series bs ON s.id = bs.seriesId
-        WHERE bs.bookId = :bookId
+        SELECT GROUP_CONCAT(s.name, ', ') FROM (
+            SELECT s.name FROM series s
+            INNER JOIN book_series bs ON s.id = bs.seriesId
+            WHERE bs.bookId = :bookId
+            ORDER BY s.name COLLATE NOCASE ASC
+        ) s
     """,
     )
     suspend fun getSeriesNamesForBook(bookId: String): String?
 
     /**
-     * Get genre names for a book (comma-separated).
+     * Get genre names for a book (comma-separated, alphabetically sorted).
      *
      * Returns names of all genres attached to the book via the `book_genres`
      * junction, joined with `", "`. Used for FTS indexing to make books
      * searchable by genre name. Returns null when the book has no genres.
+     * The `ORDER BY` makes FTS content deterministic across sync runs.
      */
     @Query(
         """
-        SELECT GROUP_CONCAT(g.name, ', ') FROM genres g
-        INNER JOIN book_genres bg ON g.id = bg.genreId
-        WHERE bg.bookId = :bookId
+        SELECT GROUP_CONCAT(g.name, ', ') FROM (
+            SELECT g.name FROM genres g
+            INNER JOIN book_genres bg ON g.id = bg.genreId
+            WHERE bg.bookId = :bookId
+            ORDER BY g.name COLLATE NOCASE ASC
+        ) g
     """,
     )
     suspend fun getGenreNamesForBook(bookId: String): String?
