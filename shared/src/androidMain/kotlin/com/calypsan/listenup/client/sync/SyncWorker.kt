@@ -52,7 +52,7 @@ class SyncWorker(
             }
 
             is CoreResult.Failure -> {
-                logger.error(result.exception) { "Background sync failed: ${result.message}" }
+                logger.error { "Background sync failed: ${result.message}" }
 
                 // Retry with exponential backoff up to 3 times
                 if (runAttemptCount < 3) {
