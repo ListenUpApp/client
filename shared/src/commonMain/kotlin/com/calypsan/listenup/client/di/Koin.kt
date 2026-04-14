@@ -366,7 +366,6 @@ val repositoryModule =
         single { get<ListenUpDatabase>().activeSessionDao() }
         single { get<ListenUpDatabase>().activityDao() }
         single { get<ListenUpDatabase>().userStatsDao() }
-        single { get<ListenUpDatabase>().readingSessionDao() }
         single { get<ListenUpDatabase>().userReadingSessionDao() }
         single { get<ListenUpDatabase>().readerSessionCacheDao() }
 

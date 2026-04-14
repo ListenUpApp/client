@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 7,
-    "identityHash": "8c745700968c5c78ff546e5185c7e536",
+    "version": 8,
+    "identityHash": "b2c3311b18699f21987801985802acde",
     "entities": [
       {
         "tableName": "users",
@@ -1998,124 +1998,6 @@
         }
       },
       {
-        "tableName": "reading_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `bookId` TEXT NOT NULL, `userId` TEXT NOT NULL, `userDisplayName` TEXT NOT NULL, `userAvatarColor` TEXT NOT NULL, `userAvatarType` TEXT NOT NULL, `userAvatarValue` TEXT, `isCurrentlyReading` INTEGER NOT NULL, `currentProgress` REAL NOT NULL, `startedAt` INTEGER NOT NULL, `finishedAt` INTEGER, `completionCount` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
-        "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "bookId",
-            "columnName": "bookId",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "userId",
-            "columnName": "userId",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "userDisplayName",
-            "columnName": "userDisplayName",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "userAvatarColor",
-            "columnName": "userAvatarColor",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "userAvatarType",
-            "columnName": "userAvatarType",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "userAvatarValue",
-            "columnName": "userAvatarValue",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "isCurrentlyReading",
-            "columnName": "isCurrentlyReading",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "currentProgress",
-            "columnName": "currentProgress",
-            "affinity": "REAL",
-            "notNull": true
-          },
-          {
-            "fieldPath": "startedAt",
-            "columnName": "startedAt",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "finishedAt",
-            "columnName": "finishedAt",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "completionCount",
-            "columnName": "completionCount",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "updatedAt",
-            "columnName": "updatedAt",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "id"
-          ]
-        },
-        "indices": [
-          {
-            "name": "index_reading_sessions_bookId",
-            "unique": false,
-            "columnNames": [
-              "bookId"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_sessions_bookId` ON `${TABLE_NAME}` (`bookId`)"
-          },
-          {
-            "name": "index_reading_sessions_userId",
-            "unique": false,
-            "columnNames": [
-              "userId"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_sessions_userId` ON `${TABLE_NAME}` (`userId`)"
-          },
-          {
-            "name": "index_reading_sessions_bookId_userId",
-            "unique": true,
-            "columnNames": [
-              "bookId",
-              "userId"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_reading_sessions_bookId_userId` ON `${TABLE_NAME}` (`bookId`, `userId`)"
-          }
-        ]
-      },
-      {
         "tableName": "user_reading_sessions",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `bookId` TEXT NOT NULL, `userId` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `finishedAt` INTEGER, `isCompleted` INTEGER NOT NULL, `listenTimeMs` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`bookId`) REFERENCES `books`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
@@ -2363,7 +2245,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8c745700968c5c78ff546e5185c7e536')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b2c3311b18699f21987801985802acde')"
     ]
   }
 }
