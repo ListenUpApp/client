@@ -359,12 +359,7 @@ class SeriesEditViewModel(
         super.onCleared()
         val seriesId = state.value.seriesId
         if (seriesId.isNotBlank() && state.value.stagingCoverPath != null) {
-            // viewModelScope is cancelled by this point, use GlobalScope for cleanup
-            @Suppress("OPT_IN_USAGE")
-            kotlinx.coroutines.GlobalScope.launch(com.calypsan.listenup.client.core.IODispatcher) {
-                imageStagingRepository.deleteSeriesCoverStaging(seriesId)
-                logger.debug { "Staging cover cleaned up on ViewModel cleared" }
-            }
+            imageStagingRepository.requestSeriesCoverStagingCleanup(seriesId)
         }
     }
 }

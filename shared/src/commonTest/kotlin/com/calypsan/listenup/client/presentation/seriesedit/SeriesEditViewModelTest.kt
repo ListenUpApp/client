@@ -9,9 +9,12 @@ import com.calypsan.listenup.client.domain.repository.ImageStagingRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
 import dev.mokkery.answering.returns
+import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
+import dev.mokkery.verify
+import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -264,4 +267,56 @@ class SeriesEditViewModelTest {
 
             assertNull(viewModel.state.value.error)
         }
+
+    // ========== Staging cleanup on clear ==========
+
+    @Test
+    fun `onCleared requests staging cleanup when staging cover is present`() =
+        runTest {
+            val fixture = createFixture()
+            val series = createSeries(id = "series-1")
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns series
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns emptyList()
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
+            everySuspend { fixture.imageStagingRepository.saveSeriesCoverStaging("series-1", any()) } returns Success(Unit)
+            every { fixture.imageStagingRepository.getSeriesCoverStagingPath("series-1") } returns "/tmp/staging-series-1.jpg"
+            every { fixture.imageStagingRepository.requestSeriesCoverStagingCleanup(any()) } returns Unit
+
+            val vm = fixture.build()
+            vm.loadSeries("series-1")
+            advanceUntilIdle()
+            vm.onEvent(SeriesEditUiEvent.CoverSelected(byteArrayOf(1, 2, 3), "cover.jpg"))
+            advanceUntilIdle()
+
+            vm.invokeOnCleared()
+
+            verify { fixture.imageStagingRepository.requestSeriesCoverStagingCleanup("series-1") }
+        }
+
+    @Test
+    fun `onCleared does not request cleanup when no staging cover exists`() =
+        runTest {
+            val fixture = createFixture()
+            val series = createSeries(id = "series-1")
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns series
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns emptyList()
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
+
+            val vm = fixture.build()
+            vm.loadSeries("series-1")
+            advanceUntilIdle()
+
+            vm.invokeOnCleared()
+
+            verify(mode = VerifyMode.not) {
+                fixture.imageStagingRepository.requestSeriesCoverStagingCleanup(any())
+            }
+        }
+}
+
+private fun androidx.lifecycle.ViewModel.invokeOnCleared() {
+    this.javaClass.superclass
+        .getDeclaredMethod("onCleared")
+        .apply { isAccessible = true }
+        .invoke(this)
 }
