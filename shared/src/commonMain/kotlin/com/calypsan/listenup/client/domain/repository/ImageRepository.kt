@@ -72,6 +72,15 @@ interface ImageRepository {
     suspend fun deleteBookCoverStaging(bookId: BookId): AppResult<Unit>
 
     /**
+     * Request fire-and-forget cleanup of any staging cover file for this book.
+     *
+     * Runs on an application-scoped CoroutineScope so the caller may invoke this
+     * from `ViewModel.onCleared()` safely. Errors are logged but not surfaced —
+     * a stale staging file is benign.
+     */
+    fun requestBookCoverStagingCleanup(bookId: BookId)
+
+    /**
      * Commit staged book cover to the main location.
      *
      * Used when saving book edits - moves the staged cover to the main cover path.
@@ -128,6 +137,13 @@ interface ImageRepository {
      * @return Result indicating success or failure
      */
     suspend fun deleteSeriesCoverStaging(seriesId: String): AppResult<Unit>
+
+    /**
+     * Request fire-and-forget cleanup of any staging cover file for this series.
+     *
+     * Same semantics as [requestBookCoverStagingCleanup].
+     */
+    fun requestSeriesCoverStagingCleanup(seriesId: String)
 
     /**
      * Commit staged series cover to the main location.

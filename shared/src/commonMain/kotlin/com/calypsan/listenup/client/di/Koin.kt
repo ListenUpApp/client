@@ -806,6 +806,12 @@ val syncModule =
                 imageDownloader = get(),
                 imageStorage = get(),
                 imageApi = get(),
+                appScope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
             )
         }
 

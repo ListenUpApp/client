@@ -2,11 +2,18 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.map
 import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Implementation of ImageRepository that delegates to data layer components.
@@ -21,6 +28,7 @@ class ImageRepositoryImpl(
     private val imageDownloader: ImageDownloaderContract,
     private val imageStorage: ImageStorage,
     private val imageApi: ImageApiContract,
+    private val appScope: CoroutineScope,
 ) : ImageRepository {
     // ========== Book Cover Operations ==========
 
@@ -114,4 +122,30 @@ class ImageRepositoryImpl(
         userId: String,
         forceRefresh: Boolean,
     ): AppResult<Boolean> = imageDownloader.downloadUserAvatar(userId, forceRefresh)
+
+    // ========== Fire-and-forget staging cleanup ==========
+
+    override fun requestBookCoverStagingCleanup(bookId: BookId) {
+        appScope.launch {
+            when (val r = deleteBookCoverStaging(bookId)) {
+                is Failure -> {
+                    logger.warn { "Staging cleanup failed for book ${bookId.value}: ${r.message}" }
+                }
+
+                is Success -> {}
+            }
+        }
+    }
+
+    override fun requestSeriesCoverStagingCleanup(seriesId: String) {
+        appScope.launch {
+            when (val r = deleteSeriesCoverStaging(seriesId)) {
+                is Failure -> {
+                    logger.warn { "Staging cleanup failed for series $seriesId: ${r.message}" }
+                }
+
+                is Success -> {}
+            }
+        }
+    }
 }
