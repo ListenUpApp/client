@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.BrandLogo
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpTextField
-import com.calypsan.listenup.client.presentation.auth.RegisterStatus
+import com.calypsan.listenup.client.presentation.auth.RegisterUiState
 import com.calypsan.listenup.client.presentation.auth.RegisterViewModel
 import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.stringResource
@@ -92,16 +92,13 @@ fun RegisterScreen(
         )
 
     // Handle status changes
-    LaunchedEffect(state.status) {
-        when (val status = state.status) {
-            is RegisterStatus.Error -> {
-                snackbarHostState.showSnackbar(status.message)
-                viewModel.clearError()
-            }
-
-            // Success triggers AuthState change, navigation handles the rest
-            else -> {}
+    LaunchedEffect(state) {
+        val current = state
+        if (current is RegisterUiState.Error) {
+            snackbarHostState.showSnackbar(current.message)
+            viewModel.clearError()
         }
+        // Success triggers AuthState change, navigation handles the rest
     }
 
     Scaffold(
@@ -215,7 +212,7 @@ fun RegisterScreen(
  */
 @Composable
 private fun RegisterForm(
-    state: com.calypsan.listenup.client.presentation.auth.RegisterUiState,
+    state: RegisterUiState,
     onSubmit: (email: String, password: String, firstName: String, lastName: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -226,7 +223,7 @@ private fun RegisterForm(
     var lastName by remember { mutableStateOf("") }
 
     val focusManager = LocalFocusManager.current
-    val isLoading = state.status is RegisterStatus.Loading
+    val isLoading = state is RegisterUiState.Loading
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -356,9 +353,7 @@ private fun RegisterForm(
 
         // Submit button
         ListenUpButton(
-            onClick = {
-                onSubmit(email, password, firstName, lastName)
-            },
+            onClick = { onSubmit(email, password, firstName, lastName) },
             text = stringResource(Res.string.auth_request_account),
             enabled = !isLoading && password == confirmPassword && password.isNotEmpty(),
             isLoading = isLoading,

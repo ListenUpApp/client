@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.domain.usecase.auth.RegisterUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -16,8 +17,8 @@ private val logger = KotlinLogging.logger {}
  * ViewModel for the registration screen.
  *
  * Thin coordinator that:
- * - Manages UI state (Loading, Success, Error)
- * - Delegates business logic to RegisterUseCase
+ * - Manages UI state as a sealed [RegisterUiState] hierarchy
+ * - Delegates business logic to [RegisterUseCase]
  * - Maps use case results to UI states
  *
  * After successful registration:
@@ -29,8 +30,8 @@ private val logger = KotlinLogging.logger {}
 class RegisterViewModel(
     private val registerUseCase: RegisterUseCase,
 ) : ViewModel() {
-    val state: StateFlow<RegisterUiState>
-        field = MutableStateFlow(RegisterUiState())
+    private val _state = MutableStateFlow<RegisterUiState>(RegisterUiState.Idle)
+    val state: StateFlow<RegisterUiState> = _state.asStateFlow()
 
     /**
      * Submit the registration form.
@@ -45,56 +46,24 @@ class RegisterViewModel(
         lastName: String,
     ) {
         viewModelScope.launch {
-            state.value = state.value.copy(status = RegisterStatus.Loading)
+            _state.value = RegisterUiState.Loading
 
             when (val result = registerUseCase(email, password, firstName, lastName)) {
                 is Success -> {
                     logger.info { "Registration successful, userId: ${result.data.userId}" }
-                    state.value = state.value.copy(status = RegisterStatus.Success)
+                    _state.value = RegisterUiState.Success
                 }
 
                 is Failure -> {
                     logger.error { "Registration failed" }
-                    state.value =
-                        state.value.copy(
-                            status = RegisterStatus.Error(result.message),
-                        )
+                    _state.value = RegisterUiState.Error(result.message)
                 }
             }
         }
     }
 
-    /**
-     * Clear the error state to allow retry.
-     */
+    /** Clear the error state to allow retry. */
     fun clearError() {
-        state.value = state.value.copy(status = RegisterStatus.Idle)
+        _state.value = RegisterUiState.Idle
     }
-}
-
-/**
- * UI state for the registration screen.
- */
-data class RegisterUiState(
-    val status: RegisterStatus = RegisterStatus.Idle,
-)
-
-/**
- * Registration status.
- */
-sealed interface RegisterStatus {
-    data object Idle : RegisterStatus
-
-    data object Loading : RegisterStatus
-
-    /**
-     * Registration submitted successfully.
-     * AuthState has been updated to PendingApproval.
-     * Navigation will automatically show PendingApprovalScreen.
-     */
-    data object Success : RegisterStatus
-
-    data class Error(
-        val message: String,
-    ) : RegisterStatus
 }

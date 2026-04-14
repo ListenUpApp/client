@@ -83,7 +83,7 @@ class RegisterViewModelTest {
             val viewModel = fixture.build()
 
             // Then
-            assertEquals(RegisterStatus.Idle, viewModel.state.value.status)
+            assertEquals(RegisterUiState.Idle, viewModel.state.value)
         }
 
     // ========== Email Validation Tests ==========
@@ -107,7 +107,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<RegisterStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<RegisterUiState.Error>(viewModel.state.value)
             assertEquals("Please enter a valid email address", error.message)
         }
 
@@ -130,7 +130,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<RegisterStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<RegisterUiState.Error>(viewModel.state.value)
             assertEquals("Please enter a valid email address", error.message)
         }
 
@@ -155,7 +155,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<RegisterStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<RegisterUiState.Error>(viewModel.state.value)
             assertEquals("Password must be at least 8 characters", error.message)
         }
 
@@ -178,7 +178,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<RegisterStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<RegisterUiState.Error>(viewModel.state.value)
             assertEquals("Password must be at least 8 characters", error.message)
         }
 
@@ -200,7 +200,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            checkIs<RegisterStatus.Success>(viewModel.state.value.status)
+            checkIs<RegisterUiState.Success>(viewModel.state.value)
         }
 
     // ========== First Name Validation Tests ==========
@@ -224,7 +224,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<RegisterStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<RegisterUiState.Error>(viewModel.state.value)
             assertEquals("First name is required", error.message)
         }
 
@@ -247,7 +247,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<RegisterStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<RegisterUiState.Error>(viewModel.state.value)
             assertEquals("First name is required", error.message)
         }
 
@@ -272,7 +272,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<RegisterStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<RegisterUiState.Error>(viewModel.state.value)
             assertEquals("Last name is required", error.message)
         }
 
@@ -295,7 +295,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<RegisterStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<RegisterUiState.Error>(viewModel.state.value)
             assertEquals("Last name is required", error.message)
         }
 
@@ -342,7 +342,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            checkIs<RegisterStatus.Success>(viewModel.state.value.status)
+            checkIs<RegisterUiState.Success>(viewModel.state.value)
         }
 
     // ========== Error Handling Tests ==========
@@ -366,7 +366,7 @@ class RegisterViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = assertIs<RegisterStatus.Error>(viewModel.state.value.status)
+            val error = assertIs<RegisterUiState.Error>(viewModel.state.value)
             assertEquals("Email already exists", error.message)
         }
 
@@ -387,13 +387,13 @@ class RegisterViewModelTest {
                 lastName = "Doe",
             )
             advanceUntilIdle()
-            checkIs<RegisterStatus.Error>(viewModel.state.value.status)
+            checkIs<RegisterUiState.Error>(viewModel.state.value)
 
             // When
             viewModel.clearError()
 
             // Then
-            assertEquals(RegisterStatus.Idle, viewModel.state.value.status)
+            assertEquals(RegisterUiState.Idle, viewModel.state.value)
         }
 
     @Test
@@ -402,12 +402,12 @@ class RegisterViewModelTest {
             // Given - viewModel in Idle state
             val fixture = createFixture()
             val viewModel = fixture.build()
-            assertEquals(RegisterStatus.Idle, viewModel.state.value.status)
+            assertEquals(RegisterUiState.Idle, viewModel.state.value)
 
             // When
             viewModel.clearError()
 
             // Then - still Idle (no crash)
-            assertEquals(RegisterStatus.Idle, viewModel.state.value.status)
+            assertEquals(RegisterUiState.Idle, viewModel.state.value)
         }
 }
