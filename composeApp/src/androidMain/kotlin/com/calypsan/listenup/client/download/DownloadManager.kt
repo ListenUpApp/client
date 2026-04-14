@@ -9,18 +9,17 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
-import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.json.Json
-import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 
@@ -45,12 +44,11 @@ private val logger = KotlinLogging.logger {}
 class DownloadManager(
     private val downloadDao: DownloadDao,
     private val bookDao: BookDao,
+    private val audioFileDao: AudioFileDao,
     private val workManager: WorkManager,
     private val fileManager: DownloadFileManager,
     private val localPreferences: com.calypsan.listenup.client.domain.repository.LocalPreferences,
 ) : DownloadService {
-    private val json = Json { ignoreUnknownKeys = true }
-
     /**
      * Observe download status for a specific book.
      */
@@ -129,28 +127,13 @@ class DownloadManager(
             return DownloadResult.AlreadyDownloaded
         }
 
-        // Get book entity from database
-        val bookEntity =
-            bookDao.getById(bookId) ?: run {
-                logger.error { "Book not found: ${bookId.value}" }
-                return DownloadResult.Error("Book not found")
-            }
-
-        // Parse audio files from JSON
-        val audioFilesJson = bookEntity.audioFilesJson
-        if (audioFilesJson.isNullOrBlank()) {
-            logger.warn { "No audio files JSON for book ${bookId.value}" }
-            return DownloadResult.Error("No audio files available")
+        // Verify book exists before attempting download
+        if (bookDao.getById(bookId) == null) {
+            logger.error { "Book not found: ${bookId.value}" }
+            return DownloadResult.Error("Book not found")
         }
 
-        val audioFiles: List<AudioFileResponse> =
-            try {
-                json.decodeFromString(audioFilesJson)
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to parse audio files JSON for book ${bookId.value}" }
-                return DownloadResult.Error("Failed to parse audio files")
-            }
-
+        val audioFiles: List<AudioFileEntity> = audioFileDao.getForBook(bookId.value)
         if (audioFiles.isEmpty()) {
             logger.warn { "No audio files for book ${bookId.value}" }
             return DownloadResult.Error("No audio files available")

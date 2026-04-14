@@ -214,6 +214,7 @@ val downloadModule =
             DownloadManager(
                 downloadDao = get(),
                 bookDao = get(),
+                audioFileDao = get(),
                 workManager = WorkManager.getInstance(androidContext()),
                 fileManager = get(),
                 localPreferences = get<com.calypsan.listenup.client.domain.repository.LocalPreferences>(),
