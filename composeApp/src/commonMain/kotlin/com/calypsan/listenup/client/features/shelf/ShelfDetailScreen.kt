@@ -58,6 +58,7 @@ import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.util.parseHexColor
 import com.calypsan.listenup.client.domain.model.ShelfBook
+import com.calypsan.listenup.client.domain.model.ShelfDetail
 import com.calypsan.listenup.client.presentation.shelf.ShelfDetailUiState
 import com.calypsan.listenup.client.presentation.shelf.ShelfDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -101,13 +102,14 @@ fun ShelfDetailScreen(
     }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val readyState = state as? ShelfDetailUiState.Ready
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = state.name.ifBlank { "Shelf" },
+                        text = readyState?.detail?.name ?: "Shelf",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -121,7 +123,7 @@ fun ShelfDetailScreen(
                     }
                 },
                 actions = {
-                    if (state.isOwner && onEditClick != null) {
+                    if (readyState?.isOwner == true && onEditClick != null) {
                         IconButton(onClick = { onEditClick(shelfId) }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -145,22 +147,23 @@ fun ShelfDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            when {
-                state.isLoading -> {
+            when (val current = state) {
+                is ShelfDetailUiState.Loading, ShelfDetailUiState.Idle -> {
                     ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                state.error != null -> {
+                is ShelfDetailUiState.Error -> {
                     Text(
-                        text = state.error ?: "Unknown error",
+                        text = current.message,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center),
                     )
                 }
 
-                else -> {
+                is ShelfDetailUiState.Ready -> {
                     ShelfDetailContent(
-                        state = state,
+                        detail = current.detail,
+                        isOwner = current.isOwner,
                         onBookClick = onBookClick,
                         formatDuration = viewModel::formatDuration,
                     )
@@ -175,7 +178,8 @@ fun ShelfDetailScreen(
  */
 @Composable
 private fun ShelfDetailContent(
-    state: ShelfDetailUiState,
+    detail: ShelfDetail,
+    isOwner: Boolean,
     onBookClick: (String) -> Unit,
     formatDuration: (Long) -> String,
 ) {
@@ -188,15 +192,15 @@ private fun ShelfDetailContent(
         // Hero section with shelf icon and stats
         item {
             ShelfHeroSection(
-                avatarColor = state.ownerAvatarColor,
-                ownerDisplayName = state.ownerDisplayName,
-                bookCount = state.bookCount,
-                totalDuration = formatDuration(state.totalDurationSeconds),
+                avatarColor = detail.owner.avatarColor,
+                ownerDisplayName = detail.owner.displayName,
+                bookCount = detail.bookCount,
+                totalDuration = formatDuration(detail.totalDurationSeconds),
             )
         }
 
         // Description section (if available)
-        state.description.takeIf { it.isNotBlank() }?.let { description ->
+        detail.description?.takeIf { it.isNotBlank() }?.let { description ->
             item {
                 Column(
                     modifier =
@@ -244,7 +248,7 @@ private fun ShelfDetailContent(
         }
 
         // Empty state
-        if (state.books.isEmpty()) {
+        if (detail.books.isEmpty()) {
             item {
                 Box(
                     modifier =
@@ -268,7 +272,7 @@ private fun ShelfDetailContent(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        if (state.isOwner) {
+                        if (isOwner) {
                             Text(
                                 text = stringResource(Res.string.shelf_add_books_from_the_library),
                                 style = MaterialTheme.typography.bodySmall,
@@ -282,7 +286,7 @@ private fun ShelfDetailContent(
 
         // Books list
         items(
-            items = state.books,
+            items = detail.books,
             key = { it.id },
         ) { book ->
             ShelfBookItem(
