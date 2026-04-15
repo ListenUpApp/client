@@ -126,6 +126,15 @@ private fun ServerSelectContent(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Title with refresh button
+            val isDiscovering = state is ServerSelectUiState.Discovering
+            val connectingId = (state as? ServerSelectUiState.Connecting)?.selectedServerId
+            val selectedId =
+                when (state) {
+                    is ServerSelectUiState.Connecting -> state.selectedServerId
+                    is ServerSelectUiState.Error -> state.selectedServerId
+                    else -> null
+                }
+
             Row(
                 modifier =
                     Modifier
@@ -142,9 +151,9 @@ private fun ServerSelectContent(
 
                 IconButton(
                     onClick = { onEvent(ServerSelectUiEvent.RefreshClicked) },
-                    enabled = !state.isDiscovering,
+                    enabled = !isDiscovering,
                 ) {
-                    if (state.isDiscovering) {
+                    if (isDiscovering) {
                         ListenUpLoadingIndicatorSmall()
                     } else {
                         Icon(
@@ -173,14 +182,14 @@ private fun ServerSelectContent(
                 ) { serverWithStatus ->
                     ServerCard(
                         serverWithStatus = serverWithStatus,
-                        isSelected = state.selectedServerId == serverWithStatus.server.id,
-                        isConnecting = state.isConnecting && state.selectedServerId == serverWithStatus.server.id,
+                        isSelected = selectedId == serverWithStatus.server.id,
+                        isConnecting = connectingId == serverWithStatus.server.id,
                         onClick = { onEvent(ServerSelectUiEvent.ServerSelected(serverWithStatus)) },
                     )
                 }
 
                 // Empty state
-                if (state.servers.isEmpty() && !state.isDiscovering) {
+                if (state.servers.isEmpty() && !isDiscovering) {
                     item {
                         EmptyState()
                     }

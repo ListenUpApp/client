@@ -10,120 +10,132 @@ import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.ServerRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * UI state for server selection screen.
- */
-data class ServerSelectUiState(
-    val servers: List<ServerWithStatus> = emptyList(),
-    val isDiscovering: Boolean = true,
-    val selectedServerId: String? = null,
-    val isConnecting: Boolean = false,
-    val error: String? = null,
-)
-
-/**
- * Events from the server selection UI.
- */
-sealed interface ServerSelectUiEvent {
-    /** User selected a server from the list. */
-    data class ServerSelected(
-        val server: ServerWithStatus,
-    ) : ServerSelectUiEvent
-
-    /** User selected a discovered server not yet persisted. */
-    data class DiscoveredServerSelected(
-        val server: DiscoveredServer,
-    ) : ServerSelectUiEvent
-
-    /** User wants to enter server URL manually. */
-    data object ManualEntryClicked : ServerSelectUiEvent
-
-    /** User wants to refresh discovery. */
-    data object RefreshClicked : ServerSelectUiEvent
-
-    /** Error was dismissed. */
-    data object ErrorDismissed : ServerSelectUiEvent
-}
-
-/**
- * ViewModel for server selection screen.
+ * ViewModel for the server selection screen.
  *
  * Responsibilities:
  * - Start/stop mDNS discovery
  * - Observe discovered and persisted servers
- * - Handle server selection
- * - Activate selected server
+ * - Handle server selection and activation
  *
- * The screen shows servers discovered via mDNS on the local network,
- * merged with any previously connected servers (which may be offline).
+ * State is derived reactively via `combine(...).stateIn(WhileSubscribed)`:
+ * the server list comes from [ServerRepository.observeServers], overlaid
+ * with transient UI concerns (selection, connection, error) tracked in a
+ * private [Overlay] StateFlow.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ServerSelectViewModel(
     private val serverRepository: ServerRepository,
     private val serverConfig: ServerConfig,
     private val instanceRepository: InstanceRepository,
 ) : ViewModel() {
-    val state: StateFlow<ServerSelectUiState>
-        field = MutableStateFlow(ServerSelectUiState())
+    private val refreshTrigger = MutableStateFlow(0)
+    private val overlay = MutableStateFlow<Overlay>(Overlay.None)
+
+    private sealed interface Overlay {
+        data object None : Overlay
+
+        data class Connecting(
+            val serverId: String,
+        ) : Overlay
+
+        data class Failed(
+            val serverId: String?,
+            val message: String,
+        ) : Overlay
+    }
+
+    /**
+     * Servers paired with a freshness flag. `emitted = false` means no list
+     * has arrived from the repository since the last refresh. `flatMapLatest`
+     * resets the pairing when [refreshTrigger] increments.
+     */
+    private val serversWithFreshness: Flow<Pair<List<ServerWithStatus>, Boolean>> =
+        refreshTrigger.flatMapLatest {
+            flow {
+                emit(emptyList<ServerWithStatus>() to false)
+                serverRepository.observeServers().collect { servers ->
+                    emit(servers to true)
+                }
+            }
+        }
+
+    val state: StateFlow<ServerSelectUiState> =
+        combine(serversWithFreshness, overlay) { (servers, emitted), current ->
+            when (current) {
+                is Overlay.Connecting -> {
+                    ServerSelectUiState.Connecting(servers, current.serverId)
+                }
+
+                is Overlay.Failed -> {
+                    ServerSelectUiState.Error(servers, current.serverId, current.message)
+                }
+
+                Overlay.None -> {
+                    if (emitted) {
+                        ServerSelectUiState.Ready(servers)
+                    } else {
+                        ServerSelectUiState.Discovering(servers)
+                    }
+                }
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ServerSelectUiState.Discovering(emptyList()),
+        )
 
     private val _navigationEvents = Channel<NavigationEvent>(Channel.BUFFERED)
     val navigationEvents: Flow<NavigationEvent> = _navigationEvents.receiveAsFlow()
 
-    /**
-     * Navigation events that the UI should handle.
-     */
+    /** Navigation events for the UI to handle. */
     sealed interface NavigationEvent {
-        /** Navigate to manual server entry screen. */
         data object GoToManualEntry : NavigationEvent
 
-        /** Server was selected and activated - proceed to auth. */
         data object ServerActivated : NavigationEvent
     }
 
     init {
-        startDiscovery()
-        observeServers()
-    }
-
-    /**
-     * Process user events from UI.
-     */
-    fun onEvent(event: ServerSelectUiEvent) {
-        when (event) {
-            is ServerSelectUiEvent.ServerSelected -> handleServerSelected(event.server)
-            is ServerSelectUiEvent.DiscoveredServerSelected -> handleDiscoveredServerSelected(event.server)
-            ServerSelectUiEvent.ManualEntryClicked -> handleManualEntryClicked()
-            ServerSelectUiEvent.RefreshClicked -> handleRefreshClicked()
-            ServerSelectUiEvent.ErrorDismissed -> state.update { it.copy(error = null) }
-        }
-    }
-
-    private fun startDiscovery() {
         logger.info { "Starting server discovery" }
         serverRepository.startDiscovery()
-        state.update { it.copy(isDiscovering = true) }
     }
 
-    private fun observeServers() {
-        viewModelScope.launch {
-            serverRepository.observeServers().collect { servers ->
-                logger.debug { "Received ${servers.size} servers from repository" }
-                state.update {
-                    it.copy(
-                        servers = servers,
-                        isDiscovering = false,
-                    )
-                }
+    fun onEvent(event: ServerSelectUiEvent) {
+        when (event) {
+            is ServerSelectUiEvent.ServerSelected -> {
+                handleServerSelected(event.server)
+            }
+
+            is ServerSelectUiEvent.DiscoveredServerSelected -> {
+                handleDiscoveredServerSelected(event.server)
+            }
+
+            ServerSelectUiEvent.ManualEntryClicked -> {
+                _navigationEvents.trySend(NavigationEvent.GoToManualEntry)
+            }
+
+            ServerSelectUiEvent.RefreshClicked -> {
+                handleRefreshClicked()
+            }
+
+            ServerSelectUiEvent.ErrorDismissed -> {
+                overlay.update { if (it is Overlay.Failed) Overlay.None else it }
             }
         }
     }
@@ -132,41 +144,28 @@ class ServerSelectViewModel(
         val server = serverWithStatus.server
         logger.info { "Server selected: ${server.name} (${server.id})" }
 
-        // Get the best URL for this server
         val serverUrl = server.getBestUrl()
         if (serverUrl == null) {
             logger.error { "Server has no URL configured" }
-            state.update { it.copy(error = "Server has no URL configured") }
+            overlay.value = Overlay.Failed(server.id, "Server has no URL configured")
             return
         }
 
-        state.update {
-            it.copy(
-                selectedServerId = server.id,
-                isConnecting = true,
-                error = null,
-            )
-        }
+        overlay.value = Overlay.Connecting(server.id)
 
         viewModelScope.launch {
             try {
                 serverRepository.setActiveServer(server.id)
-                // Also update ServerConfig to trigger AuthState change
                 serverConfig.setServerUrl(ServerUrl(serverUrl))
                 logger.info { "Server activated: ${server.id} at $serverUrl" }
-                state.update { it.copy(isConnecting = false) }
+                overlay.value = Overlay.None
                 _navigationEvents.trySend(NavigationEvent.ServerActivated)
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to activate server" }
-                state.update {
-                    it.copy(
-                        isConnecting = false,
-                        error = "Failed to connect: ${e.message}",
-                    )
-                }
+                overlay.value = Overlay.Failed(server.id, "Failed to connect: ${e.message}")
             }
         }
     }
@@ -174,69 +173,47 @@ class ServerSelectViewModel(
     private fun handleDiscoveredServerSelected(discovered: DiscoveredServer) {
         logger.info { "Discovered server selected: ${discovered.name} (${discovered.id})" }
 
-        state.update {
-            it.copy(
-                selectedServerId = discovered.id,
-                isConnecting = true,
-                error = null,
-            )
-        }
+        overlay.value = Overlay.Connecting(discovered.id)
 
         viewModelScope.launch {
             try {
-                // Build list of URLs to try:
-                // 1. Discovered LAN IP (from mDNS)
-                // 2. Remote URL if advertised in TXT record
                 val urlsToTry =
                     buildList {
                         add(discovered.localUrl)
                         discovered.remoteUrl?.let { add(it) }
                     }
 
-                // Quick-check which URL is actually reachable (3s timeout each)
                 val reachableUrl = instanceRepository.findReachableUrl(urlsToTry)
 
                 if (reachableUrl != null) {
                     serverRepository.setActiveServer(discovered)
                     serverConfig.setServerUrl(ServerUrl(reachableUrl))
                     logger.info { "Server activated: ${discovered.id} at $reachableUrl" }
-                    state.update { it.copy(isConnecting = false) }
+                    overlay.value = Overlay.None
                     _navigationEvents.trySend(NavigationEvent.ServerActivated)
                 } else {
                     logger.warn { "Server discovered but not reachable at any URL: $urlsToTry" }
-                    state.update {
-                        it.copy(
-                            isConnecting = false,
-                            error =
-                                "Server found on network but not reachable. " +
-                                    "Try adding it manually with the server's IP address.",
+                    overlay.value =
+                        Overlay.Failed(
+                            discovered.id,
+                            "Server found on network but not reachable. " +
+                                "Try adding it manually with the server's IP address.",
                         )
-                    }
                 }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to activate discovered server" }
-                state.update {
-                    it.copy(
-                        isConnecting = false,
-                        error = "Failed to connect: ${e.message}",
-                    )
-                }
+                overlay.value = Overlay.Failed(discovered.id, "Failed to connect: ${e.message}")
             }
         }
-    }
-
-    private fun handleManualEntryClicked() {
-        logger.info { "Manual entry requested" }
-        _navigationEvents.trySend(NavigationEvent.GoToManualEntry)
     }
 
     private fun handleRefreshClicked() {
         logger.info { "Refresh discovery requested" }
         serverRepository.stopDiscovery()
-        state.update { it.copy(isDiscovering = true, servers = emptyList()) }
+        refreshTrigger.update { it + 1 }
         serverRepository.startDiscovery()
     }
 

@@ -18,7 +18,9 @@ import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -27,9 +29,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServerSelectViewModelTest {
@@ -58,6 +58,11 @@ class ServerSelectViewModelTest {
         isOnline = isOnline,
     )
 
+    /** Keep the VM's WhileSubscribed state flow hot for the duration of the test. */
+    private fun TestScope.keepStateHot(viewModel: ServerSelectViewModel) {
+        backgroundScope.launch { viewModel.state.collect { } }
+    }
+
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
@@ -69,17 +74,25 @@ class ServerSelectViewModelTest {
     }
 
     @Test
-    fun `initial state has isDiscovering true`() =
+    fun `initial state is Discovering with empty servers`() =
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
             val instanceRepository: InstanceRepository = mock()
-            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            // Never-emitting flow so we observe the pre-emission Discovering state
+            every { serverRepository.observeServers() } returns
+                MutableStateFlow<List<ServerWithStatus>>(emptyList()).let {
+                    kotlinx.coroutines.flow.flow { /* never emits */ }
+                }
             every { serverRepository.startDiscovery() } returns Unit
 
             val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
+            keepStateHot(viewModel)
+            advanceUntilIdle()
 
-            assertTrue(viewModel.state.value.isDiscovering)
+            val state = viewModel.state.value
+            val discovering = assertIs<ServerSelectUiState.Discovering>(state)
+            assertEquals(emptyList(), discovering.servers)
         }
 
     @Test
@@ -97,7 +110,7 @@ class ServerSelectViewModelTest {
         }
 
     @Test
-    fun `observeServers updates state with discovered servers`() =
+    fun `observeServers emission transitions Discovering to Ready`() =
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
@@ -107,14 +120,18 @@ class ServerSelectViewModelTest {
             every { serverRepository.startDiscovery() } returns Unit
 
             val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
+            keepStateHot(viewModel)
             advanceUntilIdle()
+
+            // Initial emission (empty) flips to Ready
+            assertIs<ServerSelectUiState.Ready>(viewModel.state.value)
 
             val servers = listOf(createServerWithStatus())
             serversFlow.value = servers
             advanceUntilIdle()
 
-            assertEquals(1, viewModel.state.value.servers.size)
-            assertFalse(viewModel.state.value.isDiscovering)
+            val ready = assertIs<ServerSelectUiState.Ready>(viewModel.state.value)
+            assertEquals(1, ready.servers.size)
         }
 
     @Test
@@ -137,7 +154,7 @@ class ServerSelectViewModelTest {
         }
 
     @Test
-    fun `RefreshClicked restarts discovery`() =
+    fun `RefreshClicked stops and restarts discovery`() =
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
@@ -153,11 +170,10 @@ class ServerSelectViewModelTest {
             advanceUntilIdle()
 
             verify { serverRepository.stopDiscovery() }
-            // startDiscovery called twice: once in init, once on refresh
         }
 
     @Test
-    fun `ServerSelected activates server and navigates`() =
+    fun `ServerSelected activates server and emits navigation`() =
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
@@ -169,6 +185,7 @@ class ServerSelectViewModelTest {
             everySuspend { serverConfig.setServerUrl(any()) } returns Unit
 
             val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
             viewModel.navigationEvents.test {
@@ -179,10 +196,13 @@ class ServerSelectViewModelTest {
                 verifySuspend { serverConfig.setServerUrl(ServerUrl(server.localUrl!!)) }
                 assertEquals(ServerSelectViewModel.NavigationEvent.ServerActivated, awaitItem())
             }
+
+            // After success, overlay cleared → Ready
+            assertIs<ServerSelectUiState.Ready>(viewModel.state.value)
         }
 
     @Test
-    fun `ServerSelected handles error`() =
+    fun `ServerSelected failure transitions to Error state`() =
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
@@ -193,17 +213,18 @@ class ServerSelectViewModelTest {
             everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
 
             val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
             advanceUntilIdle()
 
-            assertTrue(viewModel.state.value.error != null)
-            assertFalse(viewModel.state.value.isConnecting)
+            val error = assertIs<ServerSelectUiState.Error>(viewModel.state.value)
+            assertEquals(server.id, error.selectedServerId)
         }
 
     @Test
-    fun `ErrorDismissed clears error`() =
+    fun `ErrorDismissed transitions from Error back to Ready`() =
         runTest {
             val serverRepository: ServerRepository = mock()
             val serverConfig: ServerConfig = mock()
@@ -214,30 +235,15 @@ class ServerSelectViewModelTest {
             everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
 
             val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
+            keepStateHot(viewModel)
             advanceUntilIdle()
             viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
             advanceUntilIdle()
-            assertTrue(viewModel.state.value.error != null)
+            assertIs<ServerSelectUiState.Error>(viewModel.state.value)
 
             viewModel.onEvent(ServerSelectUiEvent.ErrorDismissed)
-
-            assertNull(viewModel.state.value.error)
-        }
-
-    @Test
-    fun `onCleared stops discovery`() =
-        runTest {
-            val serverRepository: ServerRepository = mock()
-            val serverConfig: ServerConfig = mock()
-            val instanceRepository: InstanceRepository = mock()
-            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-            every { serverRepository.startDiscovery() } returns Unit
-            every { serverRepository.stopDiscovery() } returns Unit
-
-            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
             advanceUntilIdle()
 
-            // Simulate onCleared by calling the method directly (it's protected but we test behavior)
-            // In practice, we verify stopDiscovery is called when appropriate
+            assertIs<ServerSelectUiState.Ready>(viewModel.state.value)
         }
 }
