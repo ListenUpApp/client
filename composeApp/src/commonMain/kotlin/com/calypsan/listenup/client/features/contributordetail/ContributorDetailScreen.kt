@@ -74,6 +74,7 @@ import com.calypsan.listenup.client.design.LocalDeviceContext
 import com.calypsan.listenup.client.features.contributoredit.components.ContributorColorScheme
 import com.calypsan.listenup.client.features.contributoredit.components.rememberContributorColorScheme
 import com.calypsan.listenup.client.features.library.BookCard
+import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailNavAction
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailUiState
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel
 import com.calypsan.listenup.client.presentation.contributordetail.RoleSection
@@ -115,45 +116,56 @@ fun ContributorDetailScreen(
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showDeleteConfirmation by rememberSaveable { mutableStateOf(false) }
 
-    // Show errors via snackbar
-    LaunchedEffect(state.error) {
-        state.error?.let { error ->
+    // Navigate back when a delete succeeds.
+    LaunchedEffect(viewModel) {
+        viewModel.navActions.collect { action ->
+            when (action) {
+                ContributorDetailNavAction.Deleted -> onBackClick()
+            }
+        }
+    }
+
+    // Surface delete errors via snackbar.
+    val deleteError = (state as? ContributorDetailUiState.Ready)?.deleteError
+    LaunchedEffect(deleteError) {
+        if (deleteError != null) {
             val friendlyMessage =
                 when {
-                    error.contains("not found", ignoreCase = true) -> {
+                    deleteError.contains("not found", ignoreCase = true) -> {
                         "Could not find metadata for this contributor on Audible"
                     }
 
-                    error.contains("network", ignoreCase = true) ||
-                        error.contains("connection", ignoreCase = true) -> {
+                    deleteError.contains("network", ignoreCase = true) ||
+                        deleteError.contains("connection", ignoreCase = true) -> {
                         "Network error. Please check your connection and try again."
                     }
 
                     else -> {
-                        error
+                        deleteError
                     }
                 }
             snackbarHostState.showSnackbar(friendlyMessage)
-            viewModel.onClearError()
+            viewModel.dismissDeleteError()
         }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        when {
-            state.isLoading -> {
+        when (val current = state) {
+            ContributorDetailUiState.Idle, ContributorDetailUiState.Loading -> {
                 ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
             }
 
-            state.contributor == null && state.error != null -> {
+            is ContributorDetailUiState.Error -> {
                 Text(
-                    text = state.error ?: "Unknown error",
+                    text = current.message,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
 
-            state.contributor != null -> {
+            is ContributorDetailUiState.Ready -> {
                 val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
                 val useWideLayout =
                     windowSizeClass.isWidthAtLeastBreakpoint(
@@ -163,60 +175,60 @@ fun ContributorDetailScreen(
                 if (useWideLayout) {
                     WideContributorPortfolio(
                         contributorId = contributorId,
-                        state = state,
+                        state = current,
                         onBackClick = onBackClick,
                         onEditClick = { onEditClick(contributorId) },
                         onDownloadMetadata = { onMetadataClick(contributorId) },
-                        onDeleteClick = viewModel::onDeleteContributor,
+                        onDeleteClick = { showDeleteConfirmation = true },
                         onBookClick = onBookClick,
                         onViewAllClick = { role -> onViewAllClick(contributorId, role) },
                     )
                 } else {
                     NarrowContributorPortfolio(
                         contributorId = contributorId,
-                        state = state,
+                        state = current,
                         onBackClick = onBackClick,
                         onEditClick = { onEditClick(contributorId) },
                         onDownloadMetadata = { onMetadataClick(contributorId) },
-                        onDeleteClick = viewModel::onDeleteContributor,
+                        onDeleteClick = { showDeleteConfirmation = true },
                         onBookClick = onBookClick,
                         onViewAllClick = { role -> onViewAllClick(contributorId, role) },
                     )
                 }
+
+                if (showDeleteConfirmation) {
+                    ListenUpDestructiveDialog(
+                        onDismissRequest = { showDeleteConfirmation = false },
+                        title = stringResource(Res.string.common_delete_name, "Contributor"),
+                        text =
+                            "This will remove ${current.contributor.name} " +
+                                stringResource(Res.string.contributor_from_your_library_this_action),
+                        confirmText = stringResource(Res.string.common_delete),
+                        onConfirm = {
+                            showDeleteConfirmation = false
+                            viewModel.confirmDelete()
+                        },
+                    )
+                }
+
+                if (current.isDeleting) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ListenUpLoadingIndicator()
+                    }
+                }
             }
         }
 
-        // Snackbar for transient errors
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
-
-        // Delete confirmation dialog
-        if (state.showDeleteConfirmation) {
-            ListenUpDestructiveDialog(
-                onDismissRequest = viewModel::onDismissDelete,
-                title = stringResource(Res.string.common_delete_name, "Contributor"),
-                text =
-                    "This will remove ${state.contributor?.name ?: "this contributor"} " +
-                        stringResource(Res.string.contributor_from_your_library_this_action),
-                confirmText = stringResource(Res.string.common_delete),
-                onConfirm = { viewModel.onConfirmDelete(onBackClick) },
-            )
-        }
-
-        // Loading overlay for delete operation
-        if (state.isDeleting) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                ListenUpLoadingIndicator()
-            }
-        }
     }
 }
 
@@ -227,7 +239,7 @@ fun ContributorDetailScreen(
 @Composable
 private fun WideContributorPortfolio(
     contributorId: String,
-    state: ContributorDetailUiState,
+    state: ContributorDetailUiState.Ready,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     onDownloadMetadata: () -> Unit,
@@ -491,7 +503,7 @@ private fun WorkSectionHeader(
 @Composable
 private fun NarrowContributorPortfolio(
     contributorId: String,
-    state: ContributorDetailUiState,
+    state: ContributorDetailUiState.Ready,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     onDownloadMetadata: () -> Unit,

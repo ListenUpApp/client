@@ -20,7 +20,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -30,6 +32,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -37,20 +40,12 @@ import kotlin.time.Clock
 /**
  * Tests for ContributorDetailViewModel.
  *
- * Tests cover:
- * - Initial state
- * - Load contributor with roles and books
- * - Role display name conversion
- * - Book progress calculation
- * - View all threshold logic
- *
- * Uses Mokkery for mocking DAOs and ImageStorage.
+ * The VM uses `.stateIn(WhileSubscribed)`, so tests must keep a background
+ * collector alive via [keepStateHot] before asserting on `state.value`.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ContributorDetailViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
-
-    // ========== Test Fixtures ==========
 
     private class TestFixture {
         val contributorRepository: ContributorRepository = mock()
@@ -71,7 +66,6 @@ class ContributorDetailViewModelTest {
     private fun createFixture(): TestFixture {
         val fixture = TestFixture()
 
-        // Default stubs
         every { fixture.contributorRepository.observeById(any()) } returns fixture.contributorFlow
         every { fixture.contributorRepository.observeRolesWithCountForContributor(any()) } returns fixture.rolesFlow
         every { fixture.contributorRepository.observeBooksForContributorRole(any(), any()) } returns flowOf(emptyList())
@@ -80,7 +74,10 @@ class ContributorDetailViewModelTest {
         return fixture
     }
 
-    // ========== Test Data Factories ==========
+    /** Keep the VM's WhileSubscribed state flow hot for the duration of the test. */
+    private fun TestScope.keepStateHot(viewModel: ContributorDetailViewModel) {
+        backgroundScope.launch { viewModel.state.collect { } }
+    }
 
     private fun createContributor(
         id: String = "contributor-1",
@@ -153,88 +150,61 @@ class ContributorDetailViewModelTest {
         Dispatchers.resetMain()
     }
 
-    // ========== Initial State Tests ==========
+    // ========== Initial State ==========
 
     @Test
-    fun `initial state has isLoading true and empty data`() =
+    fun `initial state is Idle pre-loadContributor`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
+            advanceUntilIdle()
 
-            // Then - isLoading starts true to avoid showing empty content before data loads
-            val state = viewModel.state.value
-            assertTrue(state.isLoading)
-            assertNull(state.contributor)
-            assertTrue(state.roleSections.isEmpty())
-            assertNull(state.error)
+            assertEquals(ContributorDetailUiState.Idle, viewModel.state.value)
         }
 
-    // ========== Load Contributor Tests ==========
-
-    @Test
-    fun `loadContributor sets isLoading to true initially`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.loadContributor("contributor-1")
-            // Don't advance - check immediate state
-
-            // Then
-            assertTrue(viewModel.state.value.isLoading)
-        }
+    // ========== Load Contributor ==========
 
     @Test
     fun `loadContributor success populates contributor data`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val contributor = createContributor(name = "Stephen King", description = "Master of horror")
             val roles = listOf(RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 5))
 
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadContributor("contributor-1")
             fixture.contributorFlow.value = contributor
             fixture.rolesFlow.value = roles
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
-            assertFalse(state.isLoading)
-            assertEquals("Stephen King", state.contributor?.name)
-            assertEquals("Master of horror", state.contributor?.description)
-            assertNull(state.error)
+            val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
+            assertEquals("Stephen King", state.contributor.name)
+            assertEquals("Master of horror", state.contributor.description)
         }
 
     @Test
     fun `loadContributor loads books for each role`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val contributor = createContributor()
             val authorRole = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 2)
             val book = createBook(id = "book-1", title = "The Shining")
-            val bookWithContributors = createBookWithContributorRole(book)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
-                flowOf(
-                    listOf(bookWithContributors),
-                )
+            every {
+                fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
+            } returns flowOf(listOf(createBookWithContributorRole(book)))
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadContributor("contributor-1")
             fixture.contributorFlow.value = contributor
             fixture.rolesFlow.value = listOf(authorRole)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
+            val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
             assertEquals(1, state.roleSections.size)
             assertEquals(ContributorRole.AUTHOR.apiValue, state.roleSections[0].role)
             assertEquals(1, state.roleSections[0].previewBooks.size)
@@ -244,7 +214,6 @@ class ContributorDetailViewModelTest {
     @Test
     fun `loadContributor creates multiple role sections`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val contributor = createContributor()
             val authorRole = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 3)
@@ -253,30 +222,27 @@ class ContributorDetailViewModelTest {
             val book1 = createBook(id = "book-1", title = "Author Book")
             val book2 = createBook(id = "book-2", title = "Narrator Book")
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
-                flowOf(
-                    listOf(createBookWithContributorRole(book1)),
-                )
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.NARRATOR.apiValue) } returns
-                flowOf(
-                    listOf(createBookWithContributorRole(book2)),
-                )
+            every {
+                fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
+            } returns flowOf(listOf(createBookWithContributorRole(book1)))
+            every {
+                fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.NARRATOR.apiValue)
+            } returns flowOf(listOf(createBookWithContributorRole(book2)))
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadContributor("contributor-1")
             fixture.contributorFlow.value = contributor
             fixture.rolesFlow.value = listOf(authorRole, narratorRole)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
+            val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
             assertEquals(2, state.roleSections.size)
             assertEquals(ContributorRole.AUTHOR.apiValue, state.roleSections[0].role)
             assertEquals(ContributorRole.NARRATOR.apiValue, state.roleSections[1].role)
         }
 
-    // ========== Role Display Name Tests ==========
+    // ========== Role Display Name ==========
 
     @Test
     fun `roleToDisplayName converts author to Written By`() {
@@ -308,99 +274,83 @@ class ContributorDetailViewModelTest {
         assertEquals("Written By", ContributorDetailViewModel.roleToDisplayName("AUTHOR"))
     }
 
-    // ========== Book Progress Tests ==========
+    // ========== Book Progress ==========
 
     @Test
     fun `loadContributor calculates book progress`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val contributor = createContributor()
             val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", duration = 10_000L)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
-                flowOf(
-                    listOf(createBookWithContributorRole(book)),
-                )
+            every {
+                fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
+            } returns flowOf(listOf(createBookWithContributorRole(book)))
             everySuspend { fixture.playbackPositionRepository.get("book-1") } returns
-                createPlaybackPosition(
-                    "book-1",
-                    5_000L,
-                )
+                createPlaybackPosition("book-1", 5_000L)
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadContributor("contributor-1")
             fixture.contributorFlow.value = contributor
             fixture.rolesFlow.value = listOf(role)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
+            val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
             assertEquals(0.5f, state.bookProgress["book-1"])
         }
 
     @Test
     fun `loadContributor excludes completed books from progress`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val contributor = createContributor()
             val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", duration = 10_000L)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
-                flowOf(
-                    listOf(createBookWithContributorRole(book)),
-                )
-            // 99% or more is considered complete
+            every {
+                fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
+            } returns flowOf(listOf(createBookWithContributorRole(book)))
             everySuspend { fixture.playbackPositionRepository.get("book-1") } returns
-                createPlaybackPosition(
-                    "book-1",
-                    9_999L,
-                )
+                createPlaybackPosition("book-1", 9_999L)
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadContributor("contributor-1")
             fixture.contributorFlow.value = contributor
             fixture.rolesFlow.value = listOf(role)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
+            val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
             assertFalse(state.bookProgress.containsKey("book-1"))
         }
 
     @Test
     fun `loadContributor excludes zero progress from map`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val contributor = createContributor()
             val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", duration = 10_000L)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
-                flowOf(
-                    listOf(createBookWithContributorRole(book)),
-                )
+            every {
+                fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
+            } returns flowOf(listOf(createBookWithContributorRole(book)))
             everySuspend { fixture.playbackPositionRepository.get("book-1") } returns createPlaybackPosition("book-1", 0L)
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadContributor("contributor-1")
             fixture.contributorFlow.value = contributor
             fixture.rolesFlow.value = listOf(role)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
+            val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
             assertFalse(state.bookProgress.containsKey("book-1"))
         }
 
-    // ========== View All Threshold Tests ==========
+    // ========== View All Threshold ==========
 
     @Test
     fun `RoleSection showViewAll is true when bookCount exceeds threshold`() {
@@ -441,91 +391,76 @@ class ContributorDetailViewModelTest {
         assertFalse(section.showViewAll)
     }
 
-    // ========== Cover Path Tests ==========
+    // ========== Cover Path ==========
 
     @Test
     fun `loadContributor passes through coverPath from domain model`() =
         runTest {
-            // Given - coverPath is now resolved in repository, ViewModel just passes it through
             val fixture = createFixture()
             val contributor = createContributor()
             val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", coverPath = "/path/to/cover.jpg")
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
-                flowOf(
-                    listOf(createBookWithContributorRole(book)),
-                )
+            every {
+                fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
+            } returns flowOf(listOf(createBookWithContributorRole(book)))
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadContributor("contributor-1")
             fixture.contributorFlow.value = contributor
             fixture.rolesFlow.value = listOf(role)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
+            val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
             assertEquals("/path/to/cover.jpg", state.roleSections[0].previewBooks[0].coverPath)
         }
 
     @Test
     fun `loadContributor handles null coverPath`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val contributor = createContributor()
             val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", coverPath = null)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
-                flowOf(
-                    listOf(createBookWithContributorRole(book)),
-                )
+            every {
+                fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
+            } returns flowOf(listOf(createBookWithContributorRole(book)))
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadContributor("contributor-1")
             fixture.contributorFlow.value = contributor
             fixture.rolesFlow.value = listOf(role)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
+            val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
             assertNull(state.roleSections[0].previewBooks[0].coverPath)
         }
 
-    // ========== Reactive Update Tests ==========
+    // ========== Reactive Updates ==========
 
     @Test
     fun `loadContributor updates when contributor flow emits new value`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val contributor1 = createContributor(name = "Original Name")
             val contributor2 = createContributor(name = "Updated Name")
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When - first emission
             viewModel.loadContributor("contributor-1")
             fixture.contributorFlow.value = contributor1
             fixture.rolesFlow.value = emptyList()
             advanceUntilIdle()
-            assertEquals(
-                "Original Name",
-                viewModel.state.value.contributor
-                    ?.name,
-            )
+            val first = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
+            assertEquals("Original Name", first.contributor.name)
 
-            // When - second emission
             fixture.contributorFlow.value = contributor2
             advanceUntilIdle()
 
-            // Then
-            assertEquals(
-                "Updated Name",
-                viewModel.state.value.contributor
-                    ?.name,
-            )
+            val second = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
+            assertEquals("Updated Name", second.contributor.name)
         }
 }
