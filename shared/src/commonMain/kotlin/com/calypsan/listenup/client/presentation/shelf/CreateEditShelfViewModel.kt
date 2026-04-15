@@ -10,22 +10,27 @@ import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
 import com.calypsan.listenup.client.domain.usecase.shelf.DeleteShelfUseCase
 import com.calypsan.listenup.client.domain.usecase.shelf.UpdateShelfUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * ViewModel for Create/Edit Shelf screen.
+ * ViewModel for the Create/Edit Shelf screen.
  *
- * Thin presentation coordinator that delegates business logic to use cases:
- * - [CreateShelfUseCase]: Creates new shelves with validation
- * - [UpdateShelfUseCase]: Updates existing shelves with validation
- * - [DeleteShelfUseCase]: Deletes shelves
+ * Thin presentation coordinator delegating to use cases:
+ * - [CreateShelfUseCase] / [UpdateShelfUseCase] for save (routed on mode)
+ * - [DeleteShelfUseCase] for destructive removal
  *
- * Handles both creating new shelves and editing existing ones.
+ * The name/description text inputs are owned by the screen (Compose
+ * `rememberSaveable`), not this ViewModel — the screen passes current
+ * values into [save]. Navigation signals are emitted via a
+ * `Channel<CreateEditShelfNavAction>` per the one-shot-events rubric rule.
  */
 class CreateEditShelfViewModel(
     private val createShelfUseCase: CreateShelfUseCase,
@@ -33,169 +38,134 @@ class CreateEditShelfViewModel(
     private val deleteShelfUseCase: DeleteShelfUseCase,
     private val shelfRepository: ShelfRepository,
 ) : ViewModel() {
-    val state: StateFlow<CreateEditShelfUiState>
-        field = MutableStateFlow(CreateEditShelfUiState())
+    private val _state = MutableStateFlow<CreateEditShelfUiState>(CreateEditShelfUiState.Idle)
+    val state: StateFlow<CreateEditShelfUiState> = _state.asStateFlow()
+
+    private val _navActions = Channel<CreateEditShelfNavAction>(Channel.BUFFERED)
+    val navActions: Flow<CreateEditShelfNavAction> = _navActions.receiveAsFlow()
 
     private var editingShelfId: String? = null
 
-    /**
-     * Initialize for creating a new shelf.
-     */
+    /** Prepare for creating a new shelf. */
     fun initCreate() {
         editingShelfId = null
-        state.update {
-            CreateEditShelfUiState(isEditing = false)
-        }
+        _state.value = CreateEditShelfUiState.Idle
     }
 
-    /**
-     * Initialize for editing an existing shelf.
-     */
+    /** Prepare for editing an existing shelf by id. Fetches the current data. */
     fun initEdit(shelfId: String) {
         editingShelfId = shelfId
         viewModelScope.launch {
-            state.update { it.copy(isLoading = true) }
+            _state.value = CreateEditShelfUiState.LoadingExisting
 
-            try {
-                val shelf = shelfRepository.getById(shelfId)
-                if (shelf != null) {
-                    state.update {
-                        CreateEditShelfUiState(
-                            isEditing = true,
+            _state.value =
+                try {
+                    val shelf = shelfRepository.getById(shelfId)
+                    if (shelf != null) {
+                        CreateEditShelfUiState.Loaded(
                             name = shelf.name,
                             description = shelf.description ?: "",
-                            isLoading = false,
                         )
+                    } else {
+                        CreateEditShelfUiState.Error("Shelf not found")
                     }
-                } else {
-                    state.update {
-                        it.copy(
-                            isLoading = false,
-                            error = "Shelf not found",
-                        )
-                    }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    ErrorBus.emit(e)
+                    logger.error(e) { "Failed to load shelf for edit: $shelfId" }
+                    CreateEditShelfUiState.Error("Failed to load shelf: ${e.message}")
                 }
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                ErrorBus.emit(e)
-                logger.error(e) { "Failed to load shelf for edit: $shelfId" }
-                state.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "Failed to load shelf: ${e.message}",
-                    )
-                }
-            }
         }
     }
 
     /**
-     * Update the shelf name.
+     * Save the shelf with the provided values. Routes to create or update
+     * based on whether [initEdit] was called. Emits [CreateEditShelfNavAction.NavigateBack]
+     * on success.
      */
-    fun updateName(name: String) {
-        state.update { it.copy(name = name) }
-    }
-
-    /**
-     * Update the shelf description.
-     */
-    fun updateDescription(description: String) {
-        state.update { it.copy(description = description) }
-    }
-
-    /**
-     * Save the shelf (create or update).
-     *
-     * Delegates to appropriate use case based on mode.
-     * Validation is handled by the use cases.
-     */
-    fun save(onSuccess: () -> Unit) {
-        val currentState = state.value
-
+    fun save(
+        name: String,
+        description: String,
+    ) {
         viewModelScope.launch {
-            state.update { it.copy(isSaving = true, error = null) }
+            _state.value = CreateEditShelfUiState.Saving
+            val editingId = editingShelfId
+            val trimmedDescription = description.takeIf { it.isNotEmpty() }
 
             val result =
-                if (editingShelfId != null) {
+                if (editingId != null) {
                     updateShelfUseCase(
-                        shelfId = editingShelfId!!,
-                        name = currentState.name,
-                        description = currentState.description.takeIf { it.isNotEmpty() },
+                        shelfId = editingId,
+                        name = name,
+                        description = trimmedDescription,
                     )
                 } else {
                     createShelfUseCase(
-                        name = currentState.name,
-                        description = currentState.description.takeIf { it.isNotEmpty() },
+                        name = name,
+                        description = trimmedDescription,
                     )
                 }
 
             when (result) {
-                is Success -> {
-                    state.update { it.copy(isSaving = false) }
-                    onSuccess()
-                }
-
-                is Failure -> {
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            error = result.message,
-                        )
-                    }
-                }
+                is Success -> _navActions.trySend(CreateEditShelfNavAction.NavigateBack)
+                is Failure -> _state.value = CreateEditShelfUiState.Error(result.message)
             }
         }
     }
 
-    /**
-     * Delete the current shelf (edit mode only).
-     *
-     * Delegates to [DeleteShelfUseCase].
-     */
-    fun delete(onSuccess: () -> Unit) {
+    /** Delete the shelf being edited. No-op in create mode. */
+    fun delete() {
         val shelfId = editingShelfId ?: return
 
         viewModelScope.launch {
-            state.update { it.copy(isSaving = true, error = null) }
+            _state.value = CreateEditShelfUiState.Saving
 
             when (val result = deleteShelfUseCase(shelfId)) {
-                is Success -> {
-                    state.update { it.copy(isSaving = false) }
-                    onSuccess()
-                }
-
-                is Failure -> {
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            error = result.message,
-                        )
-                    }
-                }
+                is Success -> _navActions.trySend(CreateEditShelfNavAction.NavigateBack)
+                is Failure -> _state.value = CreateEditShelfUiState.Error(result.message)
             }
         }
     }
 
-    /**
-     * Clear any error message.
-     */
-    fun clearError() {
-        state.update { it.copy(error = null) }
+    /** Dismiss any error and return to [CreateEditShelfUiState.Idle]. */
+    fun dismissError() {
+        if (_state.value is CreateEditShelfUiState.Error) {
+            _state.value = CreateEditShelfUiState.Idle
+        }
     }
 }
 
 /**
- * UI state for Create/Edit Shelf screen.
+ * UI state for the Create/Edit Shelf screen.
+ *
+ * Sealed hierarchy — the VM is always in exactly one of these states.
+ * Text inputs (name, description) are held by the Compose layer, not this state.
  */
-data class CreateEditShelfUiState(
-    val isEditing: Boolean = false,
-    val name: String = "",
-    val description: String = "",
-    val isLoading: Boolean = false,
-    val isSaving: Boolean = false,
-    val error: String? = null,
-) {
-    val canSave: Boolean
-        get() = name.isNotBlank() && !isLoading && !isSaving
+sealed interface CreateEditShelfUiState {
+    /** Ready for input; the screen's rememberSaveable holds the text. */
+    data object Idle : CreateEditShelfUiState
+
+    /** Edit mode — fetching existing shelf data. */
+    data object LoadingExisting : CreateEditShelfUiState
+
+    /** Edit mode — existing data available for the screen to seed once into its inputs. */
+    data class Loaded(
+        val name: String,
+        val description: String,
+    ) : CreateEditShelfUiState
+
+    /** A save or delete operation is in flight. */
+    data object Saving : CreateEditShelfUiState
+
+    /** Operation failed. Dismissing returns to [Idle]. */
+    data class Error(
+        val message: String,
+    ) : CreateEditShelfUiState
+}
+
+/** Navigation events emitted by [CreateEditShelfViewModel]. */
+sealed interface CreateEditShelfNavAction {
+    /** Save or delete succeeded — screen should pop back. */
+    data object NavigateBack : CreateEditShelfNavAction
 }

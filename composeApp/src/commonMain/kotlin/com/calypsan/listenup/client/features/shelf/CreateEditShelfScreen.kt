@@ -36,10 +36,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.presentation.shelf.CreateEditShelfNavAction
+import com.calypsan.listenup.client.presentation.shelf.CreateEditShelfUiState
 import com.calypsan.listenup.client.presentation.shelf.CreateEditShelfViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
@@ -56,8 +59,8 @@ import listenup.composeapp.generated.resources.shelf_whats_this_shelf_for
 /**
  * Screen for creating or editing a shelf.
  *
- * @param shelfId If provided, edit this shelf. If null, create new shelf.
- * @param onBack Callback for back navigation
+ * @param shelfId If provided, edit this shelf. If null, create a new shelf.
+ * @param onBack Callback for back navigation (triggered on save/delete success too)
  * @param viewModel The ViewModel
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,60 +75,56 @@ fun CreateEditShelfScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Initialize based on mode
+    var name by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var seeded by rememberSaveable { mutableStateOf(false) }
+
+    val isEditing = shelfId != null
+
     LaunchedEffect(shelfId) {
-        if (shelfId != null) {
-            viewModel.initEdit(shelfId)
-        } else {
-            viewModel.initCreate()
+        if (shelfId != null) viewModel.initEdit(shelfId) else viewModel.initCreate()
+    }
+
+    LaunchedEffect(state) {
+        val current = state
+        if (current is CreateEditShelfUiState.Loaded && !seeded) {
+            name = current.name
+            description = current.description
+            seeded = true
         }
     }
 
-    // Show error in snackbar
-    LaunchedEffect(state.error) {
-        state.error?.let { error ->
-            snackbarHostState.showSnackbar(error)
-            viewModel.clearError()
+    LaunchedEffect(viewModel) {
+        viewModel.navActions.collect { action ->
+            when (action) {
+                CreateEditShelfNavAction.NavigateBack -> onBack()
+            }
         }
     }
+
+    LaunchedEffect(state) {
+        val current = state
+        if (current is CreateEditShelfUiState.Error) {
+            snackbarHostState.showSnackbar(current.message)
+            viewModel.dismissError()
+        }
+    }
+
+    val isLoading = state is CreateEditShelfUiState.LoadingExisting
+    val isSaving = state is CreateEditShelfUiState.Saving
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (state.isEditing) "Edit Shelf" else "Create Shelf",
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.common_back),
-                        )
-                    }
-                },
-                actions = {
-                    if (state.isEditing) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = stringResource(Res.string.shelf_delete_shelf),
-                                tint = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
+            CreateEditShelfTopBar(
+                isEditing = isEditing,
+                onBack = onBack,
+                onDeleteClick = { showDeleteDialog = true },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
     ) { paddingValues ->
-        if (state.isLoading) {
+        if (isLoading) {
             ListenUpLoadingIndicator(
                 modifier =
                     Modifier
@@ -133,85 +132,150 @@ fun CreateEditShelfScreen(
                         .padding(paddingValues),
             )
         } else {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .verticalScroll(rememberScrollState())
-                        .imePadding()
-                        .padding(16.dp),
-            ) {
-                // Name field
-                ListenUpTextField(
-                    value = state.name,
-                    onValueChange = viewModel::updateName,
-                    label = "Name",
-                    placeholder = stringResource(Res.string.common_shelf_name_hint),
+            CreateEditShelfFormBody(
+                name = name,
+                description = description,
+                isEditing = isEditing,
+                isSaving = isSaving,
+                canSave = name.isNotBlank() && !isSaving,
+                onNameChange = { name = it },
+                onDescriptionChange = { description = it },
+                onSave = { viewModel.save(name, description) },
+                paddingValues = paddingValues,
+            )
+        }
+
+        if (showDeleteDialog) {
+            DeleteShelfDialog(
+                onConfirm = {
+                    showDeleteDialog = false
+                    viewModel.delete()
+                },
+                onDismiss = { showDeleteDialog = false },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreateEditShelfTopBar(
+    isEditing: Boolean,
+    onBack: () -> Unit,
+    onDeleteClick: () -> Unit,
+) {
+    TopAppBar(
+        title = { Text(text = if (isEditing) "Edit Shelf" else "Create Shelf") },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(Res.string.common_back),
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Description field
-                OutlinedTextField(
-                    value = state.description,
-                    onValueChange = viewModel::updateDescription,
-                    label = { Text(stringResource(Res.string.shelf_description_optional)) },
-                    placeholder = { Text(stringResource(Res.string.shelf_whats_this_shelf_for)) },
-                    minLines = 3,
-                    maxLines = 5,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Save button
-                Button(
-                    onClick = { viewModel.save(onSuccess = onBack) },
-                    enabled = state.canSave,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text =
-                            when {
-                                state.isSaving -> "Saving..."
-                                state.isEditing -> "Save Changes"
-                                else -> "Create Shelf"
-                            },
-                    )
-                }
-
-                // Delete confirmation dialog
-                if (showDeleteDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showDeleteDialog = false },
-                        shape = MaterialTheme.shapes.large,
-                        title = { Text(stringResource(Res.string.shelf_delete_shelf)) },
-                        text = {
-                            Text(stringResource(Res.string.shelf_this_will_permanently_delete_this))
-                        },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    showDeleteDialog = false
-                                    viewModel.delete(onSuccess = onBack)
-                                },
-                                colors =
-                                    ButtonDefaults.textButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.error,
-                                    ),
-                            ) {
-                                Text(stringResource(Res.string.common_delete))
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showDeleteDialog = false }) {
-                                Text(stringResource(Res.string.common_cancel))
-                            }
-                        },
+            }
+        },
+        actions = {
+            if (isEditing) {
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = stringResource(Res.string.shelf_delete_shelf),
+                        tint = MaterialTheme.colorScheme.error,
                     )
                 }
             }
+        },
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
+    )
+}
+
+@Composable
+private fun CreateEditShelfFormBody(
+    name: String,
+    description: String,
+    isEditing: Boolean,
+    isSaving: Boolean,
+    canSave: Boolean,
+    onNameChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit,
+    onSave: () -> Unit,
+    paddingValues: androidx.compose.foundation.layout.PaddingValues,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(16.dp),
+    ) {
+        ListenUpTextField(
+            value = name,
+            onValueChange = onNameChange,
+            label = "Name",
+            placeholder = stringResource(Res.string.common_shelf_name_hint),
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = description,
+            onValueChange = onDescriptionChange,
+            label = { Text(stringResource(Res.string.shelf_description_optional)) },
+            placeholder = { Text(stringResource(Res.string.shelf_whats_this_shelf_for)) },
+            minLines = 3,
+            maxLines = 5,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onSave,
+            enabled = canSave,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text =
+                    when {
+                        isSaving -> "Saving..."
+                        isEditing -> "Save Changes"
+                        else -> "Create Shelf"
+                    },
+            )
         }
     }
+}
+
+@Composable
+private fun DeleteShelfDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.large,
+        title = { Text(stringResource(Res.string.shelf_delete_shelf)) },
+        text = { Text(stringResource(Res.string.shelf_this_will_permanently_delete_this)) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors =
+                    ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+            ) {
+                Text(stringResource(Res.string.common_delete))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.common_cancel))
+            }
+        },
+    )
 }
