@@ -104,7 +104,8 @@ class ServerSelectViewModelTest {
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
 
-            ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
+            keepStateHot(viewModel)
 
             verify { serverRepository.startDiscovery() }
         }
@@ -144,6 +145,7 @@ class ServerSelectViewModelTest {
             every { serverRepository.startDiscovery() } returns Unit
 
             val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
             viewModel.navigationEvents.test {
@@ -164,6 +166,7 @@ class ServerSelectViewModelTest {
             every { serverRepository.stopDiscovery() } returns Unit
 
             val viewModel = ServerSelectViewModel(serverRepository, serverConfig, instanceRepository)
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.RefreshClicked)
