@@ -82,13 +82,14 @@ fun TagDetailScreen(
     }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val readyState = state as? TagDetailUiState.Ready
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = state.tagName.ifBlank { "Tag" },
+                        text = readyState?.tagName ?: "Tag",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -115,22 +116,22 @@ fun TagDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            when {
-                state.isLoading -> {
+            when (val current = state) {
+                TagDetailUiState.Idle, TagDetailUiState.Loading -> {
                     ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                state.error != null -> {
+                is TagDetailUiState.Error -> {
                     Text(
-                        text = state.error ?: "Unknown error",
+                        text = current.message,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center),
                     )
                 }
 
-                else -> {
+                is TagDetailUiState.Ready -> {
                     TagDetailContent(
-                        state = state,
+                        state = current,
                         onBookClick = onBookClick,
                     )
                 }
@@ -144,7 +145,7 @@ fun TagDetailScreen(
  */
 @Composable
 private fun TagDetailContent(
-    state: TagDetailUiState,
+    state: TagDetailUiState.Ready,
     onBookClick: (String) -> Unit,
 ) {
     LazyColumn(
