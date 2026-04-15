@@ -6,7 +6,6 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.PlatformUtils
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.error.ErrorMapper
 import com.calypsan.listenup.client.core.error.ServerConnectError
 import com.calypsan.listenup.client.core.error.UnknownError
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
@@ -131,10 +130,9 @@ class ServerConnectViewModel(
             }
 
             else -> {
-                val appError =
-                    (null as Exception?)?.let { ErrorMapper.map(it) }
-                        ?: UnknownError(message = result.message, debugInfo = null)
-                ServerConnectError.VerificationFailed(appError)
+                ServerConnectError.VerificationFailed(
+                    UnknownError(message = result.message, debugInfo = null),
+                )
             }
         }
     }
