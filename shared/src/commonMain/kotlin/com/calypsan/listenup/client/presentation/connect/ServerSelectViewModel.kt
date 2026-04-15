@@ -10,17 +10,17 @@ import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.ServerRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -39,14 +39,14 @@ private val logger = KotlinLogging.logger {}
  * with transient UI concerns (selection, connection, error) tracked in a
  * private [Overlay] StateFlow.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 class ServerSelectViewModel(
     private val serverRepository: ServerRepository,
     private val serverConfig: ServerConfig,
     private val instanceRepository: InstanceRepository,
 ) : ViewModel() {
-    private val refreshTrigger = MutableStateFlow(0)
+    private val isDiscovering = MutableStateFlow(true)
     private val overlay = MutableStateFlow<Overlay>(Overlay.None)
+    private var discoveryJob: Job? = null
 
     private sealed interface Overlay {
         data object None : Overlay
@@ -61,23 +61,12 @@ class ServerSelectViewModel(
         ) : Overlay
     }
 
-    /**
-     * Servers paired with a freshness flag. `emitted = false` means no list
-     * has arrived from the repository since the last refresh. `flatMapLatest`
-     * resets the pairing when [refreshTrigger] increments.
-     */
-    private val serversWithFreshness: Flow<Pair<List<ServerWithStatus>, Boolean>> =
-        refreshTrigger.flatMapLatest {
-            flow {
-                emit(emptyList<ServerWithStatus>() to false)
-                serverRepository.observeServers().collect { servers ->
-                    emit(servers to true)
-                }
-            }
-        }
-
     val state: StateFlow<ServerSelectUiState> =
-        combine(serversWithFreshness, overlay) { (servers, emitted), current ->
+        combine(
+            serverRepository.observeServers(),
+            overlay,
+            isDiscovering,
+        ) { servers, current, discovering ->
             when (current) {
                 is Overlay.Connecting -> {
                     ServerSelectUiState.Connecting(servers, current.serverId)
@@ -88,18 +77,19 @@ class ServerSelectViewModel(
                 }
 
                 Overlay.None -> {
-                    if (emitted) {
-                        ServerSelectUiState.Ready(servers)
-                    } else {
+                    if (discovering) {
                         ServerSelectUiState.Discovering(servers)
+                    } else {
+                        ServerSelectUiState.Ready(servers)
                     }
                 }
             }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = ServerSelectUiState.Discovering(emptyList()),
-        )
+        }.distinctUntilChanged()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = ServerSelectUiState.Discovering(emptyList()),
+            )
 
     private val _navigationEvents = Channel<NavigationEvent>(Channel.BUFFERED)
     val navigationEvents: Flow<NavigationEvent> = _navigationEvents.receiveAsFlow()
@@ -112,8 +102,25 @@ class ServerSelectViewModel(
     }
 
     init {
+        beginDiscovery()
+    }
+
+    /**
+     * Start mDNS scanning and flip [isDiscovering] to false on the first
+     * emission from the repository. Cancels any in-flight discovery watcher
+     * so a rapid refresh cannot leave two coroutines racing.
+     */
+    private fun beginDiscovery() {
         logger.info { "Starting server discovery" }
+        isDiscovering.value = true
         serverRepository.startDiscovery()
+        discoveryJob?.cancel()
+        discoveryJob =
+            viewModelScope.launch {
+                serverRepository.observeServers().take(1).collect {
+                    isDiscovering.value = false
+                }
+            }
     }
 
     fun onEvent(event: ServerSelectUiEvent) {
@@ -213,8 +220,7 @@ class ServerSelectViewModel(
     private fun handleRefreshClicked() {
         logger.info { "Refresh discovery requested" }
         serverRepository.stopDiscovery()
-        refreshTrigger.update { it + 1 }
-        serverRepository.startDiscovery()
+        beginDiscovery()
     }
 
     override fun onCleared() {
