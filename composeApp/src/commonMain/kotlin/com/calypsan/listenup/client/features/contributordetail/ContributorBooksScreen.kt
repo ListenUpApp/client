@@ -83,23 +83,23 @@ fun ContributorBooksScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        when {
-            state.isLoading -> {
+        when (val current = state) {
+            ContributorBooksUiState.Idle, ContributorBooksUiState.Loading -> {
                 ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
             }
 
-            state.error != null -> {
+            is ContributorBooksUiState.Error -> {
                 Text(
-                    text = state.error ?: "Unknown error",
+                    text = current.message,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
 
-            else -> {
+            is ContributorBooksUiState.Ready -> {
                 DeepDiveContent(
                     contributorId = contributorId,
-                    state = state,
+                    state = current,
                     onBackClick = onBackClick,
                     onBookClick = onBookClick,
                 )
@@ -115,7 +115,7 @@ fun ContributorBooksScreen(
 @Composable
 private fun DeepDiveContent(
     contributorId: String,
-    state: ContributorBooksUiState,
+    state: ContributorBooksUiState.Ready,
     onBackClick: () -> Unit,
     onBookClick: (String) -> Unit,
 ) {
@@ -149,7 +149,7 @@ private fun DeepDiveContent(
  */
 @Composable
 private fun HybridLayout(
-    state: ContributorBooksUiState,
+    state: ContributorBooksUiState.Ready,
     colorScheme: ContributorColorScheme,
     surfaceColor: Color,
     onBackClick: () -> Unit,
@@ -202,7 +202,7 @@ private fun HybridLayout(
  */
 @Composable
 private fun GridOnlyLayout(
-    state: ContributorBooksUiState,
+    state: ContributorBooksUiState.Ready,
     colorScheme: ContributorColorScheme,
     surfaceColor: Color,
     onBackClick: () -> Unit,

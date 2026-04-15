@@ -8,123 +8,147 @@ import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.repository.ContributorRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.util.calculateProgressMap
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * ViewModel for the Contributor Books screen (View All).
  *
  * Shows all books for a contributor in a specific role, grouped by series.
  * Series appear first (alphabetically), followed by standalone books.
+ *
+ * The screen supplies `(contributorId, role)` via [loadBooks]; the flow
+ * pipeline uses `flatMapLatest` to swap upstream sources when the request
+ * changes, and `.stateIn(WhileSubscribed)` so the pipeline is only hot
+ * while the screen is observing.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ContributorBooksViewModel(
     private val contributorRepository: ContributorRepository,
     private val playbackPositionRepository: PlaybackPositionRepository,
 ) : ViewModel() {
-    val state: StateFlow<ContributorBooksUiState>
-        field = MutableStateFlow(ContributorBooksUiState())
+    private data class LoadRequest(
+        val contributorId: String,
+        val role: String,
+    )
 
-    /**
-     * Load all books for a contributor in a specific role.
-     *
-     * @param contributorId The ID of the contributor
-     * @param role The role to filter by (e.g., "author", "narrator")
-     */
+    private val request = MutableStateFlow<LoadRequest?>(null)
+
+    val state: StateFlow<ContributorBooksUiState> =
+        request
+            .flatMapLatest { req ->
+                if (req == null) {
+                    flowOf(ContributorBooksUiState.Idle)
+                } else {
+                    combine(
+                        contributorRepository.observeById(req.contributorId).filterNotNull(),
+                        contributorRepository.observeBooksForContributorRole(req.contributorId, req.role),
+                    ) { contributor, booksWithRole ->
+                        buildReadyState(contributor.name, req.role, booksWithRole) as ContributorBooksUiState
+                    }.onStart { emit(ContributorBooksUiState.Loading) }
+                }
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = ContributorBooksUiState.Idle,
+            )
+
+    /** Set the (contributor, role) pair to observe. Safe to call repeatedly. */
     fun loadBooks(
         contributorId: String,
         role: String,
     ) {
-        state.value = state.value.copy(isLoading = true)
+        request.value = LoadRequest(contributorId, role)
+    }
 
-        viewModelScope.launch {
-            // Load contributor name for the title
-            contributorRepository.observeById(contributorId).filterNotNull().collectLatest { contributor ->
-                state.value = state.value.copy(contributorName = contributor.name)
-            }
-        }
+    private suspend fun buildReadyState(
+        contributorName: String,
+        role: String,
+        booksWithRole: List<com.calypsan.listenup.client.domain.repository.BookWithContributorRole>,
+    ): ContributorBooksUiState.Ready {
+        val books = booksWithRole.map { it.book }
+        val bookProgress = playbackPositionRepository.calculateProgressMap(books)
 
-        viewModelScope.launch {
-            contributorRepository.observeBooksForContributorRole(contributorId, role).collectLatest { booksWithRole ->
-                val books = booksWithRole.map { it.book }
-                val contributorName = state.value.contributorName
+        val bookCreditedAs =
+            booksWithRole
+                .mapNotNull { bwr ->
+                    val creditedAs = bwr.creditedAs
+                    if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
+                        bwr.book.id.value to creditedAs
+                    } else {
+                        null
+                    }
+                }.toMap()
 
-                // Load progress for all books
-                val bookProgress = playbackPositionRepository.calculateProgressMap(books)
-
-                // Extract creditedAs for books where the attribution differs
-                val bookCreditedAs =
-                    booksWithRole
-                        .mapNotNull { bwr ->
-                            val creditedAs = bwr.creditedAs
-                            if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
-                                bwr.book.id.value to creditedAs
-                            } else {
-                                null
-                            }
-                        }.toMap()
-
-                // Group books by series
-                val seriesGroups =
-                    books
-                        .filter { it.seriesName != null }
-                        .groupBy { it.seriesName!! }
-                        .map { (seriesName, seriesBooks) ->
-                            SeriesGroup(
-                                seriesName = seriesName,
-                                books =
-                                    seriesBooks.sortedBy {
-                                        it.seriesSequence?.toFloatOrNull() ?: Float.MAX_VALUE
-                                    },
-                            )
-                        }.sortedBy { it.seriesName }
-
-                // Standalone books (no series)
-                val standaloneBooks =
-                    books
-                        .filter { it.seriesName == null }
-                        .sortedBy { it.title }
-
-                state.value =
-                    ContributorBooksUiState(
-                        isLoading = false,
-                        contributorName = contributorName,
-                        roleDisplayName = ContributorDetailViewModel.roleToDisplayName(role),
-                        seriesGroups = seriesGroups,
-                        standaloneBooks = standaloneBooks,
-                        bookProgress = bookProgress,
-                        bookCreditedAs = bookCreditedAs,
-                        error = null,
+        val seriesGroups =
+            books
+                .filter { it.seriesName != null }
+                .groupBy { it.seriesName!! }
+                .map { (seriesName, seriesBooks) ->
+                    SeriesGroup(
+                        seriesName = seriesName,
+                        books =
+                            seriesBooks.sortedBy {
+                                it.seriesSequence?.toFloatOrNull() ?: Float.MAX_VALUE
+                            },
                     )
-            }
-        }
+                }.sortedBy { it.seriesName }
+
+        val standaloneBooks =
+            books
+                .filter { it.seriesName == null }
+                .sortedBy { it.title }
+
+        return ContributorBooksUiState.Ready(
+            contributorName = contributorName,
+            roleDisplayName = ContributorDetailViewModel.roleToDisplayName(role),
+            seriesGroups = seriesGroups,
+            standaloneBooks = standaloneBooks,
+            bookProgress = bookProgress,
+            bookCreditedAs = bookCreditedAs,
+        )
     }
 }
 
 /**
  * UI state for the Contributor Books screen.
  */
-data class ContributorBooksUiState(
-    /** Start with loading=true to avoid briefly showing empty content before data loads */
-    val isLoading: Boolean = true,
-    val contributorName: String = "",
-    val roleDisplayName: String = "",
-    val seriesGroups: List<SeriesGroup> = emptyList(),
-    val standaloneBooks: List<Book> = emptyList(),
-    val bookProgress: Map<String, Float> = emptyMap(),
-    /** Maps bookId to creditedAs name when different from contributor's name */
-    val bookCreditedAs: Map<String, String> = emptyMap(),
-    val error: String? = null,
-) {
-    /** Total number of books */
-    val totalBooks: Int
-        get() = seriesGroups.sumOf { it.books.size } + standaloneBooks.size
+sealed interface ContributorBooksUiState {
+    /** No request yet (pre-[ContributorBooksViewModel.loadBooks]). */
+    data object Idle : ContributorBooksUiState
 
-    /** Whether there are any standalone books */
-    val hasStandaloneBooks: Boolean
-        get() = standaloneBooks.isNotEmpty()
+    /** Upstream has not yet produced data for the requested (contributor, role). */
+    data object Loading : ContributorBooksUiState
+
+    /** Books loaded and grouped. */
+    data class Ready(
+        val contributorName: String,
+        val roleDisplayName: String,
+        val seriesGroups: List<SeriesGroup>,
+        val standaloneBooks: List<Book>,
+        val bookProgress: Map<String, Float>,
+        /** Maps bookId to creditedAs name when different from contributor's name. */
+        val bookCreditedAs: Map<String, String>,
+    ) : ContributorBooksUiState {
+        val totalBooks: Int
+            get() = seriesGroups.sumOf { it.books.size } + standaloneBooks.size
+
+        val hasStandaloneBooks: Boolean
+            get() = standaloneBooks.isNotEmpty()
+    }
+
+    /** Load failed. */
+    data class Error(
+        val message: String,
+    ) : ContributorBooksUiState
 }
 
 /**
