@@ -56,7 +56,7 @@ class ServerSelectViewModel(
         ) : Overlay
 
         data class Failed(
-            val serverId: String?,
+            val serverId: String,
             val message: String,
         ) : Overlay
     }

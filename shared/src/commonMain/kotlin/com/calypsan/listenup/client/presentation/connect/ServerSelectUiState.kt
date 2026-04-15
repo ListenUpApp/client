@@ -33,7 +33,7 @@ sealed interface ServerSelectUiState {
     /** Activation failed. */
     data class Error(
         override val servers: List<ServerWithStatus>,
-        val selectedServerId: String?,
+        val selectedServerId: String,
         val message: String,
     ) : ServerSelectUiState
 }
