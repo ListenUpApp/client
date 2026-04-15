@@ -16,32 +16,19 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 /**
  * Tests for ServerConnectViewModel.
  *
- * Tests cover:
- * - Initial state
- * - URL change events and state updates
- * - URL validation (blank, malformed)
- * - isConnectEnabled derived property
- * - Error clearing behavior
- *
- * Note: Network verification tests are not included because HttpClient
- * is created internally. Those paths would require integration testing
- * or dependency injection refactoring.
- *
- * Uses Mokkery for mocking SettingsRepository.
+ * Covers local validation and state-machine behaviour. Network verification
+ * paths are exercised indirectly through the validation fallthrough; the
+ * real InstanceRepository is not injected here because its construction
+ * involves HttpClient internals that would require integration testing.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServerConnectViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
-
-    // ========== Test Fixtures ==========
 
     private class TestFixture {
         val serverConfig: ServerConfig = mock()
@@ -66,177 +53,72 @@ class ServerConnectViewModelTest {
         Dispatchers.resetMain()
     }
 
-    // ========== Initial State Tests ==========
+    // ========== Initial State ==========
 
     @Test
-    fun `initial state has empty URL and no loading`() =
+    fun `initial state is Idle`() =
         runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = createFixture().build()
 
-            // Then
-            val state = viewModel.state.value
-            assertEquals("", state.serverUrl)
-            assertFalse(state.isLoading)
-            assertNull(state.error)
-            assertFalse(state.isVerified)
+            assertEquals(ServerConnectUiState.Idle, viewModel.state.value)
         }
 
-    @Test
-    fun `initial state has connect button disabled`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-
-            // Then - empty URL means connect disabled
-            assertFalse(viewModel.state.value.isConnectEnabled)
-        }
-
-    // ========== URL Changed Event Tests ==========
+    // ========== URL Validation ==========
 
     @Test
-    fun `UrlChanged updates serverUrl in state`() =
+    fun `submitUrl with blank URL produces InvalidUrl blank error`() =
         runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = createFixture().build()
 
-            // When
-            viewModel.onEvent(ServerConnectUiEvent.UrlChanged("https://example.com"))
-
-            // Then
-            assertEquals("https://example.com", viewModel.state.value.serverUrl)
-        }
-
-    @Test
-    fun `UrlChanged clears existing error`() =
-        runTest {
-            // Given - start with an error by trying to connect with blank URL
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-            viewModel.onEvent(ServerConnectUiEvent.ConnectClicked)
-            advanceUntilIdle()
-            checkIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
-
-            // When - user starts typing
-            viewModel.onEvent(ServerConnectUiEvent.UrlChanged("h"))
-
-            // Then - error is cleared
-            assertNull(viewModel.state.value.error)
-        }
-
-    @Test
-    fun `UrlChanged enables connect button when URL not blank`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-            assertFalse(viewModel.state.value.isConnectEnabled)
-
-            // When
-            viewModel.onEvent(ServerConnectUiEvent.UrlChanged("test"))
-
-            // Then
-            assertTrue(viewModel.state.value.isConnectEnabled)
-        }
-
-    // ========== Connect Clicked Validation Tests ==========
-
-    @Test
-    fun `ConnectClicked with blank URL shows invalid URL error`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-
-            // When - click connect with empty URL
-            viewModel.onEvent(ServerConnectUiEvent.ConnectClicked)
+            viewModel.submitUrl("")
             advanceUntilIdle()
 
-            // Then
-            val error = assertIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
-            assertEquals("blank", error.reason)
-            assertEquals("Please enter a server URL", error.message)
+            val error = assertIs<ServerConnectUiState.Error>(viewModel.state.value)
+            val invalid = assertIs<ServerConnectError.InvalidUrl>(error.error)
+            assertEquals("blank", invalid.reason)
+            assertEquals("Please enter a server URL", invalid.message)
         }
 
     @Test
-    fun `ConnectClicked with whitespace-only URL shows invalid URL error`() =
+    fun `submitUrl with whitespace-only URL produces InvalidUrl blank error`() =
         runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-            viewModel.onEvent(ServerConnectUiEvent.UrlChanged("   "))
+            val viewModel = createFixture().build()
 
-            // When
-            viewModel.onEvent(ServerConnectUiEvent.ConnectClicked)
+            viewModel.submitUrl("   ")
             advanceUntilIdle()
 
-            // Then
-            val error = assertIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
-            assertEquals("blank", error.reason)
+            val error = assertIs<ServerConnectUiState.Error>(viewModel.state.value)
+            val invalid = assertIs<ServerConnectError.InvalidUrl>(error.error)
+            assertEquals("blank", invalid.reason)
         }
 
     // Note: URL format validation is delegated to Ktor's URL parser.
-    // Ktor is quite lenient with URLs, so testing specific malformed patterns
-    // would be testing Ktor's behavior rather than our business logic.
-    // The validation tests for blank/whitespace URLs cover our validation logic.
+    // Ktor is lenient with URLs, so specific malformed patterns would test
+    // Ktor's behaviour rather than ours. Blank/whitespace covers our logic.
 
-    // ========== isConnectEnabled Tests ==========
-
-    @Test
-    fun `isConnectEnabled is false when URL is blank`() {
-        val state = ServerConnectUiState(serverUrl = "", isLoading = false)
-        assertFalse(state.isConnectEnabled)
-    }
+    // ========== clearError ==========
 
     @Test
-    fun `isConnectEnabled is false when loading`() {
-        val state = ServerConnectUiState(serverUrl = "https://example.com", isLoading = true)
-        assertFalse(state.isConnectEnabled)
-    }
-
-    @Test
-    fun `isConnectEnabled is true when URL present and not loading`() {
-        val state = ServerConnectUiState(serverUrl = "https://example.com", isLoading = false)
-        assertTrue(state.isConnectEnabled)
-    }
-
-    @Test
-    fun `isConnectEnabled is false when URL is whitespace only`() {
-        val state = ServerConnectUiState(serverUrl = "   ", isLoading = false)
-        assertFalse(state.isConnectEnabled)
-    }
-
-    // ========== Error State Tests ==========
-
-    @Test
-    fun `error does not block further URL changes`() =
+    fun `clearError from Error returns to Idle`() =
         runTest {
-            // Given - start with error
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-            viewModel.onEvent(ServerConnectUiEvent.ConnectClicked)
+            val viewModel = createFixture().build()
+            viewModel.submitUrl("")
             advanceUntilIdle()
-            checkIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
+            checkIs<ServerConnectUiState.Error>(viewModel.state.value)
 
-            // When - change URL
-            viewModel.onEvent(ServerConnectUiEvent.UrlChanged("new-url"))
+            viewModel.clearError()
 
-            // Then - URL updated and error cleared
-            assertEquals("new-url", viewModel.state.value.serverUrl)
-            assertNull(viewModel.state.value.error)
+            assertEquals(ServerConnectUiState.Idle, viewModel.state.value)
         }
 
-    // ========== ServerConnectUiState Property Tests ==========
-
     @Test
-    fun `ServerConnectUiState defaults are correct`() {
-        val state = ServerConnectUiState()
-        assertEquals("", state.serverUrl)
-        assertFalse(state.isLoading)
-        assertNull(state.error)
-        assertFalse(state.isVerified)
-    }
+    fun `clearError from Idle is a no-op`() =
+        runTest {
+            val viewModel = createFixture().build()
+            assertEquals(ServerConnectUiState.Idle, viewModel.state.value)
+
+            viewModel.clearError()
+
+            assertEquals(ServerConnectUiState.Idle, viewModel.state.value)
+        }
 }

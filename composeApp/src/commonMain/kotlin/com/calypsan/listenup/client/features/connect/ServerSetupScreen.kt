@@ -28,8 +28,11 @@ import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
@@ -38,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.BrandLogo
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpTextField
-import com.calypsan.listenup.client.presentation.connect.ServerConnectUiEvent
 import com.calypsan.listenup.client.presentation.connect.ServerConnectUiState
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import org.koin.compose.koinInject
@@ -71,16 +73,22 @@ fun ServerSetupScreen(
     viewModel: ServerConnectViewModel = koinInject(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var serverUrl by rememberSaveable { mutableStateOf("") }
 
-    LaunchedEffect(state.isVerified) {
-        if (state.isVerified) {
+    LaunchedEffect(state) {
+        if (state is ServerConnectUiState.Verified) {
             onServerVerified()
         }
     }
 
     ServerSetupContent(
         state = state,
-        onEvent = viewModel::onEvent,
+        serverUrl = serverUrl,
+        onUrlChanged = { newUrl ->
+            serverUrl = newUrl
+            viewModel.clearError()
+        },
+        onSubmit = { viewModel.submitUrl(serverUrl) },
         onBack = onBack,
         modifier = modifier,
     )
@@ -92,7 +100,9 @@ fun ServerSetupScreen(
 @Composable
 private fun ServerSetupContent(
     state: ServerConnectUiState,
-    onEvent: (ServerConnectUiEvent) -> Unit,
+    serverUrl: String,
+    onUrlChanged: (String) -> Unit,
+    onSubmit: () -> Unit,
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -143,7 +153,9 @@ private fun ServerSetupContent(
                     ) {
                         FormContent(
                             state = state,
-                            onEvent = onEvent,
+                            serverUrl = serverUrl,
+                            onUrlChanged = onUrlChanged,
+                            onSubmit = onSubmit,
                             modifier = Modifier.widthIn(max = 480.dp),
                         )
 
@@ -193,7 +205,9 @@ private fun ServerSetupContent(
                 ) {
                     FormContent(
                         state = state,
-                        onEvent = onEvent,
+                        serverUrl = serverUrl,
+                        onUrlChanged = onUrlChanged,
+                        onSubmit = onSubmit,
                         modifier = Modifier.padding(24.dp),
                     )
                 }
@@ -221,9 +235,14 @@ private fun ServerSetupContent(
 @Composable
 private fun FormContent(
     state: ServerConnectUiState,
-    onEvent: (ServerConnectUiEvent) -> Unit,
+    serverUrl: String,
+    onUrlChanged: (String) -> Unit,
+    onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isVerifying = state is ServerConnectUiState.Verifying
+    val errorState = state as? ServerConnectUiState.Error
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -237,30 +256,27 @@ private fun FormContent(
 
         // URL input field
         ListenUpTextField(
-            value = state.serverUrl,
-            onValueChange = { onEvent(ServerConnectUiEvent.UrlChanged(it)) },
+            value = serverUrl,
+            onValueChange = onUrlChanged,
             label = stringResource(Res.string.connect_server_url),
             placeholder = stringResource(Res.string.connect_server_url_placeholder),
-            isError = state.error != null,
-            supportingText = state.error?.message,
+            isError = errorState != null,
+            supportingText = errorState?.error?.message,
             keyboardOptions =
                 KeyboardOptions(
                     autoCorrectEnabled = false,
                     keyboardType = KeyboardType.Uri,
                     imeAction = ImeAction.Done,
                 ),
-            keyboardActions =
-                KeyboardActions(
-                    onDone = { onEvent(ServerConnectUiEvent.ConnectClicked) },
-                ),
+            keyboardActions = KeyboardActions(onDone = { onSubmit() }),
         )
 
         // Connect button
         ListenUpButton(
             text = stringResource(Res.string.connect_connect),
-            onClick = { onEvent(ServerConnectUiEvent.ConnectClicked) },
-            isLoading = state.isLoading,
-            enabled = state.isConnectEnabled,
+            onClick = onSubmit,
+            isLoading = isVerifying,
+            enabled = serverUrl.isNotBlank() && !isVerifying,
         )
     }
 }
