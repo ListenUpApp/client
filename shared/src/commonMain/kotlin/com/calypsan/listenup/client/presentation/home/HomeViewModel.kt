@@ -93,7 +93,7 @@ class HomeViewModel(
     private val snackbarChannel = Channel<String>(Channel.BUFFERED)
     val snackbarMessages: Flow<String> = snackbarChannel.receiveAsFlow()
 
-    private var hasFetchedShelves = false
+    @Volatile private var hasFetchedShelves = false
 
     private val userFlow = userRepository.observeCurrentUser()
 
@@ -120,14 +120,20 @@ class HomeViewModel(
             syncRepository.syncState,
             syncRepository.scanProgress,
         ) { user, cl, shelves, sync, scan ->
-            HomeUiState.Ready(
-                userName = extractFirstName(user?.displayName).orEmpty(),
-                timeGreeting = computeTimeGreeting(),
-                continueListening = cl,
-                myShelves = shelves,
-                isSyncing = sync is SyncState.Syncing || sync is SyncState.Progress,
-                scanProgress = scan,
-            )
+            val ready: HomeUiState =
+                HomeUiState.Ready(
+                    userName = extractFirstName(user?.displayName).orEmpty(),
+                    timeGreeting = computeTimeGreeting(),
+                    continueListening = cl,
+                    myShelves = shelves,
+                    isSyncing = sync is SyncState.Syncing || sync is SyncState.Progress,
+                    scanProgress = scan,
+                )
+            ready
+        }.catch { e ->
+            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+            logger.error(e) { "Home state pipeline failed" }
+            emit(HomeUiState.Error("Failed to load home screen"))
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),

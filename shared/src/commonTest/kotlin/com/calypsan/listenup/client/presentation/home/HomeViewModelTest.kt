@@ -515,10 +515,43 @@ class HomeViewModelTest {
             val viewModel = fixture.build()
 
             val emitted = mutableListOf<String>()
+            // Ordering matters: the snackbar collector must subscribe to the Channel-backed
+            // Flow before state subscription triggers the catch { trySend(...) } so the
+            // emission is routed to a live collector under runTest's virtual scheduler.
             backgroundScope.launch { viewModel.snackbarMessages.collect { emitted += it } }
             keepStateHot(viewModel)
             advanceUntilIdle()
 
             assertTrue(emitted.contains("Failed to load continue listening"))
+        }
+
+    @Test
+    fun `pipeline failure surfaces Error state`() =
+        runTest {
+            // Make the combine transform itself throw by failing the greeting
+            // computation. This isolates the failure to the outer pipeline (the
+            // `init` block does not call currentHour), so the terminal `.catch` is
+            // the only handler that sees it.
+            val fixture = createFixture()
+            // syncRepository stubs are installed by `build()`; install them here
+            // since we bypass build() to inject the failing currentHour.
+            every { fixture.syncRepository.scanProgress } returns fixture.scanProgressFlow
+            every { fixture.syncRepository.syncState } returns fixture.syncStateFlow
+            val viewModel =
+                HomeViewModel(
+                    homeRepository = fixture.homeRepository,
+                    userRepository = fixture.userRepository,
+                    shelfRepository = fixture.shelfRepository,
+                    syncRepository = fixture.syncRepository,
+                    currentHour = { throw RuntimeException("upstream boom") },
+                )
+            // Emit a non-null user so the combine pipeline's transform actually runs.
+            fixture.userFlow.value = createUser()
+            keepStateHot(viewModel)
+            advanceUntilIdle()
+
+            val state = viewModel.state.value
+            val error = assertIs<HomeUiState.Error>(state)
+            assertEquals("Failed to load home screen", error.message)
         }
 }
