@@ -69,6 +69,7 @@ import com.calypsan.listenup.client.domain.model.ProfileRecentBook
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.presentation.profile.UserProfileUiState
 import com.calypsan.listenup.client.presentation.profile.UserProfileViewModel
+import com.calypsan.listenup.client.presentation.profile.formatListenTime
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
@@ -119,6 +120,7 @@ fun UserProfileScreen(
     }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val isOwnProfile = (state as? UserProfileUiState.Ready)?.isOwnProfile == true
 
     Scaffold(
         topBar = {
@@ -133,7 +135,7 @@ fun UserProfileScreen(
                     }
                 },
                 actions = {
-                    if (state.isOwnProfile) {
+                    if (isOwnProfile) {
                         IconButton(onClick = onEditClick) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -157,23 +159,24 @@ fun UserProfileScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            when {
-                state.isLoading -> {
+            when (val current = state) {
+                is UserProfileUiState.Idle,
+                is UserProfileUiState.Loading,
+                -> {
                     ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                state.error != null -> {
+                is UserProfileUiState.Error -> {
                     Text(
-                        text = state.error ?: "Unknown error",
+                        text = current.message,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center),
                     )
                 }
 
-                else -> {
+                is UserProfileUiState.Ready -> {
                     ProfileContent(
-                        state = state,
-                        formatListenTime = viewModel::formatListenTime,
+                        state = current,
                         onBookClick = onBookClick,
                         onShelfClick = onShelfClick,
                         onCreateShelfClick = onCreateShelfClick,
@@ -186,8 +189,7 @@ fun UserProfileScreen(
 
 @Composable
 private fun ProfileContent(
-    state: UserProfileUiState,
-    formatListenTime: (Long) -> String,
+    state: UserProfileUiState.Ready,
     onBookClick: (String) -> Unit,
     onShelfClick: (String) -> Unit,
     onCreateShelfClick: () -> Unit,
