@@ -2,7 +2,6 @@
 
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.ProgressRefreshBus
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -11,10 +10,8 @@ import com.calypsan.listenup.client.domain.repository.HomeRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -142,23 +139,17 @@ class HomeRepositoryImpl(
      * by joining with book details. Provides real-time updates when
      * positions change locally (instant, no sync delay).
      *
-     * Combines Room's reactive query with ProgressRefreshBus to ensure
-     * the shelf updates immediately when playback is paused/stopped,
-     * even if Room's change notification is delayed.
-     *
      * @param limit Maximum number of books to return
      * @return Flow emitting list of ContinueListeningBook whenever positions change
      */
     override fun observeContinueListening(limit: Int): Flow<List<ContinueListeningBook>> =
-        combine(
-            // Push the sort + limit + "started" filter to SQL (Finding 09). Room still
-            // re-emits on any row change, so the Home shelf stays reactive without
-            // pulling every position to the client. The finished-check stays in
-            // Kotlin because it requires each book's duration, which Room doesn't
-            // have in this query's projection.
-            playbackPositionDao.observeRecentPositions(limit),
-            ProgressRefreshBus.refreshTrigger.onStart { emit(Unit) },
-        ) { positions, _ -> positions }
+        // Push the sort + limit + "started" filter to SQL (Finding 09). Room still
+        // re-emits on any row change, so the Home shelf stays reactive without
+        // pulling every position to the client. The finished-check stays in
+        // Kotlin because it requires each book's duration, which Room doesn't
+        // have in this query's projection.
+        playbackPositionDao
+            .observeRecentPositions(limit)
             .onEach { positions ->
                 val finishedCount = positions.count { it.isFinished }
                 logger.info {
