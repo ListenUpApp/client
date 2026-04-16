@@ -64,25 +64,35 @@ class ContributorDetailViewModel(
         ) : DeleteOverlay
     }
 
+    private val dataState: Flow<ContributorDetailUiState> =
+        contributorIdFlow.flatMapLatest { id ->
+            if (id == null) {
+                flowOf(ContributorDetailUiState.Idle)
+            } else {
+                combine(
+                    contributorRepository.observeById(id).filterNotNull(),
+                    contributorRepository.observeRolesWithCountForContributor(id),
+                ) { contributor, rolesWithCount ->
+                    buildReadyState(id, contributor, rolesWithCount) as ContributorDetailUiState
+                }.onStart { emit(ContributorDetailUiState.Loading) }
+            }
+        }
+
     val state: StateFlow<ContributorDetailUiState> =
-        contributorIdFlow
-            .flatMapLatest { id ->
-                if (id == null) {
-                    flowOf(ContributorDetailUiState.Idle)
-                } else {
-                    combine(
-                        contributorRepository.observeById(id).filterNotNull(),
-                        contributorRepository.observeRolesWithCountForContributor(id),
-                        deleteOverlay,
-                    ) { contributor, rolesWithCount, overlay ->
-                        buildReadyState(id, contributor, rolesWithCount, overlay) as ContributorDetailUiState
-                    }.onStart { emit(ContributorDetailUiState.Loading) }
-                }
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = ContributorDetailUiState.Idle,
-            )
+        combine(dataState, deleteOverlay) { data, overlay ->
+            if (data is ContributorDetailUiState.Ready) {
+                data.copy(
+                    isDeleting = overlay is DeleteOverlay.Deleting,
+                    deleteError = (overlay as? DeleteOverlay.Failed)?.message,
+                )
+            } else {
+                data
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ContributorDetailUiState.Idle,
+        )
 
     private val _navActions = Channel<ContributorDetailNavAction>(Channel.BUFFERED)
     val navActions: Flow<ContributorDetailNavAction> = _navActions.receiveAsFlow()
@@ -120,7 +130,6 @@ class ContributorDetailViewModel(
         contributorId: String,
         contributor: Contributor,
         rolesWithCount: List<RoleWithBookCount>,
-        overlay: DeleteOverlay,
     ): ContributorDetailUiState.Ready {
         val allCreditedAs = mutableMapOf<String, String>()
 
@@ -144,8 +153,8 @@ class ContributorDetailViewModel(
             roleSections = roleSections,
             bookProgress = bookProgress,
             bookCreditedAs = allCreditedAs,
-            isDeleting = overlay is DeleteOverlay.Deleting,
-            deleteError = (overlay as? DeleteOverlay.Failed)?.message,
+            isDeleting = false,
+            deleteError = null,
         )
     }
 
