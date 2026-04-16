@@ -21,28 +21,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.MetadataSearchResult
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
+import com.calypsan.listenup.client.presentation.metadata.MetadataEvent
+import com.calypsan.listenup.client.presentation.metadata.MetadataUiState
 import com.calypsan.listenup.client.presentation.metadata.MetadataViewModel
+import com.calypsan.listenup.client.presentation.metadata.PreviewLoadState
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.metadata_audible_catalog_try_a_different
 import listenup.composeapp.generated.resources.metadata_book_not_found_on_audible
-import listenup.composeapp.generated.resources.metadata_failed_to_load_metadata_preview
 import listenup.composeapp.generated.resources.common_back
 
 /**
- * Route composable for the match preview screen.
+ * Route for the match preview screen.
  *
- * Handles loading the current book and metadata preview, then displays
- * the MatchPreviewScreen with all necessary data.
+ * If the shared ViewModel hasn't already loaded a preview for this ASIN (e.g.
+ * the user deep-linked here or the flow was reset), re-initialize and trigger
+ * [MetadataViewModel.selectMatch]. [MetadataEvent.MatchApplied] drives
+ * navigation away.
  */
 @Composable
 fun MatchPreviewRoute(
@@ -53,87 +60,60 @@ fun MatchPreviewRoute(
     metadataViewModel: MetadataViewModel = koinViewModel(),
 ) {
     val bookRepository: BookRepository = koinInject()
-    val metadataState by metadataViewModel.state.collectAsStateWithLifecycle()
+    val state by metadataViewModel.state.collectAsStateWithLifecycle()
 
-    // Load book and metadata if not already loaded
     LaunchedEffect(bookId, asin) {
-        // If the metadata wasn't already loaded from the search, load it now
-        if (metadataState.previewBook == null || metadataState.selectedMatch?.asin != asin) {
-            metadataViewModel.initForBook(bookId, "", "")
-            // Create a temporary search result to trigger preview loading
-            val tempResult =
-                com.calypsan.listenup.client.domain.repository.MetadataSearchResult(
-                    asin = asin,
-                    title = "",
-                )
-            metadataViewModel.selectMatch(tempResult)
+        val current = state
+        val alreadyOnThisMatch =
+            current is MetadataUiState.Preview && current.match.asin == asin
+        if (!alreadyOnThisMatch) {
+            metadataViewModel.initForBook(bookId = bookId, title = "", author = "")
+            metadataViewModel.selectMatch(MetadataSearchResult(asin = asin, title = ""))
         }
     }
 
-    // Handle apply success
-    LaunchedEffect(metadataState.applySuccess) {
-        if (metadataState.applySuccess) {
-            onApplySuccess()
+    LaunchedEffect(metadataViewModel) {
+        metadataViewModel.events.collect { event ->
+            when (event) {
+                MetadataEvent.MatchApplied -> onApplySuccess()
+            }
         }
     }
 
-    // Get current book from repository
-    val currentBook by androidx.compose.runtime.produceState<com.calypsan.listenup.client.domain.model.Book?>(
-        initialValue = null,
-        key1 = bookId,
-    ) {
+    val currentBook by produceState<Book?>(initialValue = null, key1 = bookId) {
         value = bookRepository.getBook(bookId)
     }
 
-    // Show loading while data is being fetched
+    val preview = state as? MetadataUiState.Preview
     when {
-        currentBook == null || metadataState.isLoadingPreview -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
+        currentBook == null || preview == null || preview.loadState is PreviewLoadState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 ListenUpLoadingIndicator()
             }
         }
 
-        metadataState.previewError != null -> {
-            // API error - book not found on Audible, offer region selection
+        preview.loadState is PreviewLoadState.Failed -> {
             NotFoundErrorScreen(
-                selectedRegion = metadataState.selectedRegion,
-                onRegionSelected = { region ->
-                    metadataViewModel.changeRegion(region)
-                },
+                selectedRegion = preview.region,
+                onRegionSelected = metadataViewModel::changeRegion,
                 onBack = onBack,
             )
         }
 
-        metadataState.previewBook == null -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(Res.string.metadata_failed_to_load_metadata_preview),
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-
         else -> {
+            val ready = preview.loadState as PreviewLoadState.Ready
             MatchPreviewScreen(
                 currentBook = currentBook!!,
-                newMetadata = metadataState.previewBook!!,
-                selections = metadataState.selections,
-                isApplying = metadataState.isApplying,
-                applyError = metadataState.applyError,
-                previewNotFound = metadataState.previewNotFound,
-                selectedRegion = metadataState.selectedRegion,
-                // Cover selection
-                coverOptions = metadataState.coverOptions,
-                isLoadingCovers = metadataState.isLoadingCovers,
-                selectedCoverUrl = metadataState.selectedCoverUrl,
+                newMetadata = ready.preview,
+                selections = ready.selections,
+                isApplying = ready.isApplying,
+                applyError = ready.applyError,
+                previewNotFound = ready.previewNotFound,
+                selectedRegion = preview.region,
+                coverOptions = ready.coverOptions,
+                isLoadingCovers = ready.isLoadingCovers,
+                selectedCoverUrl = ready.selectedCoverUrl,
                 onSelectCover = metadataViewModel::selectCover,
-                // Callbacks
                 onRegionSelected = metadataViewModel::changeRegion,
                 onToggleField = metadataViewModel::toggleField,
                 onToggleAuthor = metadataViewModel::toggleAuthor,
@@ -190,7 +170,6 @@ private fun NotFoundErrorScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Region selector chips
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),

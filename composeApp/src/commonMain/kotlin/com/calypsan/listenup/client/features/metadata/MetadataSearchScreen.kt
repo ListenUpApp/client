@@ -48,6 +48,7 @@ import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSm
 import com.calypsan.listenup.client.domain.repository.MetadataSearchResult
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
 import com.calypsan.listenup.client.presentation.metadata.MetadataUiState
+import com.calypsan.listenup.client.presentation.metadata.SearchLoadState
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_back
@@ -68,13 +69,17 @@ import listenup.composeapp.generated.resources.metadata_title_author_narrator_or
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MetadataSearchScreen(
-    state: MetadataUiState,
+    state: MetadataUiState.Search,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onRegionSelected: (AudibleRegion) -> Unit,
     onResultClick: (MetadataSearchResult) -> Unit,
     onBack: () -> Unit,
 ) {
+    val isSearching = state.loadState is SearchLoadState.InFlight
+    val searchError = (state.loadState as? SearchLoadState.Failed)?.message
+    val searchResults = (state.loadState as? SearchLoadState.Loaded)?.results.orEmpty()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -97,28 +102,26 @@ fun MetadataSearchScreen(
                     .padding(paddingValues)
                     .padding(horizontal = 16.dp),
         ) {
-            // Context - what book we're searching for
-            if (state.currentTitle.isNotBlank()) {
+            if (state.context.currentTitle.isNotBlank()) {
                 Text(
-                    text = "Searching for: ${state.currentTitle}",
+                    text = "Searching for: ${state.context.currentTitle}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
             }
 
-            // Search field
             OutlinedTextField(
-                value = state.searchQuery,
+                value = state.query,
                 onValueChange = onQueryChange,
                 label = { Text(stringResource(Res.string.common_search)) },
                 placeholder = { Text(stringResource(Res.string.metadata_title_author_narrator_or_asin)) },
                 trailingIcon = {
                     IconButton(
                         onClick = onSearch,
-                        enabled = !state.isSearching && state.searchQuery.isNotBlank(),
+                        enabled = !isSearching && state.query.isNotBlank(),
                     ) {
-                        if (state.isSearching) {
+                        if (isSearching) {
                             ListenUpLoadingIndicatorSmall()
                         } else {
                             Icon(
@@ -136,27 +139,24 @@ fun MetadataSearchScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Region selector
             RegionSelector(
-                selectedRegion = state.selectedRegion,
+                selectedRegion = state.region,
                 onRegionSelected = onRegionSelected,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Error message
-            state.searchError?.let { error ->
+            if (searchError != null) {
                 Text(
-                    text = error,
+                    text = searchError,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
 
-            // Results
             when {
-                state.isSearching -> {
+                isSearching -> {
                     Box(
                         modifier =
                             Modifier
@@ -168,8 +168,8 @@ fun MetadataSearchScreen(
                     }
                 }
 
-                state.searchResults.isEmpty() && state.searchError == null -> {
-                    EmptyState(hasSearched = state.searchQuery.isNotBlank() && !state.isSearching)
+                searchResults.isEmpty() && searchError == null -> {
+                    EmptyState(hasSearched = state.query.isNotBlank() && !isSearching)
                 }
 
                 else -> {
@@ -178,7 +178,7 @@ fun MetadataSearchScreen(
                         modifier = Modifier.weight(1f),
                     ) {
                         items(
-                            items = state.searchResults,
+                            items = searchResults,
                             key = { it.asin },
                         ) { result ->
                             MetadataSearchResultItem(

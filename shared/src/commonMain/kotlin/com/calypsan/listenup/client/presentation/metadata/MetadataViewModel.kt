@@ -13,17 +13,18 @@ import com.calypsan.listenup.client.domain.repository.MetadataSearchResult
 import com.calypsan.listenup.client.domain.usecase.metadata.ApplyMetadataMatchUseCase
 import com.calypsan.listenup.client.domain.usecase.metadata.MetadataMatchSelections
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
-/**
- * Available Audible regions for metadata lookup.
- */
+/** Available Audible regions for metadata lookup. */
 enum class AudibleRegion(
     val code: String,
     val displayName: String,
@@ -40,11 +41,8 @@ enum class AudibleRegion(
     JP("jp", "Japan"),
 }
 
-/**
- * Tracks which metadata fields the user has selected to apply.
- */
+/** Tracks which metadata fields the user has selected to apply. */
 data class MetadataSelections(
-    // Simple fields
     val cover: Boolean = true,
     val title: Boolean = true,
     val subtitle: Boolean = true,
@@ -52,72 +50,137 @@ data class MetadataSelections(
     val publisher: Boolean = true,
     val releaseDate: Boolean = true,
     val language: Boolean = true,
-    // List fields - store selected ASINs/values
-    val selectedAuthors: Set<String> = emptySet(), // ASINs
-    val selectedNarrators: Set<String> = emptySet(), // ASINs
-    val selectedSeries: Set<String> = emptySet(), // ASINs
-    val selectedGenres: Set<String> = emptySet(), // Genre names
+    val selectedAuthors: Set<String> = emptySet(),
+    val selectedNarrators: Set<String> = emptySet(),
+    val selectedSeries: Set<String> = emptySet(),
+    val selectedGenres: Set<String> = emptySet(),
+)
+
+/** Simple metadata fields that can be toggled as a unit. */
+enum class MetadataField {
+    COVER,
+    TITLE,
+    SUBTITLE,
+    DESCRIPTION,
+    PUBLISHER,
+    RELEASE_DATE,
+    LANGUAGE,
+}
+
+/** Book context carried across wizard phases. */
+data class BookContext(
+    val bookId: String,
+    val currentTitle: String,
+    val currentAuthor: String,
+    val existingAsin: String?,
 )
 
 /**
- * UI state for the metadata search and match flow.
- */
-data class MetadataUiState(
-    // Book context
-    val bookId: String = "",
-    val currentTitle: String = "",
-    val currentAuthor: String = "",
-    val existingAsin: String? = null, // Pre-existing ASIN from embedded metadata
-    // Region selection
-    val selectedRegion: AudibleRegion = AudibleRegion.US,
-    // Search state
-    val searchQuery: String = "",
-    val searchResults: List<MetadataSearchResult> = emptyList(),
-    val isSearching: Boolean = false,
-    val searchError: String? = null,
-    // Preview state
-    val selectedMatch: MetadataSearchResult? = null,
-    val previewBook: MetadataBook? = null,
-    val isLoadingPreview: Boolean = false,
-    val previewError: String? = null, // API/network error - book not found
-    val previewNotFound: Boolean = false, // Book exists but has no/minimal data
-    // Field selections - what to apply
-    val selections: MetadataSelections = MetadataSelections(),
-    // Cover selection - multi-source covers
-    val coverOptions: List<CoverOption> = emptyList(),
-    val isLoadingCovers: Boolean = false,
-    val selectedCoverUrl: String? = null, // null = use Audible default from preview
-    // Apply state
-    val isApplying: Boolean = false,
-    val applySuccess: Boolean = false,
-    val applyError: String? = null,
-)
-
-/**
- * ViewModel for the metadata search and match flow.
+ * UI state for the metadata match wizard.
  *
- * Manages the full flow:
- * 1. Search Audible for matches
- * 2. Select a match and preview the changes
- * 3. Apply the match to update the book
+ * The wizard has three top-level phases:
+ * - [Idle] — no book loaded yet (pre-[MetadataViewModel.initForBook]).
+ * - [Search] — book loaded, user is searching / browsing results.
+ * - [Preview] — user picked a match; loading or displaying the preview.
+ *
+ * Each phase carries a single-axis sub-state sealed hierarchy (never two
+ * orthogonal ones), and the current [region] is lifted to the interface because
+ * it persists across phase transitions.
+ */
+sealed interface MetadataUiState {
+    val region: AudibleRegion
+
+    data class Idle(
+        override val region: AudibleRegion = AudibleRegion.US,
+    ) : MetadataUiState
+
+    data class Search(
+        override val region: AudibleRegion,
+        val context: BookContext,
+        val query: String,
+        val loadState: SearchLoadState,
+    ) : MetadataUiState
+
+    data class Preview(
+        override val region: AudibleRegion,
+        val context: BookContext,
+        val query: String,
+        val searchResults: List<MetadataSearchResult>,
+        val match: MetadataSearchResult,
+        val loadState: PreviewLoadState,
+    ) : MetadataUiState
+}
+
+/** Sub-state of [MetadataUiState.Search]. */
+sealed interface SearchLoadState {
+    data object Idle : SearchLoadState
+
+    data object InFlight : SearchLoadState
+
+    data class Loaded(
+        val results: List<MetadataSearchResult>,
+    ) : SearchLoadState
+
+    data class Failed(
+        val message: String,
+    ) : SearchLoadState
+}
+
+/** Sub-state of [MetadataUiState.Preview]. */
+sealed interface PreviewLoadState {
+    data object Loading : PreviewLoadState
+
+    /**
+     * Preview is ready. [isApplying] and [applyError] overlay the ready data
+     * while an apply mutation is in-flight / has just failed — they do not
+     * replace the preview (same pattern as ContributorDetail's delete overlay).
+     */
+    data class Ready(
+        val preview: MetadataBook,
+        val selections: MetadataSelections,
+        val coverOptions: List<CoverOption>,
+        val isLoadingCovers: Boolean,
+        val selectedCoverUrl: String?,
+        val isApplying: Boolean,
+        val applyError: String?,
+        val previewNotFound: Boolean,
+    ) : PreviewLoadState
+
+    data class Failed(
+        val message: String,
+    ) : PreviewLoadState
+}
+
+/** One-shot outcomes the Metadata wizard emits. */
+sealed interface MetadataEvent {
+    /** Apply succeeded; the route should navigate away. */
+    data object MatchApplied : MetadataEvent
+}
+
+/**
+ * ViewModel for the metadata search-and-match wizard.
+ *
+ * Command-driven: all transitions are explicit method calls; there is no
+ * reactive upstream. `searchAudible`, `getMetadataPreview` and `searchCovers`
+ * are one-shot suspend calls that throw on failure; results land in the
+ * appropriate [MetadataUiState] phase.
  */
 class MetadataViewModel(
     private val metadataRepository: MetadataRepository,
     private val applyMetadataMatchUseCase: ApplyMetadataMatchUseCase,
 ) : ViewModel() {
-    val state: StateFlow<MetadataUiState>
-        field = MutableStateFlow(MetadataUiState())
+    private val _state = MutableStateFlow<MetadataUiState>(MetadataUiState.Idle())
+    val state: StateFlow<MetadataUiState> = _state.asStateFlow()
+
+    private val eventChannel = Channel<MetadataEvent>(Channel.BUFFERED)
+    val events: Flow<MetadataEvent> = eventChannel.receiveAsFlow()
 
     /**
-     * Initialize the ViewModel for a specific book.
+     * Initialize the wizard for a specific book.
      *
-     * If the book has an existing ASIN, stores it for direct lookup.
-     * Otherwise, pre-fills the search query with the book's title and first author.
-     *
-     * @param bookId The book's ID
-     * @param title The book's title (for search query)
-     * @param author The book's first author (for search query)
-     * @param asin Optional existing ASIN from embedded metadata
+     * If the book has an existing ASIN, we seed the search query with it (the
+     * route can then auto-search for a direct match). Otherwise the query is
+     * `"$title $author"`.
      */
     fun initForBook(
         bookId: String,
@@ -129,122 +192,220 @@ class MetadataViewModel(
             buildString {
                 append(title)
                 if (author.isNotBlank()) {
-                    append(" ")
+                    append(' ')
                     append(author)
                 }
-            }
-
-        state.update {
-            it.copy(
-                bookId = bookId,
-                currentTitle = title,
-                currentAuthor = author,
-                existingAsin = asin,
-                searchQuery = query,
-                // Reset other state
-                searchResults = emptyList(),
-                searchError = null,
-                selectedMatch = null,
-                previewBook = null,
-                previewError = null,
-                previewNotFound = false,
-                applySuccess = false,
-                applyError = null,
+            }.trim()
+        _state.value =
+            MetadataUiState.Search(
+                region = _state.value.region,
+                context =
+                    BookContext(
+                        bookId = bookId,
+                        currentTitle = title,
+                        currentAuthor = author,
+                        existingAsin = asin,
+                    ),
+                query = query,
+                loadState = SearchLoadState.Idle,
             )
+    }
+
+    /** Update the search query while in the [MetadataUiState.Search] phase. */
+    fun updateQuery(query: String) {
+        _state.update { current ->
+            if (current is MetadataUiState.Search) current.copy(query = query) else current
         }
     }
 
-    /**
-     * Change the Audible region and re-fetch metadata for the current ASIN.
-     */
+    /** Change the Audible region. If in preview, re-fetch with the new region. */
     fun changeRegion(region: AudibleRegion) {
-        val currentAsin = state.value.selectedMatch?.asin ?: return
-
-        state.update { it.copy(selectedRegion = region) }
-
-        // Re-fetch with new region
-        val result =
-            MetadataSearchResult(
-                asin = currentAsin,
-                title = state.value.previewBook?.title ?: "",
-            )
-        selectMatch(result)
+        _state.update { current ->
+            when (current) {
+                is MetadataUiState.Idle -> current.copy(region = region)
+                is MetadataUiState.Search -> current.copy(region = region)
+                is MetadataUiState.Preview -> current.copy(region = region)
+            }
+        }
+        val current = _state.value
+        if (current is MetadataUiState.Preview) {
+            selectMatch(current.match)
+        }
     }
 
-    /**
-     * Update the search query.
-     */
-    fun updateQuery(query: String) {
-        state.update { it.copy(searchQuery = query) }
-    }
-
-    /**
-     * Execute an Audible search with the current query.
-     */
+    /** Execute an Audible search with the current query. */
     fun search() {
-        val query = state.value.searchQuery.trim()
+        val current = _state.value as? MetadataUiState.Search ?: return
+        val query = current.query.trim()
         if (query.isBlank()) return
 
-        viewModelScope.launch {
-            state.update {
-                it.copy(
-                    isSearching = true,
-                    searchError = null,
-                )
-            }
+        _state.value = current.copy(loadState = SearchLoadState.InFlight)
 
+        viewModelScope.launch {
             try {
                 val results = metadataRepository.searchAudible(query)
-                state.update {
-                    it.copy(
-                        searchResults = results,
-                        isSearching = false,
-                    )
+                _state.update { latest ->
+                    if (latest is MetadataUiState.Search && latest.query.trim() == query) {
+                        latest.copy(loadState = SearchLoadState.Loaded(results))
+                    } else {
+                        latest
+                    }
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                throw e
-            } catch (e: Exception) {
+            } catch (cancel: kotlin.coroutines.cancellation.CancellationException) {
+                throw cancel
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
+                @Suppress("DEPRECATION")
                 ErrorBus.emit(e)
                 logger.error(e) { "Metadata search failed" }
-                state.update {
-                    it.copy(
-                        isSearching = false,
-                        searchError = e.message ?: "Search failed",
-                    )
+                _state.update { latest ->
+                    if (latest is MetadataUiState.Search && latest.query.trim() == query) {
+                        latest.copy(loadState = SearchLoadState.Failed(e.message ?: "Search failed"))
+                    } else {
+                        latest
+                    }
                 }
             }
         }
     }
 
-    /**
-     * Select a match from the search results and load its full preview.
-     */
+    /** Select a match and transition to the preview phase. */
     fun selectMatch(result: MetadataSearchResult) {
-        state.update {
-            it.copy(
-                selectedMatch = result,
-                isLoadingPreview = true,
-                previewBook = null,
-                previewError = null,
-                previewNotFound = false,
-                // Reset cover state
-                coverOptions = emptyList(),
-                isLoadingCovers = true,
-                selectedCoverUrl = null,
-            )
+        val current = _state.value
+        val baseSearchResults: List<MetadataSearchResult>
+        val query: String
+        val region: AudibleRegion
+        val context: BookContext
+
+        when (current) {
+            is MetadataUiState.Search -> {
+                region = current.region
+                context = current.context
+                query = current.query
+                baseSearchResults =
+                    (current.loadState as? SearchLoadState.Loaded)?.results.orEmpty()
+            }
+
+            is MetadataUiState.Preview -> {
+                region = current.region
+                context = current.context
+                query = current.query
+                baseSearchResults = current.searchResults
+            }
+
+            is MetadataUiState.Idle -> {
+                return
+            }
         }
 
-        // Load covers in parallel with preview
-        loadCoverOptions()
+        _state.value =
+            MetadataUiState.Preview(
+                region = region,
+                context = context,
+                query = query,
+                searchResults = baseSearchResults,
+                match = result,
+                loadState = PreviewLoadState.Loading,
+            )
+
+        loadCoverOptions(context)
+        loadPreview(result, region)
+    }
+
+    /** Clear the current match selection and return to the search phase. */
+    fun clearSelection() {
+        val current = _state.value as? MetadataUiState.Preview ?: return
+        _state.value =
+            MetadataUiState.Search(
+                region = current.region,
+                context = current.context,
+                query = current.query,
+                loadState =
+                    if (current.searchResults.isEmpty()) {
+                        SearchLoadState.Idle
+                    } else {
+                        SearchLoadState.Loaded(current.searchResults)
+                    },
+            )
+    }
+
+    /** Toggle a simple metadata field selection (cover, title, etc.). */
+    fun toggleField(field: MetadataField) {
+        updateReadySelections { selections ->
+            when (field) {
+                MetadataField.COVER -> selections.copy(cover = !selections.cover)
+                MetadataField.TITLE -> selections.copy(title = !selections.title)
+                MetadataField.SUBTITLE -> selections.copy(subtitle = !selections.subtitle)
+                MetadataField.DESCRIPTION -> selections.copy(description = !selections.description)
+                MetadataField.PUBLISHER -> selections.copy(publisher = !selections.publisher)
+                MetadataField.RELEASE_DATE -> selections.copy(releaseDate = !selections.releaseDate)
+                MetadataField.LANGUAGE -> selections.copy(language = !selections.language)
+            }
+        }
+    }
+
+    fun toggleAuthor(asin: String) =
+        updateReadySelections { it.copy(selectedAuthors = it.selectedAuthors.toggle(asin)) }
+
+    fun toggleNarrator(asin: String) =
+        updateReadySelections { it.copy(selectedNarrators = it.selectedNarrators.toggle(asin)) }
+
+    fun toggleSeries(asin: String) = updateReadySelections { it.copy(selectedSeries = it.selectedSeries.toggle(asin)) }
+
+    fun toggleGenre(genre: String) = updateReadySelections { it.copy(selectedGenres = it.selectedGenres.toggle(genre)) }
+
+    /** Pick a cover URL (null = use the Audible default from the preview). */
+    fun selectCover(coverUrl: String?) {
+        updateReady { it.copy(selectedCoverUrl = coverUrl) }
+    }
+
+    /**
+     * Apply the selected match. On success emits [MetadataEvent.MatchApplied];
+     * on failure sets [PreviewLoadState.Ready.applyError] and stays in Ready.
+     */
+    fun applyMatch() {
+        val preview = _state.value as? MetadataUiState.Preview ?: return
+        val ready = preview.loadState as? PreviewLoadState.Ready ?: return
+
+        updateReady { it.copy(isApplying = true, applyError = null) }
 
         viewModelScope.launch {
-            try {
-                val region = state.value.selectedRegion.code
-                val preview = metadataRepository.getMetadataPreview(result.asin, region)
+            val result =
+                applyMetadataMatchUseCase(
+                    bookId = preview.context.bookId,
+                    asin = preview.match.asin,
+                    region = preview.region.code,
+                    selections = ready.selections.toMatchSelections(),
+                    previewBook = ready.preview,
+                    coverUrl = ready.selectedCoverUrl,
+                )
+            when (result) {
+                is Success -> {
+                    updateReady { it.copy(isApplying = false, applyError = null) }
+                    eventChannel.trySend(MetadataEvent.MatchApplied)
+                }
 
-                // Check if the response has essentially no data
+                is Failure -> {
+                    logger.error { "Failed to apply metadata match: ${result.message}" }
+                    updateReady { it.copy(isApplying = false, applyError = result.message) }
+                }
+            }
+        }
+    }
+
+    /** Reset back to [MetadataUiState.Idle]. Call when dismissing the flow. */
+    fun reset() {
+        _state.value = MetadataUiState.Idle(region = _state.value.region)
+    }
+
+    private fun loadPreview(
+        match: MetadataSearchResult,
+        region: AudibleRegion,
+    ) {
+        viewModelScope.launch {
+            try {
+                val preview = metadataRepository.getMetadataPreview(match.asin, region.code)
                 val hasNoData =
                     preview.authors.isEmpty() &&
                         preview.narrators.isEmpty() &&
@@ -252,250 +413,117 @@ class MetadataViewModel(
                         preview.genres.isEmpty() &&
                         preview.coverUrl == null &&
                         preview.description == null
-
-                // Initialize selections with all available data selected
-                val selections = initializeSelections(preview)
-
-                state.update {
-                    it.copy(
-                        previewBook = preview,
-                        isLoadingPreview = false,
-                        previewNotFound = hasNoData,
-                        selections = selections,
-                    )
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                throw e
-            } catch (e: Exception) {
+                transitionToReady(match, preview, previewNotFound = hasNoData)
+            } catch (cancel: kotlin.coroutines.cancellation.CancellationException) {
+                throw cancel
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
+                @Suppress("DEPRECATION")
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to load metadata preview" }
-
-                // Only use fallback if we have meaningful search result data
-                // (i.e., came from an actual search, not a direct ASIN lookup)
-                if (result.title.isNotBlank()) {
-                    logger.info { "Using search result data as fallback" }
-                    val fallbackBook =
-                        MetadataBook(
-                            asin = result.asin,
-                            title = result.title,
-                            subtitle = result.subtitle,
-                            authors = result.authors.map { MetadataContributor(name = it) },
-                            narrators = result.narrators.map { MetadataContributor(name = it) },
-                            series = emptyList(), // Search results don't include series
-                            coverUrl = result.coverUrl,
-                            runtimeMinutes = result.runtimeMinutes ?: 0,
-                            releaseDate = result.releaseDate,
-                            rating = result.rating ?: 0.0,
-                            ratingCount = result.ratingCount,
-                            language = result.language,
-                        )
-                    state.update {
-                        it.copy(
-                            previewBook = fallbackBook,
-                            isLoadingPreview = false,
-                            previewError = null,
-                        )
-                    }
+                if (match.title.isNotBlank()) {
+                    logger.info { "Using search result data as preview fallback" }
+                    transitionToReady(match, match.toFallbackPreview(), previewNotFound = false)
                 } else {
-                    // No fallback data available, show error
-                    state.update {
-                        it.copy(
-                            isLoadingPreview = false,
-                            previewError = e.message ?: "Failed to load metadata",
-                        )
+                    _state.update { latest ->
+                        if (latest is MetadataUiState.Preview && latest.match.asin == match.asin) {
+                            latest.copy(loadState = PreviewLoadState.Failed(e.message ?: "Failed to load metadata"))
+                        } else {
+                            latest
+                        }
                     }
                 }
             }
         }
     }
 
-    /**
-     * Clear the selected match and return to search results.
-     */
-    fun clearSelection() {
-        state.update {
-            it.copy(
-                selectedMatch = null,
-                previewBook = null,
-            )
-        }
-    }
-
-    /**
-     * Toggle a simple field selection.
-     */
-    fun toggleField(field: MetadataField) {
-        state.update { currentState ->
-            val selections = currentState.selections
-            val newSelections =
-                when (field) {
-                    MetadataField.COVER -> selections.copy(cover = !selections.cover)
-                    MetadataField.TITLE -> selections.copy(title = !selections.title)
-                    MetadataField.SUBTITLE -> selections.copy(subtitle = !selections.subtitle)
-                    MetadataField.DESCRIPTION -> selections.copy(description = !selections.description)
-                    MetadataField.PUBLISHER -> selections.copy(publisher = !selections.publisher)
-                    MetadataField.RELEASE_DATE -> selections.copy(releaseDate = !selections.releaseDate)
-                    MetadataField.LANGUAGE -> selections.copy(language = !selections.language)
-                }
-            currentState.copy(selections = newSelections)
-        }
-    }
-
-    /**
-     * Toggle an author selection by ASIN.
-     */
-    fun toggleAuthor(asin: String) {
-        state.update { currentState ->
-            val current = currentState.selections.selectedAuthors
-            val newAuthors = if (asin in current) current - asin else current + asin
-            currentState.copy(
-                selections = currentState.selections.copy(selectedAuthors = newAuthors),
-            )
-        }
-    }
-
-    /**
-     * Toggle a narrator selection by ASIN.
-     */
-    fun toggleNarrator(asin: String) {
-        state.update { currentState ->
-            val current = currentState.selections.selectedNarrators
-            val newNarrators = if (asin in current) current - asin else current + asin
-            currentState.copy(
-                selections = currentState.selections.copy(selectedNarrators = newNarrators),
-            )
-        }
-    }
-
-    /**
-     * Toggle a series selection by ASIN.
-     */
-    fun toggleSeries(asin: String) {
-        state.update { currentState ->
-            val current = currentState.selections.selectedSeries
-            val newSeries = if (asin in current) current - asin else current + asin
-            currentState.copy(
-                selections = currentState.selections.copy(selectedSeries = newSeries),
-            )
-        }
-    }
-
-    /**
-     * Toggle a genre selection.
-     */
-    fun toggleGenre(genre: String) {
-        state.update { currentState ->
-            val current = currentState.selections.selectedGenres
-            val newGenres = if (genre in current) current - genre else current + genre
-            currentState.copy(
-                selections = currentState.selections.copy(selectedGenres = newGenres),
-            )
-        }
-    }
-
-    /**
-     * Select a cover from the available options.
-     *
-     * @param coverUrl URL of the selected cover, or null to use the current/default cover
-     */
-    fun selectCover(coverUrl: String?) {
-        state.update { it.copy(selectedCoverUrl = coverUrl) }
-    }
-
-    /**
-     * Load cover options from multiple sources (iTunes, Audible).
-     * Called in parallel with preview loading.
-     */
-    private fun loadCoverOptions() {
-        val currentState = state.value
-        val title = currentState.currentTitle
-        val author = currentState.currentAuthor
-
+    private fun loadCoverOptions(context: BookContext) {
         viewModelScope.launch {
             try {
-                val covers = metadataRepository.searchCovers(title, author)
-                state.update {
-                    it.copy(
-                        coverOptions = covers,
-                        isLoadingCovers = false,
-                    )
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                throw e
-            } catch (e: Exception) {
+                val covers = metadataRepository.searchCovers(context.currentTitle, context.currentAuthor)
+                updateReady { it.copy(coverOptions = covers, isLoadingCovers = false) }
+            } catch (cancel: kotlin.coroutines.cancellation.CancellationException) {
+                throw cancel
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
+                @Suppress("DEPRECATION")
                 ErrorBus.emit(e)
-                // Non-fatal - just show Audible cover from preview only
-                logger.warn(e) { "Cover search failed, will use Audible cover only" }
-                state.update { it.copy(isLoadingCovers = false) }
+                logger.warn(e) { "Cover search failed, using Audible cover only" }
+                updateReady { it.copy(isLoadingCovers = false) }
             }
         }
     }
 
-    /**
-     * Apply the selected match to the book.
-     *
-     * This sends the match request to the server with the user's field selections.
-     * The server will:
-     * 1. Download the cover art from Audible (if selected)
-     * 2. Update selected book metadata fields
-     *
-     * On success, sets [MetadataUiState.applySuccess] to true. The caller
-     * should then refresh the book data and dismiss the metadata flow.
-     */
-    fun applyMatch() {
-        val currentState = state.value
-        val asin = currentState.selectedMatch?.asin ?: return
-        val bookId = currentState.bookId
-        val previewBook = currentState.previewBook ?: return
-
-        viewModelScope.launch {
-            state.update {
-                it.copy(
-                    isApplying = true,
+    private fun transitionToReady(
+        match: MetadataSearchResult,
+        preview: MetadataBook,
+        previewNotFound: Boolean,
+    ) {
+        _state.update { latest ->
+            if (latest !is MetadataUiState.Preview || latest.match.asin != match.asin) return@update latest
+            val existingReady = latest.loadState as? PreviewLoadState.Ready
+            val ready =
+                PreviewLoadState.Ready(
+                    preview = preview,
+                    selections = initializeSelections(preview),
+                    coverOptions = existingReady?.coverOptions.orEmpty(),
+                    isLoadingCovers = existingReady?.isLoadingCovers ?: true,
+                    selectedCoverUrl = null,
+                    isApplying = false,
                     applyError = null,
+                    previewNotFound = previewNotFound,
                 )
-            }
+            latest.copy(loadState = ready)
+        }
+    }
 
-            val result =
-                applyMetadataMatchUseCase(
-                    bookId = bookId,
-                    asin = asin,
-                    region = currentState.selectedRegion.code,
-                    selections = currentState.selections.toMatchSelections(),
-                    previewBook = previewBook,
-                    coverUrl = currentState.selectedCoverUrl,
-                )
-
-            when (result) {
-                is Success -> {
-                    state.update {
-                        it.copy(
-                            isApplying = false,
-                            applySuccess = true,
-                        )
-                    }
-                }
-
-                is Failure -> {
-                    logger.error { "Failed to apply metadata match: ${result.message}" }
-                    state.update {
-                        it.copy(
-                            isApplying = false,
-                            applyError = result.message,
-                        )
-                    }
-                }
+    private fun updateReady(transform: (PreviewLoadState.Ready) -> PreviewLoadState.Ready) {
+        _state.update { latest ->
+            if (latest is MetadataUiState.Preview && latest.loadState is PreviewLoadState.Ready) {
+                latest.copy(loadState = transform(latest.loadState))
+            } else {
+                latest
             }
         }
     }
 
-    /**
-     * Convert UI selections to domain use case selections.
-     */
+    private fun updateReadySelections(transform: (MetadataSelections) -> MetadataSelections) {
+        updateReady { it.copy(selections = transform(it.selections)) }
+    }
+
+    private fun MetadataSearchResult.toFallbackPreview(): MetadataBook =
+        MetadataBook(
+            asin = asin,
+            title = title,
+            subtitle = subtitle,
+            authors = authors.map { MetadataContributor(name = it) },
+            narrators = narrators.map { MetadataContributor(name = it) },
+            series = emptyList(),
+            coverUrl = coverUrl,
+            runtimeMinutes = runtimeMinutes ?: 0,
+            releaseDate = releaseDate,
+            rating = rating ?: 0.0,
+            ratingCount = ratingCount,
+            language = language,
+        )
+
+    private fun initializeSelections(preview: MetadataBook): MetadataSelections =
+        MetadataSelections(
+            cover = preview.coverUrl != null,
+            title = preview.title.isNotBlank(),
+            subtitle = !preview.subtitle.isNullOrBlank(),
+            description = !preview.description.isNullOrBlank(),
+            publisher = !preview.publisher.isNullOrBlank(),
+            releaseDate = !preview.releaseDate.isNullOrBlank(),
+            language = !preview.language.isNullOrBlank(),
+            selectedAuthors = preview.authors.mapNotNull { it.asin }.toSet(),
+            selectedNarrators = preview.narrators.mapNotNull { it.asin }.toSet(),
+            selectedSeries = preview.series.mapNotNull { it.asin }.toSet(),
+            selectedGenres = preview.genres.toSet(),
+        )
+
     private fun MetadataSelections.toMatchSelections(): MetadataMatchSelections =
         MetadataMatchSelections(
             cover = cover,
@@ -511,41 +539,5 @@ class MetadataViewModel(
             selectedGenres = selectedGenres,
         )
 
-    /**
-     * Reset all state. Call when dismissing the metadata flow.
-     */
-    fun reset() {
-        state.update { MetadataUiState() }
-    }
-
-    /**
-     * Initialize selections with all available metadata fields selected.
-     */
-    private fun initializeSelections(preview: MetadataBook): MetadataSelections =
-        MetadataSelections(
-            cover = preview.coverUrl != null,
-            title = preview.title.isNotBlank(),
-            subtitle = !preview.subtitle.isNullOrBlank(),
-            description = !preview.description.isNullOrBlank(),
-            publisher = !preview.publisher.isNullOrBlank(),
-            releaseDate = !preview.releaseDate.isNullOrBlank(),
-            language = !preview.language.isNullOrBlank(),
-            selectedAuthors = preview.authors.mapNotNull { it.asin }.toSet(),
-            selectedNarrators = preview.narrators.mapNotNull { it.asin }.toSet(),
-            selectedSeries = preview.series.mapNotNull { it.asin }.toSet(),
-            selectedGenres = preview.genres.toSet(),
-        )
-}
-
-/**
- * Enum for simple metadata fields that can be toggled.
- */
-enum class MetadataField {
-    COVER,
-    TITLE,
-    SUBTITLE,
-    DESCRIPTION,
-    PUBLISHER,
-    RELEASE_DATE,
-    LANGUAGE,
+    private fun <T> Set<T>.toggle(item: T): Set<T> = if (item in this) this - item else this + item
 }
