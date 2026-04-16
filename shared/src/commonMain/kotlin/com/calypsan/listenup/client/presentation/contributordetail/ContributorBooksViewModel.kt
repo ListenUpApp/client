@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.calypsan.listenup.client.presentation.contributordetail
 
 import androidx.lifecycle.ViewModel
@@ -12,6 +10,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import com.calypsan.listenup.client.domain.repository.BookWithContributorRole
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
@@ -52,7 +51,8 @@ class ContributorBooksViewModel(
                         contributorRepository.observeById(req.contributorId).filterNotNull(),
                         contributorRepository.observeBooksForContributorRole(req.contributorId, req.role),
                     ) { contributor, booksWithRole ->
-                        buildReadyState(contributor.name, req.role, booksWithRole) as ContributorBooksUiState
+                        val ready: ContributorBooksUiState = buildReadyState(contributor.name, req.role, booksWithRole)
+                        ready
                     }.onStart { emit(ContributorBooksUiState.Loading) }
                 }
             }.stateIn(
@@ -72,7 +72,7 @@ class ContributorBooksViewModel(
     private suspend fun buildReadyState(
         contributorName: String,
         role: String,
-        booksWithRole: List<com.calypsan.listenup.client.domain.repository.BookWithContributorRole>,
+        booksWithRole: List<BookWithContributorRole>,
     ): ContributorBooksUiState.Ready {
         val books = booksWithRole.map { it.book }
         val bookProgress = playbackPositionRepository.calculateProgressMap(books)

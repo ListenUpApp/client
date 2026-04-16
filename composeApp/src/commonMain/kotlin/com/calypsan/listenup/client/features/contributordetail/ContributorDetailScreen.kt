@@ -260,15 +260,15 @@ private fun WideContributorPortfolio(
         // Full-span header: avatar beside name, metadata, and bio
         item(span = { GridItemSpan(maxLineSpan) }) {
             WideHeroHeader(
-                name = state.contributor?.name ?: "",
-                aliases = state.contributor?.aliases ?: emptyList(),
-                imagePath = state.contributor?.imagePath,
+                name = state.contributor.name,
+                aliases = state.contributor.aliases,
+                imagePath = state.contributor.imagePath,
                 contributorId = contributorId,
                 colorScheme = colorScheme,
-                birthDate = state.contributor?.birthDate,
-                deathDate = state.contributor?.deathDate,
-                website = state.contributor?.website,
-                description = state.contributor?.description,
+                birthDate = state.contributor.birthDate,
+                deathDate = state.contributor.deathDate,
+                website = state.contributor.website,
+                description = state.contributor.description,
                 isDescriptionExpanded = isDescriptionExpanded,
                 onToggleDescription = { isDescriptionExpanded = !isDescriptionExpanded },
                 onBackClick = onBackClick,
@@ -522,9 +522,9 @@ private fun NarrowContributorPortfolio(
         // 1. HERO SECTION
         item {
             NarrowHeroHeader(
-                name = state.contributor?.name ?: "",
-                aliases = state.contributor?.aliases ?: emptyList(),
-                imagePath = state.contributor?.imagePath,
+                name = state.contributor.name,
+                aliases = state.contributor.aliases,
+                imagePath = state.contributor.imagePath,
                 contributorId = contributorId,
                 colorScheme = colorScheme,
                 surfaceColor = surfaceColor,
@@ -538,15 +538,15 @@ private fun NarrowContributorPortfolio(
         // 2. ARTIST METADATA
         item {
             ArtistMetadata(
-                birthDate = state.contributor?.birthDate,
-                deathDate = state.contributor?.deathDate,
-                website = state.contributor?.website,
+                birthDate = state.contributor.birthDate,
+                deathDate = state.contributor.deathDate,
+                website = state.contributor.website,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
         }
 
         // 3. BIOGRAPHY
-        state.contributor?.description?.takeIf { it.isNotBlank() }?.let { description ->
+        state.contributor.description?.takeIf { it.isNotBlank() }?.let { description ->
             item {
                 BiographySection(
                     description = description,

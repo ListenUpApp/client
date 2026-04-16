@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.calypsan.listenup.client.presentation.contributordetail
 
 import androidx.lifecycle.ViewModel
@@ -73,7 +71,8 @@ class ContributorDetailViewModel(
                     contributorRepository.observeById(id).filterNotNull(),
                     contributorRepository.observeRolesWithCountForContributor(id),
                 ) { contributor, rolesWithCount ->
-                    buildReadyState(id, contributor, rolesWithCount) as ContributorDetailUiState
+                    val ready: ContributorDetailUiState = buildReadyState(id, contributor, rolesWithCount)
+                    ready
                 }.onStart { emit(ContributorDetailUiState.Loading) }
             }
         }
