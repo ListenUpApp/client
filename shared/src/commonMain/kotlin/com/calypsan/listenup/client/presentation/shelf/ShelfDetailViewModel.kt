@@ -9,10 +9,13 @@ import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.domain.usecase.shelf.LoadShelfDetailUseCase
 import com.calypsan.listenup.client.domain.usecase.shelf.RemoveBookFromShelfUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -31,6 +34,9 @@ class ShelfDetailViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow<ShelfDetailUiState>(ShelfDetailUiState.Idle)
     val state: StateFlow<ShelfDetailUiState> = _state.asStateFlow()
+
+    private val _snackbarMessages = Channel<String>(Channel.BUFFERED)
+    val snackbarMessages: Flow<String> = _snackbarMessages.receiveAsFlow()
 
     private var currentShelfId: String? = null
 
@@ -81,7 +87,7 @@ class ShelfDetailViewModel(
 
                 is Failure -> {
                     logger.error { "Failed to remove book from shelf: ${result.message}" }
-                    _state.value = ShelfDetailUiState.Error(result.message)
+                    _snackbarMessages.trySend(result.message)
                 }
             }
         }

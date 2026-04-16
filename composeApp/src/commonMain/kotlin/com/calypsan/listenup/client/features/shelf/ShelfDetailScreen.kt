@@ -57,6 +57,8 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.util.parseHexColor
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import com.calypsan.listenup.client.domain.model.ShelfBook
 import com.calypsan.listenup.client.domain.model.ShelfDetail
 import com.calypsan.listenup.client.presentation.shelf.ShelfDetailUiState
@@ -103,8 +105,16 @@ fun ShelfDetailScreen(
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val readyState = state as? ShelfDetailUiState.Ready
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel) {
+        viewModel.snackbarMessages.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
