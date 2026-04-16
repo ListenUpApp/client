@@ -53,20 +53,9 @@ import com.calypsan.listenup.client.design.theme.LocalDarkTheme
 import com.calypsan.listenup.client.domain.model.InviteDetails
 import com.calypsan.listenup.client.presentation.invite.InviteErrorType
 import com.calypsan.listenup.client.presentation.invite.InviteField
-import com.calypsan.listenup.client.presentation.invite.InviteLoadingState
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationUiState
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
-import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 
-/**
- * Invite registration screen for new users joining via invite link.
- *
- * Features:
- * - Shows invite details (name, email, server, inviter)
- * - Password entry with confirmation
- * - Error handling for invalid invites and network issues
- * - Auto-navigation on success via AuthState
- */
 @Composable
 fun InviteRegistrationScreen(
     viewModel: InviteRegistrationViewModel,
@@ -76,42 +65,34 @@ fun InviteRegistrationScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Show snackbar for submission errors
-    LaunchedEffect(state.submissionStatus) {
-        when (val status = state.submissionStatus) {
-            is InviteSubmissionStatus.Error -> {
-                val message =
-                    when (val type = status.type) {
-                        is InviteErrorType.ValidationError -> null
-
-                        // Handled inline
-                        is InviteErrorType.PasswordMismatch -> "Passwords don't match"
-
-                        is InviteErrorType.NetworkError -> type.detail ?: "Network error"
-
-                        is InviteErrorType.ServerError -> type.detail ?: "Server error"
-
-                        is InviteErrorType.InviteInvalid -> "This invite is no longer valid"
-                    }
-                message?.let {
-                    snackbarHostState.showSnackbar(it)
-                    viewModel.clearError()
+    LaunchedEffect(state) {
+        val current = state
+        if (current is InviteRegistrationUiState.SubmitError) {
+            val message =
+                when (val type = current.errorType) {
+                    is InviteErrorType.ValidationError -> null
+                    is InviteErrorType.PasswordMismatch -> "Passwords don't match"
+                    is InviteErrorType.NetworkError -> type.detail ?: "Network error"
+                    is InviteErrorType.ServerError -> type.detail ?: "Server error"
+                    is InviteErrorType.InviteInvalid -> "This invite is no longer valid"
                 }
+            message?.let {
+                snackbarHostState.showSnackbar(it)
+                viewModel.clearError()
             }
-
-            else -> {}
         }
     }
 
-    when (val loadingState = state.loadingState) {
-        is InviteLoadingState.Loading -> {
+    when (val current = state) {
+        is InviteRegistrationUiState.Loading -> {
             FullScreenLoadingIndicator()
         }
 
-        is InviteLoadingState.Loaded -> {
+        is InviteRegistrationUiState.Ready -> {
             InviteRegistrationContent(
-                details = loadingState.details,
-                state = state,
+                details = current.details,
+                isSubmitting = false,
+                errorType = null,
                 onSubmit = viewModel::submitRegistration,
                 onCancel = onCancel,
                 snackbarHostState = snackbarHostState,
@@ -119,17 +100,45 @@ fun InviteRegistrationScreen(
             )
         }
 
-        is InviteLoadingState.Invalid -> {
+        is InviteRegistrationUiState.Submitting -> {
+            InviteRegistrationContent(
+                details = current.details,
+                isSubmitting = true,
+                errorType = null,
+                onSubmit = viewModel::submitRegistration,
+                onCancel = onCancel,
+                snackbarHostState = snackbarHostState,
+                modifier = modifier,
+            )
+        }
+
+        is InviteRegistrationUiState.SubmitError -> {
+            InviteRegistrationContent(
+                details = current.details,
+                isSubmitting = false,
+                errorType = current.errorType,
+                onSubmit = viewModel::submitRegistration,
+                onCancel = onCancel,
+                snackbarHostState = snackbarHostState,
+                modifier = modifier,
+            )
+        }
+
+        is InviteRegistrationUiState.Submitted -> {
+            FullScreenLoadingIndicator()
+        }
+
+        is InviteRegistrationUiState.Invalid -> {
             InvalidInviteContent(
-                message = loadingState.reason,
+                message = current.reason,
                 onDismiss = onCancel,
                 modifier = modifier,
             )
         }
 
-        is InviteLoadingState.Error -> {
+        is InviteRegistrationUiState.LoadError -> {
             ErrorContent(
-                message = loadingState.message,
+                message = current.message,
                 onRetry = viewModel::loadInviteDetails,
                 onCancel = onCancel,
                 modifier = modifier,
@@ -141,7 +150,8 @@ fun InviteRegistrationScreen(
 @Composable
 private fun InviteRegistrationContent(
     details: InviteDetails,
-    state: InviteRegistrationUiState,
+    isSubmitting: Boolean,
+    errorType: InviteErrorType?,
     onSubmit: (String, String) -> Unit,
     onCancel: () -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -181,7 +191,8 @@ private fun InviteRegistrationContent(
             ) {
                 RegistrationForm(
                     details = details,
-                    state = state,
+                    isSubmitting = isSubmitting,
+                    errorType = errorType,
                     onSubmit = onSubmit,
                     onCancel = onCancel,
                     modifier = Modifier.padding(24.dp),
@@ -213,7 +224,8 @@ private fun BrandLogo(modifier: Modifier = Modifier) {
 @Composable
 private fun RegistrationForm(
     details: InviteDetails,
-    state: InviteRegistrationUiState,
+    isSubmitting: Boolean,
+    errorType: InviteErrorType?,
     onSubmit: (String, String) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
@@ -222,13 +234,14 @@ private fun RegistrationForm(
     var confirmPassword by remember { mutableStateOf("") }
 
     val focusManager = LocalFocusManager.current
-    val isSubmitting = state.submissionStatus is InviteSubmissionStatus.Submitting
+    val validationField =
+        (errorType as? InviteErrorType.ValidationError)?.field
+    val isPasswordMismatch = errorType is InviteErrorType.PasswordMismatch
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Welcome message
         Text(
             text = "Welcome, ${details.name}!",
             style = MaterialTheme.typography.headlineMedium,
@@ -243,36 +256,19 @@ private fun RegistrationForm(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Invite details
         InviteDetailsCard(details = details)
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Password field
         ListenUpTextField(
             value = password,
             onValueChange = { password = it },
             label = "Password",
             enabled = !isSubmitting,
             visualTransformation = PasswordVisualTransformation(),
-            isError =
-                state.submissionStatus is InviteSubmissionStatus.Error &&
-                    (state.submissionStatus as InviteSubmissionStatus.Error)
-                        .type is InviteErrorType.ValidationError &&
-                    (
-                        (state.submissionStatus as InviteSubmissionStatus.Error)
-                            .type as InviteErrorType.ValidationError
-                    ).field == InviteField.PASSWORD,
+            isError = validationField == InviteField.PASSWORD,
             supportingText =
-                if (
-                    state.submissionStatus is InviteSubmissionStatus.Error &&
-                    (state.submissionStatus as InviteSubmissionStatus.Error)
-                        .type is InviteErrorType.ValidationError &&
-                    (
-                        (state.submissionStatus as InviteSubmissionStatus.Error)
-                            .type as InviteErrorType.ValidationError
-                    ).field == InviteField.PASSWORD
-                ) {
+                if (validationField == InviteField.PASSWORD) {
                     "Password must be at least 8 characters"
                 } else {
                     "At least 8 characters"
@@ -289,24 +285,14 @@ private fun RegistrationForm(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // Confirm password field
         ListenUpTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
             label = "Confirm Password",
             enabled = !isSubmitting,
             visualTransformation = PasswordVisualTransformation(),
-            isError =
-                state.submissionStatus is InviteSubmissionStatus.Error &&
-                    (state.submissionStatus as InviteSubmissionStatus.Error).type is InviteErrorType.PasswordMismatch,
-            supportingText =
-                if (state.submissionStatus is InviteSubmissionStatus.Error &&
-                    (state.submissionStatus as InviteSubmissionStatus.Error).type is InviteErrorType.PasswordMismatch
-                ) {
-                    "Passwords don't match"
-                } else {
-                    null
-                },
+            isError = isPasswordMismatch,
+            supportingText = if (isPasswordMismatch) "Passwords don't match" else null,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -316,9 +302,7 @@ private fun RegistrationForm(
                 KeyboardActions(
                     onDone = {
                         focusManager.clearFocus()
-                        if (!isSubmitting) {
-                            onSubmit(password, confirmPassword)
-                        }
+                        if (!isSubmitting) onSubmit(password, confirmPassword)
                     },
                 ),
             modifier = Modifier.fillMaxWidth(),
@@ -326,7 +310,6 @@ private fun RegistrationForm(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Submit button
         ListenUpButton(
             onClick = { onSubmit(password, confirmPassword) },
             text = "Get Started",
@@ -335,7 +318,6 @@ private fun RegistrationForm(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // Cancel button
         OutlinedButton(
             onClick = onCancel,
             enabled = !isSubmitting,
@@ -362,7 +344,6 @@ private fun InviteDetailsCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Server info
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -386,7 +367,6 @@ private fun InviteDetailsCard(
                 }
             }
 
-            // Invited by
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -410,7 +390,6 @@ private fun InviteDetailsCard(
                 }
             }
 
-            // Email (pre-filled)
             Text(
                 text = "Your email: ${details.email}",
                 style = MaterialTheme.typography.bodySmall,
@@ -528,9 +507,7 @@ private fun ErrorContent(
                         textAlign = TextAlign.Center,
                     )
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(onClick = onCancel) {
                             Text("Cancel")
                         }

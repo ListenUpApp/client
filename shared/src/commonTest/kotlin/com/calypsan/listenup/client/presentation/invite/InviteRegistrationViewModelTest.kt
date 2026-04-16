@@ -27,7 +27,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertIs
-import com.calypsan.listenup.client.core.Success
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class InviteRegistrationViewModelTest {
@@ -87,11 +86,11 @@ class InviteRegistrationViewModelTest {
 
             val viewModel = InviteRegistrationViewModel(inviteRepository, serverConfig, authSession, userRepository, serverUrl, inviteCode)
 
-            checkIs<InviteLoadingState.Loading>(viewModel.state.value.loadingState)
+            checkIs<InviteRegistrationUiState.Loading>(viewModel.state.value)
         }
 
     @Test
-    fun `loadInviteDetails shows Loaded state on success`() =
+    fun `loadInviteDetails shows Ready state on success`() =
         runTest {
             val inviteRepository: InviteRepository = mock()
             val serverConfig: ServerConfig = mock()
@@ -102,7 +101,7 @@ class InviteRegistrationViewModelTest {
             val viewModel = InviteRegistrationViewModel(inviteRepository, serverConfig, authSession, userRepository, serverUrl, inviteCode)
             advanceUntilIdle()
 
-            checkIs<InviteLoadingState.Loaded>(viewModel.state.value.loadingState)
+            checkIs<InviteRegistrationUiState.Ready>(viewModel.state.value)
         }
 
     @Test
@@ -117,11 +116,11 @@ class InviteRegistrationViewModelTest {
             val viewModel = InviteRegistrationViewModel(inviteRepository, serverConfig, authSession, userRepository, serverUrl, inviteCode)
             advanceUntilIdle()
 
-            checkIs<InviteLoadingState.Invalid>(viewModel.state.value.loadingState)
+            checkIs<InviteRegistrationUiState.Invalid>(viewModel.state.value)
         }
 
     @Test
-    fun `loadInviteDetails shows Error on network failure`() =
+    fun `loadInviteDetails shows LoadError on network failure`() =
         runTest {
             val inviteRepository: InviteRepository = mock()
             val serverConfig: ServerConfig = mock()
@@ -132,7 +131,7 @@ class InviteRegistrationViewModelTest {
             val viewModel = InviteRegistrationViewModel(inviteRepository, serverConfig, authSession, userRepository, serverUrl, inviteCode)
             advanceUntilIdle()
 
-            checkIs<InviteLoadingState.Error>(viewModel.state.value.loadingState)
+            checkIs<InviteRegistrationUiState.LoadError>(viewModel.state.value)
         }
 
     @Test
@@ -150,9 +149,8 @@ class InviteRegistrationViewModelTest {
             viewModel.submitRegistration("short", "short")
             advanceUntilIdle()
 
-            val status = viewModel.state.value.submissionStatus
-            val error = assertIs<InviteSubmissionStatus.Error>(status)
-            checkIs<InviteErrorType.ValidationError>(error.type)
+            val state = assertIs<InviteRegistrationUiState.SubmitError>(viewModel.state.value)
+            checkIs<InviteErrorType.ValidationError>(state.errorType)
         }
 
     @Test
@@ -170,9 +168,8 @@ class InviteRegistrationViewModelTest {
             viewModel.submitRegistration("password123", "different123")
             advanceUntilIdle()
 
-            val status = viewModel.state.value.submissionStatus
-            val error = assertIs<InviteSubmissionStatus.Error>(status)
-            checkIs<InviteErrorType.PasswordMismatch>(error.type)
+            val state = assertIs<InviteRegistrationUiState.SubmitError>(viewModel.state.value)
+            checkIs<InviteErrorType.PasswordMismatch>(state.errorType)
         }
 
     @Test
@@ -194,12 +191,12 @@ class InviteRegistrationViewModelTest {
             viewModel.submitRegistration("password123", "password123")
             advanceUntilIdle()
 
-            checkIs<InviteSubmissionStatus.Success>(viewModel.state.value.submissionStatus)
+            checkIs<InviteRegistrationUiState.Submitted>(viewModel.state.value)
             verifySuspend { authSession.saveAuthTokens(any(), any(), any(), any()) }
         }
 
     @Test
-    fun `clearError resets to Idle`() =
+    fun `clearError returns to Ready`() =
         runTest {
             val inviteRepository: InviteRepository = mock()
             val serverConfig: ServerConfig = mock()
@@ -210,12 +207,12 @@ class InviteRegistrationViewModelTest {
             val viewModel = InviteRegistrationViewModel(inviteRepository, serverConfig, authSession, userRepository, serverUrl, inviteCode)
             advanceUntilIdle()
 
-            viewModel.submitRegistration("short", "short") // Trigger error
+            viewModel.submitRegistration("short", "short")
             advanceUntilIdle()
-            checkIs<InviteSubmissionStatus.Error>(viewModel.state.value.submissionStatus)
+            checkIs<InviteRegistrationUiState.SubmitError>(viewModel.state.value)
 
             viewModel.clearError()
 
-            checkIs<InviteSubmissionStatus.Idle>(viewModel.state.value.submissionStatus)
+            checkIs<InviteRegistrationUiState.Ready>(viewModel.state.value)
         }
 }

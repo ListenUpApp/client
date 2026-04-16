@@ -1,27 +1,25 @@
-@file:Suppress("MagicNumber")
-
 package com.calypsan.listenup.client.presentation.invite
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.error.ErrorBus
+import com.calypsan.listenup.client.domain.model.InviteDetails
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InviteRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import com.calypsan.listenup.client.core.Success
 
 /**
  * ViewModel for the invite registration screen.
  *
- * Handles:
- * - Loading invite details from server
- * - Validating password input
- * - Submitting registration and storing auth tokens
+ * Manages a sealed [InviteRegistrationUiState] that tracks the two-phase flow:
+ * 1. Load invite details from the server
+ * 2. Validate password input and submit registration
  *
  * On successful registration, stores tokens which triggers AuthState.Authenticated,
  * causing automatic navigation to the Library screen.
@@ -34,105 +32,76 @@ class InviteRegistrationViewModel(
     private val serverUrl: String,
     private val inviteCode: String,
 ) : ViewModel() {
-    val state: StateFlow<InviteRegistrationUiState>
-        field = MutableStateFlow(InviteRegistrationUiState())
+    private val _state = MutableStateFlow<InviteRegistrationUiState>(InviteRegistrationUiState.Loading)
+    val state: StateFlow<InviteRegistrationUiState> = _state.asStateFlow()
 
     init {
         loadInviteDetails()
     }
 
-    /**
-     * Load invite details from the server.
-     */
+    /** Load invite details from the server. */
     fun loadInviteDetails() {
         viewModelScope.launch {
-            state.value = InviteRegistrationUiState(loadingState = InviteLoadingState.Loading)
+            _state.value = InviteRegistrationUiState.Loading
 
             try {
                 val details = inviteRepository.getInviteDetails(serverUrl, inviteCode)
 
-                if (!details.valid) {
-                    state.value =
-                        InviteRegistrationUiState(
-                            loadingState =
-                                InviteLoadingState.Invalid(
-                                    "This invite is no longer valid. It may have already been used or expired.",
-                                ),
+                _state.value =
+                    if (!details.valid) {
+                        InviteRegistrationUiState.Invalid(
+                            "This invite is no longer valid. It may have already been used or expired.",
                         )
-                } else {
-                    state.value =
-                        InviteRegistrationUiState(
-                            loadingState = InviteLoadingState.Loaded(details),
-                        )
-                }
+                    } else {
+                        InviteRegistrationUiState.Ready(details)
+                    }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
-                val message =
-                    when {
-                        e.message?.contains("404") == true ||
-                            e.message?.contains("not found", ignoreCase = true) == true -> {
-                            "Invite not found. Please check the link and try again."
-                        }
-
-                        e.message?.contains("connection", ignoreCase = true) == true ||
-                            e.message?.contains("network", ignoreCase = true) == true -> {
-                            "Could not connect to server. Please check your internet connection."
-                        }
-
-                        else -> {
-                            e.message ?: "Failed to load invite details"
-                        }
-                    }
-                state.value =
-                    InviteRegistrationUiState(
-                        loadingState = InviteLoadingState.Error(message),
-                    )
+                _state.value = InviteRegistrationUiState.LoadError(e.message ?: "Failed to load invite")
             }
         }
     }
 
     /**
-     * Submit the registration with the provided password.
+     * Submit registration with the given passwords.
      *
-     * @param password The user's chosen password
-     * @param confirmPassword The password confirmation (must match)
+     * Validates passwords locally first, then submits to the server.
+     * On success, saves auth tokens which triggers automatic navigation.
      */
     fun submitRegistration(
         password: String,
         confirmPassword: String,
     ) {
-        // Validate passwords
-        if (password.length < 8) {
-            state.value =
-                state.value.copy(
-                    submissionStatus =
-                        InviteSubmissionStatus.Error(
-                            InviteErrorType.ValidationError(InviteField.PASSWORD),
-                        ),
+        val details = currentDetails() ?: return
+
+        if (password.length < MIN_PASSWORD_LENGTH) {
+            _state.value =
+                InviteRegistrationUiState.SubmitError(
+                    details = details,
+                    errorType = InviteErrorType.ValidationError(InviteField.PASSWORD),
                 )
             return
         }
 
         if (password != confirmPassword) {
-            state.value =
-                state.value.copy(
-                    submissionStatus = InviteSubmissionStatus.Error(InviteErrorType.PasswordMismatch),
+            _state.value =
+                InviteRegistrationUiState.SubmitError(
+                    details = details,
+                    errorType = InviteErrorType.PasswordMismatch,
                 )
             return
         }
 
         viewModelScope.launch {
-            state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Submitting)
+            _state.value = InviteRegistrationUiState.Submitting(details)
 
             try {
                 val result = inviteRepository.claimInvite(serverUrl, inviteCode, password)
 
-                // Save the server URL first (before tokens, as it's needed for auth state)
                 serverConfig.setServerUrl(ServerUrl(serverUrl))
 
-                // Store auth tokens - this triggers AuthState.Authenticated
                 authSession.saveAuthTokens(
                     access = result.accessToken,
                     refresh = result.refreshToken,
@@ -140,36 +109,39 @@ class InviteRegistrationViewModel(
                     userId = result.userId,
                 )
 
-                // Save user data to local database for avatar display
                 userRepository.saveUser(result.user)
 
-                state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Success)
+                _state.value = InviteRegistrationUiState.Submitted
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
-                val errorType = e.toInviteErrorType()
-                state.value =
-                    state.value.copy(
-                        submissionStatus = InviteSubmissionStatus.Error(errorType),
-                    )
+                _state.value = InviteRegistrationUiState.SubmitError(details, e.toInviteErrorType())
             }
         }
     }
 
-    /**
-     * Clear the error state to allow retry.
-     */
+    /** Clear a submission error and return to [InviteRegistrationUiState.Ready]. */
     fun clearError() {
-        if (state.value.submissionStatus is InviteSubmissionStatus.Error) {
-            state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Idle)
+        val current = _state.value
+        if (current is InviteRegistrationUiState.SubmitError) {
+            _state.value = InviteRegistrationUiState.Ready(current.details)
         }
     }
+
+    companion object {
+        private const val MIN_PASSWORD_LENGTH = 8
+    }
+
+    private fun currentDetails(): InviteDetails? =
+        when (val s = _state.value) {
+            is InviteRegistrationUiState.Ready -> s.details
+            is InviteRegistrationUiState.SubmitError -> s.details
+            is InviteRegistrationUiState.Submitting -> s.details
+            else -> null
+        }
 }
 
-/**
- * Convert exception to semantic error type.
- */
 @Suppress("CyclomaticComplexMethod")
 private fun Exception.toInviteErrorType(): InviteErrorType {
     val msg = message?.lowercase() ?: ""
@@ -177,7 +149,6 @@ private fun Exception.toInviteErrorType(): InviteErrorType {
     val fullMsg = "$msg $causeMsg"
 
     return when {
-        // Invite-specific errors
         msg.contains("already claimed") ||
             msg.contains("claimed") ||
             msg.contains("expired") ||
@@ -185,7 +156,6 @@ private fun Exception.toInviteErrorType(): InviteErrorType {
             InviteErrorType.InviteInvalid
         }
 
-        // Connection errors
         fullMsg.contains("connection refused") ||
             fullMsg.contains("econnrefused") ||
             fullMsg.contains("timeout") ||
@@ -195,14 +165,12 @@ private fun Exception.toInviteErrorType(): InviteErrorType {
             InviteErrorType.NetworkError(cause?.message ?: message)
         }
 
-        // Generic network issues
         fullMsg.contains("network") ||
             fullMsg.contains("connect") ||
             fullMsg.contains("socket") -> {
             InviteErrorType.NetworkError(cause?.message ?: message)
         }
 
-        // Server errors
         fullMsg.contains("500") ||
             fullMsg.contains("502") ||
             fullMsg.contains("503") ||
@@ -210,7 +178,6 @@ private fun Exception.toInviteErrorType(): InviteErrorType {
             InviteErrorType.ServerError("Server error. Please try again later.")
         }
 
-        // Unknown
         else -> {
             InviteErrorType.ServerError(message ?: "Unknown error")
         }
