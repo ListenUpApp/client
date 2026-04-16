@@ -57,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +74,8 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.getInitials
+import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.presentation.profile.EditProfileEvent
 import com.calypsan.listenup.client.presentation.profile.EditProfileUiState
 import com.calypsan.listenup.client.presentation.profile.EditProfileViewModel
 import kotlinx.coroutines.Dispatchers
@@ -82,17 +85,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import java.io.ByteArrayOutputStream
 import android.graphics.Color as AndroidColor
 
-/**
- * Screen for editing user profile.
- *
- * Features:
- * - Avatar editing (upload new or revert to auto)
- * - Tagline editing with character count
- * - Save button with loading state
- *
- * @param onBack Callback when back button is clicked
- * @param viewModel The ViewModel for edit profile
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileScreen(
@@ -106,7 +98,6 @@ fun EditProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Image picker
     val imagePicker =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickVisualMedia(),
@@ -123,28 +114,25 @@ fun EditProfileScreen(
             }
         }
 
-    // Show snackbar on success and notify parent
-    LaunchedEffect(state.saveSuccess) {
-        if (state.saveSuccess) {
-            snackbarHostState.showSnackbar("Profile updated")
-            onProfileUpdated()
-            viewModel.clearSaveSuccess()
-        }
-    }
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                EditProfileEvent.TaglineSaved,
+                EditProfileEvent.NameSaved,
+                EditProfileEvent.AvatarUpdated,
+                -> {
+                    snackbarHostState.showSnackbar("Profile updated")
+                    onProfileUpdated()
+                }
 
-    // Show snackbar on password change success
-    LaunchedEffect(state.passwordChangeSuccess) {
-        if (state.passwordChangeSuccess) {
-            snackbarHostState.showSnackbar("Password changed successfully")
-            viewModel.clearPasswordChangeSuccess()
-        }
-    }
+                EditProfileEvent.PasswordChanged -> {
+                    snackbarHostState.showSnackbar("Password changed successfully")
+                }
 
-    // Show snackbar on error
-    LaunchedEffect(state.error) {
-        state.error?.let { error ->
-            snackbarHostState.showSnackbar(error)
-            viewModel.clearError()
+                is EditProfileEvent.SaveFailed -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
+            }
         }
     }
 
@@ -176,30 +164,36 @@ fun EditProfileScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            if (state.isLoading) {
-                ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
-            } else {
-                EditProfileContent(
-                    state = state,
-                    onTaglineChange = viewModel::onTaglineChange,
-                    onSaveTagline = viewModel::saveTagline,
-                    onUploadAvatar = {
-                        imagePicker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                        )
-                    },
-                    onRevertAvatar = viewModel::revertToAutoAvatar,
-                    onFirstNameChange = viewModel::onFirstNameChange,
-                    onLastNameChange = viewModel::onLastNameChange,
-                    onSaveName = viewModel::saveName,
-                    onNewPasswordChange = viewModel::onNewPasswordChange,
-                    onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
-                    onChangePassword = viewModel::changePassword,
-                )
+            when (val current = state) {
+                is EditProfileUiState.Loading -> {
+                    ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+
+                is EditProfileUiState.Error -> {
+                    Text(
+                        text = current.message,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                }
+
+                is EditProfileUiState.Ready -> {
+                    EditProfileContent(
+                        ready = current,
+                        onSaveTagline = viewModel::saveTagline,
+                        onUploadAvatar = {
+                            imagePicker.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                            )
+                        },
+                        onRevertAvatar = viewModel::revertToAutoAvatar,
+                        onSaveName = viewModel::saveName,
+                        onChangePassword = viewModel::changePassword,
+                    )
+                }
             }
 
-            // Overlay loading indicator when saving
-            if (state.isSaving) {
+            if ((state as? EditProfileUiState.Ready)?.isSaving == true) {
                 Box(
                     modifier =
                         Modifier
@@ -216,19 +210,30 @@ fun EditProfileScreen(
 
 @Composable
 private fun EditProfileContent(
-    state: EditProfileUiState,
-    onTaglineChange: (String) -> Unit,
-    onSaveTagline: () -> Unit,
+    ready: EditProfileUiState.Ready,
+    onSaveTagline: (String) -> Unit,
     onUploadAvatar: () -> Unit,
     onRevertAvatar: () -> Unit,
-    onFirstNameChange: (String) -> Unit,
-    onLastNameChange: (String) -> Unit,
-    onSaveName: () -> Unit,
-    onNewPasswordChange: (String) -> Unit,
-    onConfirmPasswordChange: (String) -> Unit,
-    onChangePassword: () -> Unit,
+    onSaveName: (String, String) -> Unit,
+    onChangePassword: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val user = ready.user
+    val userId = user.id.value
+
+    var editedTagline by rememberSaveable(userId) { mutableStateOf(user.tagline.orEmpty()) }
+    var editedFirstName by rememberSaveable(userId) { mutableStateOf(user.firstName.orEmpty()) }
+    var editedLastName by rememberSaveable(userId) { mutableStateOf(user.lastName.orEmpty()) }
+    var newPassword by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+
+    val hasTaglineChanged = editedTagline != user.tagline.orEmpty()
+    val hasNameChanged =
+        editedFirstName != user.firstName.orEmpty() || editedLastName != user.lastName.orEmpty()
+    val isPasswordValid = newPassword.length >= EditProfileViewModel.MIN_PASSWORD_LENGTH
+    val passwordsMatch = newPassword == confirmPassword
+    val canSavePassword = newPassword.isNotEmpty() && passwordsMatch && isPasswordValid
+
     Column(
         modifier =
             modifier
@@ -236,326 +241,385 @@ private fun EditProfileContent(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
     ) {
-        // Avatar section
-        Text(
-            text = "Avatar",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+        AvatarSection(
+            user = user,
+            localAvatarPath = ready.localAvatarPath,
+            isSaving = ready.isSaving,
+            onUploadAvatar = onUploadAvatar,
+            onRevertAvatar = onRevertAvatar,
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // Current avatar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val backgroundColor =
-                remember(state.avatarColor) {
-                    try {
-                        Color(AndroidColor.parseColor(state.avatarColor))
-                    } catch (_: Exception) {
-                        Color(0xFF6B7280)
+        TaglineSection(
+            value = editedTagline,
+            onValueChange = { newValue ->
+                editedTagline =
+                    if (newValue.length > EditProfileViewModel.MAX_TAGLINE_LENGTH) {
+                        newValue.take(EditProfileViewModel.MAX_TAGLINE_LENGTH)
+                    } else {
+                        newValue
                     }
-                }
+            },
+            hasChanged = hasTaglineChanged,
+            isSaving = ready.isSaving,
+            onSave = { onSaveTagline(editedTagline) },
+        )
 
-            val context = LocalContext.current
-            val cacheBuster = state.user?.updatedAtMs ?: 0
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
 
-            if (state.hasImageAvatar && state.localAvatarPath != null) {
-                // Use local avatar path for offline-first with cache busting
-                AsyncImage(
-                    model =
-                        ImageRequest
-                            .Builder(context)
-                            .data(state.localAvatarPath)
-                            .memoryCacheKey("${state.localAvatarPath}-$cacheBuster")
-                            .diskCacheKey("${state.localAvatarPath}-$cacheBuster")
-                            .build(),
-                    contentDescription = "Current avatar",
-                    modifier =
-                        Modifier
-                            .size(80.dp)
-                            .clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                )
-            } else {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(backgroundColor),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = getInitials(state.displayName),
-                        color = Color.White,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+        NameSection(
+            firstName = editedFirstName,
+            lastName = editedLastName,
+            onFirstNameChange = { editedFirstName = it },
+            onLastNameChange = { editedLastName = it },
+            hasChanged = hasNameChanged,
+            isSaving = ready.isSaving,
+            onSave = { onSaveName(editedFirstName, editedLastName) },
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
+
+        PasswordSection(
+            newPassword = newPassword,
+            onNewPasswordChange = { newPassword = it },
+            confirmPassword = confirmPassword,
+            onConfirmPasswordChange = { confirmPassword = it },
+            isPasswordValid = isPasswordValid,
+            passwordsMatch = passwordsMatch,
+            canSave = canSavePassword,
+            isSaving = ready.isSaving,
+            onChangePassword = {
+                onChangePassword(newPassword)
+                newPassword = ""
+                confirmPassword = ""
+            },
+        )
+    }
+}
+
+@Composable
+private fun AvatarSection(
+    user: User,
+    localAvatarPath: String?,
+    isSaving: Boolean,
+    onUploadAvatar: () -> Unit,
+    onRevertAvatar: () -> Unit,
+) {
+    Text(
+        text = "Avatar",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val backgroundColor =
+            remember(user.avatarColor) {
+                try {
+                    Color(AndroidColor.parseColor(user.avatarColor))
+                } catch (_: IllegalArgumentException) {
+                    Color(0xFF6B7280)
                 }
             }
+        val context = LocalContext.current
+        val cacheBuster = user.updatedAtMs
 
-            Spacer(modifier = Modifier.width(16.dp))
+        if (user.hasImageAvatar && localAvatarPath != null) {
+            AsyncImage(
+                model =
+                    ImageRequest
+                        .Builder(context)
+                        .data(localAvatarPath)
+                        .memoryCacheKey("$localAvatarPath-$cacheBuster")
+                        .diskCacheKey("$localAvatarPath-$cacheBuster")
+                        .build(),
+                contentDescription = "Current avatar",
+                modifier =
+                    Modifier
+                        .size(80.dp)
+                        .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Box(
+                modifier =
+                    Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(backgroundColor),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = getInitials(user.displayName),
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
 
-            Column {
-                Button(
-                    onClick = onUploadAvatar,
-                    enabled = !state.isSaving,
-                ) {
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column {
+            Button(onClick = onUploadAvatar, enabled = !isSaving) {
+                Icon(
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Upload Photo")
+            }
+
+            if (user.hasImageAvatar) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(onClick = onRevertAvatar, enabled = !isSaving) {
                     Icon(
-                        imageVector = Icons.Default.CameraAlt,
+                        imageVector = Icons.Default.Delete,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Upload Photo")
-                }
-
-                if (state.hasImageAvatar) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = onRevertAvatar,
-                        enabled = !state.isSaving,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Remove Photo")
-                    }
+                    Text("Remove Photo")
                 }
             }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Tagline section
-        Text(
-            text = "Tagline",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "A short bio that appears on your profile",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = state.editedTagline,
-            onValueChange = onTaglineChange,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("What are you listening to?") },
-            singleLine = true,
-            supportingText = {
-                Text(
-                    text = "${state.taglineCharCount}/${EditProfileViewModel.MAX_TAGLINE_LENGTH}",
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color =
-                        if (state.taglineCharCount >= EditProfileViewModel.MAX_TAGLINE_LENGTH) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                )
-            },
-            enabled = !state.isSaving,
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = onSaveTagline,
-            enabled = state.hasTaglineChanged && !state.isSaving,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Save Tagline")
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Name section
-        Text(
-            text = "Name",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Update your first and last name",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ListenUpTextField(
-            value = state.editedFirstName,
-            onValueChange = onFirstNameChange,
-            label = "First Name",
-            placeholder = "Enter your first name",
-            enabled = !state.isSaving,
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ListenUpTextField(
-            value = state.editedLastName,
-            onValueChange = onLastNameChange,
-            label = "Last Name",
-            placeholder = "Enter your last name",
-            enabled = !state.isSaving,
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = onSaveName,
-            enabled = state.hasNameChanged && !state.isSaving,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Save Name")
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Password section
-        Text(
-            text = "Change Password",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Set a new password for your account",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        var newPasswordVisible by remember { mutableStateOf(false) }
-        var confirmPasswordVisible by remember { mutableStateOf(false) }
-
-        OutlinedTextField(
-            value = state.newPassword,
-            onValueChange = onNewPasswordChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("New Password") },
-            placeholder = { Text("Enter new password") },
-            singleLine = true,
-            enabled = !state.isSaving,
-            visualTransformation =
-                if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
-                    Icon(
-                        imageVector =
-                            if (newPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription =
-                            if (newPasswordVisible) "Hide password" else "Show password",
-                    )
-                }
-            },
-            supportingText = {
-                if (state.newPassword.isNotEmpty() && !state.isPasswordValid) {
-                    Text(
-                        text = "Must be at least 8 characters",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = state.confirmPassword,
-            onValueChange = onConfirmPasswordChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Confirm Password") },
-            placeholder = { Text("Re-enter new password") },
-            singleLine = true,
-            enabled = !state.isSaving,
-            visualTransformation =
-                if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                    Icon(
-                        imageVector =
-                            if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription =
-                            if (confirmPasswordVisible) "Hide password" else "Show password",
-                    )
-                }
-            },
-            supportingText = {
-                if (state.confirmPassword.isNotEmpty() && !state.passwordsMatch) {
-                    Text(
-                        text = "Passwords do not match",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = onChangePassword,
-            enabled = state.canSavePassword && !state.isSaving,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Change Password")
         }
     }
 }
 
-/**
- * Maximum dimension for avatar images (width and height).
- */
-private const val MAX_AVATAR_SIZE = 2048
+@Composable
+private fun TaglineSection(
+    value: String,
+    onValueChange: (String) -> Unit,
+    hasChanged: Boolean,
+    isSaving: Boolean,
+    onSave: () -> Unit,
+) {
+    Text(
+        text = "Tagline",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
 
-/**
- * JPEG compression quality (0-100).
- */
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Text(
+        text = "A short bio that appears on your profile",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text("What are you listening to?") },
+        singleLine = true,
+        supportingText = {
+            Text(
+                text = "${value.length}/${EditProfileViewModel.MAX_TAGLINE_LENGTH}",
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall,
+                color =
+                    if (value.length >= EditProfileViewModel.MAX_TAGLINE_LENGTH) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+            )
+        },
+        enabled = !isSaving,
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Button(
+        onClick = onSave,
+        enabled = hasChanged && !isSaving,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text("Save Tagline")
+    }
+}
+
+@Composable
+private fun NameSection(
+    firstName: String,
+    lastName: String,
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
+    hasChanged: Boolean,
+    isSaving: Boolean,
+    onSave: () -> Unit,
+) {
+    Text(
+        text = "Name",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Text(
+        text = "Update your first and last name",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    ListenUpTextField(
+        value = firstName,
+        onValueChange = onFirstNameChange,
+        label = "First Name",
+        placeholder = "Enter your first name",
+        enabled = !isSaving,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    ListenUpTextField(
+        value = lastName,
+        onValueChange = onLastNameChange,
+        label = "Last Name",
+        placeholder = "Enter your last name",
+        enabled = !isSaving,
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Button(
+        onClick = onSave,
+        enabled = hasChanged && !isSaving,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text("Save Name")
+    }
+}
+
+@Composable
+private fun PasswordSection(
+    newPassword: String,
+    onNewPasswordChange: (String) -> Unit,
+    confirmPassword: String,
+    onConfirmPasswordChange: (String) -> Unit,
+    isPasswordValid: Boolean,
+    passwordsMatch: Boolean,
+    canSave: Boolean,
+    isSaving: Boolean,
+    onChangePassword: () -> Unit,
+) {
+    Text(
+        text = "Change Password",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Text(
+        text = "Set a new password for your account",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    var newPasswordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+
+    OutlinedTextField(
+        value = newPassword,
+        onValueChange = onNewPasswordChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("New Password") },
+        placeholder = { Text("Enter new password") },
+        singleLine = true,
+        enabled = !isSaving,
+        visualTransformation =
+            if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                Icon(
+                    imageVector =
+                        if (newPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (newPasswordVisible) "Hide password" else "Show password",
+                )
+            }
+        },
+        supportingText = {
+            if (newPassword.isNotEmpty() && !isPasswordValid) {
+                Text(
+                    text = "Must be at least ${EditProfileViewModel.MIN_PASSWORD_LENGTH} characters",
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    OutlinedTextField(
+        value = confirmPassword,
+        onValueChange = onConfirmPasswordChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Confirm Password") },
+        placeholder = { Text("Re-enter new password") },
+        singleLine = true,
+        enabled = !isSaving,
+        visualTransformation =
+            if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                Icon(
+                    imageVector =
+                        if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription =
+                        if (confirmPasswordVisible) "Hide password" else "Show password",
+                )
+            }
+        },
+        supportingText = {
+            if (confirmPassword.isNotEmpty() && !passwordsMatch) {
+                Text(
+                    text = "Passwords do not match",
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Button(
+        onClick = onChangePassword,
+        enabled = canSave && !isSaving,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text("Change Password")
+    }
+}
+
+private const val MAX_AVATAR_SIZE = 2048
 private const val AVATAR_QUALITY = 85
 
-/**
- * Compress and resize an avatar image.
- *
- * - Resizes to fit within [MAX_AVATAR_SIZE] x [MAX_AVATAR_SIZE] while maintaining aspect ratio
- * - Compresses as JPEG with [AVATAR_QUALITY]
- *
- * @param context Android context for content resolver
- * @param uri URI of the selected image
- * @return Compressed image bytes, or null if processing fails
- */
 private suspend fun compressAvatar(
     context: Context,
     uri: Uri,
 ): ByteArray? =
     withContext(Dispatchers.IO) {
         try {
-            // Decode bitmap
             val inputStream = context.contentResolver.openInputStream(uri) ?: return@withContext null
             val originalBitmap = BitmapFactory.decodeStream(inputStream)
             inputStream.close()
@@ -564,7 +628,6 @@ private suspend fun compressAvatar(
                 return@withContext null
             }
 
-            // Calculate scaled dimensions maintaining aspect ratio
             val width = originalBitmap.width
             val height = originalBitmap.height
             val scale = minOf(MAX_AVATAR_SIZE.toFloat() / width, MAX_AVATAR_SIZE.toFloat() / height, 1f)
@@ -572,7 +635,6 @@ private suspend fun compressAvatar(
             val scaledWidth = (width * scale).toInt()
             val scaledHeight = (height * scale).toInt()
 
-            // Resize if needed
             val scaledBitmap =
                 if (scale < 1f) {
                     Bitmap.createScaledBitmap(originalBitmap, scaledWidth, scaledHeight, true)
@@ -580,11 +642,9 @@ private suspend fun compressAvatar(
                     originalBitmap
                 }
 
-            // Compress to JPEG
             val outputStream = ByteArrayOutputStream()
             scaledBitmap.compress(Bitmap.CompressFormat.JPEG, AVATAR_QUALITY, outputStream)
 
-            // Clean up
             if (scaledBitmap != originalBitmap) {
                 scaledBitmap.recycle()
             }

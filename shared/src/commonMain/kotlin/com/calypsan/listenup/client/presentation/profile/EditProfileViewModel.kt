@@ -1,9 +1,8 @@
-@file:Suppress("CognitiveComplexMethod")
-
 package com.calypsan.listenup.client.presentation.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.User
@@ -11,377 +10,170 @@ import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.ProfileEditRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
+/** UI state for the Edit Profile screen. */
+sealed interface EditProfileUiState {
+    /** Initial state before the observe pipeline emits. */
+    data object Loading : EditProfileUiState
+
+    /** User loaded; ready to edit. [isSaving] overlays on top of data during mutations. */
+    data class Ready(
+        val user: User,
+        val localAvatarPath: String?,
+        val isSaving: Boolean,
+    ) : EditProfileUiState
+
+    /** No user available — signed out, or local cache empty. */
+    data class Error(
+        val message: String,
+    ) : EditProfileUiState
+}
+
+/** One-shot outcomes the screen surfaces via snackbar. */
+sealed interface EditProfileEvent {
+    data object TaglineSaved : EditProfileEvent
+
+    data object NameSaved : EditProfileEvent
+
+    data object AvatarUpdated : EditProfileEvent
+
+    data object PasswordChanged : EditProfileEvent
+
+    data class SaveFailed(
+        val message: String,
+    ) : EditProfileEvent
+}
+
 /**
  * ViewModel for the Edit Profile screen.
  *
- * Uses offline-first pattern:
- * - Observes profile from local database ONLY (no server fetch)
- * - Saves changes locally immediately via ProfileEditRepository
- * - Changes are synced to server by PushSyncOrchestrator
- * - When sync completes, handlers update local cache, UI updates automatically
+ * Observes the current user from local storage (offline-first) and layers an `isSaving`
+ * overlay on top while a write is in flight. Save outcomes surface via the [events]
+ * channel — the UI collects them and shows snackbars without polling state flags.
+ *
+ * Text input state (tagline, first/last name, passwords) lives in the UI as
+ * `rememberSaveable` — the VM receives complete values at save time.
  */
 class EditProfileViewModel(
     private val profileEditRepository: ProfileEditRepository,
     private val userRepository: UserRepository,
     private val imageRepository: ImageRepository,
 ) : ViewModel() {
-    val state: StateFlow<EditProfileUiState>
-        field = MutableStateFlow(EditProfileUiState())
+    private val savingFlow = MutableStateFlow(false)
 
-    init {
-        observeUser()
-    }
+    private val eventChannel = Channel<EditProfileEvent>(Channel.BUFFERED)
+    val events: Flow<EditProfileEvent> = eventChannel.receiveAsFlow()
 
-    /**
-     * Observe current user from local database.
-     *
-     * This ensures the UI updates when:
-     * - ProfileAvatarHandler syncs new avatar after upload
-     * - ProfileUpdateHandler syncs profile changes
-     * - Any other sync updates the User
-     *
-     * NO server fetch - everything from local cache.
-     */
-    private fun observeUser() {
-        viewModelScope.launch {
-            userRepository.observeCurrentUser().collect { user ->
-                if (user != null) {
-                    val currentState = state.value
-
-                    // Get local avatar path if it exists
-                    val localAvatarPath =
-                        if (user.avatarType == "image" && imageRepository.userAvatarExists(user.id.value)) {
-                            imageRepository.getUserAvatarPath(user.id.value)
-                        } else {
-                            null
-                        }
-
-                    state.update {
-                        it.copy(
-                            isLoading = false,
-                            user = user,
-                            localAvatarPath = localAvatarPath,
-                            // Only set edited fields from DB on first load
-                            editedTagline =
-                                if (currentState.user == null) {
-                                    user.tagline ?: ""
-                                } else {
-                                    currentState.editedTagline
-                                },
-                            editedFirstName =
-                                if (currentState.user == null) {
-                                    user.firstName ?: ""
-                                } else {
-                                    currentState.editedFirstName
-                                },
-                            editedLastName =
-                                if (currentState.user == null) {
-                                    user.lastName ?: ""
-                                } else {
-                                    currentState.editedLastName
-                                },
-                            error = null,
-                        )
-                    }
-                    logger.debug {
-                        "User updated from local cache: avatar=${user.avatarType}/${user.avatarValue}, localPath=$localAvatarPath"
-                    }
-                } else {
-                    state.update {
-                        it.copy(
-                            isLoading = false,
-                            error = "No user data available",
-                        )
-                    }
-                }
+    val state: StateFlow<EditProfileUiState> =
+        combine(userRepository.observeCurrentUser(), savingFlow) { user, isSaving ->
+            if (user == null) {
+                EditProfileUiState.Error("No user data available")
+            } else {
+                EditProfileUiState.Ready(
+                    user = user,
+                    localAvatarPath = resolveLocalAvatarPath(user),
+                    isSaving = isSaving,
+                )
             }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+            initialValue = EditProfileUiState.Loading,
+        )
+
+    fun saveTagline(tagline: String) {
+        val normalized = tagline.take(MAX_TAGLINE_LENGTH).ifEmpty { null }
+        runSave(EditProfileEvent.TaglineSaved, "Failed to save tagline") {
+            profileEditRepository.updateTagline(normalized)
         }
     }
 
-    /**
-     * Update the tagline input field.
-     */
-    fun onTaglineChange(newTagline: String) {
-        // Enforce max length
-        val truncated =
-            if (newTagline.length > MAX_TAGLINE_LENGTH) {
-                newTagline.take(MAX_TAGLINE_LENGTH)
-            } else {
-                newTagline
-            }
-        state.update { it.copy(editedTagline = truncated) }
-    }
-
-    /**
-     * Save the updated tagline using offline-first pattern.
-     */
-    fun saveTagline() {
-        val currentTagline = state.value.user?.tagline ?: ""
-        val editedTagline = state.value.editedTagline
-
-        // No change, skip
-        if (editedTagline == currentTagline) return
-
-        viewModelScope.launch {
-            state.update { it.copy(isSaving = true, error = null) }
-
-            if (profileEditRepository.updateTagline(editedTagline.ifEmpty { null }) is Success) {
-                // Local state will update via observeUser() when DB is updated
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        saveSuccess = true,
-                    )
-                }
-                logger.info { "Tagline update queued for sync" }
-            } else {
-                logger.error { "Failed to save tagline" }
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        error = "Failed to save tagline",
-                    )
-                }
-            }
+    fun saveName(
+        firstName: String,
+        lastName: String,
+    ) {
+        runSave(EditProfileEvent.NameSaved, "Failed to save name") {
+            profileEditRepository.updateName(firstName, lastName)
         }
     }
 
-    /**
-     * Upload an avatar image using offline-first pattern.
-     */
     fun uploadAvatar(
         imageData: ByteArray,
         contentType: String,
     ) {
-        viewModelScope.launch {
-            state.update { it.copy(isSaving = true, error = null) }
-
-            if (profileEditRepository.uploadAvatar(imageData, contentType) is Success) {
-                // Don't update avatar state here - we don't have the server path yet.
-                // The current avatar continues to display until:
-                // 1. ProfileAvatarHandler successfully uploads the image
-                // 2. Handler updates user data with the server's response
-                // 3. observeUser() sees the change and updates UI
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        saveSuccess = true,
-                    )
-                }
-                logger.info { "Avatar upload queued for sync" }
-            } else {
-                logger.error { "Failed to upload avatar" }
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        error = "Failed to upload avatar",
-                    )
-                }
-            }
+        runSave(EditProfileEvent.AvatarUpdated, "Failed to upload avatar") {
+            profileEditRepository.uploadAvatar(imageData, contentType)
         }
     }
 
-    /**
-     * Revert to auto-generated avatar using offline-first pattern.
-     */
     fun revertToAutoAvatar() {
-        viewModelScope.launch {
-            state.update { it.copy(isSaving = true, error = null) }
-
-            if (profileEditRepository.revertToAutoAvatar() is Success) {
-                // Local state will update via observeUser() when DB is updated
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        saveSuccess = true,
-                    )
-                }
-                logger.info { "Revert to auto avatar queued for sync" }
-            } else {
-                logger.error { "Failed to revert avatar" }
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        error = "Failed to revert avatar",
-                    )
-                }
-            }
+        runSave(EditProfileEvent.AvatarUpdated, "Failed to revert avatar") {
+            profileEditRepository.revertToAutoAvatar()
         }
     }
 
-    /**
-     * Clear the success flag after showing feedback.
-     */
-    fun clearSaveSuccess() {
-        state.update { it.copy(saveSuccess = false) }
-    }
-
-    /**
-     * Clear error after displaying.
-     */
-    fun clearError() {
-        state.update { it.copy(error = null) }
-    }
-
-    /**
-     * Update the first name input field.
-     */
-    fun onFirstNameChange(newFirstName: String) {
-        state.update { it.copy(editedFirstName = newFirstName) }
-    }
-
-    /**
-     * Update the last name input field.
-     */
-    fun onLastNameChange(newLastName: String) {
-        state.update { it.copy(editedLastName = newLastName) }
-    }
-
-    /**
-     * Save the updated name using offline-first pattern.
-     */
-    fun saveName() {
-        val firstName = state.value.editedFirstName
-        val lastName = state.value.editedLastName
-
-        // Skip if both are empty
-        if (firstName.isBlank() && lastName.isBlank()) return
-
-        viewModelScope.launch {
-            state.update { it.copy(isSaving = true, error = null) }
-
-            if (profileEditRepository.updateName(firstName, lastName) is Success) {
-                // DB is updated optimistically, observeUser() will receive the update
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        saveSuccess = true,
-                    )
-                }
-                logger.info { "Name update saved" }
-            } else {
-                logger.error { "Failed to save name" }
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        error = "Failed to save name",
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Update the new password input field.
-     */
-    fun onNewPasswordChange(newPassword: String) {
-        state.update { it.copy(newPassword = newPassword) }
-    }
-
-    /**
-     * Update the confirm password input field.
-     */
-    fun onConfirmPasswordChange(confirmPassword: String) {
-        state.update { it.copy(confirmPassword = confirmPassword) }
-    }
-
-    /**
-     * Change the user's password.
-     * Requires server confirmation - not offline-first.
-     */
-    @Suppress("MagicNumber")
-    fun changePassword() {
-        val newPassword = state.value.newPassword
-        val confirmPassword = state.value.confirmPassword
-
-        // Validate
-        if (newPassword.length < 8) {
-            state.update { it.copy(error = "Password must be at least 8 characters") }
+    fun changePassword(newPassword: String) {
+        if (newPassword.length < MIN_PASSWORD_LENGTH) {
+            eventChannel.trySend(
+                EditProfileEvent.SaveFailed("Password must be at least $MIN_PASSWORD_LENGTH characters"),
+            )
             return
         }
-        if (newPassword != confirmPassword) {
-            state.update { it.copy(error = "Passwords do not match") }
-            return
+        runSave(EditProfileEvent.PasswordChanged, "Failed to change password") {
+            profileEditRepository.changePassword(newPassword)
         }
+    }
 
+    private fun runSave(
+        onSuccess: EditProfileEvent,
+        failureMessage: String,
+        op: suspend () -> AppResult<*>,
+    ) {
         viewModelScope.launch {
-            state.update { it.copy(isSaving = true, error = null) }
-
-            when (profileEditRepository.changePassword(newPassword)) {
-                is Success -> {
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            passwordChangeSuccess = true,
-                            newPassword = "",
-                            confirmPassword = "",
-                        )
+            savingFlow.value = true
+            try {
+                when (val result = op()) {
+                    is Success -> {
+                        eventChannel.trySend(onSuccess)
+                        logger.info { "Save succeeded: $onSuccess" }
                     }
-                    logger.info { "Password changed successfully" }
-                }
 
-                is Failure -> {
-                    logger.error { "Failed to change password" }
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            error = "Failed to change password",
-                        )
+                    is Failure -> {
+                        logger.error { "Save failed: $failureMessage — ${result.message}" }
+                        eventChannel.trySend(EditProfileEvent.SaveFailed(failureMessage))
                     }
                 }
+            } finally {
+                savingFlow.value = false
             }
         }
     }
 
-    /**
-     * Clear the password change success flag after showing feedback.
-     */
-    fun clearPasswordChangeSuccess() {
-        state.update { it.copy(passwordChangeSuccess = false) }
-    }
+    private fun resolveLocalAvatarPath(user: User): String? =
+        if (user.avatarType == "image" && imageRepository.userAvatarExists(user.id.value)) {
+            imageRepository.getUserAvatarPath(user.id.value)
+        } else {
+            null
+        }
 
     companion object {
+        /** Maximum characters allowed in the tagline field. */
         const val MAX_TAGLINE_LENGTH = 60
-    }
-}
 
-/**
- * UI state for the Edit Profile screen.
- */
-data class EditProfileUiState(
-    val isLoading: Boolean = true,
-    val isSaving: Boolean = false,
-    val user: User? = null,
-    val localAvatarPath: String? = null,
-    val editedTagline: String = "",
-    val editedFirstName: String = "",
-    val editedLastName: String = "",
-    val newPassword: String = "",
-    val confirmPassword: String = "",
-    val error: String? = null,
-    val saveSuccess: Boolean = false,
-    val passwordChangeSuccess: Boolean = false,
-) {
-    val displayName: String get() = user?.displayName ?: ""
-    val avatarType: String get() = user?.avatarType ?: "auto"
-    val avatarValue: String? get() = user?.avatarValue
-    val avatarColor: String get() = user?.avatarColor ?: "#6B7280"
-    val currentTagline: String get() = user?.tagline ?: ""
-    val hasTaglineChanged: Boolean get() = editedTagline != currentTagline
-    val taglineCharCount: Int get() = editedTagline.length
-    val hasImageAvatar: Boolean get() = avatarType == "image"
-    val currentFirstName: String get() = user?.firstName ?: ""
-    val currentLastName: String get() = user?.lastName ?: ""
-    val hasNameChanged: Boolean
-        get() = editedFirstName != currentFirstName || editedLastName != currentLastName
-    val passwordsMatch: Boolean get() = newPassword == confirmPassword
-    val isPasswordValid: Boolean get() = newPassword.length >= 8
-    val canSavePassword: Boolean get() = newPassword.isNotEmpty() && passwordsMatch && isPasswordValid
+        /** Minimum password length enforced before calling the repository. */
+        const val MIN_PASSWORD_LENGTH = 8
+
+        private const val SUBSCRIPTION_TIMEOUT_MS = 5_000L
+    }
 }
