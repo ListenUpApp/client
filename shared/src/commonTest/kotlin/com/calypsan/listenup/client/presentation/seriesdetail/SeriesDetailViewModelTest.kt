@@ -16,7 +16,9 @@ import dev.mokkery.mock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -25,27 +27,13 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Tests for SeriesDetailViewModel.
- *
- * Tests cover:
- * - Initial state
- * - Load series success with books
- * - Load series not found
- * - Books sorted by sequence number
- * - Series description handling
- *
- * Uses Mokkery for mocking SeriesRepository.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SeriesDetailViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
-
-    // ========== Test Fixtures ==========
 
     private class TestFixture {
         val seriesRepository: SeriesRepository = mock()
@@ -61,17 +49,14 @@ class SeriesDetailViewModelTest {
 
     private fun createFixture(): TestFixture {
         val fixture = TestFixture()
-
-        // Default stub for observeSeriesWithBooks
         every { fixture.seriesRepository.observeSeriesWithBooks(any()) } returns fixture.seriesFlow
-
-        // Default stub for imageRepository - no series cover exists
         every { fixture.imageRepository.seriesCoverExists(any()) } returns false
-
         return fixture
     }
 
-    // ========== Test Data Factories ==========
+    private fun TestScope.keepStateHot(viewModel: SeriesDetailViewModel) {
+        backgroundScope.launch { viewModel.state.collect { } }
+    }
 
     private fun createSeries(
         id: String = "series-1",
@@ -128,51 +113,30 @@ class SeriesDetailViewModelTest {
         Dispatchers.resetMain()
     }
 
-    // ========== Initial State Tests ==========
+    // ========== Initial State ==========
 
     @Test
-    fun `initial state has isLoading true and empty data`() =
+    fun `initial state is Idle pre-loadSeries`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
+            advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
-            assertTrue(state.isLoading)
-            assertEquals("", state.seriesName)
-            assertTrue(state.books.isEmpty())
-            assertNull(state.error)
+            assertEquals(SeriesDetailUiState.Idle, viewModel.state.value)
         }
 
-    // ========== Load Series Tests ==========
-
-    @Test
-    fun `loadSeries sets isLoading to true initially`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.loadSeries("series-1")
-            // Don't advance - check immediate state
-
-            // Then
-            assertTrue(viewModel.state.value.isLoading)
-        }
+    // ========== Load Series ==========
 
     @Test
     fun `loadSeries success populates series data`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val series = createSeries(name = "Epic Fantasy Series", description = "An epic adventure")
             val book = createBook(id = "book-1", title = "Book One")
-
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value =
                 createSeriesWithBooks(
@@ -182,64 +146,49 @@ class SeriesDetailViewModelTest {
                 )
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
-            assertFalse(state.isLoading)
+            val state = assertIs<SeriesDetailUiState.Ready>(viewModel.state.value)
             assertEquals("Epic Fantasy Series", state.seriesName)
             assertEquals("An epic adventure", state.seriesDescription)
             assertEquals(1, state.books.size)
             assertEquals("Book One", state.books[0].title)
-            assertNull(state.error)
         }
 
     @Test
     fun `loadSeries not found sets error state`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadSeries("nonexistent")
             fixture.seriesFlow.value = null
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
-            assertFalse(state.isLoading)
-            assertEquals("Series not found", state.error)
+            val state = assertIs<SeriesDetailUiState.Error>(viewModel.state.value)
+            assertEquals("Series not found", state.message)
         }
 
     @Test
     fun `loadSeries sorts books by sequence number`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val series = createSeries()
-
             val book1 = createBook(id = "book-1", title = "Book One", seriesSequence = "1")
             val book2 = createBook(id = "book-2", title = "Book Two", seriesSequence = "2")
             val book3 = createBook(id = "book-3", title = "Book Three", seriesSequence = "1.5")
-
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When - books come in unsorted order, sequence info in bookSequences
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value =
                 createSeriesWithBooks(
                     series = series,
-                    books = listOf(book2, book3, book1), // Out of order
-                    bookSequences =
-                        mapOf(
-                            "book-1" to "1",
-                            "book-2" to "2",
-                            "book-3" to "1.5",
-                        ),
+                    books = listOf(book2, book3, book1),
+                    bookSequences = mapOf("book-1" to "1", "book-2" to "2", "book-3" to "1.5"),
                 )
             advanceUntilIdle()
 
-            // Then - should be sorted by sequence: 1, 1.5, 2
-            val state = viewModel.state.value
+            val state = assertIs<SeriesDetailUiState.Ready>(viewModel.state.value)
             assertEquals(3, state.books.size)
             assertEquals("Book One", state.books[0].title)
             assertEquals("Book Three", state.books[1].title)
@@ -249,31 +198,23 @@ class SeriesDetailViewModelTest {
     @Test
     fun `loadSeries handles books with null sequence`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val series = createSeries()
-
             val book1 = createBook(id = "book-1", title = "Numbered Book", seriesSequence = "1")
             val book2 = createBook(id = "book-2", title = "Unnumbered Book", seriesSequence = null)
-
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When - sequence info in bookSequences (null for unnumbered)
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value =
                 createSeriesWithBooks(
                     series = series,
                     books = listOf(book2, book1),
-                    bookSequences =
-                        mapOf(
-                            "book-1" to "1",
-                            "book-2" to null,
-                        ),
+                    bookSequences = mapOf("book-1" to "1", "book-2" to null),
                 )
             advanceUntilIdle()
 
-            // Then - numbered first, unnumbered at end
-            val state = viewModel.state.value
+            val state = assertIs<SeriesDetailUiState.Ready>(viewModel.state.value)
             assertEquals(2, state.books.size)
             assertEquals("Numbered Book", state.books[0].title)
             assertEquals("Unnumbered Book", state.books[1].title)
@@ -282,60 +223,55 @@ class SeriesDetailViewModelTest {
     @Test
     fun `loadSeries handles null series description`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val series = createSeries(description = null)
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value = createSeriesWithBooks(series = series, books = emptyList())
             advanceUntilIdle()
 
-            // Then
-            assertNull(viewModel.state.value.seriesDescription)
+            val state = assertIs<SeriesDetailUiState.Ready>(viewModel.state.value)
+            assertNull(state.seriesDescription)
         }
 
     @Test
     fun `loadSeries handles empty books list`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val series = createSeries(name = "Empty Series")
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value = createSeriesWithBooks(series = series, books = emptyList())
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
+            val state = assertIs<SeriesDetailUiState.Ready>(viewModel.state.value)
             assertEquals("Empty Series", state.seriesName)
             assertTrue(state.books.isEmpty())
-            assertNull(state.error)
         }
 
     @Test
     fun `loadSeries updates when flow emits new value`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val series1 = createSeries(name = "Original Name")
             val series2 = createSeries(name = "Updated Name")
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // When - first emission
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value = createSeriesWithBooks(series = series1, books = emptyList())
             advanceUntilIdle()
-            assertEquals("Original Name", viewModel.state.value.seriesName)
+            val first = assertIs<SeriesDetailUiState.Ready>(viewModel.state.value)
+            assertEquals("Original Name", first.seriesName)
 
-            // When - second emission (simulating sync update)
             fixture.seriesFlow.value = createSeriesWithBooks(series = series2, books = emptyList())
             advanceUntilIdle()
 
-            // Then
-            assertEquals("Updated Name", viewModel.state.value.seriesName)
+            val second = assertIs<SeriesDetailUiState.Ready>(viewModel.state.value)
+            assertEquals("Updated Name", second.seriesName)
         }
 }

@@ -92,13 +92,14 @@ fun SeriesDetailScreen(
     }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val readyState = state as? SeriesDetailUiState.Ready
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = state.seriesName.ifBlank { "Series" },
+                        text = readyState?.seriesName ?: "Series",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -135,20 +136,20 @@ fun SeriesDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            when {
-                state.isLoading -> {
+            when (val current = state) {
+                SeriesDetailUiState.Idle, SeriesDetailUiState.Loading -> {
                     ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                state.error != null -> {
+                is SeriesDetailUiState.Error -> {
                     Text(
-                        text = state.error ?: "Unknown error",
+                        text = current.message,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center),
                     )
                 }
 
-                else -> {
+                is SeriesDetailUiState.Ready -> {
                     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
                     val useWideLayout =
                         windowSizeClass.isWidthAtLeastBreakpoint(
@@ -157,12 +158,12 @@ fun SeriesDetailScreen(
 
                     if (useWideLayout) {
                         WideSeriesDetailContent(
-                            state = state,
+                            state = current,
                             onBookClick = onBookClick,
                         )
                     } else {
                         NarrowSeriesDetailContent(
-                            state = state,
+                            state = current,
                             onBookClick = onBookClick,
                         )
                     }
@@ -180,7 +181,7 @@ fun SeriesDetailScreen(
  */
 @Composable
 private fun WideSeriesDetailContent(
-    state: SeriesDetailUiState,
+    state: SeriesDetailUiState.Ready,
     onBookClick: (String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
@@ -392,7 +393,7 @@ private fun SeriesBookCard(
  */
 @Composable
 private fun NarrowSeriesDetailContent(
-    state: SeriesDetailUiState,
+    state: SeriesDetailUiState.Ready,
     onBookClick: (String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
