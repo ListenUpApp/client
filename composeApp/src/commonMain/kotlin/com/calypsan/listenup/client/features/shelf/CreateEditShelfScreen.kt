@@ -73,13 +73,15 @@ fun CreateEditShelfScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
-    var name by rememberSaveable { mutableStateOf("") }
-    var description by rememberSaveable { mutableStateOf("") }
-    var seeded by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
 
     val isEditing = shelfId != null
+
+    // Reset text seed when shelfId changes; key() scopes the saveables so a new
+    // shelfId discards stale text and re-seeds from the next Loaded emission.
+    var name by rememberSaveable(shelfId) { mutableStateOf("") }
+    var description by rememberSaveable(shelfId) { mutableStateOf("") }
+    var seeded by rememberSaveable(shelfId) { mutableStateOf(false) }
 
     LaunchedEffect(shelfId) {
         if (shelfId != null) viewModel.initEdit(shelfId) else viewModel.initCreate()
