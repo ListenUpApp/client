@@ -45,6 +45,7 @@ import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
+import com.calypsan.listenup.client.domain.model.SearchResult
 import com.calypsan.listenup.client.presentation.search.SearchUiState
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
@@ -60,23 +61,20 @@ import listenup.composeapp.generated.resources.search_try_a_different_search_ter
 /**
  * Full-screen overlay for search results.
  *
- * Displays federated results grouped by type (Books, Authors, Series).
- * Shows loading, empty, and error states appropriately.
- *
- * @param state Current search UI state
- * @param onResultClick Callback when a search result is clicked
- * @param onTypeFilterToggle Callback when a type filter chip is toggled
- * @param modifier Optional modifier
+ * Displays federated results grouped by type (Books, Authors, Series, Tags).
+ * [isExpanded] is owned by the enclosing screen (search bar) and combined here
+ * with `state.query` to drive entry/exit animation.
  */
 @Composable
 fun SearchResultsOverlay(
     state: SearchUiState,
+    isExpanded: Boolean,
     onResultClick: (SearchHit) -> Unit,
     onTypeFilterToggle: (SearchHitType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
-        visible = state.isExpanded && state.query.isNotBlank(),
+        visible = isExpanded && state.query.isNotBlank(),
         enter = fadeIn() + slideInVertically(),
         exit = fadeOut() + slideOutVertically(),
         modifier = modifier,
@@ -86,47 +84,35 @@ fun SearchResultsOverlay(
             color = MaterialTheme.colorScheme.background,
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Type filter chips
                 TypeFilterRow(
                     selectedTypes = state.selectedTypes,
                     onToggle = onTypeFilterToggle,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
 
-                // Offline indicator
-                if (state.showOfflineIndicator) {
-                    OfflineIndicator(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
+                if (state is SearchUiState.Results && state.result.isOfflineResult) {
+                    OfflineIndicator(modifier = Modifier.padding(horizontal = 16.dp))
                 }
 
-                // Content
-                val errorMessage = state.error
-                when {
-                    state.isSearching -> {
+                when (state) {
+                    is SearchUiState.Idle -> {
+                    }
+
+                    is SearchUiState.Searching -> {
                         LoadingState(modifier = Modifier.weight(1f))
                     }
 
-                    errorMessage != null -> {
+                    is SearchUiState.Error -> {
                         ErrorState(
-                            message = errorMessage,
+                            message = state.message,
                             modifier = Modifier.weight(1f),
                         )
                     }
 
-                    state.isEmpty -> {
-                        EmptyState(
+                    is SearchUiState.Results -> {
+                        ResultsContent(
+                            result = state.result,
                             query = state.query,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-
-                    state.hasResults -> {
-                        SearchResultsList(
-                            books = state.books,
-                            contributors = state.contributors,
-                            series = state.series,
-                            tags = state.tags,
                             onResultClick = onResultClick,
                             modifier = Modifier.weight(1f),
                         )
@@ -135,6 +121,32 @@ fun SearchResultsOverlay(
             }
         }
     }
+}
+
+@Composable
+private fun ResultsContent(
+    result: SearchResult,
+    query: String,
+    onResultClick: (SearchHit) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (result.hits.isEmpty()) {
+        EmptyState(query = query, modifier = modifier)
+        return
+    }
+    val grouped = result.hits.groupBy { it.type }
+    val books = grouped[SearchHitType.BOOK].orEmpty().distinctBy { it.id }
+    val contributors = grouped[SearchHitType.CONTRIBUTOR].orEmpty().distinctBy { it.id }
+    val series = grouped[SearchHitType.SERIES].orEmpty().distinctBy { it.id }
+    val tags = grouped[SearchHitType.TAG].orEmpty().distinctBy { it.id }
+    SearchResultsList(
+        books = books,
+        contributors = contributors,
+        series = series,
+        tags = tags,
+        onResultClick = onResultClick,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -238,7 +250,6 @@ private fun SearchResultsList(
         modifier = modifier,
         contentPadding = PaddingValues(16.dp),
     ) {
-        // Books section
         if (books.isNotEmpty()) {
             item(key = "books_header") {
                 SectionHeader(title = stringResource(Res.string.library_books), count = books.size)
@@ -252,7 +263,6 @@ private fun SearchResultsList(
             }
         }
 
-        // Contributors section
         if (contributors.isNotEmpty()) {
             item(key = "contributors_header") {
                 SectionHeader(title = stringResource(Res.string.search_people), count = contributors.size)
@@ -266,7 +276,6 @@ private fun SearchResultsList(
             }
         }
 
-        // Series section
         if (series.isNotEmpty()) {
             item(key = "series_header") {
                 SectionHeader(title = stringResource(Res.string.common_series), count = series.size)
@@ -280,7 +289,6 @@ private fun SearchResultsList(
             }
         }
 
-        // Tags section
         if (tags.isNotEmpty()) {
             item(key = "tags_header") {
                 SectionHeader(title = stringResource(Res.string.book_detail_tags), count = tags.size)
@@ -343,7 +351,6 @@ private fun BookSearchResultCard(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Cover image
             BookCoverImage(
                 bookId = hit.id,
                 coverPath = hit.coverPath,
@@ -357,7 +364,6 @@ private fun BookSearchResultCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Text content
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = hit.name,
@@ -385,7 +391,6 @@ private fun BookSearchResultCard(
                 }
             }
 
-            // Duration
             hit.formatDuration()?.let { duration ->
                 Text(
                     text = duration,
@@ -417,7 +422,6 @@ private fun ContributorSearchResultCard(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Avatar placeholder
             Box(
                 modifier =
                     Modifier
@@ -476,7 +480,6 @@ private fun SeriesSearchResultCard(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Series icon
             Box(
                 modifier =
                     Modifier
@@ -535,7 +538,6 @@ private fun TagSearchResultCard(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Tag icon
             Box(
                 modifier =
                     Modifier

@@ -13,6 +13,7 @@ import dev.mokkery.mock
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -24,47 +25,31 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
-import com.calypsan.listenup.client.core.Success
 
 /**
- * Tests for SearchViewModel.
+ * Tests for [SearchViewModel].
  *
- * Tests cover:
- * - Initial state
- * - Query handling with debounce (300ms, min 2 chars)
- * - Search success and error states
- * - Type filtering (toggle, re-search)
- * - Navigation actions (book, contributor, series)
- * - Expand/collapse and clear query
- *
- * Uses Mokkery for mocking SearchRepositoryContract.
+ * Every test calls [keepStateHot] because `state` uses `stateIn(WhileSubscribed)` —
+ * without an active collector the upstream pipeline is torn down.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
-    // ========== Test Fixtures ==========
-
-    private class TestFixture(
-        private val scope: TestScope,
-    ) {
+    private class TestFixture {
         val searchRepository: SearchRepository = mock()
 
-        fun build(): SearchViewModel =
-            SearchViewModel(
-                searchRepository = searchRepository,
-            )
+        fun build(): SearchViewModel = SearchViewModel(searchRepository = searchRepository)
     }
 
-    private fun TestScope.createFixture(): TestFixture = TestFixture(this)
+    private fun TestScope.createFixture(): TestFixture = TestFixture()
 
-    // ========== Test Data Factories ==========
+    private fun TestScope.keepStateHot(viewModel: SearchViewModel) {
+        backgroundScope.launch { viewModel.state.collect { } }
+    }
 
     private fun createSearchResult(
         query: String = "test",
@@ -108,6 +93,16 @@ class SearchViewModelTest {
             name = name,
         )
 
+    private fun createTagHit(
+        id: String = "tag-1",
+        name: String = "Test Tag",
+    ): SearchHit =
+        SearchHit(
+            id = id,
+            type = SearchHitType.TAG,
+            name = name,
+        )
+
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
@@ -118,48 +113,36 @@ class SearchViewModelTest {
         Dispatchers.resetMain()
     }
 
-    // ========== Initial State Tests ==========
-
     @Test
-    fun `initial state has empty query and no results`() =
+    fun `initial state is Idle with empty query and no type filters`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
+            val state = assertIs<SearchUiState.Idle>(viewModel.state.value)
             assertEquals("", state.query)
-            assertFalse(state.isSearching)
-            assertNull(state.results)
-            assertNull(state.error)
-            assertFalse(state.isExpanded)
             assertTrue(state.selectedTypes.isEmpty())
         }
 
-    // ========== Query Handling Tests ==========
-
     @Test
-    fun `QueryChanged updates query in state`() =
+    fun `onQueryChanged reflects new query in state immediately`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
-            // When
-            viewModel.onEvent(SearchUiEvent.QueryChanged("hello"))
+            viewModel.onQueryChanged("hello")
             advanceUntilIdle()
 
-            // Then
             assertEquals("hello", viewModel.state.value.query)
         }
 
     @Test
-    fun `search triggers after debounce delay for query with min 2 chars`() =
+    fun `search triggers after debounce for query with min 2 chars`() =
         runTest {
-            // Given
             val fixture = createFixture()
             everySuspend { fixture.searchRepository.search(any(), any(), any(), any(), any()) } returns
                 createSearchResult(
@@ -167,21 +150,21 @@ class SearchViewModelTest {
                     hits = listOf(createBookHit()),
                 )
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
-            // When - type query with 2+ chars
-            viewModel.onEvent(SearchUiEvent.QueryChanged("te"))
+            viewModel.onQueryChanged("te")
 
-            // Before debounce - no search yet
+            // Before debounce fires: phase still Idle (search hasn't started).
+            // Don't call advanceUntilIdle here — it would advance through the 300ms debounce.
             advanceTimeBy(200.milliseconds)
-            assertNull(viewModel.state.value.results)
+            assertIs<SearchUiState.Idle>(viewModel.state.value)
 
-            // After debounce (300ms) - search should execute
             advanceTimeBy(150.milliseconds)
             advanceUntilIdle()
 
-            // Then
-            assertNotNull(viewModel.state.value.results)
+            val results = assertIs<SearchUiState.Results>(viewModel.state.value)
+            assertEquals(1, results.result.hits.size)
             verifySuspend {
                 fixture.searchRepository.search(
                     query = "te",
@@ -196,134 +179,112 @@ class SearchViewModelTest {
     @Test
     fun `search does not trigger for single character query`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
-            // When - type single char
-            viewModel.onEvent(SearchUiEvent.QueryChanged("a"))
+            viewModel.onQueryChanged("a")
             advanceTimeBy(500.milliseconds)
             advanceUntilIdle()
 
-            // Then - no search should have occurred
-            assertNull(viewModel.state.value.results)
+            // Phase stays Idle; search never executes.
+            assertIs<SearchUiState.Idle>(viewModel.state.value)
+            assertEquals("a", viewModel.state.value.query)
         }
 
     @Test
-    fun `blank query clears results`() =
+    fun `blank query returns phase to Idle after prior results`() =
         runTest {
-            // Given - viewModel with results
             val fixture = createFixture()
             everySuspend { fixture.searchRepository.search(any(), any(), any(), any(), any()) } returns
-                createSearchResult(
-                    hits = listOf(createBookHit()),
-                )
+                createSearchResult(hits = listOf(createBookHit()))
             val viewModel = fixture.build()
-            viewModel.onEvent(SearchUiEvent.QueryChanged("test"))
+            keepStateHot(viewModel)
+
+            viewModel.onQueryChanged("test")
             advanceTimeBy(400.milliseconds)
             advanceUntilIdle()
-            assertNotNull(viewModel.state.value.results)
+            assertIs<SearchUiState.Results>(viewModel.state.value)
 
-            // When - clear query
-            viewModel.onEvent(SearchUiEvent.QueryChanged(""))
-            advanceTimeBy(400.milliseconds)
+            viewModel.onQueryChanged("")
+            advanceTimeBy(100.milliseconds)
             advanceUntilIdle()
 
-            // Then
-            assertNull(viewModel.state.value.results)
-            assertFalse(viewModel.state.value.isSearching)
+            assertIs<SearchUiState.Idle>(viewModel.state.value)
         }
 
-    // ========== Search Success/Error Tests ==========
-
     @Test
-    fun `search success updates results and clears searching state`() =
+    fun `search success emits Results carrying query and types`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val expectedHits = listOf(createBookHit(), createContributorHit())
             everySuspend { fixture.searchRepository.search(any(), any(), any(), any(), any()) } returns
-                createSearchResult(
-                    hits = expectedHits,
-                )
+                createSearchResult(hits = expectedHits)
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
-            // When
-            viewModel.onEvent(SearchUiEvent.QueryChanged("test"))
+            viewModel.onQueryChanged("test")
             advanceTimeBy(400.milliseconds)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
-            assertFalse(state.isSearching)
-            val results = assertNotNull(state.results)
-            assertEquals(2, results.hits.size)
-            assertNull(state.error)
+            val state = assertIs<SearchUiState.Results>(viewModel.state.value)
+            assertEquals("test", state.query)
+            assertEquals(2, state.result.hits.size)
         }
 
     @Test
-    fun `search failure sets error state`() =
+    fun `search failure emits Error with user-friendly message`() =
         runTest {
-            // Given
             val fixture = createFixture()
             everySuspend {
                 fixture.searchRepository.search(any(), any(), any(), any(), any())
             } throws Exception("Network error")
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
-            // When
-            viewModel.onEvent(SearchUiEvent.QueryChanged("test"))
+            viewModel.onQueryChanged("test")
             advanceTimeBy(400.milliseconds)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
-            assertFalse(state.isSearching)
-            assertNotNull(state.error)
-            // Error message is user-friendly, not raw exception message
-            assertEquals("Search unavailable. Please try again.", state.error)
+            val state = assertIs<SearchUiState.Error>(viewModel.state.value)
+            assertEquals("test", state.query)
+            assertEquals("Search unavailable. Please try again.", state.message)
         }
 
-    // ========== Type Filtering Tests ==========
-
     @Test
-    fun `ToggleTypeFilter adds type to selected types`() =
+    fun `toggleTypeFilter adds type to selectedTypes`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
             assertTrue(
                 viewModel.state.value.selectedTypes
                     .isEmpty(),
             )
 
-            // When
-            viewModel.onEvent(SearchUiEvent.ToggleTypeFilter(SearchHitType.BOOK))
+            viewModel.toggleTypeFilter(SearchHitType.BOOK)
             advanceUntilIdle()
 
-            // Then
             assertEquals(setOf(SearchHitType.BOOK), viewModel.state.value.selectedTypes)
         }
 
     @Test
-    fun `ToggleTypeFilter removes type if already selected`() =
+    fun `toggleTypeFilter removes type if already selected`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
-            viewModel.onEvent(SearchUiEvent.ToggleTypeFilter(SearchHitType.BOOK))
+            keepStateHot(viewModel)
+            viewModel.toggleTypeFilter(SearchHitType.BOOK)
             advanceUntilIdle()
             assertEquals(setOf(SearchHitType.BOOK), viewModel.state.value.selectedTypes)
 
-            // When - toggle same type again
-            viewModel.onEvent(SearchUiEvent.ToggleTypeFilter(SearchHitType.BOOK))
+            viewModel.toggleTypeFilter(SearchHitType.BOOK)
             advanceUntilIdle()
 
-            // Then
             assertTrue(
                 viewModel.state.value.selectedTypes
                     .isEmpty(),
@@ -331,23 +292,20 @@ class SearchViewModelTest {
         }
 
     @Test
-    fun `ToggleTypeFilter triggers re-search if query is not blank`() =
+    fun `toggleTypeFilter triggers re-search immediately when query present`() =
         runTest {
-            // Given
             val fixture = createFixture()
             everySuspend { fixture.searchRepository.search(any(), any(), any(), any(), any()) } returns createSearchResult()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // Set up a query first
-            viewModel.onEvent(SearchUiEvent.QueryChanged("test"))
+            viewModel.onQueryChanged("test")
             advanceTimeBy(400.milliseconds)
             advanceUntilIdle()
 
-            // When - toggle type filter
-            viewModel.onEvent(SearchUiEvent.ToggleTypeFilter(SearchHitType.BOOK))
+            viewModel.toggleTypeFilter(SearchHitType.BOOK)
             advanceUntilIdle()
 
-            // Then - should have searched with the new type filter
             verifySuspend {
                 fixture.searchRepository.search(
                     query = "test",
@@ -359,20 +317,16 @@ class SearchViewModelTest {
             }
         }
 
-    // ========== Navigation Tests ==========
-
     @Test
-    fun `ResultClicked on book emits NavigateToBook action`() =
+    fun `onResultClicked on book emits NavigateToBook`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
-            val bookHit = createBookHit(id = "book-123")
 
-            // When / Then
             viewModel.navActions.test {
-                viewModel.onEvent(SearchUiEvent.ResultClicked(bookHit))
+                viewModel.onResultClicked(createBookHit(id = "book-123"))
                 advanceUntilIdle()
                 val action = assertIs<SearchNavAction.NavigateToBook>(awaitItem())
                 assertEquals("book-123", action.bookId)
@@ -380,17 +334,15 @@ class SearchViewModelTest {
         }
 
     @Test
-    fun `ResultClicked on contributor emits NavigateToContributor action`() =
+    fun `onResultClicked on contributor emits NavigateToContributor`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
-            val contributorHit = createContributorHit(id = "author-456")
 
-            // When / Then
             viewModel.navActions.test {
-                viewModel.onEvent(SearchUiEvent.ResultClicked(contributorHit))
+                viewModel.onResultClicked(createContributorHit(id = "author-456"))
                 advanceUntilIdle()
                 val action = assertIs<SearchNavAction.NavigateToContributor>(awaitItem())
                 assertEquals("author-456", action.contributorId)
@@ -398,17 +350,15 @@ class SearchViewModelTest {
         }
 
     @Test
-    fun `ResultClicked on series emits NavigateToSeries action`() =
+    fun `onResultClicked on series emits NavigateToSeries`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
             advanceUntilIdle()
-            val seriesHit = createSeriesHit(id = "series-789")
 
-            // When / Then
             viewModel.navActions.test {
-                viewModel.onEvent(SearchUiEvent.ResultClicked(seriesHit))
+                viewModel.onResultClicked(createSeriesHit(id = "series-789"))
                 advanceUntilIdle()
                 val action = assertIs<SearchNavAction.NavigateToSeries>(awaitItem())
                 assertEquals("series-789", action.seriesId)
@@ -416,169 +366,40 @@ class SearchViewModelTest {
         }
 
     @Test
-    fun `ResultClicked collapses search`() =
+    fun `onResultClicked on tag emits NavigateToTag`() =
         runTest {
-            // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
-            viewModel.onEvent(SearchUiEvent.ExpandSearch)
-            advanceUntilIdle()
-            assertTrue(viewModel.state.value.isExpanded)
-
-            // When
-            viewModel.onEvent(SearchUiEvent.ResultClicked(createBookHit()))
+            keepStateHot(viewModel)
             advanceUntilIdle()
 
-            // Then
-            assertFalse(viewModel.state.value.isExpanded)
-        }
-
-    // ========== Expand/Collapse/Clear Tests ==========
-
-    @Test
-    fun `ExpandSearch sets isExpanded to true`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-            advanceUntilIdle()
-            assertFalse(viewModel.state.value.isExpanded)
-
-            // When
-            viewModel.onEvent(SearchUiEvent.ExpandSearch)
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.state.value.isExpanded)
+            viewModel.navActions.test {
+                viewModel.onResultClicked(createTagHit(id = "tag-42"))
+                advanceUntilIdle()
+                val action = assertIs<SearchNavAction.NavigateToTag>(awaitItem())
+                assertEquals("tag-42", action.tagId)
+            }
         }
 
     @Test
-    fun `CollapseSearch clears state and sets isExpanded to false`() =
+    fun `clearQuery returns state to Idle after Results`() =
         runTest {
-            // Given
             val fixture = createFixture()
             everySuspend { fixture.searchRepository.search(any(), any(), any(), any(), any()) } returns
-                createSearchResult(
-                    hits = listOf(createBookHit()),
-                )
+                createSearchResult(hits = listOf(createBookHit()))
             val viewModel = fixture.build()
+            keepStateHot(viewModel)
 
-            // Set up expanded state with query and results
-            viewModel.onEvent(SearchUiEvent.ExpandSearch)
-            viewModel.onEvent(SearchUiEvent.QueryChanged("test"))
+            viewModel.onQueryChanged("test")
             advanceTimeBy(400.milliseconds)
             advanceUntilIdle()
-            assertTrue(viewModel.state.value.isExpanded)
-            assertNotNull(viewModel.state.value.results)
+            assertIs<SearchUiState.Results>(viewModel.state.value)
 
-            // When
-            viewModel.onEvent(SearchUiEvent.CollapseSearch)
+            viewModel.clearQuery()
+            advanceTimeBy(50.milliseconds)
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.state.value
-            assertFalse(state.isExpanded)
+            val state = assertIs<SearchUiState.Idle>(viewModel.state.value)
             assertEquals("", state.query)
-            assertNull(state.results)
-            assertNull(state.error)
-        }
-
-    @Test
-    fun `ClearQuery clears query and results but keeps expanded state`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.searchRepository.search(any(), any(), any(), any(), any()) } returns
-                createSearchResult(
-                    hits = listOf(createBookHit()),
-                )
-            val viewModel = fixture.build()
-
-            // Set up state with query and results
-            viewModel.onEvent(SearchUiEvent.ExpandSearch)
-            viewModel.onEvent(SearchUiEvent.QueryChanged("test"))
-            advanceTimeBy(400.milliseconds)
-            advanceUntilIdle()
-
-            // When
-            viewModel.onEvent(SearchUiEvent.ClearQuery)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.state.value
-            assertTrue(state.isExpanded) // Still expanded
-            assertEquals("", state.query)
-            assertNull(state.results)
-        }
-
-    // ========== State Derived Properties Tests ==========
-
-    @Test
-    fun `hasResults is true when results exist and are not empty`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.searchRepository.search(any(), any(), any(), any(), any()) } returns
-                createSearchResult(
-                    hits = listOf(createBookHit()),
-                )
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.onEvent(SearchUiEvent.QueryChanged("test"))
-            advanceTimeBy(400.milliseconds)
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.state.value.hasResults)
-        }
-
-    @Test
-    fun `isEmpty is true when results exist but are empty and query is not blank`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.searchRepository.search(any(), any(), any(), any(), any()) } returns
-                createSearchResult(
-                    hits = emptyList(),
-                )
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.onEvent(SearchUiEvent.QueryChanged("test"))
-            advanceTimeBy(400.milliseconds)
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.state.value.isEmpty)
-        }
-
-    @Test
-    fun `groupedHits groups results by type`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.searchRepository.search(any(), any(), any(), any(), any()) } returns
-                createSearchResult(
-                    hits =
-                        listOf(
-                            createBookHit(id = "book-1"),
-                            createBookHit(id = "book-2"),
-                            createContributorHit(id = "author-1"),
-                            createSeriesHit(id = "series-1"),
-                        ),
-                )
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.onEvent(SearchUiEvent.QueryChanged("test"))
-            advanceTimeBy(400.milliseconds)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.state.value
-            assertEquals(2, state.books.size)
-            assertEquals(1, state.contributors.size)
-            assertEquals(1, state.series.size)
         }
 }

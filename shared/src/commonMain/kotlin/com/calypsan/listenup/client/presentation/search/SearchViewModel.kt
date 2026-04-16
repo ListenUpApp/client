@@ -12,100 +12,60 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * UI state for search.
+ * UI state for the federated search overlay.
+ *
+ * Every variant carries the live [query] and [selectedTypes] so the search bar
+ * and filter chips render consistently across loading/results/error transitions.
  */
-data class SearchUiState(
-    val query: String = "",
-    val isSearching: Boolean = false,
-    val results: SearchResult? = null,
-    val error: String? = null,
-    val isExpanded: Boolean = false,
-    // Empty = all types
-    val selectedTypes: Set<SearchHitType> = emptySet(),
-) {
-    val hasResults: Boolean
-        get() = results != null && results.hits.isNotEmpty()
+sealed interface SearchUiState {
+    val query: String
+    val selectedTypes: Set<SearchHitType>
 
-    val isEmpty: Boolean
-        get() = results != null && results.hits.isEmpty() && query.isNotBlank()
+    /** No query entered, or query too short to trigger a search. */
+    data class Idle(
+        override val query: String = "",
+        override val selectedTypes: Set<SearchHitType> = emptySet(),
+    ) : SearchUiState
 
-    val showOfflineIndicator: Boolean
-        get() = results?.isOfflineResult == true
+    /** A search is in flight for the current [query] and [selectedTypes]. */
+    data class Searching(
+        override val query: String,
+        override val selectedTypes: Set<SearchHitType>,
+    ) : SearchUiState
 
-    /**
-     * Group hits by type for sectioned display.
-     */
-    val groupedHits: Map<SearchHitType, List<SearchHit>>
-        get() = results?.hits?.groupBy { it.type } ?: emptyMap()
+    /** Latest search returned [result]. */
+    data class Results(
+        override val query: String,
+        override val selectedTypes: Set<SearchHitType>,
+        val result: SearchResult,
+    ) : SearchUiState
 
-    /**
-     * Books from results (deduplicated by ID).
-     */
-    val books: List<SearchHit>
-        get() = (groupedHits[SearchHitType.BOOK] ?: emptyList()).distinctBy { it.id }
-
-    /**
-     * Contributors from results (deduplicated by ID).
-     */
-    val contributors: List<SearchHit>
-        get() = (groupedHits[SearchHitType.CONTRIBUTOR] ?: emptyList()).distinctBy { it.id }
-
-    /**
-     * Series from results (deduplicated by ID).
-     */
-    val series: List<SearchHit>
-        get() = (groupedHits[SearchHitType.SERIES] ?: emptyList()).distinctBy { it.id }
-
-    /**
-     * Tags from results (deduplicated by ID).
-     */
-    val tags: List<SearchHit>
-        get() = (groupedHits[SearchHitType.TAG] ?: emptyList()).distinctBy { it.id }
+    /** Latest search failed; error surface message in [message]. */
+    data class Error(
+        override val query: String,
+        override val selectedTypes: Set<SearchHitType>,
+        val message: String,
+    ) : SearchUiState
 }
 
 /**
- * Search events from UI.
- */
-sealed interface SearchUiEvent {
-    data class QueryChanged(
-        val query: String,
-    ) : SearchUiEvent
-
-    data object ExpandSearch : SearchUiEvent
-
-    data object CollapseSearch : SearchUiEvent
-
-    data object ClearQuery : SearchUiEvent
-
-    data class ToggleTypeFilter(
-        val type: SearchHitType,
-    ) : SearchUiEvent
-
-    data class ResultClicked(
-        val hit: SearchHit,
-    ) : SearchUiEvent
-}
-
-/**
- * Navigation actions from search.
+ * Navigation actions emitted when a search hit is clicked.
  */
 sealed interface SearchNavAction {
     data class NavigateToBook(
@@ -126,185 +86,96 @@ sealed interface SearchNavAction {
 }
 
 /**
- * ViewModel for search functionality.
+ * ViewModel for the federated search overlay.
  *
- * Handles:
- * - Debounced search as user types
- * - Server search with offline fallback
- * - Type filtering
- * - Navigation on result click
- *
- * @property searchRepository Repository for search operations
+ * Debounced-then-flat-map-latest pipeline driven by [queryFlow] + [typesFlow];
+ * toggling a type filter re-issues the search immediately because the combine
+ * propagates the new types through `flatMapLatest` without debounce.
  */
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
     private val searchRepository: SearchRepository,
 ) : ViewModel() {
-    val state: StateFlow<SearchUiState>
-        field = MutableStateFlow(SearchUiState())
-
-    private val _navActions = Channel<SearchNavAction>(Channel.BUFFERED)
-    val navActions: Flow<SearchNavAction> = _navActions.receiveAsFlow()
-
-    // Internal query flow for debouncing - flatMapLatest handles cancellation automatically
     private val queryFlow = MutableStateFlow("")
+    private val typesFlow = MutableStateFlow<Set<SearchHitType>>(emptySet())
 
-    // Version counter to force re-search when filters change (without changing query)
-    private val searchVersion = MutableStateFlow(0)
+    private val navChannel = Channel<SearchNavAction>(Channel.BUFFERED)
+    val navActions: Flow<SearchNavAction> = navChannel.receiveAsFlow()
 
-    init {
-        // Reactive search with automatic cancellation via flatMapLatest
-        // Combines query changes (debounced) with filter changes (immediate via version bump)
-        queryFlow
-            .debounce(SEARCH_DEBOUNCE_MS)
+    val state: StateFlow<SearchUiState> =
+        combine(queryFlow, typesFlow, phaseFlow()) { query, types, phase ->
+            when (phase) {
+                is Phase.Idle -> SearchUiState.Idle(query, types)
+                is Phase.Searching -> SearchUiState.Searching(query, types)
+                is Phase.Results -> SearchUiState.Results(query, types, phase.data)
+                is Phase.Error -> SearchUiState.Error(query, types, phase.message)
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+            initialValue = SearchUiState.Idle(),
+        )
+
+    private fun phaseFlow(): Flow<Phase> =
+        combine(
+            queryFlow.debounce { q -> if (q.isBlank()) 0L else SEARCH_DEBOUNCE_MS },
+            typesFlow,
+        ) { query, types -> query to types }
             .distinctUntilChanged()
-            .filter { it.length >= MIN_QUERY_LENGTH || it.isEmpty() }
-            .combine(searchVersion) { query, _ -> query }
-            .flatMapLatest { query ->
-                if (query.isBlank()) {
-                    flowOf<SearchFlowResult>(SearchFlowResult.Empty)
-                } else {
-                    flow<SearchFlowResult> {
-                        emit(SearchFlowResult.Loading)
-                        emit(performSearch(query))
+            .flatMapLatest { (query, types) ->
+                flow {
+                    when {
+                        query.isBlank() -> emit(Phase.Idle)
+                        query.length < MIN_QUERY_LENGTH -> Unit
+                        else -> emitSearch(query, types)
                     }
                 }
-            }.onEach { result ->
-                when (result) {
-                    is SearchFlowResult.Empty -> {
-                        state.update { it.copy(results = null, isSearching = false, error = null) }
-                    }
-
-                    is SearchFlowResult.Loading -> {
-                        state.update { it.copy(isSearching = true, error = null) }
-                    }
-
-                    is SearchFlowResult.Success -> {
-                        state.update { it.copy(results = result.data, isSearching = false) }
-                        logger.info {
-                            "Search completed: ${result.data.total} results for '${result.query}' " +
-                                "(offline=${result.data.isOfflineResult})"
-                        }
-                    }
-
-                    is SearchFlowResult.Error -> {
-                        logger.error { "Search failed for '${result.query}'" }
-                        state.update {
-                            it.copy(error = "Search unavailable. Please try again.", isSearching = false)
-                        }
-                    }
-                }
-            }.launchIn(viewModelScope)
-    }
-
-    /**
-     * Internal result type for the reactive search flow.
-     */
-    private sealed interface SearchFlowResult {
-        data object Empty : SearchFlowResult
-
-        data object Loading : SearchFlowResult
-
-        data class Success(
-            val query: String,
-            val data: SearchResult,
-        ) : SearchFlowResult
-
-        data class Error(
-            val query: String,
-            val exception: Exception,
-        ) : SearchFlowResult
-    }
-
-    companion object {
-        /** Debounce delay in milliseconds before triggering search. */
-        private const val SEARCH_DEBOUNCE_MS = 300L
-
-        /** Minimum query length to trigger search. */
-        private const val MIN_QUERY_LENGTH = 2
-
-        /** Maximum number of results to return per search. */
-        private const val DEFAULT_RESULT_LIMIT = 30
-    }
-
-    /**
-     * Handle UI events.
-     */
-    fun onEvent(event: SearchUiEvent) {
-        when (event) {
-            is SearchUiEvent.QueryChanged -> {
-                state.update { it.copy(query = event.query, error = null) }
-                queryFlow.value = event.query
             }
 
-            is SearchUiEvent.ExpandSearch -> {
-                state.update { it.copy(isExpanded = true) }
-            }
-
-            is SearchUiEvent.CollapseSearch -> {
-                state.update {
-                    it.copy(
-                        isExpanded = false,
-                        query = "",
-                        results = null,
-                        error = null,
-                    )
-                }
-                queryFlow.value = ""
-            }
-
-            is SearchUiEvent.ClearQuery -> {
-                state.update { it.copy(query = "", results = null, error = null) }
-                queryFlow.value = ""
-            }
-
-            is SearchUiEvent.ToggleTypeFilter -> {
-                state.update { current ->
-                    val newTypes =
-                        if (event.type in current.selectedTypes) {
-                            current.selectedTypes - event.type
-                        } else {
-                            current.selectedTypes + event.type
-                        }
-                    current.copy(selectedTypes = newTypes)
-                }
-                // Bump version to trigger re-search with new filters via flatMapLatest
-                if (state.value.query.isNotBlank()) {
-                    searchVersion.value++
-                }
-            }
-
-            is SearchUiEvent.ResultClicked -> {
-                handleResultClick(event.hit)
-            }
-        }
-    }
-
-    /**
-     * Perform a search and return the result.
-     * Called from flatMapLatest flow - cancellation is handled automatically.
-     */
-    private suspend fun performSearch(query: String): SearchFlowResult =
+    private suspend fun FlowCollector<Phase>.emitSearch(
+        query: String,
+        types: Set<SearchHitType>,
+    ) {
+        emit(Phase.Searching)
         try {
-            val types =
-                state.value.selectedTypes
-                    .takeIf { it.isNotEmpty() }
-                    ?.toList()
+            val typesList = types.takeIf { it.isNotEmpty() }?.toList()
             val result =
                 searchRepository.search(
                     query = query,
-                    types = types,
+                    types = typesList,
                     limit = DEFAULT_RESULT_LIMIT,
                 )
-            SearchFlowResult.Success(query, result)
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-            throw e
-        } catch (e: Exception) {
+            logger.info {
+                "Search completed: ${result.total} results for '$query' (offline=${result.isOfflineResult})"
+            }
+            emit(Phase.Results(result))
+        } catch (cancel: kotlin.coroutines.cancellation.CancellationException) {
+            throw cancel
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
+            logger.error { "Search failed for '$query'" }
+            @Suppress("DEPRECATION")
             ErrorBus.emit(e)
-            SearchFlowResult.Error(query, e)
+            emit(Phase.Error("Search unavailable. Please try again."))
         }
+    }
 
-    private fun handleResultClick(hit: SearchHit) {
+    fun onQueryChanged(query: String) {
+        queryFlow.value = query
+    }
+
+    fun clearQuery() {
+        queryFlow.value = ""
+    }
+
+    fun toggleTypeFilter(type: SearchHitType) {
+        typesFlow.update { current ->
+            if (type in current) current - type else current + type
+        }
+    }
+
+    fun onResultClicked(hit: SearchHit) {
         val action =
             when (hit.type) {
                 SearchHitType.BOOK -> SearchNavAction.NavigateToBook(hit.id)
@@ -312,9 +183,28 @@ class SearchViewModel(
                 SearchHitType.SERIES -> SearchNavAction.NavigateToSeries(hit.id)
                 SearchHitType.TAG -> SearchNavAction.NavigateToTag(hit.id)
             }
-        _navActions.trySend(action)
+        navChannel.trySend(action)
+    }
 
-        // Collapse search after navigation
-        state.update { it.copy(isExpanded = false) }
+    /** Private relay between the debounced pipeline and the public [state]. */
+    private sealed interface Phase {
+        data object Idle : Phase
+
+        data object Searching : Phase
+
+        data class Results(
+            val data: SearchResult,
+        ) : Phase
+
+        data class Error(
+            val message: String,
+        ) : Phase
+    }
+
+    companion object {
+        private const val SEARCH_DEBOUNCE_MS = 300L
+        private const val MIN_QUERY_LENGTH = 2
+        private const val DEFAULT_RESULT_LIMIT = 30
+        private const val SUBSCRIPTION_TIMEOUT_MS = 5_000L
     }
 }

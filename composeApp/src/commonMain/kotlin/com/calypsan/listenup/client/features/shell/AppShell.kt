@@ -49,9 +49,9 @@ import com.calypsan.listenup.client.features.shell.components.AppNavigationRail
 import com.calypsan.listenup.client.features.shell.components.AppTopBar
 
 import com.calypsan.listenup.client.presentation.search.SearchNavAction
-import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiEvent
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
 import androidx.compose.material3.SnackbarHost
@@ -167,9 +167,14 @@ fun AppShell(
     val syncIndicatorState by syncIndicatorViewModel.state.collectAsStateWithLifecycle()
     val isSyncDetailsExpanded by syncIndicatorViewModel.isExpanded.collectAsStateWithLifecycle()
 
-    // Handle search navigation
+    // Search overlay expansion lives in the UI — purely presentational state.
+    var isSearchExpanded by rememberSaveable { mutableStateOf(false) }
+
+    // Handle search navigation: collapse the overlay and clear the query before navigating away.
     LaunchedEffect(searchViewModel) {
         searchViewModel.navActions.collect { action ->
+            isSearchExpanded = false
+            searchViewModel.clearQuery()
             when (action) {
                 is SearchNavAction.NavigateToBook -> onBookClick(action.bookId)
                 is SearchNavAction.NavigateToContributor -> onContributorClick(action.contributorId)
@@ -258,17 +263,14 @@ fun AppShell(
             currentDestination = currentDestination,
             syncState = syncState,
             user = user,
-            isSearchExpanded = searchState.isExpanded,
+            isSearchExpanded = isSearchExpanded,
             searchQuery = searchState.query,
             onSearchExpandedChange = { expanded ->
-                if (expanded) {
-                    searchViewModel.onEvent(SearchUiEvent.ExpandSearch)
-                } else {
-                    searchViewModel.onEvent(SearchUiEvent.CollapseSearch)
-                }
+                isSearchExpanded = expanded
+                if (!expanded) searchViewModel.clearQuery()
             },
             onSearchQueryChange = { query ->
-                searchViewModel.onEvent(SearchUiEvent.QueryChanged(query))
+                searchViewModel.onQueryChanged(query)
             },
             isAvatarMenuExpanded = isAvatarMenuExpanded,
             onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
@@ -332,11 +334,12 @@ fun AppShell(
                 // Search results overlay (floats above content when search is active)
                 SearchResultsOverlay(
                     state = searchState,
+                    isExpanded = isSearchExpanded,
                     onResultClick = { hit ->
-                        searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
+                        searchViewModel.onResultClicked(hit)
                     },
                     onTypeFilterToggle = { type ->
-                        searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
+                        searchViewModel.toggleTypeFilter(type)
                     },
                     modifier =
                         Modifier
