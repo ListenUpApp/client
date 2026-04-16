@@ -1,13 +1,13 @@
 package com.calypsan.listenup.client.presentation.home
 
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
+import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import dev.mokkery.answering.returns
-import dev.mokkery.answering.throws
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -16,8 +16,11 @@ import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -27,10 +30,8 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
-import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for HomeViewModel.
@@ -41,6 +42,7 @@ import com.calypsan.listenup.client.core.Failure
  * - User observation and name extraction
  * - Greeting generation (userName updates)
  * - State derived properties
+ * - Snackbar emission on continue-listening failure
  *
  * Uses Mokkery for mocking repositories.
  */
@@ -57,13 +59,14 @@ class HomeViewModelTest {
         val syncRepository: SyncRepository = mock()
         val userFlow = MutableStateFlow<User?>(null)
         val continueListeningFlow = MutableStateFlow<List<ContinueListeningBook>>(emptyList())
-        val scanProgressFlow = MutableStateFlow<com.calypsan.listenup.client.data.sync.sse.ScanProgressState?>(null)
-        val syncStateFlow = MutableStateFlow<com.calypsan.listenup.client.domain.model.SyncState>(com.calypsan.listenup.client.domain.model.SyncState.Idle)
+        val scanProgressFlow =
+            MutableStateFlow<com.calypsan.listenup.client.data.sync.sse.ScanProgressState?>(null)
+        val syncStateFlow = MutableStateFlow<SyncState>(SyncState.Idle)
         var currentHour: Int = 10 // Default to morning
 
         fun build(): HomeViewModel {
-            dev.mokkery.every { syncRepository.scanProgress } returns scanProgressFlow
-            dev.mokkery.every { syncRepository.syncState } returns syncStateFlow
+            every { syncRepository.scanProgress } returns scanProgressFlow
+            every { syncRepository.syncState } returns syncStateFlow
             return HomeViewModel(
                 homeRepository = homeRepository,
                 userRepository = userRepository,
@@ -79,10 +82,15 @@ class HomeViewModelTest {
 
         // Default stubs for reactive observation
         every { fixture.userRepository.observeCurrentUser() } returns fixture.userFlow
-        every { fixture.homeRepository.observeContinueListening(any()) } returns fixture.continueListeningFlow
+        every { fixture.homeRepository.observeContinueListening(any()) } returns
+            fixture.continueListeningFlow
         every { fixture.shelfRepository.observeMyShelves(any()) } returns flowOf(emptyList())
 
         return fixture
+    }
+
+    private fun TestScope.keepStateHot(viewModel: HomeViewModel) {
+        backgroundScope.launch { viewModel.state.collect { } }
     }
 
     // ========== Test Data Factories ==========
@@ -136,17 +144,17 @@ class HomeViewModelTest {
     // ========== Initial State Tests ==========
 
     @Test
-    fun `init starts observation and sets isLoading false when flow emits`() =
+    fun `init starts observation and transitions to Ready after first emission`() =
         runTest {
             // Given
             val fixture = createFixture()
 
-            // When - viewModel created, init block starts observation
-            val viewModel = fixture.build()
+            // When - viewModel created, stateIn pipeline subscribes on first collect
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
-            // Then - isLoading should be false after Flow emits
-            assertFalse(viewModel.state.value.isLoading)
+            // Then - state should be Ready after combine emits
+            assertIs<HomeUiState.Ready>(viewModel.state.value)
         }
 
     // ========== Reactive Observation Tests ==========
@@ -156,12 +164,10 @@ class HomeViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
-            assertTrue(
-                viewModel.state.value.continueListening
-                    .isEmpty(),
-            )
+            val initial = assertIs<HomeUiState.Ready>(viewModel.state.value)
+            assertTrue(initial.continueListening.isEmpty())
 
             // When - flow emits new data
             val books =
@@ -173,11 +179,10 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             // Then - state should update reactively
-            val state = viewModel.state.value
-            assertFalse(state.isLoading)
-            assertEquals(2, state.continueListening.size)
-            assertEquals("Book 1", state.continueListening[0].title)
-            assertNull(state.error)
+            val ready = assertIs<HomeUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isLoading)
+            assertEquals(2, ready.continueListening.size)
+            assertEquals("Book 1", ready.continueListening[0].title)
         }
 
     @Test
@@ -189,9 +194,12 @@ class HomeViewModelTest {
                 listOf(
                     createContinueListeningBook(bookId = "book-1", title = "Original Book"),
                 )
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
-            assertEquals(1, viewModel.state.value.continueListening.size)
+            assertEquals(
+                1,
+                assertIs<HomeUiState.Ready>(viewModel.state.value).continueListening.size,
+            )
 
             // When - new book is played (Flow emits updated list)
             fixture.continueListeningFlow.value =
@@ -202,12 +210,9 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             // Then - UI updates immediately without manual refresh
-            assertEquals(2, viewModel.state.value.continueListening.size)
-            assertEquals(
-                "New Book",
-                viewModel.state.value.continueListening[0]
-                    .title,
-            )
+            val ready = assertIs<HomeUiState.Ready>(viewModel.state.value)
+            assertEquals(2, ready.continueListening.size)
+            assertEquals("New Book", ready.continueListening[0].title)
         }
 
     // ========== User Observation Tests ==========
@@ -217,16 +222,16 @@ class HomeViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
-            assertEquals("", viewModel.state.value.userName)
+            assertEquals("", assertIs<HomeUiState.Ready>(viewModel.state.value).userName)
 
             // When
             fixture.userFlow.value = createUser(displayName = "John Smith")
             advanceUntilIdle()
 
             // Then - first name extracted
-            assertEquals("John", viewModel.state.value.userName)
+            assertEquals("John", assertIs<HomeUiState.Ready>(viewModel.state.value).userName)
         }
 
     @Test
@@ -234,7 +239,7 @@ class HomeViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -242,7 +247,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals("Jane", viewModel.state.value.userName)
+            assertEquals("Jane", assertIs<HomeUiState.Ready>(viewModel.state.value).userName)
         }
 
     @Test
@@ -251,16 +256,16 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.userFlow.value = createUser(displayName = "John")
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
-            assertEquals("John", viewModel.state.value.userName)
+            assertEquals("John", assertIs<HomeUiState.Ready>(viewModel.state.value).userName)
 
             // When
             fixture.userFlow.value = null
             advanceUntilIdle()
 
             // Then
-            assertEquals("", viewModel.state.value.userName)
+            assertEquals("", assertIs<HomeUiState.Ready>(viewModel.state.value).userName)
         }
 
     @Test
@@ -268,7 +273,7 @@ class HomeViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -276,7 +281,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals("", viewModel.state.value.userName)
+            assertEquals("", assertIs<HomeUiState.Ready>(viewModel.state.value).userName)
         }
 
     @Test
@@ -284,7 +289,7 @@ class HomeViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -292,7 +297,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals("Madonna", viewModel.state.value.userName)
+            assertEquals("Madonna", assertIs<HomeUiState.Ready>(viewModel.state.value).userName)
         }
 
     // ========== Refresh Tests ==========
@@ -305,7 +310,7 @@ class HomeViewModelTest {
             everySuspend { fixture.syncRepository.sync() } returns
                 com.calypsan.listenup.client.core
                     .Success(Unit)
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -324,7 +329,7 @@ class HomeViewModelTest {
             everySuspend { fixture.syncRepository.sync() } returns
                 com.calypsan.listenup.client.core
                     .Failure(RuntimeException("Network error"))
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -333,7 +338,8 @@ class HomeViewModelTest {
 
             // Then - ViewModel is still functional, sync was attempted
             verifySuspend { fixture.syncRepository.sync() }
-            assertFalse(viewModel.state.value.isDataLoading)
+            val ready = assertIs<HomeUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isLoading)
         }
 
     // ========== State Derived Properties Tests ==========
@@ -344,11 +350,11 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.continueListeningFlow.value = listOf(createContinueListeningBook())
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.state.value.hasContinueListening)
+            assertTrue(assertIs<HomeUiState.Ready>(viewModel.state.value).hasContinueListening)
         }
 
     @Test
@@ -357,11 +363,11 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.continueListeningFlow.value = emptyList()
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertFalse(viewModel.state.value.hasContinueListening)
+            assertFalse(assertIs<HomeUiState.Ready>(viewModel.state.value).hasContinueListening)
         }
 
     @Test
@@ -371,11 +377,14 @@ class HomeViewModelTest {
             val fixture = createFixture()
             fixture.currentHour = 10 // Morning
             fixture.userFlow.value = createUser(displayName = "Alice")
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertEquals("Good morning, Alice", viewModel.state.value.greeting)
+            assertEquals(
+                "Good morning, Alice",
+                assertIs<HomeUiState.Ready>(viewModel.state.value).greeting,
+            )
         }
 
     @Test
@@ -384,11 +393,33 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.currentHour = 14 // Afternoon
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertEquals("Good afternoon", viewModel.state.value.greeting)
+            assertEquals(
+                "Good afternoon",
+                assertIs<HomeUiState.Ready>(viewModel.state.value).greeting,
+            )
+        }
+
+    // ========== Sync State Tests ==========
+
+    @Test
+    fun `isSyncing reflects SyncState Syncing`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
+            assertFalse(assertIs<HomeUiState.Ready>(viewModel.state.value).isSyncing)
+
+            // When
+            fixture.syncStateFlow.value = SyncState.Syncing
+            advanceUntilIdle()
+
+            // Then
+            assertTrue(assertIs<HomeUiState.Ready>(viewModel.state.value).isSyncing)
         }
 
     // ========== Time-Based Greeting Tests ==========
@@ -399,11 +430,14 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.currentHour = 8
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertEquals("Good morning", viewModel.state.value.greeting)
+            assertEquals(
+                "Good morning",
+                assertIs<HomeUiState.Ready>(viewModel.state.value).greeting,
+            )
         }
 
     @Test
@@ -412,11 +446,14 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.currentHour = 14
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertEquals("Good afternoon", viewModel.state.value.greeting)
+            assertEquals(
+                "Good afternoon",
+                assertIs<HomeUiState.Ready>(viewModel.state.value).greeting,
+            )
         }
 
     @Test
@@ -425,11 +462,14 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.currentHour = 19
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertEquals("Good evening", viewModel.state.value.greeting)
+            assertEquals(
+                "Good evening",
+                assertIs<HomeUiState.Ready>(viewModel.state.value).greeting,
+            )
         }
 
     @Test
@@ -438,11 +478,14 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.currentHour = 23
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertEquals("Good night", viewModel.state.value.greeting)
+            assertEquals(
+                "Good night",
+                assertIs<HomeUiState.Ready>(viewModel.state.value).greeting,
+            )
         }
 
     @Test
@@ -451,10 +494,31 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.currentHour = 3
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertEquals("Good night", viewModel.state.value.greeting)
+            assertEquals(
+                "Good night",
+                assertIs<HomeUiState.Ready>(viewModel.state.value).greeting,
+            )
+        }
+
+    // ========== Snackbar Tests ==========
+
+    @Test
+    fun `continue listening failure emits snackbar`() =
+        runTest {
+            val fixture = createFixture()
+            every { fixture.homeRepository.observeContinueListening(any()) } returns
+                flow { throw RuntimeException("boom") }
+            val viewModel = fixture.build()
+
+            val emitted = mutableListOf<String>()
+            backgroundScope.launch { viewModel.snackbarMessages.collect { emitted += it } }
+            keepStateHot(viewModel)
+            advanceUntilIdle()
+
+            assertTrue(emitted.contains("Failed to load continue listening"))
         }
 }
