@@ -6,13 +6,17 @@ import com.calypsan.listenup.client.domain.repository.DailyListening
 import com.calypsan.listenup.client.domain.repository.GenreListening
 import com.calypsan.listenup.client.domain.repository.StatsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 
 private val logger = KotlinLogging.logger {}
+private const val SUBSCRIPTION_TIMEOUT_MS = 5_000L
+private const val MS_PER_MINUTE = 60_000L
+private const val MINUTES_PER_HOUR = 60L
 
 /**
  * ViewModel for the Home screen stats section.
@@ -30,61 +34,30 @@ private val logger = KotlinLogging.logger {}
 class HomeStatsViewModel(
     private val statsRepository: StatsRepository,
 ) : ViewModel() {
-    val state: StateFlow<HomeStatsUiState>
-        field = MutableStateFlow(HomeStatsUiState())
+    val state: StateFlow<HomeStatsUiState> =
+        statsRepository
+            .observeWeeklyStats()
+            .map<_, HomeStatsUiState> { stats ->
+                HomeStatsUiState.Ready(
+                    totalListenTimeMs = stats.totalListenTimeMs,
+                    currentStreakDays = stats.currentStreakDays,
+                    longestStreakDays = stats.longestStreakDays,
+                    dailyListening = stats.dailyListening,
+                    genreBreakdown = stats.genreBreakdown,
+                )
+            }.onStart { emit(HomeStatsUiState.Loading) }
+            .catch { e ->
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                logger.error(e) { "Error observing stats" }
+                emit(HomeStatsUiState.Error("Failed to load stats: ${e.message}"))
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+                initialValue = HomeStatsUiState.Loading,
+            )
 
-    init {
-        observeStats()
-    }
-
-    /**
-     * Observe stats from the repository.
-     *
-     * Stats update automatically when listening events change in Room.
-     * No need for manual refresh or SSE observation - the Flow handles it.
-     */
-    private fun observeStats() {
-        viewModelScope.launch {
-            statsRepository
-                .observeWeeklyStats()
-                .catch { e ->
-                    logger.error(e) { "Error observing stats" }
-                    state.update {
-                        it.copy(
-                            isLoading = false,
-                            error = "Failed to load stats: ${e.message}",
-                        )
-                    }
-                }.collect { stats ->
-                    logger.debug {
-                        "Stats updated: ${stats.totalListenTimeMs}ms total, streak=${stats.currentStreakDays}"
-                    }
-                    state.update {
-                        it.copy(
-                            isLoading = false,
-                            error = null,
-                            totalListenTimeMs = stats.totalListenTimeMs,
-                            currentStreakDays = stats.currentStreakDays,
-                            longestStreakDays = stats.longestStreakDays,
-                            dailyListening = stats.dailyListening,
-                            genreBreakdown = stats.genreBreakdown,
-                        )
-                    }
-                }
-        }
-    }
-
-    /**
-     * Refresh stats.
-     *
-     * Since stats are computed from local Room data, this is a no-op.
-     * The Flow automatically updates when events change.
-     * Pull-to-refresh on home screen triggers sync which adds new events.
-     */
+    /** Pull-to-refresh no-op — stats recompute from Room when listening events change. */
     fun refresh() {
-        // No-op - stats auto-update from Room Flow
-        // Pull-to-refresh triggers sync elsewhere, which adds events to Room,
-        // causing this Flow to emit new computed stats
         logger.debug { "Refresh requested - stats will update automatically from Room" }
     }
 }
@@ -92,58 +65,61 @@ class HomeStatsViewModel(
 /**
  * UI state for the Home stats section.
  *
- * Immutable data class that represents the stats section state.
+ * Sealed hierarchy: `Loading` → first `observeWeeklyStats()` emission flips to
+ * `Ready`; upstream failures emit `Error`.
  */
-data class HomeStatsUiState(
-    val isLoading: Boolean = true,
-    val error: String? = null,
-    // Stats data
-    val totalListenTimeMs: Long = 0,
-    val currentStreakDays: Int = 0,
-    val longestStreakDays: Int = 0,
-    // Chart data
-    val dailyListening: List<DailyListening> = emptyList(),
-    val genreBreakdown: List<GenreListening> = emptyList(),
-) {
-    /**
-     * Total listening time formatted as human-readable string.
-     *
-     * Examples: "0m", "45m", "2h 30m", "15h 45m"
-     */
-    val formattedListenTime: String
-        get() {
-            val totalMinutes = totalListenTimeMs / 60_000
-            val hours = totalMinutes / 60
-            val minutes = totalMinutes % 60
+sealed interface HomeStatsUiState {
+    /** Pre-first-emission placeholder. */
+    data object Loading : HomeStatsUiState
 
-            return when {
-                hours == 0L -> "${minutes}m"
-                minutes == 0L -> "${hours}h"
-                else -> "${hours}h ${minutes}m"
+    /** Stats loaded from Room. Derived display helpers live here. */
+    data class Ready(
+        val totalListenTimeMs: Long,
+        val currentStreakDays: Int,
+        val longestStreakDays: Int,
+        val dailyListening: List<DailyListening>,
+        val genreBreakdown: List<GenreListening>,
+    ) : HomeStatsUiState {
+        /**
+         * Total listening time formatted as human-readable string.
+         *
+         * Examples: "0m", "45m", "2h 30m", "15h 45m"
+         */
+        val formattedListenTime: String
+            get() {
+                val totalMinutes = totalListenTimeMs / MS_PER_MINUTE
+                val hours = totalMinutes / MINUTES_PER_HOUR
+                val minutes = totalMinutes % MINUTES_PER_HOUR
+                return when {
+                    hours == 0L -> "${minutes}m"
+                    minutes == 0L -> "${hours}h"
+                    else -> "${hours}h ${minutes}m"
+                }
             }
-        }
 
-    /**
-     * Whether there is any data to display.
-     */
-    val hasData: Boolean
-        get() = totalListenTimeMs > 0 || dailyListening.isNotEmpty() || currentStreakDays > 0 || longestStreakDays > 0
+        /** Whether there is any data to display. */
+        val hasData: Boolean
+            get() =
+                totalListenTimeMs > 0 ||
+                    dailyListening.isNotEmpty() ||
+                    currentStreakDays > 0 ||
+                    longestStreakDays > 0
 
-    /**
-     * Whether there is genre data to display.
-     */
-    val hasGenreData: Boolean
-        get() = genreBreakdown.isNotEmpty()
+        /** Whether there is genre data to display. */
+        val hasGenreData: Boolean
+            get() = genreBreakdown.isNotEmpty()
 
-    /**
-     * Maximum daily listening time in milliseconds for chart scaling.
-     */
-    val maxDailyListenTimeMs: Long
-        get() = dailyListening.maxOfOrNull { it.listenTimeMs } ?: 0
+        /** Maximum daily listening time in milliseconds for chart scaling. */
+        val maxDailyListenTimeMs: Long
+            get() = dailyListening.maxOfOrNull { it.listenTimeMs } ?: 0
 
-    /**
-     * Whether to show the streak section (current or longest streak > 0).
-     */
-    val hasStreak: Boolean
-        get() = currentStreakDays > 0 || longestStreakDays > 0
+        /** Whether to show the streak section (current or longest streak > 0). */
+        val hasStreak: Boolean
+            get() = currentStreakDays > 0 || longestStreakDays > 0
+    }
+
+    /** Upstream failure — section renders the message in error styling. */
+    data class Error(
+        val message: String,
+    ) : HomeStatsUiState
 }

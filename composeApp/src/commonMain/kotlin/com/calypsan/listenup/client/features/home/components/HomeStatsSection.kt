@@ -10,17 +10,18 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.calypsan.listenup.client.presentation.home.HomeStatsUiState
 import com.calypsan.listenup.client.presentation.home.HomeStatsViewModel
-import org.koin.compose.viewmodel.koinViewModel
-import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_loading_item
 import listenup.composeapp.generated.resources.home_start_listening_to_see_your
 import listenup.composeapp.generated.resources.home_this_week
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Home screen stats section.
@@ -31,7 +32,8 @@ import listenup.composeapp.generated.resources.home_this_week
  * - Top 3 genres breakdown
  *
  * Shows skeleton loading state while data is being fetched.
- * Hides completely when there's no data to show.
+ * Shows error message when the stats flow fails.
+ * Shows empty-state text when there's no data yet.
  *
  * @param modifier Modifier from parent
  * @param viewModel HomeStatsViewModel injected via Koin
@@ -43,7 +45,6 @@ fun HomeStatsSection(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    // Always show the card - different content based on state
     Card(
         modifier =
             modifier
@@ -69,9 +70,8 @@ fun HomeStatsSection(
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            when {
-                state.isLoading -> {
-                    // Loading state
+            when (val s = state) {
+                is HomeStatsUiState.Loading -> {
                     Text(
                         text = stringResource(Res.string.common_loading_item, "stats"),
                         style = MaterialTheme.typography.bodyMedium,
@@ -79,27 +79,24 @@ fun HomeStatsSection(
                     )
                 }
 
-                state.error != null -> {
-                    // Error state - SHOW the error so we can debug
+                is HomeStatsUiState.Error -> {
                     Text(
-                        text = state.error ?: "Unknown error",
+                        text = s.message,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
 
-                state.hasData -> {
-                    // Stats content
-                    HomeStatsContent(state = state)
-                }
-
-                else -> {
-                    // Empty state
-                    Text(
-                        text = stringResource(Res.string.home_start_listening_to_see_your),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                is HomeStatsUiState.Ready -> {
+                    if (s.hasData) {
+                        HomeStatsContent(state = s)
+                    } else {
+                        Text(
+                            text = stringResource(Res.string.home_start_listening_to_see_your),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -110,7 +107,7 @@ fun HomeStatsSection(
  * Stats content when data is available.
  */
 @Composable
-private fun HomeStatsContent(state: com.calypsan.listenup.client.presentation.home.HomeStatsUiState) {
+private fun HomeStatsContent(state: HomeStatsUiState.Ready) {
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
