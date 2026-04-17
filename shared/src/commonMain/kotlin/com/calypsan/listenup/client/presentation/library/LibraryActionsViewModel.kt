@@ -15,14 +15,15 @@ import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
 import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -150,12 +151,12 @@ class LibraryActionsViewModel(
     // EVENTS
     // ═══════════════════════════════════════════════════════════════════════
 
-    private val _events = MutableSharedFlow<LibraryActionEvent>()
+    private val eventsChannel = Channel<LibraryActionEvent>(Channel.BUFFERED)
 
     /**
      * One-time events for UI feedback (snackbars, toasts).
      */
-    val events = _events.asSharedFlow()
+    val events: Flow<LibraryActionEvent> = eventsChannel.receiveAsFlow()
 
     // ═══════════════════════════════════════════════════════════════════════
     // LIFECYCLE
@@ -192,13 +193,13 @@ class LibraryActionsViewModel(
             when (val result = addBooksToCollectionUseCase(collectionId, bookIds)) {
                 is Success -> {
                     logger.info { "Added ${bookIds.size} books to collection $collectionId" }
-                    _events.emit(LibraryActionEvent.BooksAddedToCollection(bookIds.size))
+                    eventsChannel.send(LibraryActionEvent.BooksAddedToCollection(bookIds.size))
                     selectionManager.clearAfterAction()
                 }
 
                 is Failure -> {
                     logger.error { "Failed to add books to collection: ${result.message}" }
-                    _events.emit(LibraryActionEvent.AddToCollectionFailed(result.message))
+                    eventsChannel.send(LibraryActionEvent.AddToCollectionFailed(result.message))
                 }
             }
 
@@ -246,13 +247,13 @@ class LibraryActionsViewModel(
             when (val result = addBooksToShelfUseCase(shelfId, bookIds)) {
                 is Success -> {
                     logger.info { "Added ${bookIds.size} books to shelf $shelfId" }
-                    _events.emit(LibraryActionEvent.BooksAddedToShelf(bookIds.size))
+                    eventsChannel.send(LibraryActionEvent.BooksAddedToShelf(bookIds.size))
                     selectionManager.clearAfterAction()
                 }
 
                 is Failure -> {
                     logger.error { "Failed to add books to shelf: ${result.message}" }
-                    _events.emit(LibraryActionEvent.AddToShelfFailed(result.message))
+                    eventsChannel.send(LibraryActionEvent.AddToShelfFailed(result.message))
                 }
             }
 
@@ -284,7 +285,7 @@ class LibraryActionsViewModel(
                     when (val addResult = addBooksToShelfUseCase(newShelf.id, bookIds)) {
                         is Success -> {
                             logger.info { "Added ${bookIds.size} books to new shelf ${newShelf.id}" }
-                            _events.emit(
+                            eventsChannel.send(
                                 LibraryActionEvent.ShelfCreatedAndBooksAdded(newShelf.name, bookIds.size),
                             )
                             selectionManager.clearAfterAction()
@@ -292,14 +293,14 @@ class LibraryActionsViewModel(
 
                         is Failure -> {
                             logger.error { "Failed to add books to new shelf: ${addResult.message}" }
-                            _events.emit(LibraryActionEvent.AddToShelfFailed(addResult.message))
+                            eventsChannel.send(LibraryActionEvent.AddToShelfFailed(addResult.message))
                         }
                     }
                 }
 
                 is Failure -> {
                     logger.error { "Failed to create shelf: ${createResult.message}" }
-                    _events.emit(LibraryActionEvent.AddToShelfFailed(createResult.message))
+                    eventsChannel.send(LibraryActionEvent.AddToShelfFailed(createResult.message))
                 }
             }
 
