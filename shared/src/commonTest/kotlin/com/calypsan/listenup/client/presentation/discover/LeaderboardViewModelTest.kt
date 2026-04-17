@@ -342,15 +342,18 @@ class LeaderboardViewModelTest {
             everySuspend { fixture.leaderboardRepository.fetchAndCacheUserStats() } returns true
 
             fixture.booksEntriesFlow.value = listOf(entry(userId = "u-books", booksCount = 5))
+            fixture.streakEntriesFlow.value = listOf(entry(userId = "u-streak", streakDays = 7))
 
             // When
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
-            // Then — Ready with empty TIME entries; BOOKS is still populated.
+            // Then — Ready with empty TIME entries; BOOKS and STREAK are still populated,
+            // proving each upstream has its own independent catch.
             val ready = assertIs<LeaderboardUiState.Ready>(viewModel.state.value)
-            assertTrue(ready.entriesByCategory[LeaderboardCategory.TIME]!!.isEmpty())
-            assertEquals(1, ready.entriesByCategory[LeaderboardCategory.BOOKS]!!.size)
+            assertEquals(0, ready.entriesByCategory.getValue(LeaderboardCategory.TIME).size)
+            assertEquals(1, ready.entriesByCategory.getValue(LeaderboardCategory.BOOKS).size)
+            assertEquals(1, ready.entriesByCategory.getValue(LeaderboardCategory.STREAK).size)
         }
 
     // ========== Initial Cache Fetch Gate ==========

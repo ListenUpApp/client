@@ -92,6 +92,14 @@ class LeaderboardViewModel(
      * per-category flows has a defensive `.catch` so a transient failure in one
      * slice degrades to an empty list rather than tearing down the whole
      * section with an Error state.
+     *
+     * We observe all three categories concurrently because the repository
+     * applies `sortedByDescending(valueFor(category)).take(limit)`, so top-N
+     * for TIME is a different row set than for BOOKS or STREAK — we can't pin
+     * one category and re-sort client-side. Cost: three Room subscriptions per
+     * period (~12-15 DAO subscriptions under the hood); Room's invalidation
+     * tracker handles this fine for a leaderboard that updates on user
+     * activity, not per-keystroke.
      */
     private val entriesByCategoryFlow: Flow<EntriesByCategory> =
         intent
@@ -246,9 +254,16 @@ sealed interface LeaderboardUiState {
         val entriesByCategory: Map<LeaderboardCategory, List<LeaderboardEntry>>,
         val communityStats: CommunityStats?,
     ) : LeaderboardUiState {
-        /** Entries for the currently selected category. */
+        init {
+            require(LeaderboardCategory.entries.all { it in entriesByCategory }) {
+                "entriesByCategory must contain all categories; missing: " +
+                    LeaderboardCategory.entries.filterNot { it in entriesByCategory }
+            }
+        }
+
+        /** Entries for the currently selected category. Non-null: Ready's invariant. */
         val entries: List<LeaderboardEntry>
-            get() = entriesByCategory[selectedCategory].orEmpty()
+            get() = entriesByCategory.getValue(selectedCategory)
 
         /** Whether any category has data to display. */
         val hasData: Boolean

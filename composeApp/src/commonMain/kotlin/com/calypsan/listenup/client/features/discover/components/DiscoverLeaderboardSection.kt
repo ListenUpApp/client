@@ -165,7 +165,7 @@ private fun ReadyContent(
         modifier = Modifier.fillMaxWidth(),
     ) { page ->
         val category = categories[page]
-        val entries = ready.entriesByCategory[category].orEmpty()
+        val entries = ready.entriesByCategory.getValue(category)
         LeaderboardList(
             entries = entries,
             category = category,
