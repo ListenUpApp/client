@@ -63,6 +63,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminCategoriesViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminSettingsUiState
 import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
@@ -833,6 +834,7 @@ private fun AuthenticatedNavigation(
                             val viewModel: AdminViewModel = koinInject()
                             val settingsViewModel: AdminSettingsViewModel = koinInject()
                             val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
+                            val readySettings = settingsState as? AdminSettingsUiState.Ready
 
                             AdminScreen(
                                 viewModel = viewModel,
@@ -857,28 +859,31 @@ private fun AuthenticatedNavigation(
                                 onUserClick = { userId ->
                                     backStack.add(AdminUserDetail(userId))
                                 },
-                                serverName = settingsState.serverName,
+                                serverName = readySettings?.serverName ?: "",
                                 onServerNameChange = { settingsViewModel.setServerName(it) },
-                                remoteUrl = settingsState.remoteUrl,
+                                remoteUrl = readySettings?.remoteUrl ?: "",
                                 onRemoteUrlChange = { settingsViewModel.setRemoteUrl(it) },
-                                inboxEnabled = settingsState.inboxEnabled,
-                                inboxCount = settingsState.inboxCount,
-                                isSaving = settingsState.isSaving,
+                                inboxEnabled = readySettings?.inboxEnabled == true,
+                                inboxCount = readySettings?.inboxCount ?: 0,
+                                isSaving = readySettings?.isSaving == true,
                                 onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
-                                isDirty = settingsState.isDirty,
+                                isDirty = readySettings?.isDirty == true,
                                 onSave = { settingsViewModel.saveAll() },
-                                settingsError = settingsState.error,
+                                settingsError =
+                                    readySettings?.error
+                                        ?: (settingsState as? AdminSettingsUiState.Error)?.message,
                                 onClearSettingsError = { settingsViewModel.clearError() },
                             )
 
                             // Handle disable inbox confirmation dialog
-                            if (settingsState.showDisableConfirmation) {
+                            if (readySettings?.showDisableConfirmation == true) {
+                                val pendingCount = readySettings.inboxCount
                                 com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog(
                                     onDismissRequest = { settingsViewModel.cancelDisableInbox() },
                                     title = "Disable Inbox Workflow",
                                     text =
-                                        "This will release all ${settingsState.inboxCount} " +
-                                            "book${if (settingsState.inboxCount != 1) "s" else ""} " +
+                                        "This will release all $pendingCount " +
+                                            "book${if (pendingCount != 1) "s" else ""} " +
                                             "currently in the inbox with their staged collection assignments.\n\n" +
                                             "New books will become immediately visible to users.",
                                     confirmText = "Disable & Release",

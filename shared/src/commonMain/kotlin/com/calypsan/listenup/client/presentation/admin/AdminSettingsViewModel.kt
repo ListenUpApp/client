@@ -5,13 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.error.ErrorBus
-import com.calypsan.listenup.client.domain.usecase.admin.LoadServerSettingsUseCase
 import com.calypsan.listenup.client.domain.repository.AdminRepository
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.usecase.admin.LoadServerSettingsUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.UpdateServerSettingsUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -33,7 +34,7 @@ class AdminSettingsViewModel(
     private val adminRepository: AdminRepository,
 ) : ViewModel() {
     val state: StateFlow<AdminSettingsUiState>
-        field = MutableStateFlow(AdminSettingsUiState())
+        field = MutableStateFlow<AdminSettingsUiState>(AdminSettingsUiState.Loading)
 
     /** Baseline values from the server, used to compute dirty state. */
     private var savedServerName: String = ""
@@ -46,31 +47,39 @@ class AdminSettingsViewModel(
 
     fun loadSettings() {
         viewModelScope.launch {
-            state.value = state.value.copy(isLoading = true, error = null)
-
             when (val result = loadServerSettingsUseCase()) {
                 is Success -> {
                     savedServerName = result.data.serverName
                     savedInboxEnabled = result.data.inboxEnabled
-                    state.value =
-                        state.value.copy(
-                            isLoading = false,
-                            serverName = result.data.serverName,
-                            inboxEnabled = result.data.inboxEnabled,
-                            inboxCount = result.data.inboxCount,
-                        )
-                    updateDirty()
+                    state.update { current ->
+                        if (current is AdminSettingsUiState.Ready) {
+                            current.copy(
+                                serverName = result.data.serverName,
+                                inboxEnabled = result.data.inboxEnabled,
+                                inboxCount = result.data.inboxCount,
+                                error = null,
+                            )
+                        } else {
+                            AdminSettingsUiState.Ready(
+                                serverName = result.data.serverName,
+                                inboxEnabled = result.data.inboxEnabled,
+                                inboxCount = result.data.inboxCount,
+                            )
+                        }
+                    }
                     // Also load remote URL from instance
                     loadRemoteUrl()
                 }
 
                 is Failure -> {
                     logger.error { "Failed to load server settings: ${result.message}" }
-                    state.value =
-                        state.value.copy(
-                            isLoading = false,
-                            error = result.message,
-                        )
+                    state.update { current ->
+                        if (current is AdminSettingsUiState.Ready) {
+                            current.copy(error = result.message)
+                        } else {
+                            AdminSettingsUiState.Error(result.message)
+                        }
+                    }
                 }
             }
         }
@@ -80,8 +89,7 @@ class AdminSettingsViewModel(
      * Update the server display name (local only).
      */
     fun setServerName(name: String) {
-        state.value = state.value.copy(serverName = name)
-        updateDirty()
+        updateReady { it.copy(serverName = name).withDirty() }
     }
 
     /**
@@ -90,14 +98,15 @@ class AdminSettingsViewModel(
      * When disabling with pending books, shows confirmation first.
      */
     fun setInboxEnabled(enabled: Boolean) {
+        val ready = state.value as? AdminSettingsUiState.Ready ?: return
+
         // If disabling and there are books in inbox, show confirmation
-        if (!enabled && state.value.inboxCount > 0) {
-            state.value = state.value.copy(showDisableConfirmation = true)
+        if (!enabled && ready.inboxCount > 0) {
+            updateReady { it.copy(showDisableConfirmation = true) }
             return
         }
 
-        state.value = state.value.copy(inboxEnabled = enabled)
-        updateDirty()
+        updateReady { it.copy(inboxEnabled = enabled).withDirty() }
     }
 
     /**
@@ -105,19 +114,20 @@ class AdminSettingsViewModel(
      * Called after user confirms they want to release all pending books.
      */
     fun confirmDisableInbox() {
-        state.value =
-            state.value.copy(
-                showDisableConfirmation = false,
-                inboxEnabled = false,
-            )
-        updateDirty()
+        updateReady {
+            it
+                .copy(
+                    showDisableConfirmation = false,
+                    inboxEnabled = false,
+                ).withDirty()
+        }
     }
 
     /**
      * Cancel disabling inbox workflow.
      */
     fun cancelDisableInbox() {
-        state.value = state.value.copy(showDisableConfirmation = false)
+        updateReady { it.copy(showDisableConfirmation = false) }
     }
 
     private fun loadRemoteUrl() {
@@ -126,8 +136,7 @@ class AdminSettingsViewModel(
                 is Success -> {
                     val url = result.data.remoteUrl ?: ""
                     savedRemoteUrl = url
-                    state.value = state.value.copy(remoteUrl = url)
-                    updateDirty()
+                    updateReady { it.copy(remoteUrl = url).withDirty() }
                 }
 
                 is Failure -> {
@@ -141,8 +150,7 @@ class AdminSettingsViewModel(
      * Update the remote access URL (local only).
      */
     fun setRemoteUrl(url: String) {
-        state.value = state.value.copy(remoteUrl = url)
-        updateDirty()
+        updateReady { it.copy(remoteUrl = url).withDirty() }
     }
 
     /**
@@ -150,13 +158,15 @@ class AdminSettingsViewModel(
      */
     @Suppress("ThrowsCount") // Boundary function: rethrow CancellationException + throw per-field failures
     fun saveAll() {
+        val ready = state.value as? AdminSettingsUiState.Ready ?: return
+
         viewModelScope.launch {
-            state.value = state.value.copy(isSaving = true, error = null)
+            updateReady { it.copy(isSaving = true, error = null) }
 
             try {
                 // Save server name if changed
-                if (state.value.serverName != savedServerName) {
-                    when (val result = updateServerSettingsUseCase.updateServerName(state.value.serverName)) {
+                if (ready.serverName != savedServerName) {
+                    when (val result = updateServerSettingsUseCase.updateServerName(ready.serverName)) {
                         is Success -> {
                             savedServerName = result.data.serverName
                             logger.info { "Server name saved: ${result.data.serverName}" }
@@ -169,22 +179,20 @@ class AdminSettingsViewModel(
                 }
 
                 // Save remote URL if changed
-                if (state.value.remoteUrl != savedRemoteUrl) {
-                    adminRepository.updateInstanceRemoteUrl(state.value.remoteUrl)
-                    savedRemoteUrl = state.value.remoteUrl
-                    logger.info { "Remote URL saved: ${state.value.remoteUrl}" }
+                if (ready.remoteUrl != savedRemoteUrl) {
+                    adminRepository.updateInstanceRemoteUrl(ready.remoteUrl)
+                    savedRemoteUrl = ready.remoteUrl
+                    logger.info { "Remote URL saved: ${ready.remoteUrl}" }
                 }
 
                 // Save inbox enabled if changed
-                if (state.value.inboxEnabled != savedInboxEnabled) {
-                    when (val result = updateServerSettingsUseCase(state.value.inboxEnabled)) {
+                if (ready.inboxEnabled != savedInboxEnabled) {
+                    when (val result = updateServerSettingsUseCase(ready.inboxEnabled)) {
                         is Success -> {
                             savedInboxEnabled = result.data.inboxEnabled
-                            state.value =
-                                state.value.copy(
-                                    inboxCount = result.data.inboxCount,
-                                )
-                            logger.info { "Inbox workflow ${if (state.value.inboxEnabled) "enabled" else "disabled"}" }
+                            val refreshedCount = result.data.inboxCount
+                            updateReady { it.copy(inboxCount = refreshedCount) }
+                            logger.info { "Inbox workflow ${if (ready.inboxEnabled) "enabled" else "disabled"}" }
                         }
 
                         is Failure -> {
@@ -193,52 +201,82 @@ class AdminSettingsViewModel(
                     }
                 }
 
-                state.value =
-                    state.value.copy(
-                        isSaving = false,
-                    )
-                updateDirty()
+                updateReady { it.copy(isSaving = false).withDirty() }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to save settings" }
-                state.value =
-                    state.value.copy(
-                        isSaving = false,
-                        error = "Failed to save settings: ${e.message}",
-                    )
-                updateDirty()
+                updateReady {
+                    it
+                        .copy(
+                            isSaving = false,
+                            error = "Failed to save settings: ${e.message}",
+                        ).withDirty()
+                }
             }
         }
     }
 
-    private fun updateDirty() {
-        val dirty =
-            state.value.serverName != savedServerName ||
-                state.value.remoteUrl != savedRemoteUrl ||
-                state.value.inboxEnabled != savedInboxEnabled
-        state.value = state.value.copy(isDirty = dirty)
+    fun clearError() {
+        updateReady { it.copy(error = null) }
     }
 
-    fun clearError() {
-        state.value = state.value.copy(error = null)
+    /**
+     * Apply [transform] to state only if it is currently [AdminSettingsUiState.Ready].
+     * No-ops when state is [AdminSettingsUiState.Loading] or [AdminSettingsUiState.Error].
+     */
+    private fun updateReady(transform: (AdminSettingsUiState.Ready) -> AdminSettingsUiState.Ready) {
+        state.update { current ->
+            if (current is AdminSettingsUiState.Ready) transform(current) else current
+        }
     }
+
+    /**
+     * Recompute [AdminSettingsUiState.Ready.isDirty] by comparing the edit-buffer fields
+     * against the saved baseline captured from the server.
+     */
+    private fun AdminSettingsUiState.Ready.withDirty(): AdminSettingsUiState.Ready =
+        copy(
+            isDirty =
+                serverName != savedServerName ||
+                    remoteUrl != savedRemoteUrl ||
+                    inboxEnabled != savedInboxEnabled,
+        )
 }
 
 /**
- * UI state for admin settings screen.
+ * UI state for the admin server settings screen.
+ *
+ * Sealed hierarchy:
+ * - [Loading] before the first `LoadServerSettingsUseCase` response.
+ * - [Ready] once settings have loaded; carries the edit-buffer fields
+ *   (`serverName`, `remoteUrl`, `inboxEnabled`) that the user mutates before
+ *   tapping Save, plus the server-owned `inboxCount`, the `isDirty` flag
+ *   (recomputed on every edit-buffer mutation), the `isSaving` and
+ *   `showDisableConfirmation` overlays, and a transient `error` surfaced via
+ *   snackbar.
+ * - [Error] terminal state when the initial load fails. Refresh failures
+ *   after reaching [Ready] surface via the transient `error` field on
+ *   [Ready] instead.
  */
-data class AdminSettingsUiState(
-    val isLoading: Boolean = true,
-    val isSaving: Boolean = false,
-    val serverName: String = "",
-    val remoteUrl: String = "",
-    val inboxEnabled: Boolean = false,
-    val inboxCount: Int = 0,
-    val showDisableConfirmation: Boolean = false,
-    val isDirty: Boolean = false,
-    val error: String? = null,
-) {
-    val hasPendingBooks: Boolean get() = inboxCount > 0
+sealed interface AdminSettingsUiState {
+    data object Loading : AdminSettingsUiState
+
+    data class Ready(
+        val serverName: String = "",
+        val remoteUrl: String = "",
+        val inboxEnabled: Boolean = false,
+        val inboxCount: Int = 0,
+        val showDisableConfirmation: Boolean = false,
+        val isDirty: Boolean = false,
+        val isSaving: Boolean = false,
+        val error: String? = null,
+    ) : AdminSettingsUiState {
+        val hasPendingBooks: Boolean get() = inboxCount > 0
+    }
+
+    data class Error(
+        val message: String,
+    ) : AdminSettingsUiState
 }
