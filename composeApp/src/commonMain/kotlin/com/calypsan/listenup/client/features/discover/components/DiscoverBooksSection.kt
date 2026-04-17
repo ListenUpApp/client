@@ -5,20 +5,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,7 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.features.library.BookCard
-import com.calypsan.listenup.client.presentation.discover.DiscoverUiBook
+import com.calypsan.listenup.client.presentation.discover.DiscoverBooksUiState
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
@@ -53,8 +50,9 @@ fun DiscoverBooksSection(
 ) {
     val state by viewModel.discoverBooksState.collectAsStateWithLifecycle()
 
-    // Don't show section if empty or loading
-    if (state.isEmpty) return
+    // Only render the Ready-with-data case; Loading, Error, and empty Ready render nothing.
+    val ready = state as? DiscoverBooksUiState.Ready ?: return
+    if (ready.isEmpty) return
 
     Column(modifier = modifier) {
         // Section header with refresh button
@@ -97,7 +95,7 @@ fun DiscoverBooksSection(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(
-                items = state.books,
+                items = ready.books,
                 key = { it.id },
             ) { book ->
                 BookCard(

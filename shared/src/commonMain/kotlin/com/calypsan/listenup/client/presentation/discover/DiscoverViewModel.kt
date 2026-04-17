@@ -13,17 +13,23 @@ import com.calypsan.listenup.client.domain.repository.DiscoveryBook
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
+
+private const val SUBSCRIPTION_TIMEOUT_MS = 5_000L
 
 /**
  * ViewModel for the Discover screen.
@@ -66,16 +72,17 @@ class DiscoverViewModel(
 
     val currentlyListeningState: StateFlow<CurrentlyListeningUiState> =
         currentlyListeningFlow
-            .map { sessions ->
-                CurrentlyListeningUiState(
-                    isLoading = false,
-                    sessions = sessions.map { it.toUiModel() },
-                    error = null,
-                )
+            .map<_, CurrentlyListeningUiState> { sessions ->
+                CurrentlyListeningUiState.Ready(sessions = sessions.map { it.toUiModel() })
+            }.onStart { emit(CurrentlyListeningUiState.Loading) }
+            .catch { e ->
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                logger.error(e) { "Error observing currently listening" }
+                emit(CurrentlyListeningUiState.Error("Failed to load currently listening"))
             }.stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = CurrentlyListeningUiState(isLoading = true),
+                started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+                initialValue = CurrentlyListeningUiState.Loading,
             )
 
     /**
@@ -99,28 +106,30 @@ class DiscoverViewModel(
 
     // === Discover Books State (Random Unstarted from Room) ===
 
-    private val _discoverBooksState = MutableStateFlow(DiscoverBooksUiState(isLoading = true))
-    val discoverBooksState: StateFlow<DiscoverBooksUiState> = _discoverBooksState
-
-    init {
-        loadDiscoverBooks()
-    }
-
     /**
-     * Load random unstarted books from Room.
-     * Uses the suspend (non-Flow) query so RANDOM() doesn't cause re-emission loops.
+     * Bumped by [refresh] to trigger a fresh random selection. We do not observe the
+     * upstream flow reactively because the SQL uses RANDOM() — a live subscription
+     * would reshuffle on every invalidation.
      */
-    private fun loadDiscoverBooks() {
-        viewModelScope.launch {
-            val books = bookRepository.observeRandomUnstartedBooks(limit = 10).first()
-            _discoverBooksState.value =
-                DiscoverBooksUiState(
-                    isLoading = false,
-                    books = books.map { it.toDiscoverUiBook() },
-                    error = null,
-                )
-        }
-    }
+    private val discoverBooksRefreshTrigger = MutableStateFlow(0)
+
+    val discoverBooksState: StateFlow<DiscoverBooksUiState> =
+        discoverBooksRefreshTrigger
+            .flatMapLatest {
+                flow {
+                    emit(DiscoverBooksUiState.Loading as DiscoverBooksUiState)
+                    val books = bookRepository.observeRandomUnstartedBooks(limit = 10).first()
+                    emit(DiscoverBooksUiState.Ready(books = books.map { it.toDiscoverUiBook() }))
+                }
+            }.catch { e ->
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                logger.error(e) { "Error loading discover books" }
+                emit(DiscoverBooksUiState.Error("Failed to load discover books"))
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+                initialValue = DiscoverBooksUiState.Loading,
+            )
 
     /**
      * Convert DiscoveryBook domain model to DiscoverUiBook.
@@ -144,16 +153,17 @@ class DiscoverViewModel(
     val recentlyAddedState: StateFlow<RecentlyAddedUiState> =
         bookRepository
             .observeRecentlyAddedBooks(limit = 10)
-            .map { books ->
-                RecentlyAddedUiState(
-                    isLoading = false,
-                    books = books.map { it.toRecentlyAddedUiBook() },
-                    error = null,
-                )
+            .map<_, RecentlyAddedUiState> { books ->
+                RecentlyAddedUiState.Ready(books = books.map { it.toRecentlyAddedUiBook() })
+            }.onStart { emit(RecentlyAddedUiState.Loading) }
+            .catch { e ->
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                logger.error(e) { "Error observing recently added books" }
+                emit(RecentlyAddedUiState.Error("Failed to load recently added"))
             }.stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = RecentlyAddedUiState(isLoading = true),
+                started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+                initialValue = RecentlyAddedUiState.Loading,
             )
 
     /**
@@ -187,7 +197,7 @@ class DiscoverViewModel(
 
     val discoverShelvesState: StateFlow<DiscoverShelvesUiState> =
         discoverShelvesFlow
-            .map { shelves ->
+            .map<_, DiscoverShelvesUiState> { shelves ->
                 // Group shelves by owner for display
                 val groupedByOwner = shelves.groupBy { it.ownerId }
                 val userShelves =
@@ -203,14 +213,16 @@ class DiscoverViewModel(
                             shelves = ownerShelves.map { it.toUiModel() },
                         )
                     }
-                DiscoverShelvesUiState(
-                    isLoading = false,
-                    users = userShelves,
-                )
+                DiscoverShelvesUiState.Ready(users = userShelves)
+            }.onStart { emit(DiscoverShelvesUiState.Loading) }
+            .catch { e ->
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                logger.error(e) { "Error observing discover shelves" }
+                emit(DiscoverShelvesUiState.Error("Failed to load discover shelves"))
             }.stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = DiscoverShelvesUiState(isLoading = true),
+                started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+                initialValue = DiscoverShelvesUiState.Loading,
             )
 
     /**
@@ -277,28 +289,37 @@ class DiscoverViewModel(
     /**
      * Refresh all discovery content.
      * - Shelves: fetched from API and stored in Room
-     * - Sessions: automatically updated via Room flows (synced via SSE)
-     * - Books: automatically updated via Room flows (re-queries with new RANDOM seed)
+     * - Books: new RANDOM() selection via refresh trigger
+     * - Sessions & recently added: automatically updated via Room flows
      */
     fun refresh() {
+        discoverBooksRefreshTrigger.update { it + 1 }
         refreshDiscoverShelves()
-        loadDiscoverBooks()
     }
 }
 
 /**
  * UI state for the Discover shelves section.
- * Data comes from Room - no network errors possible after initial fetch.
  */
-data class DiscoverShelvesUiState(
-    val isLoading: Boolean = false,
-    val users: List<DiscoverUserShelves> = emptyList(),
-) {
-    val isEmpty: Boolean
-        get() = users.isEmpty() && !isLoading
+sealed interface DiscoverShelvesUiState {
+    /** Pre-first-emission placeholder. */
+    data object Loading : DiscoverShelvesUiState
 
-    val totalShelfCount: Int
-        get() = users.sumOf { it.shelves.size }
+    /** Shelves grouped by owner, loaded from Room. */
+    data class Ready(
+        val users: List<DiscoverUserShelves>,
+    ) : DiscoverShelvesUiState {
+        val isEmpty: Boolean
+            get() = users.isEmpty()
+
+        val totalShelfCount: Int
+            get() = users.sumOf { it.shelves.size }
+    }
+
+    /** Upstream failure — section renders the message in error styling. */
+    data class Error(
+        val message: String,
+    ) : DiscoverShelvesUiState
 }
 
 /**
@@ -332,37 +353,64 @@ data class DiscoverShelfUi(
 /**
  * UI state for the "What Others Are Listening To" section.
  */
-data class CurrentlyListeningUiState(
-    val isLoading: Boolean = false,
-    val sessions: List<CurrentlyListeningUiSession> = emptyList(),
-    val error: String? = null,
-) {
-    val isEmpty: Boolean
-        get() = sessions.isEmpty() && !isLoading
+sealed interface CurrentlyListeningUiState {
+    /** Pre-first-emission placeholder. */
+    data object Loading : CurrentlyListeningUiState
+
+    /** Active sessions loaded from Room. */
+    data class Ready(
+        val sessions: List<CurrentlyListeningUiSession>,
+    ) : CurrentlyListeningUiState {
+        val isEmpty: Boolean
+            get() = sessions.isEmpty()
+    }
+
+    /** Upstream failure — section renders the message in error styling. */
+    data class Error(
+        val message: String,
+    ) : CurrentlyListeningUiState
 }
 
 /**
  * UI state for the "Discover Something New" section.
  */
-data class DiscoverBooksUiState(
-    val isLoading: Boolean = false,
-    val books: List<DiscoverUiBook> = emptyList(),
-    val error: String? = null,
-) {
-    val isEmpty: Boolean
-        get() = books.isEmpty() && !isLoading
+sealed interface DiscoverBooksUiState {
+    /** Pre-first-emission placeholder. */
+    data object Loading : DiscoverBooksUiState
+
+    /** Random unstarted books from Room. */
+    data class Ready(
+        val books: List<DiscoverUiBook>,
+    ) : DiscoverBooksUiState {
+        val isEmpty: Boolean
+            get() = books.isEmpty()
+    }
+
+    /** Upstream failure — section renders the message in error styling. */
+    data class Error(
+        val message: String,
+    ) : DiscoverBooksUiState
 }
 
 /**
  * UI state for the "Recently Added" section.
  */
-data class RecentlyAddedUiState(
-    val isLoading: Boolean = false,
-    val books: List<RecentlyAddedUiBook> = emptyList(),
-    val error: String? = null,
-) {
-    val isEmpty: Boolean
-        get() = books.isEmpty() && !isLoading
+sealed interface RecentlyAddedUiState {
+    /** Pre-first-emission placeholder. */
+    data object Loading : RecentlyAddedUiState
+
+    /** Newly added books loaded from Room. */
+    data class Ready(
+        val books: List<RecentlyAddedUiBook>,
+    ) : RecentlyAddedUiState {
+        val isEmpty: Boolean
+            get() = books.isEmpty()
+    }
+
+    /** Upstream failure — section renders the message in error styling. */
+    data class Error(
+        val message: String,
+    ) : RecentlyAddedUiState
 }
 
 // === UI Model Types ===

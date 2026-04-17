@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.features.library.AvatarOverlayData
 import com.calypsan.listenup.client.features.library.BookCard
-import com.calypsan.listenup.client.presentation.discover.CurrentlyListeningUiSession
+import com.calypsan.listenup.client.presentation.discover.CurrentlyListeningUiState
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
@@ -40,8 +40,9 @@ fun CurrentlyListeningSection(
 ) {
     val state by viewModel.currentlyListeningState.collectAsStateWithLifecycle()
 
-    // Don't show section if empty or loading
-    if (state.isEmpty) return
+    // Only render the Ready-with-data case; Loading, Error, and empty Ready render nothing.
+    val ready = state as? CurrentlyListeningUiState.Ready ?: return
+    if (ready.isEmpty) return
 
     Column(modifier = modifier) {
         // Section header
@@ -64,7 +65,7 @@ fun CurrentlyListeningSection(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(
-                items = state.sessions,
+                items = ready.sessions,
                 key = { it.sessionId },
             ) { session ->
                 BookCard(

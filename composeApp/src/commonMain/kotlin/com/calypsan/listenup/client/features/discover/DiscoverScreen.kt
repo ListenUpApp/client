@@ -50,6 +50,7 @@ import com.calypsan.listenup.client.features.discover.components.DiscoverBooksSe
 import com.calypsan.listenup.client.features.discover.components.DiscoverLeaderboardSection
 import com.calypsan.listenup.client.features.discover.components.RecentlyAddedSection
 import com.calypsan.listenup.client.presentation.discover.DiscoverShelfUi
+import com.calypsan.listenup.client.presentation.discover.DiscoverShelvesUiState
 import com.calypsan.listenup.client.presentation.discover.DiscoverUserShelves
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -79,18 +80,21 @@ fun DiscoverScreen(
     val shelvesState by viewModel.discoverShelvesState.collectAsStateWithLifecycle()
 
     PullToRefreshBox(
-        isRefreshing = shelvesState.isLoading,
+        isRefreshing = shelvesState is DiscoverShelvesUiState.Loading,
         onRefresh = { viewModel.refresh() },
         modifier =
             modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        // Discover content with leaderboard (always shows) and user shelves
+        // Discover content with leaderboard (always shows) and user shelves.
+        // The Loading / Error / empty-Ready cases all render no shelf list below the
+        // activity feed; only Ready-with-data surfaces user shelves.
+        val shelvesReady = shelvesState as? DiscoverShelvesUiState.Ready
         DiscoverContent(
-            isLoading = shelvesState.isLoading,
-            users = shelvesState.users,
-            isEmpty = shelvesState.isEmpty,
+            isLoading = shelvesState is DiscoverShelvesUiState.Loading,
+            users = shelvesReady?.users.orEmpty(),
+            isEmpty = shelvesReady?.isEmpty ?: false,
             onShelfClick = onShelfClick,
             onBookClick = onBookClick,
             onUserProfileClick = onUserProfileClick,

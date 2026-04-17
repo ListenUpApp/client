@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.features.library.BookCard
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
-import com.calypsan.listenup.client.presentation.discover.RecentlyAddedUiBook
+import com.calypsan.listenup.client.presentation.discover.RecentlyAddedUiState
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
@@ -39,8 +39,9 @@ fun RecentlyAddedSection(
 ) {
     val state by viewModel.recentlyAddedState.collectAsStateWithLifecycle()
 
-    // Don't show section if empty or loading
-    if (state.isEmpty) return
+    // Only render the Ready-with-data case; Loading, Error, and empty Ready render nothing.
+    val ready = state as? RecentlyAddedUiState.Ready ?: return
+    if (ready.isEmpty) return
 
     Column(modifier = modifier) {
         // Section header
@@ -63,7 +64,7 @@ fun RecentlyAddedSection(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(
-                items = state.books,
+                items = ready.books,
                 key = { it.id },
             ) { book ->
                 BookCard(
