@@ -53,7 +53,6 @@
     <ID>UnnecessaryParentheses:AuroraBackground.kt$((g - b) / d + (if (g &lt; b) 6f else 0f))</ID>
     <ID>UnnecessaryParentheses:AuroraBackground.kt$((r - g) / d + 4f)</ID>
     <ID>UnnecessaryParentheses:AuroraBackground.kt$(if (g &lt; b) 6f else 0f)</ID>
-    <ID>UnusedImports:AdminCollectionDetailScreen.kt$import listenup.composeapp.generated.resources.admin_collection_updated</ID>
     <ID>UnusedImports:AdminCollectionsScreen.kt$import listenup.composeapp.generated.resources.admin_collection_created</ID>
     <ID>UnusedImports:AdminScreen.kt$import listenup.composeapp.generated.resources.admin_link_copied</ID>
     <ID>UnusedImports:BookCard.kt$import androidx.compose.material.icons.filled.Book</ID>

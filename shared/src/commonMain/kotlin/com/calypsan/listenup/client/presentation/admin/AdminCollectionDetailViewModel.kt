@@ -20,6 +20,7 @@ import com.calypsan.listenup.client.domain.usecase.collection.UpdateCollectionNa
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -45,42 +46,43 @@ class AdminCollectionDetailViewModel(
     private val getUsersForSharingUseCase: GetUsersForSharingUseCase,
 ) : ViewModel() {
     val state: StateFlow<AdminCollectionDetailUiState>
-        field = MutableStateFlow(AdminCollectionDetailUiState())
+        field = MutableStateFlow<AdminCollectionDetailUiState>(AdminCollectionDetailUiState.Loading)
 
     init {
         loadCollection()
     }
 
     /**
-     * Load the collection details from local database.
-     * The collection is synced via SSE events, so we observe for changes.
+     * Load the collection details, then fetch its books and shares.
+     *
+     * Drives the terminal Loading -> Ready | Error transition. Subsequent
+     * refreshes after reaching Ready surface failures via the transient
+     * `error` field on [AdminCollectionDetailUiState.Ready].
      */
     private fun loadCollection() {
         viewModelScope.launch {
-            state.value = state.value.copy(isLoading = true)
-
             try {
                 // First, try to get from local DB via repository
-                val localCollection = collectionRepository.getById(collectionId)
-                if (localCollection != null) {
-                    state.value =
-                        state.value.copy(
-                            isLoading = false,
-                            collection = localCollection,
-                            editedName = localCollection.name,
+                val collection =
+                    collectionRepository.getById(collectionId)
+                        ?: collectionRepository.getCollectionFromServer(collectionId)
+
+                state.update { current ->
+                    if (current is AdminCollectionDetailUiState.Ready) {
+                        current.copy(
+                            collection = collection,
+                            editedName = collection.name,
+                            error = null,
                         )
-                } else {
-                    // Fallback to server if not in local DB yet
-                    val serverCollection = collectionRepository.getCollectionFromServer(collectionId)
-                    state.value =
-                        state.value.copy(
-                            isLoading = false,
-                            collection = serverCollection,
-                            editedName = serverCollection.name,
+                    } else {
+                        AdminCollectionDetailUiState.Ready(
+                            collection = collection,
+                            editedName = collection.name,
                         )
+                    }
                 }
 
-                // Load books and shares in parallel
+                // Load books and shares sequentially (pipeline updates Ready as results arrive).
                 loadBooks()
                 loadShares()
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
@@ -88,11 +90,14 @@ class AdminCollectionDetailViewModel(
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to load collection: $collectionId" }
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load collection",
-                    )
+                val message = e.message ?: "Failed to load collection"
+                state.update { current ->
+                    if (current is AdminCollectionDetailUiState.Ready) {
+                        current.copy(error = message)
+                    } else {
+                        AdminCollectionDetailUiState.Error(message)
+                    }
+                }
             }
         }
     }
@@ -100,20 +105,287 @@ class AdminCollectionDetailViewModel(
     /**
      * Load shares for the collection via use case.
      * The use case enriches shares with user information.
+     *
+     * Non-fatal: failures are logged and leave shares empty rather than
+     * failing the whole screen.
      */
     private suspend fun loadShares() {
         when (val result = loadCollectionSharesUseCase(collectionId)) {
             is Success -> {
-                state.value =
-                    state.value.copy(
-                        shares = result.data.map { it.toShareItem() },
-                    )
+                updateReady { it.copy(shares = result.data.map { share -> share.toShareItem() }) }
             }
 
             is Failure -> {
                 logger.warn { "Failed to load shares for collection: $collectionId - ${result.message}" }
                 // Don't fail the whole screen - just show empty shares
             }
+        }
+    }
+
+    /**
+     * Load books in the collection via use case.
+     *
+     * Non-fatal: failures are logged and leave books empty rather than
+     * failing the whole screen.
+     */
+    private suspend fun loadBooks() {
+        when (val result = loadCollectionBooksUseCase(collectionId)) {
+            is Success -> {
+                updateReady { it.copy(books = result.data.map { book -> book.toBookItem() }) }
+            }
+
+            is Failure -> {
+                logger.warn { "Failed to load books for collection: $collectionId - ${result.message}" }
+                // Don't fail the whole screen - just show empty books
+            }
+        }
+    }
+
+    /**
+     * Update the edited name field.
+     */
+    fun updateName(name: String) {
+        updateReady { it.copy(editedName = name) }
+    }
+
+    /**
+     * Save the edited collection name.
+     */
+    fun saveName() {
+        val ready = state.value as? AdminCollectionDetailUiState.Ready ?: return
+        val newName = ready.editedName.trim()
+
+        if (newName.isBlank()) {
+            updateReady { it.copy(error = "Collection name cannot be empty") }
+            return
+        }
+
+        if (newName == ready.collection.name) {
+            // No change needed
+            updateReady { it.copy(saveSuccess = true) }
+            return
+        }
+
+        viewModelScope.launch {
+            updateReady { it.copy(isSaving = true) }
+
+            when (val result = updateCollectionNameUseCase(collectionId, newName)) {
+                is Success -> {
+                    logger.info { "Updated collection name: ${result.data.name}" }
+                    // SSE will update the local database
+                    updateReady {
+                        it.copy(
+                            isSaving = false,
+                            saveSuccess = true,
+                            collection = result.data,
+                        )
+                    }
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to update collection name: ${result.message}" }
+                    updateReady {
+                        it.copy(
+                            isSaving = false,
+                            error = result.message,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Remove a book from the collection.
+     */
+    fun removeBook(bookId: String) {
+        if (state.value !is AdminCollectionDetailUiState.Ready) return
+        viewModelScope.launch {
+            updateReady { it.copy(removingBookId = bookId) }
+
+            when (val result = removeBookFromCollectionUseCase(collectionId, bookId)) {
+                is Success -> {
+                    logger.info { "Removed book $bookId from collection $collectionId" }
+
+                    // Optimistically update the book list and count
+                    updateReady { ready ->
+                        ready.copy(
+                            removingBookId = null,
+                            books = ready.books.filterNot { it.id == bookId },
+                            collection =
+                                ready.collection.copy(
+                                    bookCount = (ready.collection.bookCount - 1).coerceAtLeast(0),
+                                ),
+                        )
+                    }
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to remove book from collection: ${result.message}" }
+                    updateReady {
+                        it.copy(
+                            removingBookId = null,
+                            error = result.message,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Load users available for sharing.
+     */
+    fun loadUsersForSharing() {
+        if (state.value !is AdminCollectionDetailUiState.Ready) return
+        viewModelScope.launch {
+            updateReady { it.copy(isLoadingUsers = true) }
+
+            when (val result = getUsersForSharingUseCase(collectionId)) {
+                is Success -> {
+                    updateReady {
+                        it.copy(
+                            isLoadingUsers = false,
+                            availableUsers = result.data,
+                        )
+                    }
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to load users: ${result.message}" }
+                    updateReady {
+                        it.copy(
+                            isLoadingUsers = false,
+                            error = result.message,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Share the collection with a user.
+     */
+    fun shareWithUser(userId: String) {
+        val ready = state.value as? AdminCollectionDetailUiState.Ready ?: return
+        viewModelScope.launch {
+            updateReady { it.copy(isSharing = true) }
+
+            when (val result = shareCollectionUseCase(collectionId, userId)) {
+                is Success -> {
+                    logger.info { "Shared collection with user: $userId" }
+
+                    // Get user details from the available users list to enrich the share
+                    val user = ready.availableUsers.find { it.id == userId }
+                    val enrichedShare =
+                        result.data.copy(
+                            userName =
+                                user?.let {
+                                    it.displayName?.takeIf { name -> name.isNotBlank() }
+                                        ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim().takeIf { name ->
+                                            name.isNotBlank()
+                                        }
+                                        ?: it.email
+                                } ?: result.data.userName,
+                            userEmail = user?.email ?: result.data.userEmail,
+                        )
+
+                    // Add to shares list
+                    updateReady {
+                        it.copy(
+                            isSharing = false,
+                            shares = it.shares + enrichedShare.toShareItem(),
+                            showAddMemberSheet = false,
+                        )
+                    }
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to share collection: ${result.message}" }
+                    updateReady {
+                        it.copy(
+                            isSharing = false,
+                            error = result.message,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Remove a share (unshare with user).
+     */
+    fun removeShare(shareId: String) {
+        if (state.value !is AdminCollectionDetailUiState.Ready) return
+        viewModelScope.launch {
+            updateReady { it.copy(removingShareId = shareId) }
+
+            when (val result = removeCollectionShareUseCase(shareId)) {
+                is Success -> {
+                    logger.info { "Removed share: $shareId" }
+
+                    // Remove from shares list
+                    updateReady { ready ->
+                        ready.copy(
+                            removingShareId = null,
+                            shares = ready.shares.filterNot { it.id == shareId },
+                        )
+                    }
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to remove share: ${result.message}" }
+                    updateReady {
+                        it.copy(
+                            removingShareId = null,
+                            error = result.message,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Show the add member sheet.
+     */
+    fun showAddMemberSheet() {
+        if (state.value !is AdminCollectionDetailUiState.Ready) return
+        updateReady { it.copy(showAddMemberSheet = true) }
+        loadUsersForSharing()
+    }
+
+    /**
+     * Hide the add member sheet.
+     */
+    fun hideAddMemberSheet() {
+        updateReady { it.copy(showAddMemberSheet = false) }
+    }
+
+    /**
+     * Clear the error state.
+     */
+    fun clearError() {
+        updateReady { it.copy(error = null) }
+    }
+
+    /**
+     * Clear the save success flag.
+     */
+    fun clearSaveSuccess() {
+        updateReady { it.copy(saveSuccess = false) }
+    }
+
+    /**
+     * Apply [transform] to state only if it is currently
+     * [AdminCollectionDetailUiState.Ready]. No-ops when state is
+     * [AdminCollectionDetailUiState.Loading] or [AdminCollectionDetailUiState.Error].
+     */
+    private fun updateReady(transform: (AdminCollectionDetailUiState.Ready) -> AdminCollectionDetailUiState.Ready) {
+        state.update { current ->
+            if (current is AdminCollectionDetailUiState.Ready) transform(current) else current
         }
     }
 
@@ -130,25 +402,6 @@ class AdminCollectionDetailViewModel(
         )
 
     /**
-     * Load books in the collection via use case.
-     */
-    private suspend fun loadBooks() {
-        when (val result = loadCollectionBooksUseCase(collectionId)) {
-            is Success -> {
-                state.value =
-                    state.value.copy(
-                        books = result.data.map { it.toBookItem() },
-                    )
-            }
-
-            is Failure -> {
-                logger.warn { "Failed to load books for collection: $collectionId - ${result.message}" }
-                // Don't fail the whole screen - just show empty books
-            }
-        }
-    }
-
-    /**
      * Convert domain model to UI model.
      */
     private fun CollectionBookSummary.toBookItem() =
@@ -158,252 +411,54 @@ class AdminCollectionDetailViewModel(
             authorNames = "", // Not provided by API
             coverPath = coverPath,
         )
-
-    /**
-     * Update the edited name field.
-     */
-    fun updateName(name: String) {
-        state.value = state.value.copy(editedName = name)
-    }
-
-    /**
-     * Save the edited collection name.
-     */
-    fun saveName() {
-        val collection = state.value.collection ?: return
-        val newName = state.value.editedName.trim()
-
-        if (newName.isBlank()) {
-            state.value = state.value.copy(error = "Collection name cannot be empty")
-            return
-        }
-
-        if (newName == collection.name) {
-            // No change needed
-            state.value = state.value.copy(saveSuccess = true)
-            return
-        }
-
-        viewModelScope.launch {
-            state.value = state.value.copy(isSaving = true)
-
-            when (val result = updateCollectionNameUseCase(collectionId, newName)) {
-                is Success -> {
-                    logger.info { "Updated collection name: ${result.data.name}" }
-                    // SSE will update the local database
-                    state.value =
-                        state.value.copy(
-                            isSaving = false,
-                            saveSuccess = true,
-                            collection = result.data,
-                        )
-                }
-
-                is Failure -> {
-                    logger.error { "Failed to update collection name: ${result.message}" }
-                    state.value =
-                        state.value.copy(
-                            isSaving = false,
-                            error = result.message,
-                        )
-                }
-            }
-        }
-    }
-
-    /**
-     * Remove a book from the collection.
-     */
-    fun removeBook(bookId: String) {
-        viewModelScope.launch {
-            state.value = state.value.copy(removingBookId = bookId)
-
-            when (val result = removeBookFromCollectionUseCase(collectionId, bookId)) {
-                is Success -> {
-                    logger.info { "Removed book $bookId from collection $collectionId" }
-
-                    // Optimistically update the book list and count
-                    val currentBooks = state.value.books.filterNot { it.id == bookId }
-                    val currentCollection = state.value.collection
-                    state.value =
-                        state.value.copy(
-                            removingBookId = null,
-                            books = currentBooks,
-                            collection =
-                                currentCollection?.copy(
-                                    bookCount = (currentCollection.bookCount - 1).coerceAtLeast(0),
-                                ),
-                        )
-                }
-
-                is Failure -> {
-                    logger.error { "Failed to remove book from collection: ${result.message}" }
-                    state.value =
-                        state.value.copy(
-                            removingBookId = null,
-                            error = result.message,
-                        )
-                }
-            }
-        }
-    }
-
-    /**
-     * Load users available for sharing.
-     */
-    fun loadUsersForSharing() {
-        viewModelScope.launch {
-            state.value = state.value.copy(isLoadingUsers = true)
-
-            when (val result = getUsersForSharingUseCase(collectionId)) {
-                is Success -> {
-                    state.value =
-                        state.value.copy(
-                            isLoadingUsers = false,
-                            availableUsers = result.data,
-                        )
-                }
-
-                is Failure -> {
-                    logger.error { "Failed to load users: ${result.message}" }
-                    state.value =
-                        state.value.copy(
-                            isLoadingUsers = false,
-                            error = result.message,
-                        )
-                }
-            }
-        }
-    }
-
-    /**
-     * Share the collection with a user.
-     */
-    fun shareWithUser(userId: String) {
-        viewModelScope.launch {
-            state.value = state.value.copy(isSharing = true)
-
-            when (val result = shareCollectionUseCase(collectionId, userId)) {
-                is Success -> {
-                    logger.info { "Shared collection with user: $userId" }
-
-                    // Get user details from the available users list to enrich the share
-                    val user = state.value.availableUsers.find { it.id == userId }
-                    val enrichedShare =
-                        result.data.copy(
-                            userName =
-                                user?.let {
-                                    it.displayName?.takeIf { name -> name.isNotBlank() }
-                                        ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim().takeIf { name ->
-                                            name.isNotBlank()
-                                        }
-                                        ?: it.email
-                                } ?: result.data.userName,
-                            userEmail = user?.email ?: result.data.userEmail,
-                        )
-
-                    // Add to shares list
-                    state.value =
-                        state.value.copy(
-                            isSharing = false,
-                            shares = state.value.shares + enrichedShare.toShareItem(),
-                            showAddMemberSheet = false,
-                        )
-                }
-
-                is Failure -> {
-                    logger.error { "Failed to share collection: ${result.message}" }
-                    state.value =
-                        state.value.copy(
-                            isSharing = false,
-                            error = result.message,
-                        )
-                }
-            }
-        }
-    }
-
-    /**
-     * Remove a share (unshare with user).
-     */
-    fun removeShare(shareId: String) {
-        viewModelScope.launch {
-            state.value = state.value.copy(removingShareId = shareId)
-
-            when (val result = removeCollectionShareUseCase(shareId)) {
-                is Success -> {
-                    logger.info { "Removed share: $shareId" }
-
-                    // Remove from shares list
-                    state.value =
-                        state.value.copy(
-                            removingShareId = null,
-                            shares = state.value.shares.filterNot { it.id == shareId },
-                        )
-                }
-
-                is Failure -> {
-                    logger.error { "Failed to remove share: ${result.message}" }
-                    state.value =
-                        state.value.copy(
-                            removingShareId = null,
-                            error = result.message,
-                        )
-                }
-            }
-        }
-    }
-
-    /**
-     * Show the add member sheet.
-     */
-    fun showAddMemberSheet() {
-        state.value = state.value.copy(showAddMemberSheet = true)
-        loadUsersForSharing()
-    }
-
-    /**
-     * Hide the add member sheet.
-     */
-    fun hideAddMemberSheet() {
-        state.value = state.value.copy(showAddMemberSheet = false)
-    }
-
-    /**
-     * Clear the error state.
-     */
-    fun clearError() {
-        state.value = state.value.copy(error = null)
-    }
-
-    /**
-     * Clear the save success flag.
-     */
-    fun clearSaveSuccess() {
-        state.value = state.value.copy(saveSuccess = false)
-    }
 }
 
 /**
  * UI state for the admin collection detail screen.
+ *
+ * Sealed hierarchy:
+ * - [Loading] before the initial `loadCollection()` completes.
+ * - [Ready] once the collection has loaded; carries the server-authoritative
+ *   [collection] alongside the [editedName] edit buffer (dirty-tracking is
+ *   derived in the screen as `editedName != collection.name`), server-backed
+ *   [books]/[shares]/[availableUsers], action overlays
+ *   (`isSaving`, `removingBookId`, `isSharing`, `removingShareId`,
+ *   `isLoadingUsers`, `showAddMemberSheet`), the `saveSuccess` flag driving
+ *   the post-save snackbar, and a transient `error` surfaced via snackbar.
+ * - [Error] terminal state when the initial load fails; refresh failures
+ *   after reaching [Ready] surface via the transient `error` field instead.
  */
-data class AdminCollectionDetailUiState(
-    val isLoading: Boolean = true,
-    val collection: Collection? = null,
-    val editedName: String = "",
-    val isSaving: Boolean = false,
-    val saveSuccess: Boolean = false,
-    val books: List<CollectionBookItem> = emptyList(),
-    val removingBookId: String? = null,
-    val error: String? = null,
-    // Sharing state
-    val shares: List<CollectionShareItem> = emptyList(),
-    val showAddMemberSheet: Boolean = false,
-    val isSharing: Boolean = false,
-    val removingShareId: String? = null,
-    val isLoadingUsers: Boolean = false,
-    val availableUsers: List<AdminUserInfo> = emptyList(),
-)
+sealed interface AdminCollectionDetailUiState {
+    data object Loading : AdminCollectionDetailUiState
+
+    data class Ready(
+        val collection: Collection,
+        val editedName: String,
+        val isSaving: Boolean = false,
+        val saveSuccess: Boolean = false,
+        val books: List<CollectionBookItem> = emptyList(),
+        val removingBookId: String? = null,
+        val error: String? = null,
+        // Sharing state
+        val shares: List<CollectionShareItem> = emptyList(),
+        val showAddMemberSheet: Boolean = false,
+        val isSharing: Boolean = false,
+        val removingShareId: String? = null,
+        val isLoadingUsers: Boolean = false,
+        val availableUsers: List<AdminUserInfo> = emptyList(),
+    ) : AdminCollectionDetailUiState {
+        /**
+         * True when [editedName] (trimmed) differs from the server's canonical name.
+         * Drives the Save button's enabled state.
+         */
+        val isDirty: Boolean
+            get() = editedName.trim() != collection.name && editedName.isNotBlank()
+    }
+
+    data class Error(
+        val message: String,
+    ) : AdminCollectionDetailUiState
+}
 
 /**
  * A book item in a collection.
