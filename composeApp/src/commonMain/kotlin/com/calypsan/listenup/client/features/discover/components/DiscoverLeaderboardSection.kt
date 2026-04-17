@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.domain.repository.LeaderboardCategory
+import com.calypsan.listenup.client.domain.repository.LeaderboardPeriod
+import com.calypsan.listenup.client.presentation.discover.LeaderboardUiState
 import com.calypsan.listenup.client.presentation.discover.LeaderboardViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
@@ -46,7 +48,6 @@ fun DiscoverLeaderboardSection(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    // Always show the card - different content based on state
     Card(
         modifier =
             modifier
@@ -64,15 +65,12 @@ fun DiscoverLeaderboardSection(
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Header with title and period selector
-            LeaderboardHeader(
-                selectedPeriod = state.selectedPeriod,
-                onPeriodSelected = { viewModel.selectPeriod(it) },
-            )
-
-            when {
-                state.isLoading -> {
-                    // Loading state
+            when (val current = state) {
+                is LeaderboardUiState.Loading -> {
+                    LeaderboardHeader(
+                        selectedPeriod = LeaderboardPeriod.WEEK,
+                        onPeriodSelected = { viewModel.selectPeriod(it) },
+                    )
                     Text(
                         text = stringResource(Res.string.discover_loading_leaderboard),
                         style = MaterialTheme.typography.bodyMedium,
@@ -80,82 +78,102 @@ fun DiscoverLeaderboardSection(
                     )
                 }
 
-                state.error != null -> {
-                    // Error state - SHOW the error so we can debug
+                is LeaderboardUiState.Error -> {
+                    LeaderboardHeader(
+                        selectedPeriod = LeaderboardPeriod.WEEK,
+                        onPeriodSelected = { viewModel.selectPeriod(it) },
+                    )
                     Text(
-                        text = state.error ?: "Unknown error",
+                        text = current.message,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
 
-                state.hasData -> {
-                    val categories =
-                        listOf(
-                            LeaderboardCategory.TIME,
-                            LeaderboardCategory.BOOKS,
-                            LeaderboardCategory.STREAK,
-                        )
-
-                    val pagerState =
-                        rememberPagerState(
-                            initialPage = categories.indexOf(state.selectedCategory).coerceAtLeast(0),
-                            pageCount = { categories.size },
-                        )
-
-                    // Sync pager with tab selection
-                    LaunchedEffect(state.selectedCategory) {
-                        val targetPage = categories.indexOf(state.selectedCategory)
-                        if (targetPage >= 0 && pagerState.currentPage != targetPage) {
-                            pagerState.animateScrollToPage(targetPage)
-                        }
-                    }
-
-                    // Sync tab selection with pager swipes
-                    LaunchedEffect(pagerState) {
-                        snapshotFlow { pagerState.settledPage }.collect { page ->
-                            val category = categories.getOrNull(page)
-                            if (category != null && category != state.selectedCategory) {
-                                viewModel.selectCategory(category)
-                            }
-                        }
-                    }
-
-                    // Category tabs
-                    LeaderboardCategoryTabs(
-                        selectedCategory = state.selectedCategory,
+                is LeaderboardUiState.Ready -> {
+                    ReadyContent(
+                        ready = current,
+                        onPeriodSelected = { viewModel.selectPeriod(it) },
                         onCategorySelected = { viewModel.selectCategory(it) },
-                    )
-
-                    // Swipeable leaderboard pager
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { page ->
-                        val category = categories[page]
-                        val entries = viewModel.getEntriesForCategory(category)
-                        LeaderboardList(
-                            entries = entries,
-                            category = category,
-                            onUserClick = onUserClick,
-                        )
-                    }
-
-                    // Community stats
-                    if (state.hasCommunityStats) {
-                        CommunityStatsRow(stats = state.communityStats!!)
-                    }
-                }
-
-                else -> {
-                    // Empty state
-                    Text(
-                        text = stringResource(Res.string.discover_start_listening_to_join_the),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        onUserClick = onUserClick,
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ReadyContent(
+    ready: LeaderboardUiState.Ready,
+    onPeriodSelected: (LeaderboardPeriod) -> Unit,
+    onCategorySelected: (LeaderboardCategory) -> Unit,
+    onUserClick: (String) -> Unit,
+) {
+    LeaderboardHeader(
+        selectedPeriod = ready.selectedPeriod,
+        onPeriodSelected = onPeriodSelected,
+    )
+
+    if (!ready.hasData) {
+        Text(
+            text = stringResource(Res.string.discover_start_listening_to_join_the),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+
+    val categories =
+        listOf(
+            LeaderboardCategory.TIME,
+            LeaderboardCategory.BOOKS,
+            LeaderboardCategory.STREAK,
+        )
+
+    val pagerState =
+        rememberPagerState(
+            initialPage = categories.indexOf(ready.selectedCategory).coerceAtLeast(0),
+            pageCount = { categories.size },
+        )
+
+    // Sync pager with tab selection.
+    LaunchedEffect(ready.selectedCategory) {
+        val targetPage = categories.indexOf(ready.selectedCategory)
+        if (targetPage >= 0 && pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
+    }
+
+    // Sync tab selection with pager swipes.
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            val category = categories.getOrNull(page)
+            if (category != null && category != ready.selectedCategory) {
+                onCategorySelected(category)
+            }
+        }
+    }
+
+    LeaderboardCategoryTabs(
+        selectedCategory = ready.selectedCategory,
+        onCategorySelected = onCategorySelected,
+    )
+
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxWidth(),
+    ) { page ->
+        val category = categories[page]
+        val entries = ready.entriesByCategory[category].orEmpty()
+        LeaderboardList(
+            entries = entries,
+            category = category,
+            onUserClick = onUserClick,
+        )
+    }
+
+    if (ready.hasCommunityStats) {
+        CommunityStatsRow(stats = ready.communityStats!!)
     }
 }
