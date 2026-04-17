@@ -1,5 +1,7 @@
 package com.calypsan.listenup.client.presentation.admin
 
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.model.RestoreError
 import com.calypsan.listenup.client.data.remote.model.RestoreRequest
@@ -24,11 +26,10 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.Failure
 
 /**
  * Tests for RestoreBackupViewModel.
@@ -105,21 +106,18 @@ class RestoreBackupViewModelTest {
     // ========== Initial State ==========
 
     @Test
-    fun `initial state starts at MODE_SELECTION step`() =
+    fun `initial state is Loading`() =
         runTest {
             val api: BackupApiContract = mock()
             everySuspend { api.validateBackup("backup-1") } returns createValidationResponse()
 
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
 
-            assertEquals(RestoreStep.MODE_SELECTION, viewModel.state.value.step)
-            assertEquals("backup-1", viewModel.state.value.backupId)
-            assertNull(viewModel.state.value.mode)
-            assertNull(viewModel.state.value.mergeStrategy)
+            assertIs<RestoreBackupUiState.Loading>(viewModel.state.value)
         }
 
     @Test
-    fun `init validates backup automatically`() =
+    fun `init transitions to Ready with validation after success`() =
         runTest {
             val api: BackupApiContract = mock()
             everySuspend { api.validateBackup("backup-1") } returns
@@ -131,18 +129,18 @@ class RestoreBackupViewModelTest {
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
 
-            // After init completes, validation should be done
-            assertFalse(viewModel.state.value.isValidating)
-            assertNotNull(viewModel.state.value.validation)
-            assertEquals(
-                "My Server",
-                viewModel.state.value.validation
-                    ?.serverName,
-            )
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertEquals("backup-1", ready.backupId)
+            assertEquals(RestoreStep.MODE_SELECTION, ready.step)
+            assertNull(ready.mode)
+            assertNull(ready.mergeStrategy)
+            assertFalse(ready.isValidating)
+            val validation = assertNotNull(ready.validation)
+            assertEquals("My Server", validation.serverName)
         }
 
     @Test
-    fun `init handles validation error`() =
+    fun `init transitions to Error when initial validation throws`() =
         runTest {
             val api: BackupApiContract = mock()
             everySuspend { api.validateBackup("backup-1") } throws RuntimeException("Network error")
@@ -150,13 +148,8 @@ class RestoreBackupViewModelTest {
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isValidating)
-            assertNull(viewModel.state.value.validation)
-            assertNotNull(viewModel.state.value.error)
-            assertTrue(
-                viewModel.state.value.error!!
-                    .contains("Network error"),
-            )
+            val error = assertIs<RestoreBackupUiState.Error>(viewModel.state.value)
+            assertTrue(error.message.contains("Network error"))
         }
 
     // ========== Mode Selection ==========
@@ -171,24 +164,30 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             viewModel.selectMode(RestoreMode.FRESH)
-            assertEquals(RestoreMode.FRESH, viewModel.state.value.mode)
+            assertEquals(RestoreMode.FRESH, assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).mode)
 
             viewModel.selectMode(RestoreMode.MERGE)
-            assertEquals(RestoreMode.MERGE, viewModel.state.value.mode)
+            assertEquals(RestoreMode.MERGE, assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).mode)
         }
 
     @Test
-    fun `selectMode clears any previous error`() =
+    fun `selectMode clears any previous transient error`() =
         runTest {
             val api: BackupApiContract = mock()
-            everySuspend { api.validateBackup(any()) } throws RuntimeException("Error")
+            everySuspend { api.validateBackup(any()) } returns createValidationResponse()
+            // Use dry run failure to produce a transient error on Ready.
+            everySuspend { api.restore(any()) } throws RuntimeException("Error")
 
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
-            assertNotNull(viewModel.state.value.error)
+
+            viewModel.selectMergeStrategy(MergeStrategy.KEEP_LOCAL)
+            viewModel.performDryRun()
+            advanceUntilIdle()
+            assertNotNull(assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).error)
 
             viewModel.selectMode(RestoreMode.FRESH)
-            assertNull(viewModel.state.value.error)
+            assertNull(assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).error)
         }
 
     // ========== Merge Strategy Selection ==========
@@ -203,13 +202,22 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             viewModel.selectMergeStrategy(MergeStrategy.KEEP_LOCAL)
-            assertEquals(MergeStrategy.KEEP_LOCAL, viewModel.state.value.mergeStrategy)
+            assertEquals(
+                MergeStrategy.KEEP_LOCAL,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).mergeStrategy,
+            )
 
             viewModel.selectMergeStrategy(MergeStrategy.KEEP_BACKUP)
-            assertEquals(MergeStrategy.KEEP_BACKUP, viewModel.state.value.mergeStrategy)
+            assertEquals(
+                MergeStrategy.KEEP_BACKUP,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).mergeStrategy,
+            )
 
             viewModel.selectMergeStrategy(MergeStrategy.NEWEST)
-            assertEquals(MergeStrategy.NEWEST, viewModel.state.value.mergeStrategy)
+            assertEquals(
+                MergeStrategy.NEWEST,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).mergeStrategy,
+            )
         }
 
     // ========== Wizard Navigation - Forward ==========
@@ -226,7 +234,10 @@ class RestoreBackupViewModelTest {
             viewModel.selectMode(RestoreMode.FRESH)
             viewModel.nextStep()
 
-            assertEquals(RestoreStep.VALIDATION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.VALIDATION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -241,7 +252,10 @@ class RestoreBackupViewModelTest {
             viewModel.selectMode(RestoreMode.MERGE)
             viewModel.nextStep()
 
-            assertEquals(RestoreStep.MERGE_STRATEGY, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.MERGE_STRATEGY,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -259,7 +273,10 @@ class RestoreBackupViewModelTest {
             viewModel.selectMergeStrategy(MergeStrategy.NEWEST)
             viewModel.nextStep() // MERGE_STRATEGY -> VALIDATION
 
-            assertEquals(RestoreStep.VALIDATION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.VALIDATION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -275,7 +292,10 @@ class RestoreBackupViewModelTest {
             viewModel.nextStep() // -> VALIDATION
             viewModel.nextStep() // -> CONFIRMATION
 
-            assertEquals(RestoreStep.CONFIRMATION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.CONFIRMATION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -295,8 +315,9 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle() // Let restore complete
 
             // After restore completes, should be at RESULTS
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
-            assertFalse(viewModel.state.value.isRestoring)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(RestoreStep.RESULTS, ready.step)
+            assertFalse(ready.isRestoring)
             verifySuspend { api.restore(any()) }
         }
 
@@ -321,26 +342,13 @@ class RestoreBackupViewModelTest {
             viewModel.nextStep() // -> RESTORING
             advanceUntilIdle()
 
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
-            assertFalse(viewModel.state.value.isRestoring)
-            assertNotNull(viewModel.state.value.restoreResults)
-            assertEquals(
-                50,
-                viewModel.state.value.restoreResults
-                    ?.imported
-                    ?.get("books"),
-            )
-            assertEquals(
-                10,
-                viewModel.state.value.restoreResults
-                    ?.skipped
-                    ?.get("books"),
-            )
-            assertEquals(
-                "5.2s",
-                viewModel.state.value.restoreResults
-                    ?.duration,
-            )
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(RestoreStep.RESULTS, ready.step)
+            assertFalse(ready.isRestoring)
+            val results = assertNotNull(ready.restoreResults)
+            assertEquals(50, results.imported["books"])
+            assertEquals(10, results.skipped["books"])
+            assertEquals("5.2s", results.duration)
         }
 
     // ========== Wizard Navigation - Back ==========
@@ -355,7 +363,10 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             viewModel.previousStep()
-            assertEquals(RestoreStep.MODE_SELECTION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.MODE_SELECTION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -369,10 +380,16 @@ class RestoreBackupViewModelTest {
 
             viewModel.selectMode(RestoreMode.MERGE)
             viewModel.nextStep() // -> MERGE_STRATEGY
-            assertEquals(RestoreStep.MERGE_STRATEGY, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.MERGE_STRATEGY,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
 
             viewModel.previousStep()
-            assertEquals(RestoreStep.MODE_SELECTION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.MODE_SELECTION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -388,7 +405,10 @@ class RestoreBackupViewModelTest {
             viewModel.nextStep() // -> VALIDATION
 
             viewModel.previousStep()
-            assertEquals(RestoreStep.MODE_SELECTION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.MODE_SELECTION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -406,7 +426,10 @@ class RestoreBackupViewModelTest {
             viewModel.nextStep() // -> VALIDATION
 
             viewModel.previousStep()
-            assertEquals(RestoreStep.MERGE_STRATEGY, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.MERGE_STRATEGY,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -423,7 +446,10 @@ class RestoreBackupViewModelTest {
             viewModel.nextStep() // -> CONFIRMATION
 
             viewModel.previousStep()
-            assertEquals(RestoreStep.VALIDATION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.VALIDATION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -444,7 +470,10 @@ class RestoreBackupViewModelTest {
 
             viewModel.previousStep()
             // Should still be at RESTORING - can't go back during restore
-            assertEquals(RestoreStep.RESTORING, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.RESTORING,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -464,7 +493,10 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle() // -> RESULTS
 
             viewModel.previousStep()
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.RESULTS,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     // ========== Dry Run ==========
@@ -502,20 +534,11 @@ class RestoreBackupViewModelTest {
                 )
             }
 
-            assertFalse(viewModel.state.value.isValidating)
-            assertNotNull(viewModel.state.value.dryRunResults)
-            assertEquals(
-                100,
-                viewModel.state.value.dryRunResults
-                    ?.willImport
-                    ?.get("books"),
-            )
-            assertEquals(
-                2,
-                viewModel.state.value.dryRunResults
-                    ?.willSkip
-                    ?.get("users"),
-            )
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isValidating)
+            val dryRun = assertNotNull(ready.dryRunResults)
+            assertEquals(100, dryRun.willImport["books"])
+            assertEquals(2, dryRun.willSkip["users"])
         }
 
     @Test
@@ -533,13 +556,11 @@ class RestoreBackupViewModelTest {
             viewModel.performDryRun()
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isValidating)
-            assertNull(viewModel.state.value.dryRunResults)
-            assertNotNull(viewModel.state.value.error)
-            assertTrue(
-                viewModel.state.value.error!!
-                    .contains("preview"),
-            )
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isValidating)
+            assertNull(ready.dryRunResults)
+            val error = assertNotNull(ready.error)
+            assertTrue(error.contains("preview"))
         }
 
     // ========== Actual Restore ==========
@@ -630,8 +651,8 @@ class RestoreBackupViewModelTest {
             viewModel.nextStep()
             advanceUntilIdle()
 
-            val results = viewModel.state.value.restoreResults
-            assertNotNull(results)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            val results = assertNotNull(ready.restoreResults)
             assertEquals(98, results.imported["books"])
             assertEquals(2, results.errors.size)
             assertEquals("book-1", results.errors[0].entityId)
@@ -653,15 +674,13 @@ class RestoreBackupViewModelTest {
             viewModel.nextStep()
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isRestoring)
-            assertNull(viewModel.state.value.restoreResults)
-            assertNotNull(viewModel.state.value.error)
-            assertTrue(
-                viewModel.state.value.error!!
-                    .contains("database locked"),
-            )
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isRestoring)
+            assertNull(ready.restoreResults)
+            val error = assertNotNull(ready.error)
+            assertTrue(error.contains("database locked"))
             // Should still be at RESTORING step (not advance to RESULTS)
-            assertEquals(RestoreStep.RESTORING, viewModel.state.value.step)
+            assertEquals(RestoreStep.RESTORING, ready.step)
         }
 
     // ========== Merge Strategies ==========
@@ -731,17 +750,23 @@ class RestoreBackupViewModelTest {
     // ========== Error Handling ==========
 
     @Test
-    fun `clearError clears error state`() =
+    fun `clearError clears transient error on Ready`() =
         runTest {
             val api: BackupApiContract = mock()
-            everySuspend { api.validateBackup(any()) } throws RuntimeException("Error")
+            everySuspend { api.validateBackup(any()) } returns createValidationResponse()
+            // Use dry run failure to produce a transient error on Ready.
+            everySuspend { api.restore(any()) } throws RuntimeException("Error")
 
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
-            assertNotNull(viewModel.state.value.error)
+
+            viewModel.selectMergeStrategy(MergeStrategy.KEEP_LOCAL)
+            viewModel.performDryRun()
+            advanceUntilIdle()
+            assertNotNull(assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).error)
 
             viewModel.clearError()
-            assertNull(viewModel.state.value.error)
+            assertNull(assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).error)
         }
 
     // ========== Edge Cases ==========
@@ -767,8 +792,8 @@ class RestoreBackupViewModelTest {
             viewModel.nextStep()
             advanceUntilIdle()
 
-            val results = viewModel.state.value.restoreResults
-            assertNotNull(results)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            val results = assertNotNull(ready.restoreResults)
             assertTrue(results.imported.isEmpty())
             assertTrue(results.errors.isEmpty())
         }
@@ -786,8 +811,8 @@ class RestoreBackupViewModelTest {
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
 
-            val validation = viewModel.state.value.validation
-            assertNotNull(validation)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            val validation = assertNotNull(ready.validation)
             assertFalse(validation.valid)
             assertEquals(2, validation.errors.size)
         }
@@ -809,8 +834,9 @@ class RestoreBackupViewModelTest {
             viewModel.previousStep() // -> MODE_SELECTION
 
             // Mode should still be selected
-            assertEquals(RestoreMode.MERGE, viewModel.state.value.mode)
-            assertEquals(MergeStrategy.NEWEST, viewModel.state.value.mergeStrategy)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(RestoreMode.MERGE, ready.mode)
+            assertEquals(MergeStrategy.NEWEST, ready.mergeStrategy)
         }
 
     @Test
@@ -833,52 +859,45 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // Step 1: Mode selection
-            assertEquals(RestoreStep.MODE_SELECTION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.MODE_SELECTION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
             viewModel.selectMode(RestoreMode.MERGE)
             viewModel.nextStep()
 
             // Step 2: Merge strategy
-            assertEquals(RestoreStep.MERGE_STRATEGY, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.MERGE_STRATEGY,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
             viewModel.selectMergeStrategy(MergeStrategy.KEEP_LOCAL)
             viewModel.nextStep()
 
             // Step 3: Validation review
-            assertEquals(RestoreStep.VALIDATION, viewModel.state.value.step)
-            assertEquals(
-                500,
-                viewModel.state.value.validation
-                    ?.entityCounts
-                    ?.get("books"),
-            )
+            val atValidation = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(RestoreStep.VALIDATION, atValidation.step)
+            assertEquals(500, atValidation.validation?.entityCounts?.get("books"))
             viewModel.nextStep()
 
             // Step 4: Confirmation
-            assertEquals(RestoreStep.CONFIRMATION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.CONFIRMATION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
             viewModel.nextStep()
 
             // Step 5 & 6: Restoring -> Results (advance to completion)
             advanceUntilIdle()
 
             // After completion, should be at Results
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
-            assertFalse(viewModel.state.value.isRestoring)
-            assertEquals(
-                450,
-                viewModel.state.value.restoreResults
-                    ?.imported
-                    ?.get("books"),
-            )
-            assertEquals(
-                50,
-                viewModel.state.value.restoreResults
-                    ?.skipped
-                    ?.get("books"),
-            )
-            assertEquals(
-                "15.3s",
-                viewModel.state.value.restoreResults
-                    ?.duration,
-            )
+            val finalReady = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(RestoreStep.RESULTS, finalReady.step)
+            assertFalse(finalReady.isRestoring)
+            val results = assertNotNull(finalReady.restoreResults)
+            assertEquals(450, results.imported["books"])
+            assertEquals(50, results.skipped["books"])
+            assertEquals("15.3s", results.duration)
         }
 
     @Test
@@ -894,16 +913,25 @@ class RestoreBackupViewModelTest {
             // MODE_SELECTION -> VALIDATION (skips MERGE_STRATEGY for FRESH)
             viewModel.selectMode(RestoreMode.FRESH)
             viewModel.nextStep()
-            assertEquals(RestoreStep.VALIDATION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.VALIDATION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
 
             // VALIDATION -> CONFIRMATION
             viewModel.nextStep()
-            assertEquals(RestoreStep.CONFIRMATION, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.CONFIRMATION,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
 
             // CONFIRMATION -> RESTORING -> RESULTS
             viewModel.nextStep()
             advanceUntilIdle()
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.RESULTS,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     // ========== Post-Restore Sync Tests ==========
@@ -961,17 +989,23 @@ class RestoreBackupViewModelTest {
     // ========== Additional Edge Cases ==========
 
     @Test
-    fun `selectMergeStrategy clears any previous error`() =
+    fun `selectMergeStrategy clears any previous transient error`() =
         runTest {
             val api: BackupApiContract = mock()
-            everySuspend { api.validateBackup(any()) } throws RuntimeException("Error")
+            everySuspend { api.validateBackup(any()) } returns createValidationResponse()
+            // Use dry run failure to produce a transient error on Ready.
+            everySuspend { api.restore(any()) } throws RuntimeException("Error")
 
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
-            assertNotNull(viewModel.state.value.error)
+
+            viewModel.selectMergeStrategy(MergeStrategy.KEEP_BACKUP)
+            viewModel.performDryRun()
+            advanceUntilIdle()
+            assertNotNull(assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).error)
 
             viewModel.selectMergeStrategy(MergeStrategy.KEEP_LOCAL)
-            assertNull(viewModel.state.value.error)
+            assertNull(assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).error)
         }
 
     @Test
@@ -987,8 +1021,8 @@ class RestoreBackupViewModelTest {
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
 
-            val validation = viewModel.state.value.validation
-            assertNotNull(validation)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            val validation = assertNotNull(ready.validation)
             assertTrue(validation.valid)
             assertEquals(2, validation.warnings.size)
             assertTrue(validation.warnings.contains("Some entities may have outdated references"))
@@ -1020,9 +1054,9 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // Should succeed (not throw) even with errors in response
-            assertNull(viewModel.state.value.error)
-            val dryRun = viewModel.state.value.dryRunResults
-            assertNotNull(dryRun)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertNull(ready.error)
+            val dryRun = assertNotNull(ready.dryRunResults)
             assertEquals(2, dryRun.errors.size)
             assertEquals("book-corrupt", dryRun.errors[0].entityId)
         }
@@ -1044,8 +1078,8 @@ class RestoreBackupViewModelTest {
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
 
-            val validation = viewModel.state.value.validation
-            assertNotNull(validation)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            val validation = assertNotNull(ready.validation)
             assertTrue(validation.entityCounts.isEmpty())
         }
 
@@ -1066,8 +1100,8 @@ class RestoreBackupViewModelTest {
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
 
-            val validation = viewModel.state.value.validation
-            assertNotNull(validation)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            val validation = assertNotNull(ready.validation)
             assertNull(validation.version)
             assertNull(validation.serverName)
         }
@@ -1088,11 +1122,17 @@ class RestoreBackupViewModelTest {
             viewModel.nextStep() // -> RESTORING
             advanceUntilIdle() // -> RESULTS
 
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.RESULTS,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
 
             // Try to go forward again - should stay at RESULTS
             viewModel.nextStep()
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
+            assertEquals(
+                RestoreStep.RESULTS,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).step,
+            )
         }
 
     @Test
@@ -1107,13 +1147,19 @@ class RestoreBackupViewModelTest {
             // Select MERGE and set strategy
             viewModel.selectMode(RestoreMode.MERGE)
             viewModel.selectMergeStrategy(MergeStrategy.NEWEST)
-            assertEquals(MergeStrategy.NEWEST, viewModel.state.value.mergeStrategy)
+            assertEquals(
+                MergeStrategy.NEWEST,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).mergeStrategy,
+            )
 
             // Switch to FRESH
             viewModel.selectMode(RestoreMode.FRESH)
 
             // Strategy is preserved (UI might still need it if user switches back)
-            assertEquals(MergeStrategy.NEWEST, viewModel.state.value.mergeStrategy)
+            assertEquals(
+                MergeStrategy.NEWEST,
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).mergeStrategy,
+            )
         }
 
     @Test
@@ -1138,7 +1184,8 @@ class RestoreBackupViewModelTest {
 
             assertEquals(
                 50,
-                viewModel.state.value.dryRunResults
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+                    .dryRunResults
                     ?.willImport
                     ?.get("books"),
             )
@@ -1156,7 +1203,8 @@ class RestoreBackupViewModelTest {
             // Results should be updated
             assertEquals(
                 100,
-                viewModel.state.value.dryRunResults
+                assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+                    .dryRunResults
                     ?.willImport
                     ?.get("books"),
             )
@@ -1186,14 +1234,10 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // Restore should still be considered successful - data is on server
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
-            assertNotNull(viewModel.state.value.restoreResults)
-            assertEquals(
-                100,
-                viewModel.state.value.restoreResults
-                    ?.imported
-                    ?.get("books"),
-            )
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(RestoreStep.RESULTS, ready.step)
+            val results = assertNotNull(ready.restoreResults)
+            assertEquals(100, results.imported["books"])
             // Note: Currently sync failure is silently ignored - this test documents current behavior
             // TODO: Consider if we should warn user that local sync failed
         }
@@ -1221,8 +1265,9 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // Restore completes successfully even with sync failure
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
-            assertNotNull(viewModel.state.value.restoreResults)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(RestoreStep.RESULTS, ready.step)
+            assertNotNull(ready.restoreResults)
         }
 
     @Test
@@ -1258,7 +1303,7 @@ class RestoreBackupViewModelTest {
             viewModel.performDryRun()
             advanceUntilIdle()
 
-            assertNotNull(viewModel.state.value.error)
+            assertNotNull(assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).error)
 
             // Second dry run succeeds
             everySuspend { api.restore(any()) } returns createRestoreResponse()
@@ -1266,8 +1311,9 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // Error should be cleared
-            assertNull(viewModel.state.value.error)
-            assertNotNull(viewModel.state.value.dryRunResults)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertNull(ready.error)
+            assertNotNull(ready.dryRunResults)
         }
 
     @Test
@@ -1282,8 +1328,8 @@ class RestoreBackupViewModelTest {
             val viewModel = RestoreBackupViewModel("backup-1", api, createMockSyncRepository())
             advanceUntilIdle()
 
-            val validation = viewModel.state.value.validation
-            assertNotNull(validation)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            val validation = assertNotNull(ready.validation)
             assertTrue(validation.entityCounts.isEmpty())
         }
 
@@ -1297,8 +1343,9 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // After validation completes, isValidating should be false
-            assertFalse(viewModel.state.value.isValidating)
-            assertNotNull(viewModel.state.value.validation)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isValidating)
+            assertNotNull(ready.validation)
         }
 
     @Test
@@ -1317,8 +1364,9 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // After dry run completes, isValidating should be false
-            assertFalse(viewModel.state.value.isValidating)
-            assertNotNull(viewModel.state.value.dryRunResults)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isValidating)
+            assertNotNull(ready.dryRunResults)
         }
 
     @Test
@@ -1338,8 +1386,9 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // After restore completes, isRestoring should be false
-            assertFalse(viewModel.state.value.isRestoring)
-            assertEquals(RestoreStep.RESULTS, viewModel.state.value.step)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isRestoring)
+            assertEquals(RestoreStep.RESULTS, ready.step)
         }
 
     @Test
@@ -1359,9 +1408,10 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // Should stay at RESTORING, not advance to RESULTS
-            assertEquals(RestoreStep.RESTORING, viewModel.state.value.step)
-            assertNotNull(viewModel.state.value.error)
-            assertNull(viewModel.state.value.restoreResults)
+            val ready = assertIs<RestoreBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(RestoreStep.RESTORING, ready.step)
+            assertNotNull(ready.error)
+            assertNull(ready.restoreResults)
         }
 
     @Test
@@ -1375,7 +1425,7 @@ class RestoreBackupViewModelTest {
             advanceUntilIdle()
 
             // Don't select mode - leave it null
-            assertNull(viewModel.state.value.mode)
+            assertNull(assertIs<RestoreBackupUiState.Ready>(viewModel.state.value).mode)
 
             viewModel.performDryRun()
             advanceUntilIdle()

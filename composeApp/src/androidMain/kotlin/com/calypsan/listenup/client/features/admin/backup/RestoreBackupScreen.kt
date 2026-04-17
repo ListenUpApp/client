@@ -1,5 +1,3 @@
-@file:Suppress("LongMethod", "CognitiveComplexMethod")
-
 package com.calypsan.listenup.client.features.admin.backup
 
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +44,7 @@ import com.calypsan.listenup.client.design.components.ListenUpButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import com.calypsan.listenup.client.presentation.admin.MergeStrategy
-import com.calypsan.listenup.client.presentation.admin.RestoreBackupState
+import com.calypsan.listenup.client.presentation.admin.RestoreBackupUiState
 import com.calypsan.listenup.client.presentation.admin.RestoreBackupViewModel
 import com.calypsan.listenup.client.presentation.admin.RestoreMode
 import com.calypsan.listenup.client.presentation.admin.RestoreStep
@@ -63,14 +61,20 @@ fun RestoreBackupScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    val readyState = state as? RestoreBackupUiState.Ready
+    val currentStep = readyState?.step ?: RestoreStep.MODE_SELECTION
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(getStepTitle(state.step)) },
+                title = { Text(getStepTitle(currentStep)) },
                 navigationIcon = {
-                    if (state.step != RestoreStep.RESTORING && state.step != RestoreStep.RESULTS) {
+                    if (readyState != null &&
+                        currentStep != RestoreStep.RESTORING &&
+                        currentStep != RestoreStep.RESULTS
+                    ) {
                         IconButton(onClick = {
-                            if (state.step == RestoreStep.MODE_SELECTION) {
+                            if (currentStep == RestoreStep.MODE_SELECTION) {
                                 onBackClick()
                             } else {
                                 viewModel.previousStep()
@@ -83,56 +87,92 @@ fun RestoreBackupScreen(
             )
         },
     ) { paddingValues ->
-        when (state.step) {
-            RestoreStep.MODE_SELECTION -> {
-                ModeSelectionContent(
-                    state = state,
-                    onModeSelected = viewModel::selectMode,
-                    onNext = viewModel::nextStep,
-                    modifier = Modifier.padding(paddingValues),
-                )
+        when (val s = state) {
+            is RestoreBackupUiState.Loading -> {
+                FullScreenLoadingIndicator(modifier = Modifier.padding(paddingValues))
             }
 
-            RestoreStep.MERGE_STRATEGY -> {
-                MergeStrategyContent(
-                    state = state,
-                    onStrategySelected = viewModel::selectMergeStrategy,
-                    onNext = viewModel::nextStep,
-                    modifier = Modifier.padding(paddingValues),
-                )
+            is RestoreBackupUiState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = s.message,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
 
-            RestoreStep.VALIDATION -> {
-                ValidationContent(
-                    state = state,
-                    onPerformDryRun = viewModel::performDryRun,
-                    onNext = viewModel::nextStep,
+            is RestoreBackupUiState.Ready -> {
+                RestoreBackupReadyContent(
+                    state = s,
+                    viewModel = viewModel,
+                    onComplete = onComplete,
                     modifier = Modifier.padding(paddingValues),
                 )
             }
+        }
+    }
+}
 
-            RestoreStep.CONFIRMATION -> {
-                ConfirmationContent(
-                    state = state,
-                    onConfirm = viewModel::nextStep,
-                    onBack = viewModel::previousStep,
-                    modifier = Modifier.padding(paddingValues),
-                )
-            }
+@Composable
+private fun RestoreBackupReadyContent(
+    state: RestoreBackupUiState.Ready,
+    viewModel: RestoreBackupViewModel,
+    onComplete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (state.step) {
+        RestoreStep.MODE_SELECTION -> {
+            ModeSelectionContent(
+                state = state,
+                onModeSelected = viewModel::selectMode,
+                onNext = viewModel::nextStep,
+                modifier = modifier,
+            )
+        }
 
-            RestoreStep.RESTORING -> {
-                RestoringContent(
-                    modifier = Modifier.padding(paddingValues),
-                )
-            }
+        RestoreStep.MERGE_STRATEGY -> {
+            MergeStrategyContent(
+                state = state,
+                onStrategySelected = viewModel::selectMergeStrategy,
+                onNext = viewModel::nextStep,
+                modifier = modifier,
+            )
+        }
 
-            RestoreStep.RESULTS -> {
-                ResultsContent(
-                    state = state,
-                    onDone = onComplete,
-                    modifier = Modifier.padding(paddingValues),
-                )
-            }
+        RestoreStep.VALIDATION -> {
+            ValidationContent(
+                state = state,
+                onPerformDryRun = viewModel::performDryRun,
+                onNext = viewModel::nextStep,
+                modifier = modifier,
+            )
+        }
+
+        RestoreStep.CONFIRMATION -> {
+            ConfirmationContent(
+                state = state,
+                onConfirm = viewModel::nextStep,
+                onBack = viewModel::previousStep,
+                modifier = modifier,
+            )
+        }
+
+        RestoreStep.RESTORING -> {
+            RestoringContent(
+                modifier = modifier,
+            )
+        }
+
+        RestoreStep.RESULTS -> {
+            ResultsContent(
+                state = state,
+                onDone = onComplete,
+                modifier = modifier,
+            )
         }
     }
 }
@@ -149,7 +189,7 @@ private fun getStepTitle(step: RestoreStep): String =
 
 @Composable
 private fun ModeSelectionContent(
-    state: RestoreBackupState,
+    state: RestoreBackupUiState.Ready,
     onModeSelected: (RestoreMode) -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
@@ -320,7 +360,7 @@ private fun ModeOption(
 
 @Composable
 private fun MergeStrategyContent(
-    state: RestoreBackupState,
+    state: RestoreBackupUiState.Ready,
     onStrategySelected: (MergeStrategy) -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
@@ -415,9 +455,10 @@ private fun StrategyOption(
     }
 }
 
+@Suppress("LongMethod", "CognitiveComplexMethod")
 @Composable
 private fun ValidationContent(
-    state: RestoreBackupState,
+    state: RestoreBackupUiState.Ready,
     onPerformDryRun: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
@@ -571,7 +612,7 @@ private fun ValidationContent(
 
 @Composable
 private fun ConfirmationContent(
-    state: RestoreBackupState,
+    state: RestoreBackupUiState.Ready,
     onConfirm: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -676,15 +717,15 @@ private fun ConfirmationContent(
     }
 }
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun RestoringContent(modifier: Modifier = Modifier) {
-    FullScreenLoadingIndicator(message = "Restoring Backup...")
+    FullScreenLoadingIndicator(message = "Restoring Backup...", modifier = modifier)
 }
 
+@Suppress("LongMethod", "CognitiveComplexMethod")
 @Composable
 private fun ResultsContent(
-    state: RestoreBackupState,
+    state: RestoreBackupUiState.Ready,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

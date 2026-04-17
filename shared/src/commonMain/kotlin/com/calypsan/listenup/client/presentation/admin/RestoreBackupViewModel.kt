@@ -56,20 +56,36 @@ enum class RestoreStep {
 }
 
 /**
- * UI state for restore backup flow.
+ * UI state for the restore backup wizard.
+ *
+ * Sealed hierarchy:
+ * - [Loading] before the initial `validateBackup()` call completes.
+ * - [Ready] once initial validation resolves (successfully or with a
+ *   recoverable error surfaced via `error`); carries wizard step, mode,
+ *   merge strategy, overlays (`isValidating`, `isRestoring`), dry-run and
+ *   restore results, and a transient `error` for mutation failures.
+ * - [Error] terminal state when the initial `validateBackup()` throws.
  */
-data class RestoreBackupState(
-    val backupId: String = "",
-    val step: RestoreStep = RestoreStep.MODE_SELECTION,
-    val mode: RestoreMode? = null,
-    val mergeStrategy: MergeStrategy? = null,
-    val isValidating: Boolean = false,
-    val validation: BackupValidation? = null,
-    val dryRunResults: DryRunResults? = null,
-    val isRestoring: Boolean = false,
-    val restoreResults: RestoreResults? = null,
-    val error: String? = null,
-)
+sealed interface RestoreBackupUiState {
+    data object Loading : RestoreBackupUiState
+
+    data class Ready(
+        val backupId: String,
+        val step: RestoreStep = RestoreStep.MODE_SELECTION,
+        val mode: RestoreMode? = null,
+        val mergeStrategy: MergeStrategy? = null,
+        val isValidating: Boolean = false,
+        val validation: BackupValidation? = null,
+        val dryRunResults: DryRunResults? = null,
+        val isRestoring: Boolean = false,
+        val restoreResults: RestoreResults? = null,
+        val error: String? = null,
+    ) : RestoreBackupUiState
+
+    data class Error(
+        val message: String,
+    ) : RestoreBackupUiState
+}
 
 /**
  * Results from a dry run.
@@ -99,8 +115,8 @@ class RestoreBackupViewModel(
     private val backupApi: BackupApiContract,
     private val syncRepository: SyncRepository,
 ) : ViewModel() {
-    val state: StateFlow<RestoreBackupState>
-        field = MutableStateFlow(RestoreBackupState(backupId = backupId))
+    val state: StateFlow<RestoreBackupUiState>
+        field = MutableStateFlow<RestoreBackupUiState>(RestoreBackupUiState.Loading)
 
     init {
         validateBackup()
@@ -108,49 +124,61 @@ class RestoreBackupViewModel(
 
     private fun validateBackup() {
         viewModelScope.launch {
-            state.update { it.copy(isValidating = true, error = null) }
-
             try {
                 val result = backupApi.validateBackup(backupId)
-                state.update {
-                    it.copy(
-                        isValidating = false,
-                        validation =
-                            BackupValidation(
-                                valid = result.valid,
-                                version = result.version,
-                                serverName = result.serverName,
-                                entityCounts = result.expectedCounts ?: emptyMap(),
-                                errors = result.errors,
-                                warnings = result.warnings,
-                            ),
+                val validation =
+                    BackupValidation(
+                        valid = result.valid,
+                        version = result.version,
+                        serverName = result.serverName,
+                        entityCounts = result.expectedCounts ?: emptyMap(),
+                        errors = result.errors,
+                        warnings = result.warnings,
                     )
+                state.update { current ->
+                    if (current is RestoreBackupUiState.Ready) {
+                        current.copy(isValidating = false, validation = validation, error = null)
+                    } else {
+                        // First emission (from Loading) or recovering from Error:
+                        // transition to Ready with freshly validated backup metadata.
+                        RestoreBackupUiState.Ready(
+                            backupId = backupId,
+                            validation = validation,
+                        )
+                    }
                 }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to validate backup" }
-                state.update {
-                    it.copy(
-                        isValidating = false,
-                        error = "Failed to validate backup: ${e.message}",
-                    )
+                state.update { current ->
+                    if (current is RestoreBackupUiState.Ready) {
+                        // Re-validation after reaching Ready failed: keep wizard state,
+                        // surface error transiently.
+                        current.copy(
+                            isValidating = false,
+                            error = "Failed to validate backup: ${e.message}",
+                        )
+                    } else {
+                        // Initial validation (from Loading or Error retry) failed: terminal.
+                        RestoreBackupUiState.Error("Failed to validate backup: ${e.message}")
+                    }
                 }
             }
         }
     }
 
     fun selectMode(mode: RestoreMode) {
-        state.update { it.copy(mode = mode, error = null) }
+        updateReady { it.copy(mode = mode, error = null) }
     }
 
     fun selectMergeStrategy(strategy: MergeStrategy) {
-        state.update { it.copy(mergeStrategy = strategy, error = null) }
+        updateReady { it.copy(mergeStrategy = strategy, error = null) }
     }
 
     fun nextStep() {
-        val current = state.value
+        val current = state.value as? RestoreBackupUiState.Ready ?: return
         val nextStep =
             when (current.step) {
                 RestoreStep.MODE_SELECTION -> {
@@ -182,11 +210,11 @@ class RestoreBackupViewModel(
                     RestoreStep.RESULTS
                 }
             }
-        state.update { it.copy(step = nextStep) }
+        updateReady { it.copy(step = nextStep) }
     }
 
     fun previousStep() {
-        val current = state.value
+        val current = state.value as? RestoreBackupUiState.Ready ?: return
         val prevStep =
             when (current.step) {
                 RestoreStep.MODE_SELECTION -> {
@@ -218,26 +246,26 @@ class RestoreBackupViewModel(
                     RestoreStep.RESULTS
                 } // Can't go back after complete
             }
-        state.update { it.copy(step = prevStep) }
+        updateReady { it.copy(step = prevStep) }
     }
 
     fun performDryRun() {
         viewModelScope.launch {
-            state.update { it.copy(isValidating = true, error = null) }
+            updateReady { it.copy(isValidating = true, error = null) }
 
             try {
-                val current = state.value
+                val current = state.value as? RestoreBackupUiState.Ready
                 val result =
                     backupApi.restore(
                         RestoreRequest(
                             backupId = backupId,
-                            mode = current.mode?.apiValue ?: RestoreMode.MERGE.apiValue,
-                            mergeStrategy = current.mergeStrategy?.apiValue,
+                            mode = current?.mode?.apiValue ?: RestoreMode.MERGE.apiValue,
+                            mergeStrategy = current?.mergeStrategy?.apiValue,
                             dryRun = true,
                             confirmFullWipe = false,
                         ),
                     )
-                state.update {
+                updateReady {
                     it.copy(
                         isValidating = false,
                         dryRunResults =
@@ -254,7 +282,7 @@ class RestoreBackupViewModel(
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to perform dry run" }
-                state.update {
+                updateReady {
                     it.copy(
                         isValidating = false,
                         error = "Failed to preview restore: ${e.message}",
@@ -266,26 +294,26 @@ class RestoreBackupViewModel(
 
     private fun performRestore() {
         viewModelScope.launch {
-            state.update { it.copy(isRestoring = true, error = null) }
+            updateReady { it.copy(isRestoring = true, error = null) }
 
             try {
-                val current = state.value
+                val current = state.value as? RestoreBackupUiState.Ready
                 val result =
                     backupApi.restore(
                         RestoreRequest(
                             backupId = backupId,
-                            mode = current.mode?.apiValue ?: RestoreMode.MERGE.apiValue,
-                            mergeStrategy = current.mergeStrategy?.apiValue,
+                            mode = current?.mode?.apiValue ?: RestoreMode.MERGE.apiValue,
+                            mergeStrategy = current?.mergeStrategy?.apiValue,
                             dryRun = false,
-                            confirmFullWipe = current.mode == RestoreMode.FRESH,
+                            confirmFullWipe = current?.mode == RestoreMode.FRESH,
                         ),
                     )
 
                 // After server restore completes, sync client state
                 // FRESH: Server data was completely replaced, need to clear and resync
                 // MERGE: Server data was merged, need to refresh listening history
-                logger.info { "Restore complete, syncing client state for mode ${current.mode}" }
-                if (current.mode == RestoreMode.FRESH) {
+                logger.info { "Restore complete, syncing client state for mode ${current?.mode}" }
+                if (current?.mode == RestoreMode.FRESH) {
                     // Clear local database and do full resync
                     syncRepository.forceFullResync()
                 } else {
@@ -293,7 +321,7 @@ class RestoreBackupViewModel(
                     syncRepository.refreshListeningHistory()
                 }
 
-                state.update {
+                updateReady {
                     it.copy(
                         isRestoring = false,
                         step = RestoreStep.RESULTS,
@@ -311,7 +339,7 @@ class RestoreBackupViewModel(
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to restore backup" }
-                state.update {
+                updateReady {
                     it.copy(
                         isRestoring = false,
                         error = "Failed to restore: ${e.message}",
@@ -322,6 +350,16 @@ class RestoreBackupViewModel(
     }
 
     fun clearError() {
-        state.update { it.copy(error = null) }
+        updateReady { it.copy(error = null) }
+    }
+
+    /**
+     * Apply [transform] to state only if it is currently [RestoreBackupUiState.Ready].
+     * No-ops when state is [RestoreBackupUiState.Loading] or [RestoreBackupUiState.Error].
+     */
+    private fun updateReady(transform: (RestoreBackupUiState.Ready) -> RestoreBackupUiState.Ready) {
+        state.update { current ->
+            if (current is RestoreBackupUiState.Ready) transform(current) else current
+        }
     }
 }
