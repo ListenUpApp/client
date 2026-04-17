@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber", "LongMethod", "CognitiveComplexMethod")
-
 package com.calypsan.listenup.client.features.admin.inbox
 
 import androidx.compose.foundation.background
@@ -178,6 +176,7 @@ fun AdminInboxScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("CognitiveComplexMethod")
 private fun AdminInboxTopBar(
     ready: AdminInboxUiState.Ready?,
     onBackClick: () -> Unit,
