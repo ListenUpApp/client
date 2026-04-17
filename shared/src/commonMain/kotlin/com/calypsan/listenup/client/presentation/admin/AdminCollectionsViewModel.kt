@@ -12,6 +12,7 @@ import com.calypsan.listenup.client.domain.usecase.collection.DeleteCollectionUs
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -32,7 +33,7 @@ class AdminCollectionsViewModel(
     private val deleteCollectionUseCase: DeleteCollectionUseCase,
 ) : ViewModel() {
     val state: StateFlow<AdminCollectionsUiState>
-        field = MutableStateFlow(AdminCollectionsUiState())
+        field = MutableStateFlow<AdminCollectionsUiState>(AdminCollectionsUiState.Loading)
 
     init {
         observeCollections()
@@ -45,15 +46,25 @@ class AdminCollectionsViewModel(
      */
     private fun observeCollections() {
         viewModelScope.launch {
-            state.value = state.value.copy(isLoading = true)
-
-            collectionRepository.observeAll().collect { collections ->
-                logger.debug { "Collections updated: ${collections.size}" }
+            try {
+                collectionRepository.observeAll().collect { collections ->
+                    logger.debug { "Collections updated: ${collections.size}" }
+                    state.update { current ->
+                        if (current is AdminCollectionsUiState.Ready) {
+                            current.copy(collections = collections)
+                        } else {
+                            // First emission (from Loading) or recovering from Error:
+                            // transition to Ready with fresh data and default UI fields.
+                            AdminCollectionsUiState.Ready(collections = collections)
+                        }
+                    }
+                }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to observe collections" }
                 state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        collections = collections,
-                    )
+                    AdminCollectionsUiState.Error(e.message ?: "Failed to load collections")
             }
         }
     }
@@ -84,23 +95,17 @@ class AdminCollectionsViewModel(
      */
     fun createCollection(name: String) {
         viewModelScope.launch {
-            state.value = state.value.copy(isCreating = true)
+            updateReady { it.copy(isCreating = true, error = null) }
 
             when (val result = createCollectionUseCase(name)) {
                 is Success -> {
-                    state.value =
-                        state.value.copy(
-                            isCreating = false,
-                            createSuccess = true,
-                        )
+                    updateReady { it.copy(isCreating = false, createSuccess = true) }
                 }
 
                 is Failure -> {
-                    state.value =
-                        state.value.copy(
-                            isCreating = false,
-                            error = result.message,
-                        )
+                    updateReady {
+                        it.copy(isCreating = false, error = result.message)
+                    }
                 }
             }
         }
@@ -113,19 +118,17 @@ class AdminCollectionsViewModel(
      */
     fun deleteCollection(collectionId: String) {
         viewModelScope.launch {
-            state.value = state.value.copy(deletingCollectionId = collectionId)
+            updateReady { it.copy(deletingCollectionId = collectionId, error = null) }
 
             when (val result = deleteCollectionUseCase(collectionId)) {
                 is Success -> {
-                    state.value = state.value.copy(deletingCollectionId = null)
+                    updateReady { it.copy(deletingCollectionId = null) }
                 }
 
                 is Failure -> {
-                    state.value =
-                        state.value.copy(
-                            deletingCollectionId = null,
-                            error = result.message,
-                        )
+                    updateReady {
+                        it.copy(deletingCollectionId = null, error = result.message)
+                    }
                 }
             }
         }
@@ -135,25 +138,50 @@ class AdminCollectionsViewModel(
      * Clear the error state.
      */
     fun clearError() {
-        state.value = state.value.copy(error = null)
+        updateReady { it.copy(error = null) }
     }
 
     /**
      * Clear the create success flag.
      */
     fun clearCreateSuccess() {
-        state.value = state.value.copy(createSuccess = false)
+        updateReady { it.copy(createSuccess = false) }
+    }
+
+    /**
+     * Apply [transform] to state only if it is currently [AdminCollectionsUiState.Ready].
+     * No-ops when state is [AdminCollectionsUiState.Loading] or [AdminCollectionsUiState.Error].
+     */
+    private fun updateReady(transform: (AdminCollectionsUiState.Ready) -> AdminCollectionsUiState.Ready) {
+        state.update { current ->
+            if (current is AdminCollectionsUiState.Ready) transform(current) else current
+        }
     }
 }
 
 /**
  * UI state for the admin collections list screen.
+ *
+ * Sealed hierarchy:
+ * - [Loading] before the first emission from `observeAll()`.
+ * - [Ready] once collections have loaded; carries collections, action overlays
+ *   (`isCreating`, `deletingCollectionId`), a `createSuccess` flag driving the
+ *   post-create snackbar, and a transient `error` for mutation failures
+ *   surfaced in a snackbar.
+ * - [Error] if the observe pipeline fails (terminal until the flow recovers).
  */
-data class AdminCollectionsUiState(
-    val isLoading: Boolean = true,
-    val collections: List<Collection> = emptyList(),
-    val isCreating: Boolean = false,
-    val createSuccess: Boolean = false,
-    val deletingCollectionId: String? = null,
-    val error: String? = null,
-)
+sealed interface AdminCollectionsUiState {
+    data object Loading : AdminCollectionsUiState
+
+    data class Ready(
+        val collections: List<Collection> = emptyList(),
+        val isCreating: Boolean = false,
+        val createSuccess: Boolean = false,
+        val deletingCollectionId: String? = null,
+        val error: String? = null,
+    ) : AdminCollectionsUiState
+
+    data class Error(
+        val message: String,
+    ) : AdminCollectionsUiState
+}

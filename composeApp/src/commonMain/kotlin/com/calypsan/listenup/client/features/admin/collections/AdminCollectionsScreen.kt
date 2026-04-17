@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.calypsan.listenup.client.features.admin.collections
 
 import androidx.compose.animation.animateColorAsState
@@ -8,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -91,17 +90,19 @@ fun AdminCollectionsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var collectionToDelete by remember { mutableStateOf<Collection?>(null) }
 
-    // Handle errors
-    LaunchedEffect(state.error) {
-        state.error?.let {
+    // Transient mutation-failure error in snackbar (only meaningful in Ready).
+    val readyError = (state as? AdminCollectionsUiState.Ready)?.error
+    LaunchedEffect(readyError) {
+        readyError?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
     }
 
-    // Handle create success
-    LaunchedEffect(state.createSuccess) {
-        if (state.createSuccess) {
+    // Create-success snackbar (only meaningful in Ready).
+    val readyCreateSuccess = (state as? AdminCollectionsUiState.Ready)?.createSuccess == true
+    LaunchedEffect(readyCreateSuccess) {
+        if (readyCreateSuccess) {
             showCreateDialog = false // Dismiss dialog FIRST (before suspend)
             viewModel.clearCreateSuccess()
             snackbarHostState.showSnackbar("Collection created") // This suspends
@@ -122,29 +123,28 @@ fun AdminCollectionsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            ListenUpFab(
-                onClick = { showCreateDialog = true },
-                icon = Icons.Outlined.Add,
-                contentDescription = stringResource(Res.string.admin_create_collection),
-            )
+            if (state is AdminCollectionsUiState.Ready) {
+                ListenUpFab(
+                    onClick = { showCreateDialog = true },
+                    icon = Icons.Outlined.Add,
+                    contentDescription = stringResource(Res.string.admin_create_collection),
+                )
+            }
         },
     ) { innerPadding ->
-        if (state.isLoading && state.collections.isEmpty()) {
-            FullScreenLoadingIndicator()
-        } else {
-            CollectionsContent(
-                state = state,
-                onCollectionClick = onCollectionClick,
-                onDeleteClick = { collectionToDelete = it },
-                modifier = Modifier.padding(innerPadding),
-            )
-        }
+        AdminCollectionsBody(
+            state = state,
+            innerPadding = innerPadding,
+            onCollectionClick = onCollectionClick,
+            onDeleteClick = { collectionToDelete = it },
+        )
     }
 
-    // Create collection dialog
-    if (showCreateDialog) {
+    // Create collection dialog — only meaningful in Ready (FAB is hidden otherwise).
+    val ready = state as? AdminCollectionsUiState.Ready
+    if (showCreateDialog && ready != null) {
         CreateCollectionDialog(
-            isCreating = state.isCreating,
+            isCreating = ready.isCreating,
             onDismiss = { showCreateDialog = false },
             onConfirm = { name -> viewModel.createCollection(name) },
         )
@@ -178,8 +178,44 @@ fun AdminCollectionsScreen(
 }
 
 @Composable
-private fun CollectionsContent(
+private fun AdminCollectionsBody(
     state: AdminCollectionsUiState,
+    innerPadding: PaddingValues,
+    onCollectionClick: (String) -> Unit,
+    onDeleteClick: (Collection) -> Unit,
+) {
+    when (state) {
+        is AdminCollectionsUiState.Loading -> {
+            FullScreenLoadingIndicator()
+        }
+
+        is AdminCollectionsUiState.Error -> {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+
+        is AdminCollectionsUiState.Ready -> {
+            AdminCollectionsReadyContent(
+                state = state,
+                onCollectionClick = onCollectionClick,
+                onDeleteClick = onDeleteClick,
+                modifier = Modifier.padding(innerPadding),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AdminCollectionsReadyContent(
+    state: AdminCollectionsUiState.Ready,
     onCollectionClick: (String) -> Unit,
     onDeleteClick: (Collection) -> Unit,
     modifier: Modifier = Modifier,
@@ -230,11 +266,13 @@ private fun CollectionsContent(
             }
 
             item {
-                Spacer(modifier = Modifier.height(88.dp)) // Space for FAB
+                Spacer(modifier = Modifier.height(FAB_SPACER_HEIGHT_DP.dp)) // Space for FAB
             }
         }
     }
 }
+
+private const val FAB_SPACER_HEIGHT_DP = 88
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
