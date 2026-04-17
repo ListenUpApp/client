@@ -1,5 +1,3 @@
-@file:Suppress("LongMethod", "CognitiveComplexMethod")
-
 package com.calypsan.listenup.client.features.library
 
 import androidx.compose.animation.AnimatedVisibility
@@ -8,13 +6,18 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +25,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.calypsan.listenup.client.design.components.ListenUpButton
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.util.PlatformBackHandler
 import com.calypsan.listenup.client.domain.model.SyncState
@@ -34,6 +41,7 @@ import com.calypsan.listenup.client.features.library.components.SeriesContent
 import com.calypsan.listenup.client.presentation.library.LibraryActionEvent
 import com.calypsan.listenup.client.presentation.library.LibraryActionsViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryUiEvent
+import com.calypsan.listenup.client.presentation.library.LibraryUiState
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.library.SelectionMode
 import kotlinx.coroutines.launch
@@ -60,7 +68,6 @@ import org.koin.compose.viewmodel.koinViewModel
  * @param modifier Modifier from parent (includes scaffold padding)
  * @param viewModel The LibraryViewModel (injected via Koin)
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     onBookClick: (String) -> Unit,
@@ -72,51 +79,118 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = koinViewModel(),
     actionsViewModel: LibraryActionsViewModel = koinViewModel(),
 ) {
-    val snackbarHostState = LocalSnackbarHostState.current
-    val scope = rememberCoroutineScope()
-
     // Trigger intelligent auto-sync when screen becomes visible (only once)
     LaunchedEffect(Unit) {
         viewModel.onScreenVisible()
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // CONTENT STATE (from LibraryViewModel)
-    // ═══════════════════════════════════════════════════════════════════════
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Destructure uiState for convenience
-    val books = uiState.books
-    val hasLoadedBooks = uiState.hasLoadedBooks
-    val series = uiState.series
-    val authors = uiState.authors
-    val narrators = uiState.narrators
-    val syncState = uiState.syncState
-    val bookProgress = uiState.bookProgress
-    val bookIsFinished = uiState.bookIsFinished
+    when (val state = uiState) {
+        is LibraryUiState.Loading -> {
+            LibraryLoadingContent(modifier = modifier)
+        }
 
-    // Sort state for each tab
-    val booksSortState = uiState.booksSortState
-    val seriesSortState = uiState.seriesSortState
-    val authorsSortState = uiState.authorsSortState
-    val narratorsSortState = uiState.narratorsSortState
-    val ignoreTitleArticles = uiState.ignoreTitleArticles
+        is LibraryUiState.Error -> {
+            LibraryErrorContent(
+                message = state.message,
+                onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
+                modifier = modifier,
+            )
+        }
 
-    // Selection mode (from LibraryViewModel, which delegates to shared manager)
-    val selectionMode = uiState.selectionMode
+        is LibraryUiState.Loaded -> {
+            LibraryLoadedContent(
+                state = state,
+                actionsViewModel = actionsViewModel,
+                onBookClick = onBookClick,
+                onSeriesClick = onSeriesClick,
+                onAuthorClick = onAuthorClick,
+                onNarratorClick = onNarratorClick,
+                topBarCollapseFraction = topBarCollapseFraction,
+                onEvent = viewModel::onEvent,
+                onEnterSelectionMode = viewModel::enterSelectionMode,
+                onToggleBookSelection = viewModel::toggleBookSelection,
+                onExitSelectionMode = viewModel::exitSelectionMode,
+                modifier = modifier,
+            )
+        }
+    }
+}
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // ACTION STATE (from LibraryActionsViewModel)
-    // ═══════════════════════════════════════════════════════════════════════
+@Composable
+private fun LibraryLoadingContent(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        ListenUpLoadingIndicator()
+    }
+}
+
+@Composable
+private fun LibraryErrorContent(
+    message: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ErrorOutline,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            ListenUpButton(
+                text = "Retry",
+                onClick = onRetry,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+        }
+    }
+}
+
+@Suppress("LongMethod", "CognitiveComplexMethod", "LongParameterList")
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LibraryLoadedContent(
+    state: LibraryUiState.Loaded,
+    actionsViewModel: LibraryActionsViewModel,
+    onBookClick: (String) -> Unit,
+    onSeriesClick: (String) -> Unit,
+    onAuthorClick: (String) -> Unit,
+    onNarratorClick: (String) -> Unit,
+    topBarCollapseFraction: Float,
+    onEvent: (LibraryUiEvent) -> Unit,
+    onEnterSelectionMode: (String) -> Unit,
+    onToggleBookSelection: (String) -> Unit,
+    onExitSelectionMode: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val snackbarHostState = LocalSnackbarHostState.current
+    val scope = rememberCoroutineScope()
+
+    val selectionMode = state.selectionMode
+    val isInSelectionMode = selectionMode is SelectionMode.Active
+    val selectedBookIds = (selectionMode as? SelectionMode.Active)?.selectedIds ?: emptySet()
+
+    // Action VM state
     val isAdmin by actionsViewModel.isAdmin.collectAsStateWithLifecycle()
     val collections by actionsViewModel.collections.collectAsStateWithLifecycle()
     val isAddingToCollection by actionsViewModel.isAddingToCollection.collectAsStateWithLifecycle()
     val myShelves by actionsViewModel.myShelves.collectAsStateWithLifecycle()
     val isAddingToShelf by actionsViewModel.isAddingToShelf.collectAsStateWithLifecycle()
-
-    // Derive selection state
-    val isInSelectionMode = selectionMode is SelectionMode.Active
-    val selectedBookIds = (selectionMode as? SelectionMode.Active)?.selectedIds ?: emptySet()
 
     // Collection and shelf picker sheet state
     var showCollectionPicker by remember { mutableStateOf(false) }
@@ -124,7 +198,7 @@ fun LibraryScreen(
 
     // Handle back press to exit selection mode
     PlatformBackHandler(enabled = isInSelectionMode) {
-        viewModel.exitSelectionMode()
+        onExitSelectionMode()
     }
 
     // Notify actions VM when selection mode is entered (to refresh collections for admins)
@@ -205,11 +279,10 @@ fun LibraryScreen(
 
             // Pull-to-refresh wraps entire pager (syncs all data)
             PullToRefreshBox(
-                isRefreshing = syncState is SyncState.Syncing,
-                onRefresh = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
+                isRefreshing = state.syncState is SyncState.Syncing,
+                onRefresh = { onEvent(LibraryUiEvent.RefreshRequested) },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                // Swipeable content
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
@@ -217,49 +290,49 @@ fun LibraryScreen(
                     when (LibraryTab.entries[page]) {
                         LibraryTab.Books -> {
                             BooksContent(
-                                books = books,
-                                hasLoadedBooks = hasLoadedBooks,
-                                syncState = syncState,
-                                isServerScanning = uiState.isServerScanning,
-                                scanProgress = uiState.scanProgress,
-                                sortState = booksSortState,
-                                ignoreTitleArticles = ignoreTitleArticles,
-                                bookProgress = bookProgress,
-                                bookIsFinished = bookIsFinished,
+                                books = state.books,
+                                hasLoadedBooks = true,
+                                syncState = state.syncState,
+                                isServerScanning = state.isServerScanning,
+                                scanProgress = state.scanProgress,
+                                sortState = state.booksSortState,
+                                ignoreTitleArticles = state.ignoreTitleArticles,
+                                bookProgress = state.bookProgress,
+                                bookIsFinished = state.bookIsFinished,
                                 isInSelectionMode = isInSelectionMode,
                                 selectedBookIds = selectedBookIds,
                                 onCategorySelected = { category ->
-                                    viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
+                                    onEvent(LibraryUiEvent.BooksCategoryChanged(category))
                                 },
                                 onDirectionToggle = {
-                                    viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
+                                    onEvent(LibraryUiEvent.BooksDirectionToggled)
                                 },
                                 onToggleIgnoreArticles = {
-                                    viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
+                                    onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
                                 },
                                 onBookClick = { bookId ->
                                     if (isInSelectionMode) {
-                                        viewModel.toggleBookSelection(bookId)
+                                        onToggleBookSelection(bookId)
                                     } else {
                                         onBookClick(bookId)
                                     }
                                 },
                                 onBookLongPress = { bookId ->
-                                    viewModel.enterSelectionMode(bookId)
+                                    onEnterSelectionMode(bookId)
                                 },
-                                onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
+                                onRetry = { onEvent(LibraryUiEvent.RefreshRequested) },
                             )
                         }
 
                         LibraryTab.Series -> {
                             SeriesContent(
-                                series = series,
-                                sortState = seriesSortState,
+                                series = state.series,
+                                sortState = state.seriesSortState,
                                 onCategorySelected = { category ->
-                                    viewModel.onEvent(LibraryUiEvent.SeriesCategoryChanged(category))
+                                    onEvent(LibraryUiEvent.SeriesCategoryChanged(category))
                                 },
                                 onDirectionToggle = {
-                                    viewModel.onEvent(LibraryUiEvent.SeriesDirectionToggled)
+                                    onEvent(LibraryUiEvent.SeriesDirectionToggled)
                                 },
                                 onSeriesClick = onSeriesClick,
                             )
@@ -267,13 +340,13 @@ fun LibraryScreen(
 
                         LibraryTab.Authors -> {
                             AuthorsContent(
-                                authors = authors,
-                                sortState = authorsSortState,
+                                authors = state.authors,
+                                sortState = state.authorsSortState,
                                 onCategorySelected = { category ->
-                                    viewModel.onEvent(LibraryUiEvent.AuthorsCategoryChanged(category))
+                                    onEvent(LibraryUiEvent.AuthorsCategoryChanged(category))
                                 },
                                 onDirectionToggle = {
-                                    viewModel.onEvent(LibraryUiEvent.AuthorsDirectionToggled)
+                                    onEvent(LibraryUiEvent.AuthorsDirectionToggled)
                                 },
                                 onAuthorClick = onAuthorClick,
                             )
@@ -281,13 +354,13 @@ fun LibraryScreen(
 
                         LibraryTab.Narrators -> {
                             NarratorsContent(
-                                narrators = narrators,
-                                sortState = narratorsSortState,
+                                narrators = state.narrators,
+                                sortState = state.narratorsSortState,
                                 onCategorySelected = { category ->
-                                    viewModel.onEvent(LibraryUiEvent.NarratorsCategoryChanged(category))
+                                    onEvent(LibraryUiEvent.NarratorsCategoryChanged(category))
                                 },
                                 onDirectionToggle = {
-                                    viewModel.onEvent(LibraryUiEvent.NarratorsDirectionToggled)
+                                    onEvent(LibraryUiEvent.NarratorsDirectionToggled)
                                 },
                                 onNarratorClick = onNarratorClick,
                             )
@@ -313,7 +386,7 @@ fun LibraryScreen(
                     } else {
                         null
                     },
-                onClose = { viewModel.exitSelectionMode() },
+                onClose = { onExitSelectionMode() },
             )
         }
     }

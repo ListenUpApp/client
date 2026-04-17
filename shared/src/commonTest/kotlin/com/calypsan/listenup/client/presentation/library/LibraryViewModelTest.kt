@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.library
 
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
@@ -30,11 +31,11 @@ import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -43,20 +44,19 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Clock
-import com.calypsan.listenup.client.core.Success
+import kotlin.test.assertIs
 
 /**
  * Tests for LibraryViewModel.
  *
  * Tests cover:
+ * - Initial Loading state (before pipeline subscribes)
+ * - Transition to Loaded after stateIn subscription
  * - Sort state initialization and persistence
  * - Sorting logic for books, series, and contributors
  * - Auto-sync behavior on screen visibility
  * - Event handling
- *
- * Uses Mokkery for mocking interfaces (BookRepositoryContract, SettingsRepositoryContract,
- * SyncManagerContract, and DAOs).
+ * - Terminal .catch emits Error on upstream failure
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryViewModelTest {
@@ -181,8 +181,10 @@ class LibraryViewModelTest {
         // Default stubs for all dependencies
         every { fixture.bookRepository.observeBooks() } returns flowOf(emptyList())
         every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(emptyList())
-        every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns flowOf(emptyList())
-        every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.NARRATOR.apiValue) } returns flowOf(emptyList())
+        every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns
+            flowOf(emptyList())
+        every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.NARRATOR.apiValue) } returns
+            flowOf(emptyList())
         every { fixture.syncRepository.syncState } returns fixture.syncStateFlow
         every { fixture.syncRepository.isServerScanning } returns MutableStateFlow(false)
         every { fixture.syncRepository.scanProgress } returns MutableStateFlow(null)
@@ -210,16 +212,40 @@ class LibraryViewModelTest {
     }
 
     /**
-     * Helper to collect a StateFlow in the background so the ViewModel's internal
-     * combine/launchIn flows emit. This is necessary because the ViewModel's init block
-     * sets up flow pipelines that need to be processed.
+     * Keeps the ViewModel's `stateIn(WhileSubscribed)` pipeline hot so that
+     * the `combine` upstreams emit. Without a subscriber, `stateIn` sits on its
+     * `initialValue` (Loading).
      */
-    private fun TestScope.collectInBackground(viewModel: LibraryViewModel) {
-        // Start collecting uiState so flows can emit
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            viewModel.uiState.collect {}
-        }
+    private fun TestScope.keepStateHot(viewModel: LibraryViewModel) {
+        backgroundScope.launch { viewModel.uiState.collect { } }
     }
+
+    // ========== Initial State Tests ==========
+
+    @Test
+    fun `initial state is Loading before pipeline subscribes`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+
+            // When - no keepStateHot, so stateIn sits on its initialValue
+            val viewModel = fixture.build()
+
+            // Then
+            assertIs<LibraryUiState.Loading>(viewModel.uiState.value)
+        }
+
+    @Test
+    fun `pipeline transitions to Loaded after subscription`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
+
+            // Then
+            assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+        }
 
     // ========== Sort State Initialization Tests ==========
 
@@ -228,11 +254,13 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.TITLE, viewModel.uiState.value.booksSortState.category)
-            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.booksSortState.direction)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortCategory.TITLE, loaded.booksSortState.category)
+            assertEquals(SortDirection.ASCENDING, loaded.booksSortState.direction)
         }
 
     @Test
@@ -240,11 +268,13 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.NAME, viewModel.uiState.value.seriesSortState.category)
-            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.seriesSortState.direction)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortCategory.NAME, loaded.seriesSortState.category)
+            assertEquals(SortDirection.ASCENDING, loaded.seriesSortState.direction)
         }
 
     @Test
@@ -252,11 +282,13 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.NAME, viewModel.uiState.value.authorsSortState.category)
-            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.authorsSortState.direction)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortCategory.NAME, loaded.authorsSortState.category)
+            assertEquals(SortDirection.ASCENDING, loaded.authorsSortState.direction)
         }
 
     @Test
@@ -267,12 +299,13 @@ class LibraryViewModelTest {
             everySuspend { fixture.libraryPreferences.getBooksSortState() } returns "duration:descending"
 
             // When
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.DURATION, viewModel.uiState.value.booksSortState.category)
-            assertEquals(SortDirection.DESCENDING, viewModel.uiState.value.booksSortState.direction)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortCategory.DURATION, loaded.booksSortState.category)
+            assertEquals(SortDirection.DESCENDING, loaded.booksSortState.direction)
         }
 
     @Test
@@ -283,12 +316,13 @@ class LibraryViewModelTest {
             everySuspend { fixture.libraryPreferences.getSeriesSortState() } returns "book_count:descending"
 
             // When
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.BOOK_COUNT, viewModel.uiState.value.seriesSortState.category)
-            assertEquals(SortDirection.DESCENDING, viewModel.uiState.value.seriesSortState.direction)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortCategory.BOOK_COUNT, loaded.seriesSortState.category)
+            assertEquals(SortDirection.DESCENDING, loaded.seriesSortState.direction)
         }
 
     @Test
@@ -299,12 +333,13 @@ class LibraryViewModelTest {
             everySuspend { fixture.libraryPreferences.getBooksSortState() } returns "invalid:garbage"
 
             // When
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then - falls back to default
-            assertEquals(SortCategory.TITLE, viewModel.uiState.value.booksSortState.category)
-            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.booksSortState.direction)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortCategory.TITLE, loaded.booksSortState.category)
+            assertEquals(SortDirection.ASCENDING, loaded.booksSortState.direction)
         }
 
     // ========== Event Handling: Sort State Changes ==========
@@ -315,14 +350,16 @@ class LibraryViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
 
             // When
             viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(SortCategory.AUTHOR))
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.AUTHOR, viewModel.uiState.value.booksSortState.category)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortCategory.AUTHOR, loaded.booksSortState.category)
         }
 
     @Test
@@ -331,7 +368,7 @@ class LibraryViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When - DURATION defaults to DESCENDING
@@ -339,7 +376,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortDirection.DESCENDING, viewModel.uiState.value.booksSortState.direction)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortDirection.DESCENDING, loaded.booksSortState.direction)
         }
 
     @Test
@@ -348,16 +386,20 @@ class LibraryViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
-            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.booksSortState.direction)
+            assertEquals(
+                SortDirection.ASCENDING,
+                assertIs<LibraryUiState.Loaded>(viewModel.uiState.value).booksSortState.direction,
+            )
 
             // When
             viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortDirection.DESCENDING, viewModel.uiState.value.booksSortState.direction)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortDirection.DESCENDING, loaded.booksSortState.direction)
         }
 
     @Test
@@ -366,7 +408,7 @@ class LibraryViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -383,14 +425,16 @@ class LibraryViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.libraryPreferences.setSeriesSortState(any()) } returns Unit
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
 
             // When
             viewModel.onEvent(LibraryUiEvent.SeriesCategoryChanged(SortCategory.BOOK_COUNT))
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.BOOK_COUNT, viewModel.uiState.value.seriesSortState.category)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortCategory.BOOK_COUNT, loaded.seriesSortState.category)
         }
 
     @Test
@@ -399,14 +443,16 @@ class LibraryViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.libraryPreferences.setAuthorsSortState(any()) } returns Unit
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
 
             // When
             viewModel.onEvent(LibraryUiEvent.AuthorsCategoryChanged(SortCategory.BOOK_COUNT))
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.BOOK_COUNT, viewModel.uiState.value.authorsSortState.category)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(SortCategory.BOOK_COUNT, loaded.authorsSortState.category)
         }
 
     // ========== Toggle Ignore Title Articles ==========
@@ -417,16 +463,20 @@ class LibraryViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.libraryPreferences.setIgnoreTitleArticles(any()) } returns Unit
-            val viewModel = fixture.build()
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
-            assertEquals(true, viewModel.uiState.value.ignoreTitleArticles)
+            assertEquals(
+                true,
+                assertIs<LibraryUiState.Loaded>(viewModel.uiState.value).ignoreTitleArticles,
+            )
 
             // When
             viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
             advanceUntilIdle()
 
             // Then
-            assertEquals(false, viewModel.uiState.value.ignoreTitleArticles)
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(false, loaded.ignoreTitleArticles)
             verifySuspend { fixture.libraryPreferences.setIgnoreTitleArticles(false) }
         }
 
@@ -444,15 +494,12 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            val viewModel = fixture.build()
-
-            // When - Subscribe to flows so WhileSubscribed starts collection
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            val sortedBooks = viewModel.uiState.value.books
-            assertEquals(listOf("Apple", "Mango", "Zebra"), sortedBooks.map { it.title })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Apple", "Mango", "Zebra"), loaded.books.map { it.title })
         }
 
     @Test
@@ -468,8 +515,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -477,8 +523,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val sortedBooks = viewModel.uiState.value.books
-            assertEquals(listOf("Zebra", "Mango", "Apple"), sortedBooks.map { it.title })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Zebra", "Mango", "Apple"), loaded.books.map { it.title })
         }
 
     @Test
@@ -494,13 +540,12 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             everySuspend { fixture.libraryPreferences.getIgnoreTitleArticles() } returns true
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then - Should sort as: Apple, A Mango (as "Mango"), The Zebra (as "Zebra")
-            val sortedBooks = viewModel.uiState.value.books
-            assertEquals(listOf("Apple", "A Mango", "The Zebra"), sortedBooks.map { it.title })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Apple", "A Mango", "The Zebra"), loaded.books.map { it.title })
         }
 
     @Test
@@ -528,8 +573,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -537,10 +581,10 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Alice's books first (then by title), then Bob's
-            val sortedBooks = viewModel.uiState.value.books
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
             assertEquals(
                 listOf("Cherry Book", "Zebra Book", "Apple Book"),
-                sortedBooks.map { it.title },
+                loaded.books.map { it.title },
             )
         }
 
@@ -557,8 +601,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When - Change to duration, then toggle to ascending
@@ -568,8 +611,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val sortedBooks = viewModel.uiState.value.books
-            assertEquals(listOf("Short", "Medium", "Long"), sortedBooks.map { it.title })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Short", "Medium", "Long"), loaded.books.map { it.title })
         }
 
     @Test
@@ -585,8 +628,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -594,8 +636,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Year DESC: newest first, null years go to end (treated as 0)
-            val sortedBooks = viewModel.uiState.value.books
-            assertEquals(listOf("New", "Old", "No Year"), sortedBooks.map { it.title })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("New", "Old", "No Year"), loaded.books.map { it.title })
         }
 
     @Test
@@ -611,8 +653,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -620,8 +661,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Added DESC: most recent first
-            val sortedBooks = viewModel.uiState.value.books
-            assertEquals(listOf("Last", "Middle", "First"), sortedBooks.map { it.title })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Last", "Middle", "First"), loaded.books.map { it.title })
         }
 
     @Test
@@ -638,8 +679,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When - SERIES defaults to ASCENDING
@@ -647,8 +687,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Series ASC: Alpha (seq 1, 2), Beta (seq 1), then null series at end
-            val sortedBooks = viewModel.uiState.value.books
-            assertEquals(listOf("Book B", "Book A", "Book C", "Standalone"), sortedBooks.map { it.title })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Book B", "Book A", "Book C", "Standalone"), loaded.books.map { it.title })
         }
 
     @Test
@@ -664,8 +704,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When - SERIES defaults to ASCENDING
@@ -673,8 +712,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Should handle 1 < 1.5 < 2
-            val sortedBooks = viewModel.uiState.value.books
-            assertEquals(listOf("Book 1", "Book 1.5", "Book 2"), sortedBooks.map { it.title })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Book 1", "Book 1.5", "Book 2"), loaded.books.map { it.title })
         }
 
     // ========== Series Sorting Tests ==========
@@ -698,13 +737,12 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(seriesList)
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            val sorted = viewModel.uiState.value.series
-            assertEquals(listOf("Apple Series", "Zebra Series"), sorted.map { it.series.name })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Apple Series", "Zebra Series"), loaded.series.map { it.series.name })
         }
 
     @Test
@@ -732,8 +770,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(seriesList)
             everySuspend { fixture.libraryPreferences.setSeriesSortState(any()) } returns Unit
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -741,8 +778,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Book count DESC: most books first
-            val sorted = viewModel.uiState.value.series
-            assertEquals(listOf("Big", "Small"), sorted.map { it.series.name })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Big", "Small"), loaded.series.map { it.series.name })
         }
 
     // ========== Contributors Sorting Tests ==========
@@ -757,14 +794,14 @@ class LibraryViewModelTest {
                     createTestContributor(id = "2", name = "Adam"),
                 )
             val fixture = createFixture()
-            every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns flowOf(authors)
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns
+                flowOf(authors)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            val sorted = viewModel.uiState.value.authors
-            assertEquals(listOf("Adam", "Zelda"), sorted.map { it.contributor.name })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Adam", "Zelda"), loaded.authors.map { it.contributor.name })
         }
 
     @Test
@@ -777,10 +814,10 @@ class LibraryViewModelTest {
                     createTestContributor(id = "2", name = "Many Books", bookCount = 10),
                 )
             val fixture = createFixture()
-            every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns flowOf(authors)
+            every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns
+                flowOf(authors)
             everySuspend { fixture.libraryPreferences.setAuthorsSortState(any()) } returns Unit
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -788,8 +825,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val sorted = viewModel.uiState.value.authors
-            assertEquals(listOf("Many Books", "Few Books"), sorted.map { it.contributor.name })
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(listOf("Many Books", "Few Books"), loaded.authors.map { it.contributor.name })
         }
 
     // ========== Auto-Sync Tests ==========
@@ -802,8 +839,7 @@ class LibraryViewModelTest {
             everySuspend { fixture.authSession.getAccessToken() } returns AccessToken("token")
             everySuspend { fixture.syncStatusRepository.getLastSyncTime() } returns null // Never synced
             everySuspend { fixture.bookRepository.refreshBooks() } returns Success(Unit)
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
@@ -820,18 +856,15 @@ class LibraryViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.authSession.getAccessToken() } returns null // Not authenticated
-            // Still called before if check
             everySuspend { fixture.syncStatusRepository.getLastSyncTime() } returns null
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // When
             viewModel.onScreenVisible()
             advanceUntilIdle()
 
-            // Then - refreshBooks should not be called (we can't easily verify "not called"
-            // but we verify the code path by checking no exception is thrown)
+            // Then - refreshBooks should not be called (verified indirectly via absence of exception)
         }
 
     // ========== Book Progress Tests ==========
@@ -871,14 +904,13 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             every { fixture.playbackPositionRepository.observeAll() } returns flowOf(positions)
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then
-            val progress = viewModel.uiState.value.bookProgress
-            assertEquals(0.5f, progress["book-1"])
-            assertEquals(0.5f, progress["book-2"])
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(0.5f, loaded.bookProgress["book-1"])
+            assertEquals(0.5f, loaded.bookProgress["book-2"])
         }
 
     @Test
@@ -906,12 +938,26 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             every { fixture.playbackPositionRepository.observeAll() } returns flowOf(positions)
-            val viewModel = fixture.build()
-            collectInBackground(viewModel)
+            val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
             // Then - completed book is included with its progress (for completion badge)
-            val progress = viewModel.uiState.value.bookProgress
-            assertEquals(0.995f, progress["book-1"])
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(0.995f, loaded.bookProgress["book-1"])
+        }
+
+    // ========== Terminal Catch Test ==========
+
+    @Test
+    fun `upstream failure surfaces as Error state`() =
+        runTest {
+            // Given - book repository flow throws on first collect
+            val fixture = createFixture()
+            every { fixture.bookRepository.observeBooks() } returns flow { throw RuntimeException("boom") }
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
+
+            // Then - pipeline's terminal .catch emits Error
+            assertIs<LibraryUiState.Error>(viewModel.uiState.value)
         }
 }
