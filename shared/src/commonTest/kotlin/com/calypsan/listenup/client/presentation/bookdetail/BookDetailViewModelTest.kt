@@ -13,7 +13,6 @@ import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
 import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
 import dev.mokkery.answering.returns
-import dev.mokkery.answering.throws
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -32,6 +31,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -40,7 +40,7 @@ import kotlin.test.assertTrue
  * Tests for BookDetailViewModel.
  *
  * Tests cover:
- * - Initial state (loading)
+ * - Initial state (Loading)
  * - Load book success/not found
  * - Subtitle filtering (redundant subtitle removal)
  * - Genre parsing
@@ -123,16 +123,14 @@ class BookDetailViewModelTest {
     // ========== Initial State Tests ==========
 
     @Test
-    fun `initial state has isLoading true`() =
+    fun `initial state is Loading`() =
         runTest {
             // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
 
             // Then
-            assertTrue(viewModel.state.value.isLoading)
-            assertNull(viewModel.state.value.book)
-            assertNull(viewModel.state.value.error)
+            assertIs<BookDetailUiState.Loading>(viewModel.state.value)
         }
 
     // ========== Load Book Tests ==========
@@ -153,16 +151,14 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val state = viewModel.state.value
-            assertFalse(state.isLoading)
-            assertEquals(book, state.book)
-            assertEquals("A description", state.description)
-            assertEquals(2, state.chapters.size)
-            assertNull(state.error)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertEquals(book, ready.book)
+            assertEquals("A description", ready.description)
+            assertEquals(2, ready.chapters.size)
         }
 
     @Test
-    fun `loadBook not found sets error state`() =
+    fun `loadBook not found sets Error state`() =
         runTest {
             // Given
             val fixture = createFixture()
@@ -174,10 +170,8 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val state = viewModel.state.value
-            assertFalse(state.isLoading)
-            assertNull(state.book)
-            assertEquals("Book not found", state.error)
+            val error = assertIs<BookDetailUiState.Error>(viewModel.state.value)
+            assertEquals("Book not found", error.message)
         }
 
     // ========== Subtitle Filtering Tests ==========
@@ -203,7 +197,8 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then - subtitle should be filtered out (redundant)
-            assertNull(viewModel.state.value.subtitle)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertNull(ready.subtitle)
         }
 
     @Test
@@ -226,7 +221,8 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then - subtitle should be kept (not redundant)
-            assertEquals("A Novel of Discovery", viewModel.state.value.subtitle)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertEquals("A Novel of Discovery", ready.subtitle)
         }
 
     @Test
@@ -248,7 +244,8 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then - subtitle should be kept (no series to be redundant with)
-            assertEquals("Part 1", viewModel.state.value.subtitle)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertEquals("Part 1", ready.subtitle)
         }
 
     // ========== Genre Loading Tests ==========
@@ -275,7 +272,8 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val genresList = viewModel.state.value.genresList
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            val genresList = ready.genresList
             assertEquals(3, genresList.size)
             assertEquals("Fiction", genresList[0])
             assertEquals("Fantasy", genresList[1])
@@ -298,10 +296,8 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(
-                viewModel.state.value.genresList
-                    .isEmpty(),
-            )
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertTrue(ready.genresList.isEmpty())
         }
 
     @Test
@@ -320,13 +316,9 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then - book loads successfully despite genre failure
-            assertFalse(viewModel.state.value.isLoading)
-            assertEquals(book, viewModel.state.value.book)
-            assertNull(viewModel.state.value.error) // Genres are optional - no error shown
-            assertTrue(
-                viewModel.state.value.genresList
-                    .isEmpty(),
-            )
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertEquals(book, ready.book)
+            assertTrue(ready.genresList.isEmpty())
         }
 
     // ========== Progress Calculation Tests ==========
@@ -348,7 +340,8 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then - 30 min / 60 min = 0.5
-            assertEquals(0.5f, viewModel.state.value.progress)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertEquals(0.5f, ready.progress)
         }
 
     @Test
@@ -367,7 +360,8 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertNull(viewModel.state.value.progress)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertNull(ready.progress)
         }
 
     @Test
@@ -387,9 +381,10 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then - progress is shown based on position, hidden only when isFinished=true
-            val progress = viewModel.state.value.progress
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            val progress = ready.progress
             assertNotNull(progress)
-            assertEquals(0.99f, progress!!, 0.01f)
+            assertEquals(0.99f, progress, 0.01f)
         }
 
     // ========== Time Remaining Tests ==========
@@ -411,7 +406,8 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then - 2h 15m remaining
-            assertEquals("2h 15m left", viewModel.state.value.timeRemainingFormatted)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertEquals("2h 15m left", ready.timeRemainingFormatted)
         }
 
     @Test
@@ -431,24 +427,31 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then - 15m remaining
-            assertEquals("15m left", viewModel.state.value.timeRemainingFormatted)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertEquals("15m left", ready.timeRemainingFormatted)
         }
 
     // ========== Tag Management Tests ==========
 
     @Test
-    fun `showTagPicker sets showTagPicker to true`() =
+    fun `showTagPicker sets showTagPicker to true when Ready`() =
         runTest {
-            // Given
+            // Given - must load a book so state is Ready (updateReady no-ops on Loading)
             val fixture = createFixture()
+            val book = TestData.book(id = "book-1")
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
-            assertFalse(viewModel.state.value.showTagPicker)
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
+            assertFalse(assertIs<BookDetailUiState.Ready>(viewModel.state.value).showTagPicker)
 
             // When
             viewModel.showTagPicker()
 
             // Then
-            assertTrue(viewModel.state.value.showTagPicker)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertTrue(ready.showTagPicker)
         }
 
     @Test
@@ -456,15 +459,21 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
+            val book = TestData.book(id = "book-1")
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
             viewModel.showTagPicker()
-            assertTrue(viewModel.state.value.showTagPicker)
+            assertTrue(assertIs<BookDetailUiState.Ready>(viewModel.state.value).showTagPicker)
 
             // When
             viewModel.hideTagPicker()
 
             // Then
-            assertFalse(viewModel.state.value.showTagPicker)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.showTagPicker)
         }
 
     @Test
@@ -493,13 +502,10 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals(1, viewModel.state.value.tags.size)
-            assertEquals(
-                "Favorites",
-                viewModel.state.value.tags[0]
-                    .displayName(),
-            )
-            assertEquals(2, viewModel.state.value.allTags.size)
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertEquals(1, ready.tags.size)
+            assertEquals("Favorites", ready.tags[0].displayName())
+            assertEquals(2, ready.allTags.size)
         }
 
     @Test
@@ -569,7 +575,8 @@ class BookDetailViewModelTest {
 
             // Then
             verifySuspend { fixture.tagRepository.addTagToBook("book-1", "New Tag") }
-            assertFalse(viewModel.state.value.showTagPicker) // Picker should close
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.showTagPicker) // Picker should close
         }
 
     @Test
@@ -583,8 +590,8 @@ class BookDetailViewModelTest {
             viewModel.addTag("tag-1")
             advanceUntilIdle()
 
-            // Then - no API calls made (book is null)
-            // This test verifies the early return behavior
+            // Then - state stays Loading, no API calls made
+            assertIs<BookDetailUiState.Loading>(viewModel.state.value)
         }
 
     @Test
@@ -603,8 +610,7 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then - book loads successfully, tags are empty but no error
-            assertFalse(viewModel.state.value.isLoading)
-            assertEquals(book, viewModel.state.value.book)
-            assertNull(viewModel.state.value.error) // Tags are optional - no error shown
+            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
+            assertEquals(book, ready.book)
         }
 }

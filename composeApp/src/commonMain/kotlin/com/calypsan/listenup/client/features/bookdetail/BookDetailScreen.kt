@@ -45,7 +45,6 @@ import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
-import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.features.library.ShelfPickerSheet
 import com.calypsan.listenup.client.features.bookdetail.components.BookReadersSection
@@ -97,19 +96,79 @@ fun BookDetailScreen(
     onUserProfileClick: (userId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel(),
 ) {
-    val platformActions: BookDetailPlatformActions = koinInject()
-    val userRepository: UserRepository = koinInject()
-    val instanceRepository: InstanceRepository = koinInject()
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = LocalSnackbarHostState.current
-
     LaunchedEffect(bookId) {
         viewModel.loadBook(bookId)
     }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val isAdminFlow = remember { userRepository.observeIsAdmin() }
-    val isAdmin by isAdminFlow.collectAsStateWithLifecycle(initialValue = false)
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        when (val s = state) {
+            is BookDetailUiState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+            }
+
+            is BookDetailUiState.Error -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = s.message,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+
+            is BookDetailUiState.Ready -> {
+                BookDetailReadyContent(
+                    bookId = bookId,
+                    state = s,
+                    viewModel = viewModel,
+                    onBackClick = onBackClick,
+                    onEditClick = onEditClick,
+                    onMetadataSearchClick = onMetadataSearchClick,
+                    onSeriesClick = onSeriesClick,
+                    onContributorClick = onContributorClick,
+                    onTagClick = onTagClick,
+                    onUserProfileClick = onUserProfileClick,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Ready-state host for [BookDetailScreen]. Holds screen-scoped state
+ * (dialogs, server reachability, download status) and delegates layout
+ * to [BookDetailContent].
+ */
+@Suppress("LongParameterList", "LongMethod")
+@Composable
+private fun BookDetailReadyContent(
+    bookId: String,
+    state: BookDetailUiState.Ready,
+    viewModel: BookDetailViewModel,
+    onBackClick: () -> Unit,
+    onEditClick: (bookId: String) -> Unit,
+    onMetadataSearchClick: (bookId: String) -> Unit,
+    onSeriesClick: (seriesId: String) -> Unit,
+    onContributorClick: (contributorId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
+) {
+    val platformActions: BookDetailPlatformActions = koinInject()
+    val instanceRepository: InstanceRepository = koinInject()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = LocalSnackbarHostState.current
+
     val downloadStatusFlow = remember(bookId) { platformActions.observeBookStatus(BookId(bookId)) }
     val downloadStatus by downloadStatusFlow
         .collectAsStateWithLifecycle(initialValue = BookDownloadStatus.notDownloaded(bookId))
@@ -156,121 +215,93 @@ fun BookDetailScreen(
         onMetadataSearchClick(bookId)
     }
 
-    // The man in black fled across the desert, and the gunslinger followed. (The Dark Tower)
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface,
-    ) {
-        when {
-            state.isLoading -> {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+    val book = state.book
+    val hasProgress = state.progress != null
+
+    BookDetailContent(
+        bookId = bookId,
+        state = state,
+        downloadStatus = downloadStatus,
+        isComplete = state.isComplete,
+        hasProgress = hasProgress,
+        isAdmin = state.isAdmin,
+        isWaitingForWifi = isWaitingForWifi,
+        showPlaybackActions = platformActions.isPlaybackAvailable,
+        onBackClick = onBackClick,
+        onEditClick = { onEditClick(bookId) },
+        onFindMetadataClick = onFindMetadataClick,
+        onMarkCompleteClick = {
+            if (state.isComplete) {
+                viewModel.restartBook() // "Mark as Not Started" = restart
+            } else {
+                showMarkCompleteDialog = true
+            }
+        },
+        onDiscardProgressClick = { viewModel.discardProgress() },
+        onAddToShelfClick = { viewModel.showShelfPicker() },
+        onAddToCollectionClick = { /* TODO: Implement */ },
+        onShareClick = {
+            scope.launch {
+                val result = instanceRepository.getInstance()
+                if (result is ResultSuccess) {
+                    val instance = result.data
+                    val baseUrl = (instance.remoteUrl ?: instance.localUrl)?.trimEnd('/') ?: return@launch
+                    val url = "$baseUrl/share/book/${book.id.value}"
+                    val text = "Check out ${book.title} on ListenUp!\n$url"
+                    platformActions.shareText(text, url)
                 }
             }
+        },
+        onDeleteBookClick = { /* TODO: Implement */ },
+        onPlayClick = { platformActions.playBook(BookId(bookId)) },
+        canPlay = canPlay,
+        canDownload = canDownload,
+        showServerWarning = showServerWarning,
+        onPlayDisabledClick = {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    "Server is unreachable. Connect to your server to stream this book, or download it for offline playback.",
+                )
+            }
+        },
+        onUserProfileClick = onUserProfileClick,
+        onDownloadClick = {
+            scope.launch {
+                when (val result = platformActions.downloadBook(BookId(bookId))) {
+                    is DownloadResult.Success -> { /* Download started */ }
 
-            state.error != null -> {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            text = state.error ?: "Unknown error",
-                            color = MaterialTheme.colorScheme.error,
+                    is DownloadResult.AlreadyDownloaded -> { /* Nothing to do */ }
+
+                    is DownloadResult.InsufficientStorage -> {
+                        val requiredMb = result.requiredBytes / 1_000_000
+                        val availableMb = result.availableBytes / 1_000_000
+                        snackbarHostState.showSnackbar(
+                            "Not enough storage. Need ${requiredMb}MB, have ${availableMb}MB available.",
+                        )
+                    }
+
+                    is DownloadResult.Error -> {
+                        snackbarHostState.showSnackbar(
+                            "Download failed: ${result.message}",
                         )
                     }
                 }
             }
-
-            else -> {
-                BookDetailContent(
-                    bookId = bookId,
-                    state = state,
-                    downloadStatus = downloadStatus,
-                    isComplete = state.isComplete,
-                    hasProgress = state.progress != null,
-                    isAdmin = isAdmin,
-                    isWaitingForWifi = isWaitingForWifi,
-                    showPlaybackActions = platformActions.isPlaybackAvailable,
-                    onBackClick = onBackClick,
-                    onEditClick = { onEditClick(bookId) },
-                    onFindMetadataClick = onFindMetadataClick,
-                    onMarkCompleteClick = {
-                        if (state.isComplete) {
-                            viewModel.restartBook() // "Mark as Not Started" = restart
-                        } else {
-                            showMarkCompleteDialog = true
-                        }
-                    },
-                    onDiscardProgressClick = { viewModel.discardProgress() },
-                    onAddToShelfClick = { viewModel.showShelfPicker() },
-                    onAddToCollectionClick = { /* TODO: Implement */ },
-                    onShareClick = {
-                        val book = state.book ?: return@BookDetailContent
-                        scope.launch {
-                            val result = instanceRepository.getInstance()
-                            if (result is ResultSuccess) {
-                                val instance = result.data
-                                val baseUrl = (instance.remoteUrl ?: instance.localUrl)?.trimEnd('/') ?: return@launch
-                                val url = "${'$'}baseUrl/share/book/${'$'}{book.id.value}"
-                                val text = "Check out ${'$'}{book.title} on ListenUp!\n${'$'}url"
-                                platformActions.shareText(text, url)
-                            }
-                        }
-                    },
-                    onDeleteBookClick = { /* TODO: Implement */ },
-                    onPlayClick = { platformActions.playBook(BookId(bookId)) },
-                    canPlay = canPlay,
-                    canDownload = canDownload,
-                    showServerWarning = showServerWarning,
-                    onPlayDisabledClick = {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                "Server is unreachable. Connect to your server to stream this book, or download it for offline playback.",
-                            )
-                        }
-                    },
-                    onUserProfileClick = onUserProfileClick,
-                    onDownloadClick = {
-                        scope.launch {
-                            when (val result = platformActions.downloadBook(BookId(bookId))) {
-                                is DownloadResult.Success -> { /* Download started */ }
-
-                                is DownloadResult.AlreadyDownloaded -> { /* Nothing to do */ }
-
-                                is DownloadResult.InsufficientStorage -> {
-                                    val requiredMb = result.requiredBytes / 1_000_000
-                                    val availableMb = result.availableBytes / 1_000_000
-                                    snackbarHostState.showSnackbar(
-                                        "Not enough storage. Need ${requiredMb}MB, have ${availableMb}MB available.",
-                                    )
-                                }
-
-                                is DownloadResult.Error -> {
-                                    snackbarHostState.showSnackbar(
-                                        "Download failed: ${result.message}",
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    onCancelClick = {
-                        scope.launch {
-                            platformActions.cancelDownload(BookId(bookId))
-                        }
-                    },
-                    onDeleteClick = { showDeleteDialog = true },
-                    onSeriesClick = onSeriesClick,
-                    onContributorClick = onContributorClick,
-                    onTagClick = onTagClick,
-                )
+        },
+        onCancelClick = {
+            scope.launch {
+                platformActions.cancelDownload(BookId(bookId))
             }
-        }
-    }
+        },
+        onDeleteClick = { showDeleteDialog = true },
+        onSeriesClick = onSeriesClick,
+        onContributorClick = onContributorClick,
+        onTagClick = onTagClick,
+    )
 
     if (showDeleteDialog) {
         DeleteDownloadDialog(
-            bookTitle = state.book?.title ?: "",
+            bookTitle = book.title,
             downloadSize = downloadStatus.downloadedBytes,
             onConfirm = {
                 scope.launch {
@@ -322,7 +353,7 @@ fun BookDetailScreen(
 @Composable
 fun BookDetailContent(
     bookId: String,
-    state: BookDetailUiState,
+    state: BookDetailUiState.Ready,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
     hasProgress: Boolean,
@@ -438,7 +469,7 @@ fun BookDetailContent(
 @Composable
 private fun ImmersiveBookDetail(
     bookId: String,
-    state: BookDetailUiState,
+    state: BookDetailUiState.Ready,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
     hasProgress: Boolean,
@@ -470,13 +501,15 @@ private fun ImmersiveBookDetail(
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
 
+    val book = state.book
+
     // Use cached colors for instant rendering, fall back to runtime extraction
     val coverColors =
         rememberCoverColors(
-            imagePath = state.book?.coverPath,
-            cachedDominantColor = state.book?.dominantColor,
-            cachedDarkMutedColor = state.book?.darkMutedColor,
-            cachedVibrantColor = state.book?.vibrantColor,
+            imagePath = book.coverPath,
+            cachedDominantColor = book.dominantColor,
+            cachedDarkMutedColor = book.darkMutedColor,
+            cachedVibrantColor = book.vibrantColor,
         )
 
     LazyColumn(
@@ -489,9 +522,9 @@ private fun ImmersiveBookDetail(
         // 1. HERO SECTION - Identity with color-extracted gradient
         item {
             HeroSection(
-                coverPath = state.book?.coverPath,
+                coverPath = book.coverPath,
                 bookId = bookId,
-                title = state.book?.title ?: "",
+                title = book.title,
                 subtitle = state.subtitle,
                 progress = state.progress,
                 timeRemaining = state.timeRemainingFormatted,
@@ -514,9 +547,9 @@ private fun ImmersiveBookDetail(
         // 2. THE TALENT - Who made this
         item {
             TalentSectionWithRoles(
-                authors = state.book?.authors ?: emptyList(),
-                narrators = state.book?.narrators ?: emptyList(),
-                allContributors = state.book?.allContributors ?: emptyList(),
+                authors = book.authors,
+                narrators = book.narrators,
+                allContributors = book.allContributors,
                 onContributorClick = onContributorClick,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
@@ -552,10 +585,10 @@ private fun ImmersiveBookDetail(
         // 4. CONTEXT METADATA - Series, Stats, Genres
         item {
             ContextMetadataSection(
-                seriesId = state.book?.seriesId,
-                seriesName = state.series ?: state.book?.seriesName,
+                seriesId = book.seriesId,
+                seriesName = state.series ?: book.seriesName,
                 rating = state.rating,
-                duration = state.book?.duration ?: 0,
+                duration = book.duration,
                 year = state.year,
                 addedAt = state.addedAt,
                 genres = state.genresList,

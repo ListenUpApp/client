@@ -48,7 +48,7 @@ class BookDetailViewModel(
     private val createShelfUseCase: CreateShelfUseCase,
 ) : ViewModel() {
     val state: StateFlow<BookDetailUiState>
-        field = MutableStateFlow(BookDetailUiState())
+        field = MutableStateFlow<BookDetailUiState>(BookDetailUiState.Loading)
 
     /**
      * The currently displayed book ID.
@@ -56,11 +56,19 @@ class BookDetailViewModel(
      */
     private val currentBookId = MutableStateFlow<String?>(null)
 
+    // Mirrors of book-independent flow-fed fields. Updated inside the init
+    // collectors and read at [loadBook] to seed the Ready state with the
+    // latest known values, since those collectors may have emitted while
+    // state was Loading (and been no-op'd by [updateReady]).
+    private var latestIsAdmin: Boolean = false
+    private var latestAllTags: List<Tag> = emptyList()
+
     init {
         // Observe admin status
         viewModelScope.launch {
             userRepository.observeIsAdmin().collect { isAdmin ->
-                state.update { it.copy(isAdmin = isAdmin) }
+                latestIsAdmin = isAdmin
+                updateReady { it.copy(isAdmin = isAdmin) }
             }
         }
 
@@ -74,7 +82,7 @@ class BookDetailViewModel(
                         flowOf(emptyList())
                     }
                 }.collect { genres ->
-                    state.update {
+                    updateReady {
                         it.copy(
                             genres = genres,
                             genresList = genres.map { g -> g.name },
@@ -93,7 +101,7 @@ class BookDetailViewModel(
                         flowOf(emptyList())
                     }
                 }.collect { tags ->
-                    state.update {
+                    updateReady {
                         it.copy(
                             tags = tags,
                             isLoadingTags = false,
@@ -107,7 +115,8 @@ class BookDetailViewModel(
             tagRepository
                 .observeAll()
                 .collect { allTags ->
-                    state.update { it.copy(allTags = allTags) }
+                    latestAllTags = allTags
+                    updateReady { it.copy(allTags = allTags) }
                 }
         }
     }
@@ -126,89 +135,93 @@ class BookDetailViewModel(
                 }
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Apply [transform] to state only if it is currently [BookDetailUiState.Ready].
+     * No-ops when state is [BookDetailUiState.Loading] or [BookDetailUiState.Error].
+     */
+    private fun updateReady(transform: (BookDetailUiState.Ready) -> BookDetailUiState.Ready) {
+        state.update { current ->
+            if (current is BookDetailUiState.Ready) transform(current) else current
+        }
+    }
+
     fun loadBook(bookId: String) {
         viewModelScope.launch {
-            state.value = state.value.copy(isLoading = true)
+            state.value = BookDetailUiState.Loading
             val book = bookRepository.getBook(bookId)
 
-            if (book != null) {
-                val chapters =
-                    bookRepository.getChapters(bookId).map { domainChapter ->
-                        ChapterUiModel(
-                            id = domainChapter.id,
-                            title = domainChapter.title,
-                            duration = domainChapter.formatDuration(),
-                            imageUrl = null, // Placeholder
-                        )
-                    }
-
-                // Filter out subtitles that are just series name + book number
-                val displaySubtitle =
-                    book.subtitle?.let { subtitle ->
-                        if (isSubtitleRedundant(subtitle, book.seriesName, book.seriesSequence)) {
-                            null
-                        } else {
-                            subtitle
-                        }
-                    }
-
-                // Load progress for this book
-                val position = playbackPositionRepository.get(bookId)
-                val progress =
-                    if (position != null && book.duration > 0) {
-                        (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
-                    } else {
-                        null
-                    }
-
-                // Check if book is marked as finished (authoritative from isFinished flag)
-                val isComplete = position?.isFinished ?: false
-
-                // Calculate time remaining if there's progress (but not complete)
-                val timeRemaining =
-                    if (progress != null && progress > 0f && !isComplete) {
-                        val remainingMs = book.duration - (position?.positionMs ?: 0L)
-                        formatTimeRemaining(remainingMs)
-                    } else {
-                        null
-                    }
-
-                // Trigger reactive observers for genres and tags via flatMapLatest
-                currentBookId.value = bookId
-
-                // Update state, preserving flow-managed values (isAdmin, allTags)
-                state.update { currentState ->
-                    currentState.copy(
-                        isLoading = false,
-                        book = book,
-                        subtitle = displaySubtitle,
-                        series = book.fullSeriesTitle,
-                        description = book.description ?: "",
-                        narrators = book.narratorNames,
-                        year = book.publishYear,
-                        rating = book.rating,
-                        chapters = chapters,
-                        isComplete = isComplete,
-                        startedAtMs = position?.startedAtMs,
-                        progress = if (progress != null && progress > 0f && !isComplete) progress else null,
-                        timeRemainingFormatted = timeRemaining,
-                        addedAt = book.addedAt.epochMillis,
-                        // Reset book-specific values (will be populated by flatMapLatest)
-                        genres = emptyList(),
-                        genresList = emptyList(),
-                        tags = emptyList(),
-                        isLoadingTags = true,
-                        error = null,
-                    )
-                }
-            } else {
-                state.update { currentState ->
-                    currentState.copy(
-                        isLoading = false,
-                        error = "Book not found",
-                    )
-                }
+            if (book == null) {
+                state.value = BookDetailUiState.Error("Book not found")
+                return@launch
             }
+
+            val chapters =
+                bookRepository.getChapters(bookId).map { domainChapter ->
+                    ChapterUiModel(
+                        id = domainChapter.id,
+                        title = domainChapter.title,
+                        duration = domainChapter.formatDuration(),
+                        imageUrl = null, // Placeholder
+                    )
+                }
+
+            // Filter out subtitles that are just series name + book number
+            val displaySubtitle =
+                book.subtitle?.let { subtitle ->
+                    if (isSubtitleRedundant(subtitle, book.seriesName, book.seriesSequence)) {
+                        null
+                    } else {
+                        subtitle
+                    }
+                }
+
+            // Load progress for this book
+            val position = playbackPositionRepository.get(bookId)
+            val progress =
+                if (position != null && book.duration > 0) {
+                    (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
+                } else {
+                    null
+                }
+
+            // Check if book is marked as finished (authoritative from isFinished flag)
+            val isComplete = position?.isFinished ?: false
+
+            // Calculate time remaining if there's progress (but not complete)
+            val timeRemaining =
+                if (progress != null && progress > 0f && !isComplete) {
+                    val remainingMs = book.duration - (position?.positionMs ?: 0L)
+                    formatTimeRemaining(remainingMs)
+                } else {
+                    null
+                }
+
+            // Trigger reactive observers for genres and tags via flatMapLatest
+            currentBookId.value = bookId
+
+            // Seed with latest values from book-independent collectors (isAdmin,
+            // allTags). Their emissions may have been no-op'd by updateReady
+            // while state was Loading, so we copy the mirrored latest values
+            // into the new Ready state.
+            state.value =
+                BookDetailUiState.Ready(
+                    book = book,
+                    isAdmin = latestIsAdmin,
+                    allTags = latestAllTags,
+                    isComplete = isComplete,
+                    startedAtMs = position?.startedAtMs,
+                    subtitle = displaySubtitle,
+                    series = book.fullSeriesTitle,
+                    description = book.description ?: "",
+                    narrators = book.narratorNames,
+                    year = book.publishYear,
+                    rating = book.rating,
+                    chapters = chapters,
+                    progress = if (progress != null && progress > 0f && !isComplete) progress else null,
+                    timeRemainingFormatted = timeRemaining,
+                    addedAt = book.addedAt.epochMillis,
+                    isLoadingTags = true,
+                )
         }
     }
 
@@ -216,14 +229,14 @@ class BookDetailViewModel(
      * Show the tag picker sheet.
      */
     fun showTagPicker() {
-        state.update { it.copy(showTagPicker = true) }
+        updateReady { it.copy(showTagPicker = true) }
     }
 
     /**
      * Hide the tag picker sheet.
      */
     fun hideTagPicker() {
-        state.update { it.copy(showTagPicker = false) }
+        updateReady { it.copy(showTagPicker = false) }
     }
 
     /**
@@ -232,17 +245,16 @@ class BookDetailViewModel(
      * @param slug The tag slug to add
      */
     fun addTag(slug: String) {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
             try {
                 tagRepository.addTagToBook(bookId, slug)
                 // Observer will update UI automatically
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to add tag '$slug' to book $bookId" }
             }
@@ -255,18 +267,18 @@ class BookDetailViewModel(
      * @param slug The tag slug to remove
      */
     fun removeTag(slug: String) {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
-        val tag = state.value.tags.find { it.slug == slug } ?: return
+        val ready = state.value as? BookDetailUiState.Ready ?: return
+        val bookId = ready.book.id.value
+        val tag = ready.tags.find { it.slug == slug } ?: return
         viewModelScope.launch {
             try {
                 tagRepository.removeTagFromBook(bookId, slug, tag.id)
                 // Observer will update UI automatically
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to remove tag '$slug' from book $bookId" }
             }
@@ -282,10 +294,7 @@ class BookDetailViewModel(
      * @param rawInput The tag text to add (will be normalized)
      */
     fun addNewTag(rawInput: String) {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
             try {
                 tagRepository.addTagToBook(bookId, rawInput)
@@ -293,7 +302,9 @@ class BookDetailViewModel(
                 hideTagPicker()
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to add tag '$rawInput' to book $bookId" }
             }
@@ -310,20 +321,17 @@ class BookDetailViewModel(
         startedAt: Long? = null,
         finishedAt: Long? = null,
     ) {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
-            state.update { it.copy(isMarkingComplete = true) }
+            updateReady { it.copy(isMarkingComplete = true) }
             when (playbackPositionRepository.markComplete(bookId, startedAt, finishedAt)) {
                 is Success -> {
-                    state.update { it.copy(isMarkingComplete = false, isComplete = true) }
+                    updateReady { it.copy(isMarkingComplete = false, isComplete = true) }
                     logger.info { "Marked book $bookId as complete" }
                 }
 
                 is Failure -> {
-                    state.update { it.copy(isMarkingComplete = false) }
+                    updateReady { it.copy(isMarkingComplete = false) }
                     logger.error { "Failed to mark book $bookId as complete" }
                 }
             }
@@ -334,15 +342,12 @@ class BookDetailViewModel(
      * Discard progress for the current book (start over / DNF).
      */
     fun discardProgress() {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
-            state.update { it.copy(isDiscardingProgress = true) }
+            updateReady { it.copy(isDiscardingProgress = true) }
             when (playbackPositionRepository.discardProgress(bookId)) {
                 is Success -> {
-                    state.update {
+                    updateReady {
                         it.copy(
                             isDiscardingProgress = false,
                             isComplete = false,
@@ -354,7 +359,7 @@ class BookDetailViewModel(
                 }
 
                 is Failure -> {
-                    state.update { it.copy(isDiscardingProgress = false) }
+                    updateReady { it.copy(isDiscardingProgress = false) }
                     logger.error { "Failed to discard progress for book $bookId" }
                 }
             }
@@ -365,15 +370,12 @@ class BookDetailViewModel(
      * Restart the current book from the beginning.
      */
     fun restartBook() {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
-            state.update { it.copy(isRestarting = true) }
+            updateReady { it.copy(isRestarting = true) }
             when (playbackPositionRepository.restartBook(bookId)) {
                 is Success -> {
-                    state.update {
+                    updateReady {
                         it.copy(
                             isRestarting = false,
                             isComplete = false,
@@ -384,7 +386,7 @@ class BookDetailViewModel(
                 }
 
                 is Failure -> {
-                    state.update { it.copy(isRestarting = false) }
+                    updateReady { it.copy(isRestarting = false) }
                     logger.error { "Failed to restart book $bookId" }
                 }
             }
@@ -395,20 +397,17 @@ class BookDetailViewModel(
      * Add the current book to an existing shelf.
      */
     fun addBookToShelf(shelfId: String) {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
-            state.update { it.copy(isAddingToShelf = true) }
+            updateReady { it.copy(isAddingToShelf = true) }
             when (val result = addBooksToShelfUseCase(shelfId, listOf(bookId))) {
                 is Success -> {
-                    state.update { it.copy(isAddingToShelf = false, showShelfPicker = false) }
+                    updateReady { it.copy(isAddingToShelf = false, showShelfPicker = false) }
                     logger.info { "Added book $bookId to shelf $shelfId" }
                 }
 
                 is Failure -> {
-                    state.update { it.copy(isAddingToShelf = false, shelfError = result.message) }
+                    updateReady { it.copy(isAddingToShelf = false, shelfError = result.message) }
                     logger.error { "Failed to add book $bookId to shelf $shelfId: ${result.message}" }
                 }
             }
@@ -419,30 +418,27 @@ class BookDetailViewModel(
      * Create a new shelf and add the current book to it.
      */
     fun createShelfAndAddBook(name: String) {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
-            state.update { it.copy(isAddingToShelf = true) }
+            updateReady { it.copy(isAddingToShelf = true) }
             when (val result = createShelfUseCase(name, null)) {
                 is Success -> {
                     val shelf = result.data
                     when (val addResult = addBooksToShelfUseCase(shelf.id, listOf(bookId))) {
                         is Success -> {
-                            state.update { it.copy(isAddingToShelf = false, showShelfPicker = false) }
+                            updateReady { it.copy(isAddingToShelf = false, showShelfPicker = false) }
                             logger.info { "Created shelf '${shelf.name}' and added book $bookId" }
                         }
 
                         is Failure -> {
-                            state.update { it.copy(isAddingToShelf = false, shelfError = addResult.message) }
+                            updateReady { it.copy(isAddingToShelf = false, shelfError = addResult.message) }
                             logger.error { "Created shelf but failed to add book $bookId: ${addResult.message}" }
                         }
                     }
                 }
 
                 is Failure -> {
-                    state.update { it.copy(isAddingToShelf = false, shelfError = result.message) }
+                    updateReady { it.copy(isAddingToShelf = false, shelfError = result.message) }
                     logger.error { "Failed to create shelf '$name': ${result.message}" }
                 }
             }
@@ -450,55 +446,65 @@ class BookDetailViewModel(
     }
 
     fun clearShelfError() {
-        state.update { it.copy(shelfError = null) }
+        updateReady { it.copy(shelfError = null) }
     }
 
     fun showShelfPicker() {
-        state.update { it.copy(showShelfPicker = true) }
+        updateReady { it.copy(showShelfPicker = true) }
     }
 
     fun hideShelfPicker() {
-        state.update { it.copy(showShelfPicker = false) }
+        updateReady { it.copy(showShelfPicker = false) }
     }
 }
 
-data class BookDetailUiState(
-    val isLoading: Boolean = true,
-    val book: Book? = null,
-    val error: String? = null,
-    val isAdmin: Boolean = false,
-    val isComplete: Boolean = false,
-    // Existing started-at for pre-populating the mark-complete dialog
-    val startedAtMs: Long? = null,
-    // Loading states for progress management actions
-    val isMarkingComplete: Boolean = false,
-    val isDiscardingProgress: Boolean = false,
-    val isRestarting: Boolean = false,
-    // Extended metadata for UI prototype (now in DB)
-    val subtitle: String? = null,
-    val series: String? = null,
-    val description: String = "",
-    val narrators: String = "",
-    val year: Int? = null,
-    val rating: Double? = null,
-    val addedAt: Long? = null, // Epoch milliseconds when book was added to library
-    val chapters: List<ChapterUiModel> = emptyList(),
-    // Progress (for overlay display)
-    val progress: Float? = null,
-    val timeRemainingFormatted: String? = null,
-    // Genres (loaded from API)
-    val genres: List<Genre> = emptyList(),
-    val genresList: List<String> = emptyList(),
-    // Tags (global community descriptors)
-    val tags: List<Tag> = emptyList(),
-    val allTags: List<Tag> = emptyList(),
-    val isLoadingTags: Boolean = false,
-    val showTagPicker: Boolean = false,
-    // Shelf picker
-    val showShelfPicker: Boolean = false,
-    val isAddingToShelf: Boolean = false,
-    val shelfError: String? = null,
-)
+/**
+ * UI state for the Book Detail screen.
+ *
+ * Sealed hierarchy — [Ready] carries all book-dependent fields. Transient
+ * action overlays ([isMarkingComplete], [isDiscardingProgress], [isRestarting],
+ * [isAddingToShelf]) live on [Ready] in this iteration; W6 may extract them
+ * into a private overlay type.
+ */
+sealed interface BookDetailUiState {
+    /** Pre-load placeholder or in-flight transition between books. */
+    data object Loading : BookDetailUiState
+
+    /** Book loaded successfully. */
+    data class Ready(
+        val book: Book,
+        val isAdmin: Boolean = false,
+        val isComplete: Boolean = false,
+        val startedAtMs: Long? = null,
+        val isMarkingComplete: Boolean = false,
+        val isDiscardingProgress: Boolean = false,
+        val isRestarting: Boolean = false,
+        val subtitle: String? = null,
+        val series: String? = null,
+        val description: String = "",
+        val narrators: String = "",
+        val year: Int? = null,
+        val rating: Double? = null,
+        val addedAt: Long? = null,
+        val chapters: List<ChapterUiModel> = emptyList(),
+        val progress: Float? = null,
+        val timeRemainingFormatted: String? = null,
+        val genres: List<Genre> = emptyList(),
+        val genresList: List<String> = emptyList(),
+        val tags: List<Tag> = emptyList(),
+        val allTags: List<Tag> = emptyList(),
+        val isLoadingTags: Boolean = false,
+        val showTagPicker: Boolean = false,
+        val showShelfPicker: Boolean = false,
+        val isAddingToShelf: Boolean = false,
+        val shelfError: String? = null,
+    ) : BookDetailUiState
+
+    /** Load failure (e.g., "Book not found"). */
+    data class Error(
+        val message: String,
+    ) : BookDetailUiState
+}
 
 data class ChapterUiModel(
     val id: String,

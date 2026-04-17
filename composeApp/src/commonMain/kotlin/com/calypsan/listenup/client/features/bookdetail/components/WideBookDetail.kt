@@ -78,7 +78,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun WideBookDetail(
     bookId: String,
-    state: BookDetailUiState,
+    state: BookDetailUiState.Ready,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
     hasProgress: Boolean,
@@ -108,12 +108,13 @@ fun WideBookDetail(
     onUserProfileClick: (userId: String) -> Unit,
 ) {
     val deviceContext = LocalDeviceContext.current
+    val book = state.book
     val coverColors =
         rememberCoverColors(
-            imagePath = state.book?.coverPath,
-            cachedDominantColor = state.book?.dominantColor,
-            cachedDarkMutedColor = state.book?.darkMutedColor,
-            cachedVibrantColor = state.book?.vibrantColor,
+            imagePath = book.coverPath,
+            cachedDominantColor = book.dominantColor,
+            cachedDarkMutedColor = book.darkMutedColor,
+            cachedVibrantColor = book.vibrantColor,
         )
     val surfaceColor = MaterialTheme.colorScheme.surface
     val isDark = LocalDarkTheme.current
@@ -194,10 +195,10 @@ fun WideBookDetail(
                     ) {
                         // Cover
                         ElevatedCoverCard(
-                            path = state.book?.coverPath,
-                            bookId = state.book?.id?.value,
-                            blurHash = state.book?.coverBlurHash,
-                            contentDescription = state.book?.title,
+                            path = book.coverPath,
+                            bookId = book.id.value,
+                            blurHash = book.coverBlurHash,
+                            contentDescription = book.title,
                             modifier =
                                 Modifier
                                     .width(300.dp)
@@ -223,7 +224,7 @@ fun WideBookDetail(
                             ) {
                                 // Title
                                 Text(
-                                    text = state.book?.title ?: "",
+                                    text = book.title,
                                     style =
                                         MaterialTheme.typography.headlineMedium.copy(
                                             fontFamily = DisplayFontFamily,
@@ -245,9 +246,9 @@ fun WideBookDetail(
 
                                 // Talent
                                 TalentSectionWithRoles(
-                                    authors = state.book?.authors ?: emptyList(),
-                                    narrators = state.book?.narrators ?: emptyList(),
-                                    allContributors = state.book?.allContributors ?: emptyList(),
+                                    authors = book.authors,
+                                    narrators = book.narrators,
+                                    allContributors = book.allContributors,
                                     onContributorClick = onContributorClick,
                                     horizontalAlignment = Alignment.Start,
                                 )
@@ -295,10 +296,10 @@ fun WideBookDetail(
             // Context metadata
             item {
                 ContextMetadataSection(
-                    seriesId = state.book?.seriesId,
-                    seriesName = state.series ?: state.book?.seriesName,
+                    seriesId = book.seriesId,
+                    seriesName = state.series ?: book.seriesName,
                     rating = state.rating,
-                    duration = state.book?.duration ?: 0,
+                    duration = book.duration,
                     year = state.year,
                     addedAt = state.addedAt,
                     genres = state.genresList,
