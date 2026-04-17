@@ -1,5 +1,3 @@
-@file:Suppress("LongMethod")
-
 package com.calypsan.listenup.client.features.admin.backup
 
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpButton
+import com.calypsan.listenup.client.presentation.admin.AdminBackupUiState
 import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
 import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.stringResource
@@ -68,9 +67,15 @@ fun CreateBackupScreen(
     var includeImages by remember { mutableStateOf(false) }
     var hasStartedCreation by remember { mutableStateOf(false) }
 
+    // Screen is only reachable after the list has loaded; the only meaningful
+    // state here is Ready. isCreating and error live on Ready.
+    val ready = state as? AdminBackupUiState.Ready
+    val isCreating = ready?.isCreating == true
+    val error = ready?.error
+
     // Navigate back on success
-    LaunchedEffect(state.isCreating, hasStartedCreation) {
-        if (hasStartedCreation && !state.isCreating && state.error == null) {
+    LaunchedEffect(isCreating, hasStartedCreation) {
+        if (hasStartedCreation && !isCreating && error == null) {
             onSuccess()
         }
     }
@@ -90,7 +95,7 @@ fun CreateBackupScreen(
             )
         },
     ) { paddingValues ->
-        if (state.isCreating) {
+        if (isCreating) {
             CreatingBackupContent(
                 modifier = Modifier.padding(paddingValues),
             )
@@ -100,7 +105,7 @@ fun CreateBackupScreen(
                 includeImages = includeImages,
                 onIncludeEventsChange = { includeEvents = it },
                 onIncludeImagesChange = { includeImages = it },
-                error = state.error,
+                error = error,
                 onCreateClick = {
                     hasStartedCreation = true
                     viewModel.createBackup(
@@ -115,6 +120,7 @@ fun CreateBackupScreen(
 }
 
 @Composable
+@Suppress("LongMethod")
 private fun CreateBackupForm(
     includeEvents: Boolean,
     includeImages: Boolean,

@@ -61,7 +61,7 @@ import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSm
 import com.calypsan.listenup.client.domain.model.BackupInfo
 import com.calypsan.listenup.client.domain.model.BackupValidation
 import com.calypsan.listenup.client.presentation.admin.ABSImportHubViewModel
-import com.calypsan.listenup.client.presentation.admin.AdminBackupState
+import com.calypsan.listenup.client.presentation.admin.AdminBackupUiState
 import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import kotlinx.datetime.TimeZone
@@ -120,6 +120,8 @@ fun AdminBackupScreen(
         }
     }
 
+    val readyState = backupState as? AdminBackupUiState.Ready
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -132,7 +134,7 @@ fun AdminBackupScreen(
             )
         },
         floatingActionButton = {
-            if (!backupState.isLoading) {
+            if (readyState != null) {
                 ListenUpFab(
                     onClick = onCreateClick,
                     icon = Icons.Default.Add,
@@ -141,8 +143,8 @@ fun AdminBackupScreen(
             }
         },
     ) { paddingValues ->
-        AdminBackupContent(
-            backupState = backupState,
+        AdminBackupBody(
+            state = backupState,
             absImports = absImportListState.imports,
             isLoadingImports = absImportListState.isLoading,
             modifier = Modifier.padding(paddingValues),
@@ -186,8 +188,8 @@ fun AdminBackupScreen(
         )
     }
 
-    // Delete backup confirmation dialog
-    backupState.deleteConfirmBackup?.let { backup ->
+    // Delete backup confirmation dialog (only meaningful when Ready).
+    readyState?.deleteConfirmBackup?.let { backup ->
         DeleteBackupDialog(
             backup = backup,
             onConfirm = { backupViewModel.deleteBackup(backup) },
@@ -222,8 +224,8 @@ fun AdminBackupScreen(
         )
     }
 
-    // Validation result dialog
-    backupState.validationResult?.let { validation ->
+    // Validation result dialog (only meaningful when Ready).
+    readyState?.validationResult?.let { validation ->
         ValidationResultDialog(
             validation = validation,
             onDismiss = { backupViewModel.dismissValidation() },
@@ -256,8 +258,8 @@ private fun DeleteBackupDialog(
 }
 
 @Composable
-private fun AdminBackupContent(
-    backupState: AdminBackupState,
+private fun AdminBackupBody(
+    state: AdminBackupUiState,
     absImports: List<ABSImportSummary>,
     isLoadingImports: Boolean,
     modifier: Modifier = Modifier,
@@ -268,75 +270,116 @@ private fun AdminBackupContent(
     onDeleteImportClick: (ABSImportSummary) -> Unit,
     onUploadABSBackup: () -> Unit,
 ) {
-    when {
-        backupState.isLoading -> {
+    when (state) {
+        is AdminBackupUiState.Loading -> {
             FullScreenLoadingIndicator()
         }
 
-        backupState.backups.isEmpty() && absImports.isEmpty() -> {
-            EmptyBackupState(
+        is AdminBackupUiState.Error -> {
+            Box(
+                modifier = modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+
+        is AdminBackupUiState.Ready -> {
+            AdminBackupReadyContent(
+                state = state,
+                absImports = absImports,
+                isLoadingImports = isLoadingImports,
                 modifier = modifier,
+                onRestoreClick = onRestoreClick,
+                onDeleteClick = onDeleteClick,
+                onValidateClick = onValidateClick,
+                onABSImportClick = onABSImportClick,
+                onDeleteImportClick = onDeleteImportClick,
                 onUploadABSBackup = onUploadABSBackup,
             )
         }
+    }
+}
 
-        else -> {
-            LazyColumn(
-                modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                // Backups section
-                if (backupState.backups.isNotEmpty()) {
-                    item(key = "backups_header") {
-                        SectionHeader(title = "Backups")
-                    }
-                    items(backupState.backups, key = { "backup_${it.id}" }) { backup ->
-                        BackupCard(
-                            backup = backup,
-                            isValidating = backupState.validatingBackupId == backup.id,
-                            onRestoreClick = { onRestoreClick(backup.id) },
-                            onDeleteClick = { onDeleteClick(backup) },
-                            onValidateClick = { onValidateClick(backup) },
-                        )
-                    }
-                }
+@Composable
+private fun AdminBackupReadyContent(
+    state: AdminBackupUiState.Ready,
+    absImports: List<ABSImportSummary>,
+    isLoadingImports: Boolean,
+    modifier: Modifier = Modifier,
+    onRestoreClick: (String) -> Unit,
+    onDeleteClick: (BackupInfo) -> Unit,
+    onValidateClick: (BackupInfo) -> Unit,
+    onABSImportClick: (String) -> Unit,
+    onDeleteImportClick: (ABSImportSummary) -> Unit,
+    onUploadABSBackup: () -> Unit,
+) {
+    if (state.backups.isEmpty() && absImports.isEmpty()) {
+        EmptyBackupState(
+            modifier = modifier,
+            onUploadABSBackup = onUploadABSBackup,
+        )
+        return
+    }
 
-                // ABS Imports section
-                item(key = "abs_header") {
-                    if (backupState.backups.isNotEmpty()) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    }
-                    SectionHeader(title = "Audiobookshelf Imports")
-                }
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // Backups section
+        if (state.backups.isNotEmpty()) {
+            item(key = "backups_header") {
+                SectionHeader(title = "Backups")
+            }
+            items(state.backups, key = { "backup_${it.id}" }) { backup ->
+                BackupCard(
+                    backup = backup,
+                    isValidating = state.validatingBackupId == backup.id,
+                    onRestoreClick = { onRestoreClick(backup.id) },
+                    onDeleteClick = { onDeleteClick(backup) },
+                    onValidateClick = { onValidateClick(backup) },
+                )
+            }
+        }
 
-                // Upload new import card
-                item(key = "upload_new") {
-                    UploadABSBackupCard(onClick = onUploadABSBackup)
-                }
+        // ABS Imports section
+        item(key = "abs_header") {
+            if (state.backups.isNotEmpty()) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            }
+            SectionHeader(title = "Audiobookshelf Imports")
+        }
 
-                // Existing imports
-                if (isLoadingImports) {
-                    item(key = "loading_imports") {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            ListenUpLoadingIndicatorSmall()
-                        }
-                    }
-                } else {
-                    items(absImports, key = { "import_${it.id}" }) { import ->
-                        ABSImportSummaryCard(
-                            import = import,
-                            onClick = { onABSImportClick(import.id) },
-                            onDeleteClick = { onDeleteImportClick(import) },
-                        )
-                    }
+        // Upload new import card
+        item(key = "upload_new") {
+            UploadABSBackupCard(onClick = onUploadABSBackup)
+        }
+
+        // Existing imports
+        if (isLoadingImports) {
+            item(key = "loading_imports") {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    ListenUpLoadingIndicatorSmall()
                 }
+            }
+        } else {
+            items(absImports, key = { "import_${it.id}" }) { import ->
+                ABSImportSummaryCard(
+                    import = import,
+                    onClick = { onABSImportClick(import.id) },
+                    onDeleteClick = { onDeleteImportClick(import) },
+                )
             }
         }
     }

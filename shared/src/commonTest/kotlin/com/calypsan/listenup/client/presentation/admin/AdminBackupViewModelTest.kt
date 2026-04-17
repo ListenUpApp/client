@@ -3,7 +3,6 @@ package com.calypsan.listenup.client.presentation.admin
 import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.model.BackupResponse
 import com.calypsan.listenup.client.data.remote.model.ValidationResponse
-import com.calypsan.listenup.client.domain.model.BackupInfo
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.sequentiallyReturns
 import dev.mokkery.answering.throws
@@ -18,12 +17,12 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlin.time.Instant
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -91,25 +90,20 @@ class AdminBackupViewModelTest {
     // ========== Initial State ==========
 
     @Test
-    fun `initial state is loading`() =
+    fun `initial state is Loading`() =
         runTest {
             val api: BackupApiContract = mock()
             everySuspend { api.listBackups() } returns emptyList()
 
             val viewModel = AdminBackupViewModel(api)
 
-            assertTrue(viewModel.state.value.isLoading)
-            assertTrue(
-                viewModel.state.value.backups
-                    .isEmpty(),
-            )
-            assertNull(viewModel.state.value.error)
+            assertIs<AdminBackupUiState.Loading>(viewModel.state.value)
         }
 
     // ========== Load Backups ==========
 
     @Test
-    fun `loadBackups fetches and displays backups sorted by date`() =
+    fun `loadBackups transitions to Ready with backups sorted by date`() =
         runTest {
             val api: BackupApiContract = mock()
             val backups =
@@ -123,24 +117,12 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertEquals(3, viewModel.state.value.backups.size)
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(3, ready.backups.size)
             // Should be sorted newest first
-            assertEquals(
-                "newer",
-                viewModel.state.value.backups[0]
-                    .id,
-            )
-            assertEquals(
-                "middle",
-                viewModel.state.value.backups[1]
-                    .id,
-            )
-            assertEquals(
-                "older",
-                viewModel.state.value.backups[2]
-                    .id,
-            )
+            assertEquals("newer", ready.backups[0].id)
+            assertEquals("middle", ready.backups[1].id)
+            assertEquals("older", ready.backups[2].id)
         }
 
     @Test
@@ -152,16 +134,13 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertTrue(
-                viewModel.state.value.backups
-                    .isEmpty(),
-            )
-            assertNull(viewModel.state.value.error)
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertTrue(ready.backups.isEmpty())
+            assertNull(ready.error)
         }
 
     @Test
-    fun `loadBackups handles network error`() =
+    fun `loadBackups initial failure transitions to Error`() =
         runTest {
             val api: BackupApiContract = mock()
             everySuspend { api.listBackups() } throws RuntimeException("Network error")
@@ -169,12 +148,8 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertNotNull(viewModel.state.value.error)
-            assertTrue(
-                viewModel.state.value.error!!
-                    .contains("Network error"),
-            )
+            val error = assertIs<AdminBackupUiState.Error>(viewModel.state.value)
+            assertTrue(error.message.contains("Network error"))
         }
 
     @Test
@@ -192,12 +167,9 @@ class AdminBackupViewModelTest {
             advanceUntilIdle()
 
             // Should not crash, invalid date should use DISTANT_PAST
-            assertEquals(2, viewModel.state.value.backups.size)
-            assertEquals(
-                "valid",
-                viewModel.state.value.backups[0]
-                    .id,
-            )
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(2, ready.backups.size)
+            assertEquals("valid", ready.backups[0].id)
         }
 
     // ========== Create Backup ==========
@@ -217,7 +189,8 @@ class AdminBackupViewModelTest {
             advanceUntilIdle()
 
             // After completion, isCreating should be false
-            assertFalse(viewModel.state.value.isCreating)
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isCreating)
             verifySuspend { api.createBackup(includeImages = false, includeEvents = true) }
         }
 
@@ -271,21 +244,15 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            assertEquals(
-                "initial-backup",
-                viewModel.state.value.backups[0]
-                    .id,
-            )
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertEquals("initial-backup", initialReady.backups[0].id)
 
             viewModel.createBackup(includeImages = false, includeEvents = true)
             advanceUntilIdle()
 
             // List should have been reloaded (now shows reloaded-backup)
-            assertEquals(
-                "reloaded-backup",
-                viewModel.state.value.backups[0]
-                    .id,
-            )
+            val reloadedReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertEquals("reloaded-backup", reloadedReady.backups[0].id)
             // Verify listBackups was called twice
             verifySuspend(VerifyMode.exactly(2)) { api.listBackups() }
         }
@@ -304,12 +271,10 @@ class AdminBackupViewModelTest {
             viewModel.createBackup(includeImages = false, includeEvents = true)
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isCreating)
-            assertNotNull(viewModel.state.value.error)
-            assertTrue(
-                viewModel.state.value.error!!
-                    .contains("Disk full"),
-            )
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isCreating)
+            val error = assertNotNull(ready.error)
+            assertTrue(error.contains("Disk full"))
         }
 
     // ========== Delete Backup ==========
@@ -324,14 +289,12 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            val backupInfo = viewModel.state.value.backups[0]
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            val backupInfo = initialReady.backups[0]
             viewModel.showDeleteConfirmation(backupInfo)
 
-            assertEquals(
-                backupInfo.id,
-                viewModel.state.value.deleteConfirmBackup
-                    ?.id,
-            )
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(backupInfo.id, ready.deleteConfirmBackup?.id)
         }
 
     @Test
@@ -344,11 +307,14 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            viewModel.showDeleteConfirmation(viewModel.state.value.backups[0])
-            assertNotNull(viewModel.state.value.deleteConfirmBackup)
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            viewModel.showDeleteConfirmation(initialReady.backups[0])
+            val afterShow = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertNotNull(afterShow.deleteConfirmBackup)
 
             viewModel.dismissDeleteConfirmation()
-            assertNull(viewModel.state.value.deleteConfirmBackup)
+            val afterDismiss = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertNull(afterDismiss.deleteConfirmBackup)
         }
 
     @Test
@@ -365,21 +331,17 @@ class AdminBackupViewModelTest {
 
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
-            assertEquals(2, viewModel.state.value.backups.size)
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(2, initialReady.backups.size)
 
-            val toDelete =
-                viewModel.state.value.backups
-                    .first { it.id == "backup-1" }
+            val toDelete = initialReady.backups.first { it.id == "backup-1" }
             viewModel.deleteBackup(toDelete)
             advanceUntilIdle()
 
-            assertEquals(1, viewModel.state.value.backups.size)
-            assertEquals(
-                "backup-2",
-                viewModel.state.value.backups[0]
-                    .id,
-            )
-            assertFalse(viewModel.state.value.isDeleting)
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(1, ready.backups.size)
+            assertEquals("backup-2", ready.backups[0].id)
+            assertFalse(ready.isDeleting)
         }
 
     @Test
@@ -393,14 +355,17 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            val backupInfo = viewModel.state.value.backups[0]
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            val backupInfo = initialReady.backups[0]
             viewModel.showDeleteConfirmation(backupInfo)
-            assertNotNull(viewModel.state.value.deleteConfirmBackup)
+            val afterShow = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertNotNull(afterShow.deleteConfirmBackup)
 
             viewModel.deleteBackup(backupInfo)
             advanceUntilIdle()
 
-            assertNull(viewModel.state.value.deleteConfirmBackup)
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertNull(ready.deleteConfirmBackup)
         }
 
     @Test
@@ -414,17 +379,16 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            viewModel.deleteBackup(viewModel.state.value.backups[0])
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            viewModel.deleteBackup(initialReady.backups[0])
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isDeleting)
-            assertNotNull(viewModel.state.value.error)
-            assertTrue(
-                viewModel.state.value.error!!
-                    .contains("File in use"),
-            )
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isDeleting)
+            val error = assertNotNull(ready.error)
+            assertTrue(error.contains("File in use"))
             // Backup should still be in list
-            assertEquals(1, viewModel.state.value.backups.size)
+            assertEquals(1, ready.backups.size)
         }
 
     // ========== Validate Backup ==========
@@ -440,13 +404,15 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            viewModel.validateBackup(viewModel.state.value.backups[0])
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            viewModel.validateBackup(initialReady.backups[0])
             advanceUntilIdle()
 
             // After completion, validatingBackupId should be cleared
-            assertNull(viewModel.state.value.validatingBackupId)
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertNull(ready.validatingBackupId)
             // And we should have a validation result
-            assertNotNull(viewModel.state.value.validationResult)
+            assertNotNull(ready.validationResult)
         }
 
     @Test
@@ -467,10 +433,12 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            viewModel.validateBackup(viewModel.state.value.backups[0])
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            viewModel.validateBackup(initialReady.backups[0])
             advanceUntilIdle()
 
-            val result = viewModel.state.value.validationResult
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            val result = ready.validationResult
             assertNotNull(result)
             assertTrue(result.valid)
             assertEquals("1.0", result.version)
@@ -494,10 +462,12 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            viewModel.validateBackup(viewModel.state.value.backups[0])
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            viewModel.validateBackup(initialReady.backups[0])
             advanceUntilIdle()
 
-            val result = viewModel.state.value.validationResult
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            val result = ready.validationResult
             assertNotNull(result)
             assertFalse(result.valid)
             assertEquals(2, result.errors.size)
@@ -520,10 +490,12 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            viewModel.validateBackup(viewModel.state.value.backups[0])
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            viewModel.validateBackup(initialReady.backups[0])
             advanceUntilIdle()
 
-            val result = viewModel.state.value.validationResult
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            val result = ready.validationResult
             assertNotNull(result)
             assertTrue(result.valid)
             assertEquals(1, result.warnings.size)
@@ -540,16 +512,15 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            viewModel.validateBackup(viewModel.state.value.backups[0])
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            viewModel.validateBackup(initialReady.backups[0])
             advanceUntilIdle()
 
-            assertNull(viewModel.state.value.validatingBackupId)
-            assertNull(viewModel.state.value.validationResult)
-            assertNotNull(viewModel.state.value.error)
-            assertTrue(
-                viewModel.state.value.error!!
-                    .contains("Connection timeout"),
-            )
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertNull(ready.validatingBackupId)
+            assertNull(ready.validationResult)
+            val error = assertNotNull(ready.error)
+            assertTrue(error.contains("Connection timeout"))
         }
 
     @Test
@@ -563,28 +534,32 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            viewModel.validateBackup(viewModel.state.value.backups[0])
+            val initialReady = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            viewModel.validateBackup(initialReady.backups[0])
             advanceUntilIdle()
-            assertNotNull(viewModel.state.value.validationResult)
+            val afterValidate = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertNotNull(afterValidate.validationResult)
 
             viewModel.dismissValidation()
-            assertNull(viewModel.state.value.validationResult)
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertNull(ready.validationResult)
         }
 
     // ========== Error Handling ==========
 
     @Test
-    fun `clearError clears error state`() =
+    fun `clearError noops in Error state`() =
         runTest {
             val api: BackupApiContract = mock()
             everySuspend { api.listBackups() } throws RuntimeException("Error")
 
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
-            assertNotNull(viewModel.state.value.error)
+            // Initial failure lands in terminal Error; clearError is a no-op there.
+            assertIs<AdminBackupUiState.Error>(viewModel.state.value)
 
             viewModel.clearError()
-            assertNull(viewModel.state.value.error)
+            assertIs<AdminBackupUiState.Error>(viewModel.state.value)
         }
 
     // ========== Edge Cases ==========
@@ -599,11 +574,9 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            assertEquals(1, viewModel.state.value.backups.size)
-            assertNull(
-                viewModel.state.value.backups[0]
-                    .checksum,
-            )
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            assertEquals(1, ready.backups.size)
+            assertNull(ready.backups[0].checksum)
         }
 
     @Test
@@ -616,7 +589,8 @@ class AdminBackupViewModelTest {
             val viewModel = AdminBackupViewModel(api)
             advanceUntilIdle()
 
-            val backupInfo = viewModel.state.value.backups[0]
+            val ready = assertIs<AdminBackupUiState.Ready>(viewModel.state.value)
+            val backupInfo = ready.backups[0]
             assertTrue(backupInfo.sizeFormatted.contains("GB"))
         }
 }

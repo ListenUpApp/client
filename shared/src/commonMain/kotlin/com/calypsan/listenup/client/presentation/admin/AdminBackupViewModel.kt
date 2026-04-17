@@ -1,5 +1,3 @@
-@file:Suppress("SwallowedException")
-
 package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
@@ -19,17 +17,34 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * UI state for the backup list screen.
+ *
+ * Sealed hierarchy:
+ * - [Loading] before the first `listBackups()` emission.
+ * - [Ready] once the backup list has loaded; carries backups, action overlays
+ *   (`isCreating`, `isDeleting`, `validatingBackupId`), dialog state
+ *   (`deleteConfirmBackup`, `validationResult`), and a transient `error` for
+ *   mutation failures surfaced as a snackbar.
+ * - [Error] terminal state when the initial load (or a retry from [Error])
+ *   fails. Refresh failures after we've reached [Ready] surface via the
+ *   transient `error` field on [Ready] instead.
  */
-data class AdminBackupState(
-    val backups: List<BackupInfo> = emptyList(),
-    val isLoading: Boolean = true,
-    val isCreating: Boolean = false,
-    val isDeleting: Boolean = false,
-    val error: String? = null,
-    val deleteConfirmBackup: BackupInfo? = null,
-    val validationResult: BackupValidation? = null,
-    val validatingBackupId: String? = null,
-)
+sealed interface AdminBackupUiState {
+    data object Loading : AdminBackupUiState
+
+    data class Ready(
+        val backups: List<BackupInfo> = emptyList(),
+        val isCreating: Boolean = false,
+        val isDeleting: Boolean = false,
+        val error: String? = null,
+        val deleteConfirmBackup: BackupInfo? = null,
+        val validationResult: BackupValidation? = null,
+        val validatingBackupId: String? = null,
+    ) : AdminBackupUiState
+
+    data class Error(
+        val message: String,
+    ) : AdminBackupUiState
+}
 
 /**
  * ViewModel for managing backups.
@@ -37,8 +52,8 @@ data class AdminBackupState(
 class AdminBackupViewModel(
     private val backupApi: BackupApiContract,
 ) : ViewModel() {
-    val state: StateFlow<AdminBackupState>
-        field = MutableStateFlow(AdminBackupState())
+    val state: StateFlow<AdminBackupUiState>
+        field = MutableStateFlow<AdminBackupUiState>(AdminBackupUiState.Loading)
 
     init {
         loadBackups()
@@ -46,29 +61,35 @@ class AdminBackupViewModel(
 
     fun loadBackups() {
         viewModelScope.launch {
-            state.update { it.copy(isLoading = true, error = null) }
-
             try {
                 val backups = backupApi.listBackups()
-                state.update {
-                    it.copy(
-                        backups =
-                            backups
-                                .map { b -> b.toDomain() }
-                                .sortedByDescending { b -> b.createdAt },
-                        isLoading = false,
-                    )
+                val sorted =
+                    backups
+                        .map { b -> b.toDomain() }
+                        .sortedByDescending { b -> b.createdAt }
+                state.update { current ->
+                    if (current is AdminBackupUiState.Ready) {
+                        current.copy(backups = sorted, error = null)
+                    } else {
+                        // First emission (from Loading) or recovering from Error:
+                        // transition to Ready with fresh data and default UI fields.
+                        AdminBackupUiState.Ready(backups = sorted)
+                    }
                 }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to load backups" }
-                state.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "Failed to load backups: ${e.message}",
-                    )
+                state.update { current ->
+                    if (current is AdminBackupUiState.Ready) {
+                        // Transient refresh failure once already loaded: keep
+                        // backups and surface error to the snackbar.
+                        current.copy(error = "Failed to load backups: ${e.message}")
+                    } else {
+                        // Initial load (or post-Error retry) failed: terminal Error state.
+                        AdminBackupUiState.Error("Failed to load backups: ${e.message}")
+                    }
                 }
             }
         }
@@ -79,7 +100,7 @@ class AdminBackupViewModel(
         includeEvents: Boolean,
     ) {
         viewModelScope.launch {
-            state.update { it.copy(isCreating = true, error = null) }
+            updateReady { it.copy(isCreating = true, error = null) }
 
             try {
                 backupApi.createBackup(
@@ -88,13 +109,13 @@ class AdminBackupViewModel(
                 )
                 // Reload list to show new backup
                 loadBackups()
-                state.update { it.copy(isCreating = false) }
+                updateReady { it.copy(isCreating = false) }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to create backup" }
-                state.update {
+                updateReady {
                     it.copy(
                         isCreating = false,
                         error = "Failed to create backup: ${e.message}",
@@ -105,22 +126,22 @@ class AdminBackupViewModel(
     }
 
     fun showDeleteConfirmation(backup: BackupInfo) {
-        state.update { it.copy(deleteConfirmBackup = backup) }
+        updateReady { it.copy(deleteConfirmBackup = backup) }
     }
 
     fun dismissDeleteConfirmation() {
-        state.update { it.copy(deleteConfirmBackup = null) }
+        updateReady { it.copy(deleteConfirmBackup = null) }
     }
 
     fun deleteBackup(backup: BackupInfo) {
         viewModelScope.launch {
-            state.update { it.copy(isDeleting = true, deleteConfirmBackup = null) }
+            updateReady { it.copy(isDeleting = true, deleteConfirmBackup = null) }
 
             try {
                 backupApi.deleteBackup(backup.id)
-                state.update {
-                    it.copy(
-                        backups = it.backups.filter { b -> b.id != backup.id },
+                updateReady { ready ->
+                    ready.copy(
+                        backups = ready.backups.filter { b -> b.id != backup.id },
                         isDeleting = false,
                     )
                 }
@@ -129,7 +150,7 @@ class AdminBackupViewModel(
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to delete backup" }
-                state.update {
+                updateReady {
                     it.copy(
                         isDeleting = false,
                         error = "Failed to delete backup: ${e.message}",
@@ -141,11 +162,11 @@ class AdminBackupViewModel(
 
     fun validateBackup(backup: BackupInfo) {
         viewModelScope.launch {
-            state.update { it.copy(validatingBackupId = backup.id) }
+            updateReady { it.copy(validatingBackupId = backup.id) }
 
             try {
                 val result = backupApi.validateBackup(backup.id)
-                state.update {
+                updateReady {
                     it.copy(
                         validatingBackupId = null,
                         validationResult =
@@ -164,7 +185,7 @@ class AdminBackupViewModel(
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to validate backup" }
-                state.update {
+                updateReady {
                     it.copy(
                         validatingBackupId = null,
                         error = "Failed to validate backup: ${e.message}",
@@ -175,11 +196,21 @@ class AdminBackupViewModel(
     }
 
     fun dismissValidation() {
-        state.update { it.copy(validationResult = null) }
+        updateReady { it.copy(validationResult = null) }
     }
 
     fun clearError() {
-        state.update { it.copy(error = null) }
+        updateReady { it.copy(error = null) }
+    }
+
+    /**
+     * Apply [transform] to state only if it is currently [AdminBackupUiState.Ready].
+     * No-ops when state is [AdminBackupUiState.Loading] or [AdminBackupUiState.Error].
+     */
+    private fun updateReady(transform: (AdminBackupUiState.Ready) -> AdminBackupUiState.Ready) {
+        state.update { current ->
+            if (current is AdminBackupUiState.Ready) transform(current) else current
+        }
     }
 
     private fun com.calypsan.listenup.client.data.remote.model.BackupResponse.toDomain() =
