@@ -1,5 +1,3 @@
-@file:Suppress("UseIfInsteadOfWhen")
-
 package com.calypsan.listenup.client.features.discover.components
 
 import androidx.compose.foundation.clickable
@@ -24,7 +22,6 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,14 +36,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.ProfileAvatar
+import com.calypsan.listenup.client.presentation.discover.ActivityFeedUiState
 import com.calypsan.listenup.client.presentation.discover.ActivityFeedViewModel
 import com.calypsan.listenup.client.presentation.discover.ActivityUiModel
-import org.koin.compose.viewmodel.koinViewModel
-import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.discover_activity_feed
 import listenup.composeapp.generated.resources.discover_no_activity_yet_start_listening
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Activity Feed section for the Discover screen.
@@ -97,8 +96,8 @@ fun ActivityFeedSection(
                 fontWeight = FontWeight.SemiBold,
             )
 
-            when {
-                state.isLoading -> {
+            when (val s = state) {
+                is ActivityFeedUiState.Loading -> {
                     Box(
                         modifier =
                             Modifier
@@ -110,25 +109,33 @@ fun ActivityFeedSection(
                     }
                 }
 
-                state.isEmpty -> {
+                is ActivityFeedUiState.Error -> {
                     Text(
-                        text = stringResource(Res.string.discover_no_activity_yet_start_listening),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = s.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
 
-                state.hasData -> {
-                    // Show activities (limited to 5 in the section)
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        state.activities.take(5).forEach { activity ->
-                            ActivityItem(
-                                activity = activity,
-                                onBookClick = onBookClick,
-                                onShelfClick = onShelfClick,
-                            )
+                is ActivityFeedUiState.Ready -> {
+                    if (s.isEmpty) {
+                        Text(
+                            text = stringResource(Res.string.discover_no_activity_yet_start_listening),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        // Show activities (limited to 5 in the section)
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            s.activities.take(5).forEach { activity ->
+                                ActivityItem(
+                                    activity = activity,
+                                    onBookClick = onBookClick,
+                                    onShelfClick = onShelfClick,
+                                )
+                            }
                         }
                     }
                 }

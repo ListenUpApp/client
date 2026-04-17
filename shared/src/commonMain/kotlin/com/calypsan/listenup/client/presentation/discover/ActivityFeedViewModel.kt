@@ -8,11 +8,15 @@ import com.calypsan.listenup.client.domain.usecase.activity.FetchActivitiesUseCa
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
+
+private const val SUBSCRIPTION_TIMEOUT_MS = 5_000L
 
 /** Number of activities to fetch on initial load */
 private const val INITIAL_FETCH_SIZE = 50
@@ -48,15 +52,17 @@ class ActivityFeedViewModel(
     val state: StateFlow<ActivityFeedUiState> =
         activityRepository
             .observeRecent(limit = MAX_ACTIVITIES)
-            .map { activities ->
-                ActivityFeedUiState(
-                    isLoading = false,
-                    activities = activities.map { it.toUiModel() },
-                )
+            .map<_, ActivityFeedUiState> { activities ->
+                ActivityFeedUiState.Ready(activities = activities.map { it.toUiModel() })
+            }.onStart { emit(ActivityFeedUiState.Loading) }
+            .catch { e ->
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                logger.error(e) { "Error observing activity feed" }
+                emit(ActivityFeedUiState.Error("Failed to load activity feed"))
             }.stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = ActivityFeedUiState(isLoading = true),
+                started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+                initialValue = ActivityFeedUiState.Loading,
             )
 
     /**
@@ -140,22 +146,30 @@ data class ActivityUiModel(
 
 /**
  * UI state for the activity feed section.
- * Data comes from Room - no network errors possible after initial fetch.
+ *
+ * Sealed hierarchy: `Loading` → first `observeRecent()` emission flips to
+ * `Ready`; upstream failures emit `Error`. Data comes from Room so errors are
+ * rare but still surfaced rather than silently swallowed.
  */
-data class ActivityFeedUiState(
-    val isLoading: Boolean = true,
-    val isLoadingMore: Boolean = false,
-    val activities: List<ActivityUiModel> = emptyList(),
-) {
-    /**
-     * Whether there is data to display.
-     */
-    val hasData: Boolean
-        get() = activities.isNotEmpty()
+sealed interface ActivityFeedUiState {
+    /** Pre-first-emission placeholder. */
+    data object Loading : ActivityFeedUiState
 
-    /**
-     * Whether the feed is empty (after loading).
-     */
-    val isEmpty: Boolean
-        get() = !isLoading && activities.isEmpty()
+    /** Activities loaded from Room. */
+    data class Ready(
+        val activities: List<ActivityUiModel>,
+    ) : ActivityFeedUiState {
+        /** Whether there is data to display. */
+        val hasData: Boolean
+            get() = activities.isNotEmpty()
+
+        /** Whether the feed is empty. */
+        val isEmpty: Boolean
+            get() = activities.isEmpty()
+    }
+
+    /** Upstream failure — section renders the message in error styling. */
+    data class Error(
+        val message: String,
+    ) : ActivityFeedUiState
 }
