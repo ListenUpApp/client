@@ -3,6 +3,7 @@
 package com.calypsan.listenup.client.features.admin
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -52,6 +54,7 @@ import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.presentation.admin.CreateInviteErrorType
 import com.calypsan.listenup.client.presentation.admin.CreateInviteField
 import com.calypsan.listenup.client.presentation.admin.CreateInviteStatus
+import com.calypsan.listenup.client.presentation.admin.CreateInviteUiState
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -91,18 +94,19 @@ fun CreateInviteScreen(
     val scope = rememberCoroutineScope()
     val copyToClipboard = rememberCopyToClipboard()
 
-    // Handle success - show link and allow copy
-    LaunchedEffect(state.status) {
-        when (val status = state.status) {
+    // Handle success - show link and allow copy; surface non-validation errors in snackbar.
+    val readyStatus = (state as? CreateInviteUiState.Ready)?.status
+    LaunchedEffect(readyStatus) {
+        when (readyStatus) {
             is CreateInviteStatus.Success -> {
                 // Auto-copy the link
-                copyToClipboard(status.invite.url)
+                copyToClipboard(readyStatus.invite.url)
                 snackbarHostState.showSnackbar("Invite created! Link copied to clipboard.")
             }
 
             is CreateInviteStatus.Error -> {
                 val message =
-                    when (val type = status.type) {
+                    when (val type = readyStatus.type) {
                         is CreateInviteErrorType.ValidationError -> null
                         is CreateInviteErrorType.EmailInUse -> "A user with this email already exists"
                         is CreateInviteErrorType.NetworkError -> type.detail ?: "Network error"
@@ -132,31 +136,57 @@ fun CreateInviteScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        when (val status = state.status) {
-            is CreateInviteStatus.Success -> {
-                SuccessContent(
-                    inviteUrl = status.invite.url,
-                    inviteName = status.invite.name,
-                    onCopyClick = {
-                        scope.launch {
-                            copyToClipboard(status.invite.url)
-                            snackbarHostState.showSnackbar("Link copied!")
-                        }
-                    },
-                    onCreateAnother = {
-                        viewModel.reset()
-                    },
-                    onDone = onSuccess,
-                    modifier = Modifier.padding(innerPadding),
-                )
+        when (val s = state) {
+            is CreateInviteUiState.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
             }
 
-            else -> {
-                CreateInviteForm(
-                    state = state,
-                    onSubmit = viewModel::createInvite,
-                    modifier = Modifier.padding(innerPadding),
-                )
+            is CreateInviteUiState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = s.message,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+
+            is CreateInviteUiState.Ready -> {
+                when (val status = s.status) {
+                    is CreateInviteStatus.Success -> {
+                        SuccessContent(
+                            inviteUrl = status.invite.url,
+                            inviteName = status.invite.name,
+                            onCopyClick = {
+                                scope.launch {
+                                    copyToClipboard(status.invite.url)
+                                    snackbarHostState.showSnackbar("Link copied!")
+                                }
+                            },
+                            onCreateAnother = {
+                                viewModel.reset()
+                            },
+                            onDone = onSuccess,
+                            modifier = Modifier.padding(innerPadding),
+                        )
+                    }
+
+                    else -> {
+                        CreateInviteForm(
+                            status = status,
+                            onSubmit = viewModel::createInvite,
+                            modifier = Modifier.padding(innerPadding),
+                        )
+                    }
+                }
             }
         }
     }
@@ -165,7 +195,7 @@ fun CreateInviteScreen(
 @Suppress("LongMethod")
 @Composable
 private fun CreateInviteForm(
-    state: com.calypsan.listenup.client.presentation.admin.CreateInviteUiState,
+    status: CreateInviteStatus,
     onSubmit: (String, String, String, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -175,7 +205,12 @@ private fun CreateInviteForm(
     var expiresInDays by remember { mutableIntStateOf(7) }
 
     val focusManager = LocalFocusManager.current
-    val isSubmitting = state.status is CreateInviteStatus.Submitting
+    val isSubmitting = status is CreateInviteStatus.Submitting
+    val validationField =
+        (status as? CreateInviteStatus.Error)
+            ?.type
+            ?.let { it as? CreateInviteErrorType.ValidationError }
+            ?.field
 
     Column(
         modifier =
@@ -197,17 +232,9 @@ private fun CreateInviteForm(
             onValueChange = { name = it },
             label = "Name",
             enabled = !isSubmitting,
-            isError =
-                state.status is CreateInviteStatus.Error &&
-                    (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
-                    ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field ==
-                    CreateInviteField.NAME,
+            isError = validationField == CreateInviteField.NAME,
             supportingText =
-                if (state.status is CreateInviteStatus.Error &&
-                    (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
-                    ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field ==
-                    CreateInviteField.NAME
-                ) {
+                if (validationField == CreateInviteField.NAME) {
                     "Name is required"
                 } else {
                     "The person's display name"
@@ -229,17 +256,9 @@ private fun CreateInviteForm(
             onValueChange = { email = it },
             label = "Email",
             enabled = !isSubmitting,
-            isError =
-                state.status is CreateInviteStatus.Error &&
-                    (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
-                    ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field ==
-                    CreateInviteField.EMAIL,
+            isError = validationField == CreateInviteField.EMAIL,
             supportingText =
-                if (state.status is CreateInviteStatus.Error &&
-                    (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
-                    ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field ==
-                    CreateInviteField.EMAIL
-                ) {
+                if (validationField == CreateInviteField.EMAIL) {
                     "Valid email is required"
                 } else {
                     "Their email address for login"

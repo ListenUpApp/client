@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.domain.model.InviteInfo
 import com.calypsan.listenup.client.domain.usecase.admin.CreateInviteUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -19,7 +20,7 @@ class CreateInviteViewModel(
     private val createInviteUseCase: CreateInviteUseCase,
 ) : ViewModel() {
     val state: StateFlow<CreateInviteUiState>
-        field = MutableStateFlow(CreateInviteUiState())
+        field = MutableStateFlow<CreateInviteUiState>(CreateInviteUiState.Ready())
 
     fun createInvite(
         name: String,
@@ -28,14 +29,11 @@ class CreateInviteViewModel(
         expiresInDays: Int,
     ) {
         viewModelScope.launch {
-            state.value = state.value.copy(status = CreateInviteStatus.Submitting)
+            updateReady { it.copy(status = CreateInviteStatus.Submitting) }
 
             when (val result = createInviteUseCase(name, email, role, expiresInDays)) {
                 is Success -> {
-                    state.value =
-                        state.value.copy(
-                            status = CreateInviteStatus.Success(result.data),
-                        )
+                    updateReady { it.copy(status = CreateInviteStatus.Success(result.data)) }
                 }
 
                 is Failure -> {
@@ -63,29 +61,57 @@ class CreateInviteViewModel(
                                 CreateInviteErrorType.ServerError(result.message)
                             }
                         }
-                    state.value =
-                        state.value.copy(
-                            status = CreateInviteStatus.Error(errorType),
-                        )
+                    updateReady { it.copy(status = CreateInviteStatus.Error(errorType)) }
                 }
             }
         }
     }
 
     fun clearError() {
-        if (state.value.status is CreateInviteStatus.Error) {
-            state.value = state.value.copy(status = CreateInviteStatus.Idle)
+        val ready = state.value as? CreateInviteUiState.Ready ?: return
+        if (ready.status is CreateInviteStatus.Error) {
+            updateReady { it.copy(status = CreateInviteStatus.Idle) }
         }
     }
 
     fun reset() {
-        state.value = CreateInviteUiState()
+        state.value = CreateInviteUiState.Ready()
+    }
+
+    /**
+     * Apply [transform] to state only if it is currently [CreateInviteUiState.Ready].
+     * No-ops when state is [CreateInviteUiState.Loading] or [CreateInviteUiState.Error].
+     */
+    private fun updateReady(transform: (CreateInviteUiState.Ready) -> CreateInviteUiState.Ready) {
+        state.update { current ->
+            if (current is CreateInviteUiState.Ready) transform(current) else current
+        }
     }
 }
 
-data class CreateInviteUiState(
-    val status: CreateInviteStatus = CreateInviteStatus.Idle,
-)
+/**
+ * UI state for the Create Invite screen.
+ *
+ * Sealed hierarchy — this VM is a command-driven form with no async initial
+ * load, so it enters [Ready] immediately at construction. [Loading] and
+ * [Error] are present for sealed-hierarchy symmetry with other VMs; form
+ * submission outcomes (including validation errors) flow through
+ * [Ready.status].
+ */
+sealed interface CreateInviteUiState {
+    /** Unused by this VM; present for hierarchy symmetry. */
+    data object Loading : CreateInviteUiState
+
+    /** Form ready for input; [status] tracks submission lifecycle. */
+    data class Ready(
+        val status: CreateInviteStatus = CreateInviteStatus.Idle,
+    ) : CreateInviteUiState
+
+    /** Unused by this VM; present for hierarchy symmetry. */
+    data class Error(
+        val message: String,
+    ) : CreateInviteUiState
+}
 
 sealed interface CreateInviteStatus {
     data object Idle : CreateInviteStatus

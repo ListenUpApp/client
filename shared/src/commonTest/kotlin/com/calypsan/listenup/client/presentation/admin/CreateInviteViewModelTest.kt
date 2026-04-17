@@ -55,7 +55,8 @@ class CreateInviteViewModelTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
-            checkIs<CreateInviteStatus.Idle>(viewModel.state.value.status)
+            val ready = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            checkIs<CreateInviteStatus.Idle>(ready.status)
         }
 
     @Test
@@ -69,7 +70,8 @@ class CreateInviteViewModelTest {
             viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)
             advanceUntilIdle()
 
-            val status = assertIs<CreateInviteStatus.Error>(viewModel.state.value.status)
+            val ready = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            val status = assertIs<CreateInviteStatus.Error>(ready.status)
             val errorType = assertIs<CreateInviteErrorType.ValidationError>(status.type)
             assertEquals(CreateInviteField.NAME, errorType.field)
         }
@@ -85,7 +87,8 @@ class CreateInviteViewModelTest {
             viewModel.createInvite(name = "Test User", email = "invalid-email", role = "user", expiresInDays = 7)
             advanceUntilIdle()
 
-            val status = assertIs<CreateInviteStatus.Error>(viewModel.state.value.status)
+            val ready = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            val status = assertIs<CreateInviteStatus.Error>(ready.status)
             val errorType = assertIs<CreateInviteErrorType.ValidationError>(status.type)
             assertEquals(CreateInviteField.EMAIL, errorType.field)
         }
@@ -101,7 +104,8 @@ class CreateInviteViewModelTest {
             viewModel.createInvite(name = "New User", email = "new@example.com", role = "user", expiresInDays = 7)
             advanceUntilIdle()
 
-            val status = assertIs<CreateInviteStatus.Success>(viewModel.state.value.status)
+            val ready = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            val status = assertIs<CreateInviteStatus.Success>(ready.status)
             assertEquals(invite.id, status.invite.id)
         }
 
@@ -116,7 +120,8 @@ class CreateInviteViewModelTest {
             viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
             advanceUntilIdle()
 
-            val status = assertIs<CreateInviteStatus.Error>(viewModel.state.value.status)
+            val ready = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            val status = assertIs<CreateInviteStatus.Error>(ready.status)
             checkIs<CreateInviteErrorType.EmailInUse>(status.type)
         }
 
@@ -131,7 +136,8 @@ class CreateInviteViewModelTest {
             viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
             advanceUntilIdle()
 
-            val status = assertIs<CreateInviteStatus.Error>(viewModel.state.value.status)
+            val ready = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            val status = assertIs<CreateInviteStatus.Error>(ready.status)
             checkIs<CreateInviteErrorType.NetworkError>(status.type)
         }
 
@@ -145,11 +151,13 @@ class CreateInviteViewModelTest {
 
             viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)
             advanceUntilIdle()
-            checkIs<CreateInviteStatus.Error>(viewModel.state.value.status)
+            val readyAfterError = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            checkIs<CreateInviteStatus.Error>(readyAfterError.status)
 
             viewModel.clearError()
 
-            checkIs<CreateInviteStatus.Idle>(viewModel.state.value.status)
+            val readyAfterClear = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            checkIs<CreateInviteStatus.Idle>(readyAfterClear.status)
         }
 
     @Test
@@ -161,10 +169,12 @@ class CreateInviteViewModelTest {
 
             viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
             advanceUntilIdle()
-            checkIs<CreateInviteStatus.Success>(viewModel.state.value.status)
+            val readyAfterSuccess = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            checkIs<CreateInviteStatus.Success>(readyAfterSuccess.status)
 
             viewModel.reset()
 
-            checkIs<CreateInviteStatus.Idle>(viewModel.state.value.status)
+            val readyAfterReset = assertIs<CreateInviteUiState.Ready>(viewModel.state.value)
+            checkIs<CreateInviteStatus.Idle>(readyAfterReset.status)
         }
 }
