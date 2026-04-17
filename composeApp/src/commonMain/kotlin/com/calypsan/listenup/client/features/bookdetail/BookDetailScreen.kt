@@ -1,5 +1,3 @@
-@file:Suppress("LongMethod")
-
 package com.calypsan.listenup.client.features.bookdetail
 
 import androidx.compose.foundation.background
@@ -465,7 +463,7 @@ fun BookDetailContent(
  * Immersive book detail following audiobook user psychology.
  * Uses color extraction for dynamic, personalized theming.
  */
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "LongMethod")
 @Composable
 private fun ImmersiveBookDetail(
     bookId: String,

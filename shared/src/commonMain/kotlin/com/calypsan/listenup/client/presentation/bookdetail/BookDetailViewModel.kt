@@ -196,13 +196,16 @@ class BookDetailViewModel(
                     null
                 }
 
-            // Trigger reactive observers for genres and tags via flatMapLatest
-            currentBookId.value = bookId
-
             // Seed with latest values from book-independent collectors (isAdmin,
             // allTags). Their emissions may have been no-op'd by updateReady
             // while state was Loading, so we copy the mirrored latest values
             // into the new Ready state.
+            //
+            // IMPORTANT: Assign Ready BEFORE updating currentBookId. Setting
+            // currentBookId triggers the flatMapLatest pipelines for genres
+            // and tags; their collectors call updateReady, which no-ops while
+            // state is still Loading. By writing Ready first we guarantee the
+            // first per-book emissions land on the new Ready state.
             state.value =
                 BookDetailUiState.Ready(
                     book = book,
@@ -222,6 +225,12 @@ class BookDetailViewModel(
                     addedAt = book.addedAt.epochMillis,
                     isLoadingTags = true,
                 )
+
+            // Trigger reactive observers for genres and tags via flatMapLatest.
+            // Must happen AFTER state.value = Ready(...) so the first emissions
+            // of those pipelines write into the Ready state (not get no-op'd
+            // while state is still Loading).
+            currentBookId.value = bookId
         }
     }
 
