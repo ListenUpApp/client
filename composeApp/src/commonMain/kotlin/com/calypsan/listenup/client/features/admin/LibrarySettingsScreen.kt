@@ -1,10 +1,9 @@
-@file:Suppress("MagicNumber")
-
 package com.calypsan.listenup.client.features.admin
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,23 +14,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.RadioButtonChecked
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CardDefaults
-import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -43,37 +38,35 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.domain.model.AccessMode
 import com.calypsan.listenup.client.domain.model.Library
 import com.calypsan.listenup.client.presentation.admin.LibrarySettingsUiState
 import com.calypsan.listenup.client.presentation.admin.LibrarySettingsViewModel
-import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_access_mode
 import listenup.composeapp.generated.resources.admin_add_folder
 import listenup.composeapp.generated.resources.admin_add_this_folder
 import listenup.composeapp.generated.resources.admin_inbox_settings
-import listenup.composeapp.generated.resources.common_entity_information
 import listenup.composeapp.generated.resources.admin_library_name
-import listenup.composeapp.generated.resources.common_not_found
 import listenup.composeapp.generated.resources.admin_new_books_in_this_library
-import listenup.composeapp.generated.resources.common_open
-import listenup.composeapp.generated.resources.common_remove
 import listenup.composeapp.generated.resources.admin_remove_path
 import listenup.composeapp.generated.resources.admin_remove_path_from_library_scan
 import listenup.composeapp.generated.resources.admin_remove_scan_path
 import listenup.composeapp.generated.resources.admin_rescan_library
-import listenup.composeapp.generated.resources.common_restricted
 import listenup.composeapp.generated.resources.admin_scan_all_paths_for_new
 import listenup.composeapp.generated.resources.admin_scan_paths
 import listenup.composeapp.generated.resources.admin_scanning
@@ -82,6 +75,11 @@ import listenup.composeapp.generated.resources.admin_skip_inbox
 import listenup.composeapp.generated.resources.admin_uncollected_books_are_visible_to
 import listenup.composeapp.generated.resources.admin_users_only_see_books_in
 import listenup.composeapp.generated.resources.common_cancel
+import listenup.composeapp.generated.resources.common_entity_information
+import listenup.composeapp.generated.resources.common_open
+import listenup.composeapp.generated.resources.common_remove
+import listenup.composeapp.generated.resources.common_restricted
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Screen for viewing and editing a library's settings.
@@ -101,19 +99,26 @@ fun LibrarySettingsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Handle errors
-    LaunchedEffect(state.error) {
-        state.error?.let {
+    // Transient mutation-failure error in snackbar (only meaningful in Ready).
+    val readyError = (state as? LibrarySettingsUiState.Ready)?.error
+    LaunchedEffect(readyError) {
+        readyError?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
     }
 
+    val topBarTitle =
+        when (val s = state) {
+            is LibrarySettingsUiState.Ready -> s.library.name
+            is LibrarySettingsUiState.Loading, is LibrarySettingsUiState.Error -> "Library Settings"
+        }
+
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(state.library?.name ?: "Library Settings") },
+                title = { Text(topBarTitle) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
@@ -123,14 +128,33 @@ fun LibrarySettingsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        if (state.isLoading) {
+        LibrarySettingsBody(
+            state = state,
+            innerPadding = innerPadding,
+            viewModel = viewModel,
+        )
+    }
+}
+
+@Composable
+private fun LibrarySettingsBody(
+    state: LibrarySettingsUiState,
+    innerPadding: PaddingValues,
+    viewModel: LibrarySettingsViewModel,
+) {
+    when (state) {
+        is LibrarySettingsUiState.Loading -> {
             FullScreenLoadingIndicator()
-        } else if (state.library == null) {
+        }
+
+        is LibrarySettingsUiState.Error -> {
             ErrorContent(
-                message = stringResource(Res.string.common_not_found, "Library"),
+                message = state.message,
                 modifier = Modifier.padding(innerPadding),
             )
-        } else {
+        }
+
+        is LibrarySettingsUiState.Ready -> {
             LibrarySettingsContent(
                 state = state,
                 onAccessModeChange = viewModel::setAccessMode,
@@ -157,7 +181,7 @@ fun LibrarySettingsScreen(
 
 @Composable
 private fun LibrarySettingsContent(
-    state: LibrarySettingsUiState,
+    state: LibrarySettingsUiState.Ready,
     onAccessModeChange: (AccessMode) -> Unit,
     onToggleSkipInbox: () -> Unit,
     onRemoveScanPath: (String) -> Unit,
@@ -165,7 +189,7 @@ private fun LibrarySettingsContent(
     onTriggerScan: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val library = state.library ?: return
+    val library = state.library
 
     LazyColumn(
         modifier =
@@ -663,7 +687,7 @@ private fun RescanCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FolderBrowserDialog(
-    state: LibrarySettingsUiState,
+    state: LibrarySettingsUiState.Ready,
     onDismiss: () -> Unit,
     onNavigate: (String) -> Unit,
     onNavigateUp: () -> Unit,

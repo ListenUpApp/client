@@ -21,6 +21,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -55,7 +56,7 @@ class LibrarySettingsViewModelTest {
     }
 
     @Test
-    fun `initial state is loading`() =
+    fun `initial state is Loading`() =
         runTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getLibrary("lib-1") } returns createLibrary()
@@ -66,11 +67,11 @@ class LibrarySettingsViewModelTest {
                     adminRepository = adminRepository,
                 )
 
-            assertTrue(viewModel.state.value.isLoading)
+            assertIs<LibrarySettingsUiState.Loading>(viewModel.state.value)
         }
 
     @Test
-    fun `loadLibrary fetches library details`() =
+    fun `loadLibrary transitions to Ready with library details`() =
         runTest {
             val adminRepository: AdminRepository = mock()
             val library = createLibrary(accessMode = AccessMode.RESTRICTED, skipInbox = true)
@@ -83,14 +84,14 @@ class LibrarySettingsViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertEquals(library, viewModel.state.value.library)
-            assertEquals(AccessMode.RESTRICTED, viewModel.state.value.accessMode)
-            assertTrue(viewModel.state.value.skipInbox)
+            val ready = assertIs<LibrarySettingsUiState.Ready>(viewModel.state.value)
+            assertEquals(library, ready.library)
+            assertEquals(AccessMode.RESTRICTED, ready.accessMode)
+            assertTrue(ready.skipInbox)
         }
 
     @Test
-    fun `loadLibrary handles error`() =
+    fun `loadLibrary initial failure transitions to Error`() =
         runTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getLibrary("lib-1") } throws RuntimeException("Network error")
@@ -102,11 +103,8 @@ class LibrarySettingsViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertTrue(
-                viewModel.state.value.error
-                    ?.contains("Network error") == true,
-            )
+            val error = assertIs<LibrarySettingsUiState.Error>(viewModel.state.value)
+            assertTrue(error.message.contains("Network error"))
         }
 
     @Test
@@ -133,7 +131,8 @@ class LibrarySettingsViewModelTest {
             viewModel.setAccessMode(AccessMode.RESTRICTED)
             advanceUntilIdle()
 
-            assertEquals(AccessMode.RESTRICTED, viewModel.state.value.accessMode)
+            val ready = assertIs<LibrarySettingsUiState.Ready>(viewModel.state.value)
+            assertEquals(AccessMode.RESTRICTED, ready.accessMode)
             verifySuspend(VerifyMode.atLeast(1)) {
                 adminRepository.updateLibrary(libraryId = "lib-1", accessMode = AccessMode.RESTRICTED)
             }
@@ -163,7 +162,8 @@ class LibrarySettingsViewModelTest {
             viewModel.toggleSkipInbox()
             advanceUntilIdle()
 
-            assertTrue(viewModel.state.value.skipInbox)
+            val ready = assertIs<LibrarySettingsUiState.Ready>(viewModel.state.value)
+            assertTrue(ready.skipInbox)
             verifySuspend(VerifyMode.atLeast(1)) {
                 adminRepository.updateLibrary(libraryId = "lib-1", skipInbox = true)
             }
@@ -192,19 +192,24 @@ class LibrarySettingsViewModelTest {
             viewModel.setAccessMode(AccessMode.RESTRICTED)
             advanceUntilIdle()
 
-            // Should revert to original state on error
-            assertEquals(AccessMode.OPEN, viewModel.state.value.accessMode)
-            assertTrue(
-                viewModel.state.value.error
-                    ?.contains("Server error") == true,
-            )
+            // Should revert to original state on error; transient refresh failure stays in Ready.
+            val ready = assertIs<LibrarySettingsUiState.Ready>(viewModel.state.value)
+            assertEquals(AccessMode.OPEN, ready.accessMode)
+            assertTrue(ready.error?.contains("Server error") == true)
         }
 
     @Test
-    fun `clearError clears error state`() =
+    fun `clearError clears error on Ready`() =
         runTest {
             val adminRepository: AdminRepository = mock()
-            everySuspend { adminRepository.getLibrary("lib-1") } throws RuntimeException("Error")
+            val library = createLibrary(accessMode = AccessMode.OPEN)
+            everySuspend { adminRepository.getLibrary("lib-1") } returns library
+            everySuspend {
+                adminRepository.updateLibrary(
+                    libraryId = "lib-1",
+                    accessMode = AccessMode.RESTRICTED,
+                )
+            } throws RuntimeException("Server error")
 
             val viewModel =
                 LibrarySettingsViewModel(
@@ -212,10 +217,39 @@ class LibrarySettingsViewModelTest {
                     adminRepository = adminRepository,
                 )
             advanceUntilIdle()
-            assertTrue(viewModel.state.value.error != null)
+
+            // Trigger a transient refresh failure so Ready has a non-null error.
+            viewModel.setAccessMode(AccessMode.RESTRICTED)
+            advanceUntilIdle()
+            val withError = assertIs<LibrarySettingsUiState.Ready>(viewModel.state.value)
+            assertTrue(withError.error != null)
 
             viewModel.clearError()
 
-            assertNull(viewModel.state.value.error)
+            val cleared = assertIs<LibrarySettingsUiState.Ready>(viewModel.state.value)
+            assertNull(cleared.error)
+        }
+
+    @Test
+    fun `setAccessMode is no-op when mode unchanged`() =
+        runTest {
+            val adminRepository: AdminRepository = mock()
+            val library = createLibrary(accessMode = AccessMode.OPEN)
+            everySuspend { adminRepository.getLibrary("lib-1") } returns library
+
+            val viewModel =
+                LibrarySettingsViewModel(
+                    libraryId = "lib-1",
+                    adminRepository = adminRepository,
+                )
+            advanceUntilIdle()
+
+            viewModel.setAccessMode(AccessMode.OPEN)
+            advanceUntilIdle()
+
+            // Still in Ready, still OPEN, no isSaving overlay, no repo call.
+            val ready = assertIs<LibrarySettingsUiState.Ready>(viewModel.state.value)
+            assertEquals(AccessMode.OPEN, ready.accessMode)
+            assertFalse(ready.isSaving)
         }
 }
