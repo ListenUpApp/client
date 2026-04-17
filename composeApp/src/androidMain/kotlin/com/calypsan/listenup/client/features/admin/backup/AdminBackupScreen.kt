@@ -61,6 +61,7 @@ import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSm
 import com.calypsan.listenup.client.domain.model.BackupInfo
 import com.calypsan.listenup.client.domain.model.BackupValidation
 import com.calypsan.listenup.client.presentation.admin.ABSImportHubViewModel
+import com.calypsan.listenup.client.presentation.admin.ABSImportListUiState
 import com.calypsan.listenup.client.presentation.admin.AdminBackupUiState
 import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
@@ -143,10 +144,11 @@ fun AdminBackupScreen(
             }
         },
     ) { paddingValues ->
+        val absListReady = absImportListState as? ABSImportListUiState.Ready
         AdminBackupBody(
             state = backupState,
-            absImports = absImportListState.imports,
-            isLoadingImports = absImportListState.isLoading,
+            absImports = absListReady?.imports ?: emptyList(),
+            isLoadingImports = absImportListState is ABSImportListUiState.Loading,
             modifier = Modifier.padding(paddingValues),
             onRestoreClick = onRestoreClick,
             onDeleteClick = { backupViewModel.showDeleteConfirmation(it) },

@@ -25,6 +25,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -110,18 +111,14 @@ class ABSImportHubViewModelTest {
 
             // Trigger mapBook — in-flight set should be populated synchronously
             vm.mapBook("abs-book-1", "lu-book-1")
-            assertTrue(
-                vm.hubState.value.mappingInFlightBooks
-                    .contains("abs-book-1"),
-            )
+            val inFlight = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertTrue(inFlight.mappingInFlightBooks.contains("abs-book-1"))
 
             advanceUntilIdle()
 
             // After completion, in-flight set should be cleared
-            assertFalse(
-                vm.hubState.value.mappingInFlightBooks
-                    .contains("abs-book-1"),
-            )
+            val after = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertFalse(after.mappingInFlightBooks.contains("abs-book-1"))
         }
 
     @Test
@@ -138,18 +135,14 @@ class ABSImportHubViewModelTest {
             advanceUntilIdle()
 
             vm.mapBook("abs-book-1", "lu-book-1")
-            assertTrue(
-                vm.hubState.value.mappingInFlightBooks
-                    .contains("abs-book-1"),
-            )
+            val inFlight = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertTrue(inFlight.mappingInFlightBooks.contains("abs-book-1"))
 
             advanceUntilIdle()
 
-            assertFalse(
-                vm.hubState.value.mappingInFlightBooks
-                    .contains("abs-book-1"),
-            )
-            assertEquals("Failed to map book", vm.hubState.value.error)
+            val after = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertFalse(after.mappingInFlightBooks.contains("abs-book-1"))
+            assertEquals("Failed to map book", after.error)
         }
 
     // ========== mapUser in-flight state ==========
@@ -168,17 +161,13 @@ class ABSImportHubViewModelTest {
             advanceUntilIdle()
 
             vm.mapUser("abs-user-1", "lu-user-1")
-            assertTrue(
-                vm.hubState.value.mappingInFlightUsers
-                    .contains("abs-user-1"),
-            )
+            val inFlight = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertTrue(inFlight.mappingInFlightUsers.contains("abs-user-1"))
 
             advanceUntilIdle()
 
-            assertFalse(
-                vm.hubState.value.mappingInFlightUsers
-                    .contains("abs-user-1"),
-            )
+            val after = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertFalse(after.mappingInFlightUsers.contains("abs-user-1"))
         }
 
     @Test
@@ -195,18 +184,14 @@ class ABSImportHubViewModelTest {
             advanceUntilIdle()
 
             vm.mapUser("abs-user-1", "lu-user-1")
-            assertTrue(
-                vm.hubState.value.mappingInFlightUsers
-                    .contains("abs-user-1"),
-            )
+            val inFlight = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertTrue(inFlight.mappingInFlightUsers.contains("abs-user-1"))
 
             advanceUntilIdle()
 
-            assertFalse(
-                vm.hubState.value.mappingInFlightUsers
-                    .contains("abs-user-1"),
-            )
-            assertEquals("Failed to map user", vm.hubState.value.error)
+            val after = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertFalse(after.mappingInFlightUsers.contains("abs-user-1"))
+            assertEquals("Failed to map user", after.error)
         }
 
     // ========== openImport polling behavior ==========
@@ -229,11 +214,8 @@ class ABSImportHubViewModelTest {
             // coroutine without advancing virtual time into the infinite polling loop
             testScheduler.runCurrent()
 
-            assertEquals(
-                "analyzing",
-                vm.hubState.value.import
-                    ?.status,
-            )
+            val analyzing = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertEquals("analyzing", analyzing.import.status)
 
             // Re-stub so the next poll returns "active" — polling loop exits naturally
             everySuspend { api.getImport("import-1") } returns Success(completedImport)
@@ -242,10 +224,7 @@ class ABSImportHubViewModelTest {
             testScheduler.advanceTimeBy(3_100)
             testScheduler.runCurrent()
 
-            assertEquals(
-                "active",
-                vm.hubState.value.import
-                    ?.status,
-            )
+            val completed = assertIs<ABSImportHubUiState.Ready>(vm.hubState.value)
+            assertEquals("active", completed.import.status)
         }
 }

@@ -1,5 +1,3 @@
-@file:Suppress("LongMethod", "LongParameterList", "CognitiveComplexMethod")
-
 package com.calypsan.listenup.client.features.admin.backup
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
@@ -79,9 +77,9 @@ import com.calypsan.listenup.client.design.components.AutocompleteResultItem
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.design.components.ListenUpButton
-import com.calypsan.listenup.client.presentation.admin.ABSImportHubState
+import com.calypsan.listenup.client.presentation.admin.ABSImportHubUiState
 import com.calypsan.listenup.client.presentation.admin.ABSImportHubViewModel
-import com.calypsan.listenup.client.presentation.admin.ABSImportListState
+import com.calypsan.listenup.client.presentation.admin.ABSImportListUiState
 import com.calypsan.listenup.client.presentation.admin.ImportHubTab
 import com.calypsan.listenup.client.util.DocumentPickerResult
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
@@ -127,6 +125,8 @@ fun ABSImportListScreen(
             }
         }
 
+    val readyState = state as? ABSImportListUiState.Ready
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -144,18 +144,20 @@ fun ABSImportListScreen(
             )
         },
         floatingActionButton = {
-            ListenUpFab(
-                onClick = { showCreateDialog = true },
-                icon = Icons.Default.Add,
-                contentDescription = "New Import",
-            )
+            if (readyState != null) {
+                ListenUpFab(
+                    onClick = { showCreateDialog = true },
+                    icon = Icons.Default.Add,
+                    contentDescription = "New Import",
+                )
+            }
         },
     ) { paddingValues ->
-        ImportListContent(
+        ImportListBody(
             state = state,
             onImportClick = onImportClick,
             onDeleteClick = { importId ->
-                deleteConfirmImport = state.imports.find { it.id == importId }
+                deleteConfirmImport = readyState?.imports?.find { it.id == importId }
             },
             modifier = Modifier.padding(paddingValues),
         )
@@ -203,28 +205,71 @@ fun ABSImportListScreen(
 }
 
 @Composable
-private fun ImportListContent(
-    state: ABSImportListState,
+private fun ImportListBody(
+    state: ABSImportListUiState,
     onImportClick: (String) -> Unit,
     onDeleteClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    when {
-        state.isLoading -> {
+    when (state) {
+        is ABSImportListUiState.Loading -> {
             FullScreenLoadingIndicator(
                 modifier = modifier,
                 message = "Loading imports...",
             )
         }
 
-        state.isCreating -> {
+        is ABSImportListUiState.Error -> {
+            Column(
+                modifier =
+                    modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        is ABSImportListUiState.Ready -> {
+            ImportListReadyContent(
+                ready = state,
+                onImportClick = onImportClick,
+                onDeleteClick = onDeleteClick,
+                modifier = modifier,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ImportListReadyContent(
+    ready: ABSImportListUiState.Ready,
+    onImportClick: (String) -> Unit,
+    onDeleteClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when {
+        ready.isCreating -> {
             FullScreenLoadingIndicator(
                 modifier = modifier,
                 message = "Creating import...",
             )
         }
 
-        state.imports.isEmpty() -> {
+        ready.imports.isEmpty() -> {
             EmptyImportsContent(modifier = modifier)
         }
 
@@ -234,7 +279,7 @@ private fun ImportListContent(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(state.imports, key = { it.id }) { import ->
+                items(ready.imports, key = { it.id }) { import ->
                     ImportSummaryCard(
                         import = import,
                         onClick = { onImportClick(import.id) },
@@ -243,10 +288,6 @@ private fun ImportListContent(
                 }
             }
         }
-    }
-
-    state.error?.let { error ->
-        // Show error snackbar or toast
     }
 }
 
@@ -604,10 +645,16 @@ fun ABSImportHubDetailScreen(
         viewModel.openImport(importId)
     }
 
+    val topBarTitle =
+        when (val s = state) {
+            is ABSImportHubUiState.Ready -> s.import.name
+            is ABSImportHubUiState.Loading, is ABSImportHubUiState.Error -> "Import Details"
+        }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.import?.name ?: "Import Details") },
+                title = { Text(topBarTitle) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -616,33 +663,26 @@ fun ABSImportHubDetailScreen(
             )
         },
     ) { paddingValues ->
-        if (state.isLoading) {
-            FullScreenLoadingIndicator(
-                modifier = Modifier.padding(paddingValues),
-                message = "Loading import...",
-            )
-        } else if (state.import != null) {
-            ImportHubContent(
-                state = state,
-                onTabChange = viewModel::setActiveTab,
-                onUsersFilterChange = viewModel::setUsersFilter,
-                onActivateUserSearch = viewModel::activateUserSearch,
-                onUserSearchQueryChange = viewModel::updateUserSearchQuery,
-                onMapUser = viewModel::mapUser,
-                onClearUserMapping = viewModel::clearUserMapping,
-                onBooksFilterChange = viewModel::setBooksFilter,
-                onActivateBookSearch = viewModel::activateBookSearch,
-                onBookSearchQueryChange = viewModel::updateBookSearchQuery,
-                onMapBook = viewModel::mapBook,
-                onClearBookMapping = viewModel::clearBookMapping,
-                onSessionsFilterChange = viewModel::setSessionsFilter,
-                onImportSessions = viewModel::importReadySessions,
-                onSkipSession = viewModel::skipSession,
-                onClearImportResult = viewModel::clearImportResult,
-                onCancelImport = { showCancelConfirm = true },
-                modifier = Modifier.padding(paddingValues),
-            )
-        }
+        ABSImportHubBody(
+            state = state,
+            onTabChange = viewModel::setActiveTab,
+            onUsersFilterChange = viewModel::setUsersFilter,
+            onActivateUserSearch = viewModel::activateUserSearch,
+            onUserSearchQueryChange = viewModel::updateUserSearchQuery,
+            onMapUser = viewModel::mapUser,
+            onClearUserMapping = viewModel::clearUserMapping,
+            onBooksFilterChange = viewModel::setBooksFilter,
+            onActivateBookSearch = viewModel::activateBookSearch,
+            onBookSearchQueryChange = viewModel::updateBookSearchQuery,
+            onMapBook = viewModel::mapBook,
+            onClearBookMapping = viewModel::clearBookMapping,
+            onSessionsFilterChange = viewModel::setSessionsFilter,
+            onImportSessions = viewModel::importReadySessions,
+            onSkipSession = viewModel::skipSession,
+            onClearImportResult = viewModel::clearImportResult,
+            onCancelImport = { showCancelConfirm = true },
+            modifier = Modifier.padding(paddingValues),
+        )
     }
 
     if (showCancelConfirm) {
@@ -673,10 +713,10 @@ fun ABSImportHubDetailScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Suppress("LongParameterList")
 @Composable
-private fun ImportHubContent(
-    state: ABSImportHubState,
+private fun ABSImportHubBody(
+    state: ABSImportHubUiState,
     onTabChange: (ImportHubTab) -> Unit,
     onUsersFilterChange: (MappingFilter) -> Unit,
     onActivateUserSearch: (String) -> Unit,
@@ -695,17 +735,96 @@ private fun ImportHubContent(
     onCancelImport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    when (state) {
+        is ABSImportHubUiState.Loading -> {
+            FullScreenLoadingIndicator(
+                modifier = modifier,
+                message = "Loading import...",
+            )
+        }
+
+        is ABSImportHubUiState.Error -> {
+            Column(
+                modifier =
+                    modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        is ABSImportHubUiState.Ready -> {
+            ABSImportHubReadyContent(
+                state = state,
+                onTabChange = onTabChange,
+                onUsersFilterChange = onUsersFilterChange,
+                onActivateUserSearch = onActivateUserSearch,
+                onUserSearchQueryChange = onUserSearchQueryChange,
+                onMapUser = onMapUser,
+                onClearUserMapping = onClearUserMapping,
+                onBooksFilterChange = onBooksFilterChange,
+                onActivateBookSearch = onActivateBookSearch,
+                onBookSearchQueryChange = onBookSearchQueryChange,
+                onMapBook = onMapBook,
+                onClearBookMapping = onClearBookMapping,
+                onSessionsFilterChange = onSessionsFilterChange,
+                onImportSessions = onImportSessions,
+                onSkipSession = onSkipSession,
+                onClearImportResult = onClearImportResult,
+                onCancelImport = onCancelImport,
+                modifier = modifier,
+            )
+        }
+    }
+}
+
+@Suppress("LongMethod", "LongParameterList", "CognitiveComplexMethod")
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ABSImportHubReadyContent(
+    state: ABSImportHubUiState.Ready,
+    onTabChange: (ImportHubTab) -> Unit,
+    onUsersFilterChange: (MappingFilter) -> Unit,
+    onActivateUserSearch: (String) -> Unit,
+    onUserSearchQueryChange: (String) -> Unit,
+    onMapUser: (String, String) -> Unit,
+    onClearUserMapping: (String) -> Unit,
+    onBooksFilterChange: (MappingFilter) -> Unit,
+    onActivateBookSearch: (String) -> Unit,
+    onBookSearchQueryChange: (String) -> Unit,
+    onMapBook: (String, String) -> Unit,
+    onClearBookMapping: (String) -> Unit,
+    onSessionsFilterChange: (SessionStatusFilter) -> Unit,
+    onImportSessions: () -> Unit,
+    onSkipSession: (String, String?) -> Unit,
+    onClearImportResult: () -> Unit,
+    onCancelImport: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val import = state.import
     // Stuck import: status is "active" but analysis never populated any data
     val isStuckImport =
-        state.import?.let { imp ->
-            imp.status.lowercase() == IMPORT_STATUS_ACTIVE &&
-                imp.completedAt == null &&
-                imp.totalUsers == 0 && imp.totalBooks == 0 && imp.totalSessions == 0
-        } == true
+        import.status.lowercase() == IMPORT_STATUS_ACTIVE &&
+            import.completedAt == null &&
+            import.totalUsers == 0 && import.totalBooks == 0 && import.totalSessions == 0
 
     Column(modifier = modifier.fillMaxSize()) {
         // Analyzing banner
-        if (state.import?.status == IMPORT_STATUS_ANALYZING) {
+        if (import.status == IMPORT_STATUS_ANALYZING) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.secondaryContainer,
@@ -765,7 +884,7 @@ private fun ImportHubContent(
         }
 
         // Tab row
-        val tabsEnabled = state.import?.status != IMPORT_STATUS_ANALYZING
+        val tabsEnabled = import.status != IMPORT_STATUS_ANALYZING
         PrimaryTabRow(selectedTabIndex = state.activeTab.ordinal) {
             ImportHubTab.entries.forEach { tab ->
                 Tab(
@@ -789,7 +908,7 @@ private fun ImportHubContent(
             when (tab) {
                 ImportHubTab.OVERVIEW -> {
                     OverviewTabContent(
-                        import = state.import!!,
+                        import = import,
                         onNavigateToUsers = {
                             onUsersFilterChange(MappingFilter.UNMAPPED)
                             onTabChange(ImportHubTab.USERS)
@@ -1080,6 +1199,7 @@ private fun ProgressCard(
 
 // === Users Tab ===
 
+@Suppress("LongParameterList")
 @Composable
 private fun UsersTabContent(
     users: List<ABSImportUser>,
@@ -1152,6 +1272,7 @@ private fun UsersTabContent(
     }
 }
 
+@Suppress("LongParameterList")
 @Composable
 private fun HubUserMappingCard(
     user: ABSImportUser,
@@ -1251,6 +1372,7 @@ private fun HubUserMappingCard(
     }
 }
 
+@Suppress("LongParameterList")
 @Composable
 private fun HubUserMappingCardState(
     user: ABSImportUser,
@@ -1391,6 +1513,7 @@ private fun HubUserMappingCardState(
 
 // === Books Tab ===
 
+@Suppress("LongParameterList")
 @Composable
 private fun BooksTabContent(
     books: List<ABSImportBook>,
@@ -1463,6 +1586,7 @@ private fun BooksTabContent(
     }
 }
 
+@Suppress("LongParameterList", "CognitiveComplexMethod")
 @Composable
 private fun HubBookMappingCard(
     book: ABSImportBook,
@@ -1580,6 +1704,7 @@ private fun HubBookMappingCard(
     }
 }
 
+@Suppress("LongParameterList", "LongMethod")
 @Composable
 private fun HubBookMappingCardState(
     book: ABSImportBook,
@@ -1741,6 +1866,7 @@ private fun HubBookMappingCardState(
 
 // === Sessions Tab ===
 
+@Suppress("LongParameterList", "LongMethod")
 @Composable
 private fun SessionsTabContent(
     sessionsResponse: com.calypsan.listenup.client.data.remote.ABSSessionsResponse?,
