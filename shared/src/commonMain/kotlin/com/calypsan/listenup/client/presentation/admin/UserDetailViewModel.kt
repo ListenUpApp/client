@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.domain.repository.AdminRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -23,7 +24,7 @@ class UserDetailViewModel(
     private val adminRepository: AdminRepository,
 ) : ViewModel() {
     val state: StateFlow<UserDetailUiState>
-        field = MutableStateFlow(UserDetailUiState())
+        field = MutableStateFlow<UserDetailUiState>(UserDetailUiState.Loading)
 
     init {
         loadUser()
@@ -31,30 +32,32 @@ class UserDetailViewModel(
 
     /**
      * Load the user details from the server.
+     *
+     * Initial load transitions Loading -> Ready or Loading -> Error. A subsequent
+     * re-load from Error transitions back to Ready on success, or stays in Error
+     * with the new message on failure.
      */
     private fun loadUser() {
         viewModelScope.launch {
-            state.value = state.value.copy(isLoading = true)
-
             try {
                 val user = adminRepository.getUser(userId)
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
+                state.update {
+                    UserDetailUiState.Ready(
                         user = user,
                         canShare = user.permissions.canShare,
                         isProtected = user.isProtected,
                     )
+                }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to load user: $userId" }
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load user",
+                state.update {
+                    UserDetailUiState.Error(
+                        message = e.message ?: "Failed to load user",
                     )
+                }
             }
         }
     }
@@ -66,13 +69,14 @@ class UserDetailViewModel(
      * Reverts on failure.
      */
     fun toggleCanShare() {
-        if (state.value.isProtected) return
+        val ready = state.value as? UserDetailUiState.Ready ?: return
+        if (ready.isProtected) return
 
-        val previousValue = state.value.canShare
+        val previousValue = ready.canShare
         val newValue = !previousValue
 
         // Optimistic update
-        state.value = state.value.copy(canShare = newValue, isSaving = true)
+        updateReady { it.copy(canShare = newValue, isSaving = true) }
 
         viewModelScope.launch {
             try {
@@ -82,44 +86,71 @@ class UserDetailViewModel(
                         canShare = newValue,
                     )
                 logger.info { "Updated canShare for user $userId to $newValue" }
-                state.value =
-                    state.value.copy(
+                updateReady {
+                    it.copy(
                         isSaving = false,
                         user = updatedUser,
                         canShare = updatedUser.permissions.canShare,
                     )
+                }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to update canShare for user: $userId" }
-                // Revert to previous value
-                state.value =
-                    state.value.copy(
+                // Revert optimistic change and surface transient error in Ready.
+                updateReady {
+                    it.copy(
                         isSaving = false,
                         canShare = previousValue,
                         error = e.message ?: "Failed to update permission",
                     )
+                }
             }
         }
     }
 
     /**
-     * Clear the error state.
+     * Clear the transient Ready error (snackbar acknowledgement).
      */
     fun clearError() {
-        state.value = state.value.copy(error = null)
+        updateReady { it.copy(error = null) }
+    }
+
+    /**
+     * Apply [transform] to state only if it is currently [UserDetailUiState.Ready].
+     * No-ops when state is [UserDetailUiState.Loading] or [UserDetailUiState.Error].
+     */
+    private fun updateReady(transform: (UserDetailUiState.Ready) -> UserDetailUiState.Ready) {
+        state.update { current ->
+            if (current is UserDetailUiState.Ready) transform(current) else current
+        }
     }
 }
 
 /**
  * UI state for the user detail screen.
+ *
+ * Sealed hierarchy:
+ * - [Loading] before the first `getUser` response.
+ * - [Ready] once the user has loaded; carries the user, edit buffer
+ *   (`canShare`), `isProtected` guard, the `isSaving` overlay for optimistic
+ *   permission toggling, and a transient `error` surfaced as a snackbar when
+ *   a toggle fails after the initial load.
+ * - [Error] terminal state when the initial load fails.
  */
-data class UserDetailUiState(
-    val isLoading: Boolean = true,
-    val user: AdminUserInfo? = null,
-    val canShare: Boolean = true,
-    val isProtected: Boolean = false,
-    val isSaving: Boolean = false,
-    val error: String? = null,
-)
+sealed interface UserDetailUiState {
+    data object Loading : UserDetailUiState
+
+    data class Ready(
+        val user: AdminUserInfo,
+        val canShare: Boolean,
+        val isProtected: Boolean,
+        val isSaving: Boolean = false,
+        val error: String? = null,
+    ) : UserDetailUiState
+
+    data class Error(
+        val message: String,
+    ) : UserDetailUiState
+}

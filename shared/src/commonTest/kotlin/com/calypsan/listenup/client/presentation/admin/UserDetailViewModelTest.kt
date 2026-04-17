@@ -21,6 +21,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -56,7 +57,7 @@ class UserDetailViewModelTest {
     }
 
     @Test
-    fun `initial state is loading`() =
+    fun `initial state is Loading`() =
         runTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getUser("user-1") } returns createUser()
@@ -67,11 +68,11 @@ class UserDetailViewModelTest {
                     adminRepository = adminRepository,
                 )
 
-            assertTrue(viewModel.state.value.isLoading)
+            assertIs<UserDetailUiState.Loading>(viewModel.state.value)
         }
 
     @Test
-    fun `loadUser fetches user details`() =
+    fun `loadUser transitions to Ready with user details`() =
         runTest {
             val adminRepository: AdminRepository = mock()
             val user = createUser(canShare = false)
@@ -84,13 +85,13 @@ class UserDetailViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertEquals(user, viewModel.state.value.user)
-            assertFalse(viewModel.state.value.canShare)
+            val ready = assertIs<UserDetailUiState.Ready>(viewModel.state.value)
+            assertEquals(user, ready.user)
+            assertFalse(ready.canShare)
         }
 
     @Test
-    fun `loadUser handles error`() =
+    fun `loadUser initial failure transitions to Error`() =
         runTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getUser("user-1") } throws RuntimeException("Network error")
@@ -102,11 +103,8 @@ class UserDetailViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertTrue(
-                viewModel.state.value.error
-                    ?.contains("Network error") == true,
-            )
+            val error = assertIs<UserDetailUiState.Error>(viewModel.state.value)
+            assertTrue(error.message.contains("Network error"))
         }
 
     @Test
@@ -136,17 +134,27 @@ class UserDetailViewModelTest {
             viewModel.toggleCanShare()
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.canShare)
+            val ready = assertIs<UserDetailUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.canShare)
             verifySuspend(VerifyMode.atLeast(1)) {
                 adminRepository.updateUser(userId = "user-1", canShare = false)
             }
         }
 
     @Test
-    fun `clearError clears error state`() =
+    fun `clearError clears transient Ready error`() =
         runTest {
+            // Load succeeds so VM reaches Ready; then a toggle failure surfaces a
+            // transient error on Ready that clearError resets.
             val adminRepository: AdminRepository = mock()
-            everySuspend { adminRepository.getUser("user-1") } throws RuntimeException("Error")
+            val user = createUser(canShare = true)
+            everySuspend { adminRepository.getUser("user-1") } returns user
+            everySuspend {
+                adminRepository.updateUser(
+                    userId = "user-1",
+                    canShare = false,
+                )
+            } throws RuntimeException("Save failed")
 
             val viewModel =
                 UserDetailViewModel(
@@ -154,11 +162,17 @@ class UserDetailViewModelTest {
                     adminRepository = adminRepository,
                 )
             advanceUntilIdle()
-            assertTrue(viewModel.state.value.error != null)
+
+            viewModel.toggleCanShare()
+            advanceUntilIdle()
+
+            val readyWithError = assertIs<UserDetailUiState.Ready>(viewModel.state.value)
+            assertTrue(readyWithError.error != null)
 
             viewModel.clearError()
 
-            assertNull(viewModel.state.value.error)
+            val readyCleared = assertIs<UserDetailUiState.Ready>(viewModel.state.value)
+            assertNull(readyCleared.error)
         }
 
     @Test
@@ -187,6 +201,7 @@ class UserDetailViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertTrue(viewModel.state.value.isProtected)
+            val ready = assertIs<UserDetailUiState.Ready>(viewModel.state.value)
+            assertTrue(ready.isProtected)
         }
 }

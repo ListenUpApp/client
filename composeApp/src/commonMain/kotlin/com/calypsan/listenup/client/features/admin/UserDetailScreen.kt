@@ -1,9 +1,9 @@
-@file:Suppress("MagicNumber")
-
 package com.calypsan.listenup.client.features.admin
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,13 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.CardDefaults
-import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -41,21 +39,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.presentation.admin.UserDetailUiState
 import com.calypsan.listenup.client.presentation.admin.UserDetailViewModel
-import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_allow_sharing_collections_with_other
 import listenup.composeapp.generated.resources.admin_can_share
+import listenup.composeapp.generated.resources.admin_protected_user
+import listenup.composeapp.generated.resources.admin_this_users_permissions_cannot_be
 import listenup.composeapp.generated.resources.common_display_name
 import listenup.composeapp.generated.resources.common_email_address
-import listenup.composeapp.generated.resources.common_permissions
-import listenup.composeapp.generated.resources.admin_protected_user
-import listenup.composeapp.generated.resources.common_role
-import listenup.composeapp.generated.resources.admin_this_users_permissions_cannot_be
 import listenup.composeapp.generated.resources.common_entity_information
-import listenup.composeapp.generated.resources.common_not_found
+import listenup.composeapp.generated.resources.common_permissions
+import listenup.composeapp.generated.resources.common_role
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Screen for viewing and editing a single user's details and permissions.
@@ -74,9 +72,10 @@ fun UserDetailScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Handle errors
-    LaunchedEffect(state.error) {
-        state.error?.let {
+    // Transient mutation-failure error in snackbar (only meaningful in Ready).
+    val readyError = (state as? UserDetailUiState.Ready)?.error
+    LaunchedEffect(readyError) {
+        readyError?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
@@ -86,7 +85,12 @@ fun UserDetailScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(state.user?.displayableName ?: "User Details") },
+                title = {
+                    val title =
+                        (state as? UserDetailUiState.Ready)?.user?.displayableName
+                            ?: "User Details"
+                    Text(title)
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
@@ -96,17 +100,45 @@ fun UserDetailScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        if (state.isLoading) {
+        UserDetailBody(
+            state = state,
+            innerPadding = innerPadding,
+            onToggleCanShare = viewModel::toggleCanShare,
+        )
+    }
+}
+
+@Composable
+private fun UserDetailBody(
+    state: UserDetailUiState,
+    innerPadding: PaddingValues,
+    onToggleCanShare: () -> Unit,
+) {
+    when (state) {
+        is UserDetailUiState.Loading -> {
             FullScreenLoadingIndicator()
-        } else if (state.user == null) {
-            ErrorContent(
-                message = stringResource(Res.string.common_not_found, "User"),
-                modifier = Modifier.padding(innerPadding),
-            )
-        } else {
+        }
+
+        is UserDetailUiState.Error -> {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+
+        is UserDetailUiState.Ready -> {
             UserDetailContent(
                 state = state,
-                onToggleCanShare = viewModel::toggleCanShare,
+                onToggleCanShare = onToggleCanShare,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -115,12 +147,10 @@ fun UserDetailScreen(
 
 @Composable
 private fun UserDetailContent(
-    state: UserDetailUiState,
+    state: UserDetailUiState.Ready,
     onToggleCanShare: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val user = state.user ?: return
-
     LazyColumn(
         modifier =
             modifier
@@ -138,7 +168,7 @@ private fun UserDetailContent(
         }
 
         item {
-            UserInfoCard(user = user)
+            UserInfoCard(user = state.user)
         }
 
         // Permissions section
@@ -384,26 +414,5 @@ private fun ProtectedUserNotice(modifier: Modifier = Modifier) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun ErrorContent(
-    message: String,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-        )
     }
 }
