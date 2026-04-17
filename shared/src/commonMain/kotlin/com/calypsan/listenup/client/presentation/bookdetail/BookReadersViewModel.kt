@@ -13,10 +13,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -39,7 +38,7 @@ class BookReadersViewModel(
     private val userRepository: UserRepository,
 ) : ViewModel() {
     val state: StateFlow<BookReadersUiState>
-        field = MutableStateFlow(BookReadersUiState())
+        field = MutableStateFlow<BookReadersUiState>(BookReadersUiState.Loading)
 
     // Track which book we're observing
     private var currentBookId: String? = null
@@ -73,25 +72,22 @@ class BookReadersViewModel(
                 sessionRepository
                     .observeBookReaders(bookId)
                     .onStart {
-                        state.update { it.copy(isLoading = true, error = null) }
+                        state.value = BookReadersUiState.Loading
                     }.catch { e ->
+                        if (e is kotlin.coroutines.cancellation.CancellationException) throw e
                         logger.error(e) { "Error observing book readers" }
-                        state.update { it.copy(isLoading = false, error = e.message) }
+                        state.value = BookReadersUiState.Error(e.message ?: "Failed to load readers")
                     }.collect { result ->
                         // Build current user's ReaderInfo from their sessions and profile
                         val currentUserReaderInfo = buildCurrentUserReaderInfo(result.yourSessions)
-
-                        state.update {
-                            it.copy(
-                                isLoading = false,
+                        state.value =
+                            BookReadersUiState.Ready(
                                 yourSessions = result.yourSessions,
                                 currentUserReaderInfo = currentUserReaderInfo,
                                 otherReaders = result.otherReaders,
                                 totalReaders = result.totalReaders,
                                 totalCompletions = result.totalCompletions,
-                                error = null,
                             )
-                        }
                         logger.debug {
                             "Readers updated: ${result.otherReaders.size} readers, ${result.yourSessions.size} sessions"
                         }
@@ -190,46 +186,55 @@ class BookReadersViewModel(
 /**
  * UI state for the Book Readers screen.
  */
-data class BookReadersUiState(
-    val isLoading: Boolean = false,
-    val yourSessions: List<SessionSummary> = emptyList(),
-    val currentUserReaderInfo: ReaderInfo? = null,
-    val otherReaders: List<ReaderInfo> = emptyList(),
-    val totalReaders: Int = 0,
-    val totalCompletions: Int = 0,
-    val error: String? = null,
-) {
-    /**
-     * True if there are no sessions or readers to display.
-     */
-    val isEmpty: Boolean
-        get() = yourSessions.isEmpty() && otherReaders.isEmpty()
+sealed interface BookReadersUiState {
+    /** Initial state before the repository flow emits. */
+    data object Loading : BookReadersUiState
 
-    /**
-     * True if the current user has any reading history for this book.
-     */
-    val hasYourHistory: Boolean
-        get() = currentUserReaderInfo != null
+    /** Readers loaded successfully. */
+    data class Ready(
+        val yourSessions: List<SessionSummary> = emptyList(),
+        val currentUserReaderInfo: ReaderInfo? = null,
+        val otherReaders: List<ReaderInfo> = emptyList(),
+        val totalReaders: Int = 0,
+        val totalCompletions: Int = 0,
+    ) : BookReadersUiState {
+        /**
+         * True if there are no sessions or readers to display.
+         */
+        val isEmpty: Boolean
+            get() = yourSessions.isEmpty() && otherReaders.isEmpty()
 
-    /**
-     * True if there are other readers besides the current user.
-     */
-    val hasOtherReaders: Boolean
-        get() = otherReaders.isNotEmpty()
+        /**
+         * True if the current user has any reading history for this book.
+         */
+        val hasYourHistory: Boolean
+            get() = currentUserReaderInfo != null
 
-    /**
-     * All readers including current user, sorted by last activity.
-     */
-    val allReaders: List<ReaderInfo>
-        get() =
-            buildList {
-                currentUserReaderInfo?.let { add(it) }
-                addAll(otherReaders)
-            }.sortedByDescending { it.lastActivityAt }
+        /**
+         * True if there are other readers besides the current user.
+         */
+        val hasOtherReaders: Boolean
+            get() = otherReaders.isNotEmpty()
 
-    /**
-     * Number of other readers currently reading (not completed).
-     */
-    val currentlyReadingCount: Int
-        get() = otherReaders.count { it.isCurrentlyReading }
+        /**
+         * All readers including current user, sorted by last activity.
+         */
+        val allReaders: List<ReaderInfo>
+            get() =
+                buildList {
+                    currentUserReaderInfo?.let { add(it) }
+                    addAll(otherReaders)
+                }.sortedByDescending { it.lastActivityAt }
+
+        /**
+         * Number of other readers currently reading (not completed).
+         */
+        val currentlyReadingCount: Int
+            get() = otherReaders.count { it.isCurrentlyReading }
+    }
+
+    /** Load or observation failure. */
+    data class Error(
+        val message: String,
+    ) : BookReadersUiState
 }

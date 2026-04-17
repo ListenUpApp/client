@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
+import com.calypsan.listenup.client.presentation.bookdetail.BookReadersUiState
 import com.calypsan.listenup.client.presentation.bookdetail.BookReadersViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
@@ -55,7 +56,9 @@ fun BookReadersSection(
 
     // Offline-first: show cached data immediately or hide section entirely.
     // Background refresh will populate Room, triggering a re-render when data arrives.
-    val allReaders = state.allReaders
+    // Loading and Error render nothing — preserve the "glass" behavior of the pre-sealed default.
+    val ready = state as? BookReadersUiState.Ready ?: return
+    val allReaders = ready.allReaders
     if (allReaders.isEmpty()) {
         return
     }
