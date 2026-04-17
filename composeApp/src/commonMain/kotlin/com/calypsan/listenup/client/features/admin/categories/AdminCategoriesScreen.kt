@@ -105,7 +105,8 @@ fun AdminCategoriesScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Dialog state
+    // Dialog state — hoisted to top level so both the FAB (in the Scaffold)
+    // and the per-row context menus (in the Ready content) can trigger dialogs.
     var showCreateDialog by remember { mutableStateOf(false) }
     var createParentId by remember { mutableStateOf<String?>(null) }
     var createParentName by remember { mutableStateOf<String?>(null) }
@@ -116,15 +117,10 @@ fun AdminCategoriesScreen(
     var deleteGenreId by remember { mutableStateOf("") }
     var deleteGenreName by remember { mutableStateOf("") }
 
-    // Drag state
-    var draggedGenreId by remember { mutableStateOf<String?>(null) }
-    var draggedGenreName by remember { mutableStateOf<String?>(null) }
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    var dropTargetId by remember { mutableStateOf<String?>(null) }
-
-    // Show error in snackbar
-    LaunchedEffect(state.error) {
-        state.error?.let {
+    // Show transient mutation-failure error in snackbar (only meaningful in Ready).
+    val readyError = (state as? AdminCategoriesUiState.Ready)?.error
+    LaunchedEffect(readyError) {
+        readyError?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
@@ -143,10 +139,10 @@ fun AdminCategoriesScreen(
                         }
                     },
                     actions = {
-                        // Expand/collapse all toggle
-                        if (state.tree.isNotEmpty()) {
-                            val allExpanded = state.expandedIds.size >= state.genres.count {
-                                state.tree.any { root -> hasChildren(root, it.id) }
+                        val ready = state as? AdminCategoriesUiState.Ready
+                        if (ready != null && ready.tree.isNotEmpty()) {
+                            val allExpanded = ready.expandedIds.size >= ready.genres.count {
+                                ready.tree.any { root -> hasChildren(root, it.id) }
                             }
                             IconButton(
                                 onClick = {
@@ -161,69 +157,66 @@ fun AdminCategoriesScreen(
                         }
                     },
                 )
-                if (state.isSaving) {
+                if ((state as? AdminCategoriesUiState.Ready)?.isSaving == true) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
             }
         },
         floatingActionButton = {
-            ListenUpFab(
-                onClick = {
-                    createParentId = null
-                    createParentName = null
-                    showCreateDialog = true
-                },
-                icon = Icons.Outlined.Add,
-                contentDescription = stringResource(Res.string.admin_add_genre),
-            )
+            if (state is AdminCategoriesUiState.Ready) {
+                ListenUpFab(
+                    onClick = {
+                        createParentId = null
+                        createParentName = null
+                        showCreateDialog = true
+                    },
+                    icon = Icons.Outlined.Add,
+                    contentDescription = stringResource(Res.string.admin_add_genre),
+                )
+            }
         },
     ) { innerPadding ->
-        if (state.isLoading && state.tree.isEmpty()) {
-            FullScreenLoadingIndicator()
-        } else {
-            CategoriesContent(
-                state = state,
-                onToggleExpanded = viewModel::toggleExpanded,
-                dropTargetId = dropTargetId,
-                onAddChild = { id, name ->
-                    createParentId = id
-                    createParentName = name
-                    showCreateDialog = true
-                },
-                onRename = { id, name ->
-                    renameGenreId = id
-                    renameGenreName = name
-                    showRenameDialog = true
-                },
-                onDelete = { id, name ->
-                    deleteGenreId = id
-                    deleteGenreName = name
-                    showDeleteDialog = true
-                },
-                onDragStart = { id, name ->
-                    draggedGenreId = id
-                    draggedGenreName = name
-                },
-                onDragEnd = {
-                    val dragged = draggedGenreId
-                    val target = dropTargetId
-                    if (dragged != null && target != null && dragged != target) {
-                        viewModel.moveGenre(dragged, target)
-                    }
-                    draggedGenreId = null
-                    draggedGenreName = null
-                    dragOffset = Offset.Zero
-                    dropTargetId = null
-                },
-                onDragCancel = {
-                    draggedGenreId = null
-                    draggedGenreName = null
-                    dragOffset = Offset.Zero
-                    dropTargetId = null
-                },
-                onDropTargetChange = { dropTargetId = it },
-                modifier = Modifier.padding(innerPadding),
-            )
+        when (val s = state) {
+            is AdminCategoriesUiState.Loading -> {
+                FullScreenLoadingIndicator()
+            }
+
+            is AdminCategoriesUiState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = s.message,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+
+            is AdminCategoriesUiState.Ready -> {
+                AdminCategoriesReadyContent(
+                    state = s,
+                    onToggleExpanded = viewModel::toggleExpanded,
+                    onAddChild = { id, name ->
+                        createParentId = id
+                        createParentName = name
+                        showCreateDialog = true
+                    },
+                    onRename = { id, name ->
+                        renameGenreId = id
+                        renameGenreName = name
+                        showRenameDialog = true
+                    },
+                    onDelete = { id, name ->
+                        deleteGenreId = id
+                        deleteGenreName = name
+                        showDeleteDialog = true
+                    },
+                    onMoveGenre = viewModel::moveGenre,
+                    modifier = Modifier.padding(innerPadding),
+                )
+            }
         }
     }
 
@@ -270,6 +263,56 @@ fun AdminCategoriesScreen(
             onDismiss = { showDeleteDialog = false },
         )
     }
+}
+
+@Composable
+private fun AdminCategoriesReadyContent(
+    state: AdminCategoriesUiState.Ready,
+    onToggleExpanded: (String) -> Unit,
+    onAddChild: (String, String) -> Unit,
+    onRename: (String, String) -> Unit,
+    onDelete: (String, String) -> Unit,
+    onMoveGenre: (String, String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Drag state is local to the Ready content — it is only meaningful while
+    // the tree is interactive.
+    var draggedGenreId by remember { mutableStateOf<String?>(null) }
+    var draggedGenreName by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var dropTargetId by remember { mutableStateOf<String?>(null) }
+
+    CategoriesContent(
+        state = state,
+        onToggleExpanded = onToggleExpanded,
+        dropTargetId = dropTargetId,
+        onAddChild = onAddChild,
+        onRename = onRename,
+        onDelete = onDelete,
+        onDragStart = { id, name ->
+            draggedGenreId = id
+            draggedGenreName = name
+        },
+        onDragEnd = {
+            val dragged = draggedGenreId
+            val target = dropTargetId
+            if (dragged != null && target != null && dragged != target) {
+                onMoveGenre(dragged, target)
+            }
+            draggedGenreId = null
+            draggedGenreName = null
+            dragOffset = Offset.Zero
+            dropTargetId = null
+        },
+        onDragCancel = {
+            draggedGenreId = null
+            draggedGenreName = null
+            dragOffset = Offset.Zero
+            dropTargetId = null
+        },
+        onDropTargetChange = { dropTargetId = it },
+        modifier = modifier,
+    )
 }
 
 /**
@@ -336,7 +379,7 @@ private fun hasChildren(node: GenreTreeNode, id: String): Boolean {
 
 @Composable
 private fun CategoriesContent(
-    state: AdminCategoriesUiState,
+    state: AdminCategoriesUiState.Ready,
     onToggleExpanded: (String) -> Unit,
     dropTargetId: String?,
     onAddChild: (String, String) -> Unit,

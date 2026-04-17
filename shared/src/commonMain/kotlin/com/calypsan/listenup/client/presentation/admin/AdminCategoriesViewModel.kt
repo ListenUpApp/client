@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.domain.repository.GenreRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -22,7 +23,7 @@ class AdminCategoriesViewModel(
     private val genreRepository: GenreRepository,
 ) : ViewModel() {
     val state: StateFlow<AdminCategoriesUiState>
-        field = MutableStateFlow(AdminCategoriesUiState())
+        field = MutableStateFlow<AdminCategoriesUiState>(AdminCategoriesUiState.Loading)
 
     init {
         observeGenres()
@@ -34,18 +35,33 @@ class AdminCategoriesViewModel(
      */
     private fun observeGenres() {
         viewModelScope.launch {
-            state.value = state.value.copy(isLoading = true)
-
-            genreRepository.observeAll().collect { genres ->
-                logger.debug { "Genres updated: ${genres.size}" }
-                val tree = buildGenreTree(genres)
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        genres = genres,
-                        tree = tree,
-                        totalBookCount = genres.sumOf { it.bookCount },
-                    )
+            try {
+                genreRepository.observeAll().collect { genres ->
+                    logger.debug { "Genres updated: ${genres.size}" }
+                    val tree = buildGenreTree(genres)
+                    state.update { current ->
+                        if (current is AdminCategoriesUiState.Ready) {
+                            current.copy(
+                                genres = genres,
+                                tree = tree,
+                                totalBookCount = genres.sumOf { it.bookCount },
+                            )
+                        } else {
+                            // First emission (from Loading) or recovering from Error:
+                            // transition to Ready with fresh data and default UI fields.
+                            AdminCategoriesUiState.Ready(
+                                genres = genres,
+                                tree = tree,
+                                totalBookCount = genres.sumOf { it.bookCount },
+                            )
+                        }
+                    }
+                }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to observe genres" }
+                state.value = AdminCategoriesUiState.Error(e.message ?: "Failed to load categories")
             }
         }
     }
@@ -54,31 +70,32 @@ class AdminCategoriesViewModel(
      * Toggle expand/collapse state for a genre node.
      */
     fun toggleExpanded(genreId: String) {
-        val currentExpanded = state.value.expandedIds.toMutableSet()
-        if (currentExpanded.contains(genreId)) {
-            currentExpanded.remove(genreId)
-        } else {
-            currentExpanded.add(genreId)
+        updateReady { ready ->
+            val currentExpanded = ready.expandedIds.toMutableSet()
+            if (currentExpanded.contains(genreId)) {
+                currentExpanded.remove(genreId)
+            } else {
+                currentExpanded.add(genreId)
+            }
+            ready.copy(expandedIds = currentExpanded)
         }
-        state.value = state.value.copy(expandedIds = currentExpanded)
     }
 
     /**
      * Expand all nodes in the tree.
      */
     fun expandAll() {
-        val allIds =
-            state.value.genres
-                .map { it.id }
-                .toSet()
-        state.value = state.value.copy(expandedIds = allIds)
+        updateReady { ready ->
+            val allIds = ready.genres.map { it.id }.toSet()
+            ready.copy(expandedIds = allIds)
+        }
     }
 
     /**
      * Collapse all nodes in the tree.
      */
     fun collapseAll() {
-        state.value = state.value.copy(expandedIds = emptySet())
+        updateReady { it.copy(expandedIds = emptySet()) }
     }
 
     /**
@@ -89,23 +106,25 @@ class AdminCategoriesViewModel(
         parentId: String?,
     ) {
         viewModelScope.launch {
-            state.value = state.value.copy(isSaving = true, error = null)
+            updateReady { it.copy(isSaving = true, error = null) }
             try {
                 genreRepository.createGenre(name, parentId)
                 // Auto-expand parent so user sees the new child
                 if (parentId != null) {
-                    val expanded = state.value.expandedIds.toMutableSet()
-                    expanded.add(parentId)
-                    state.value = state.value.copy(expandedIds = expanded)
+                    updateReady { ready ->
+                        val expanded = ready.expandedIds.toMutableSet()
+                        expanded.add(parentId)
+                        ready.copy(expandedIds = expanded)
+                    }
                 }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to create genre" }
-                state.value = state.value.copy(error = e.message ?: "Failed to create genre")
+                updateReady { it.copy(error = e.message ?: "Failed to create genre") }
             } finally {
-                state.value = state.value.copy(isSaving = false)
+                updateReady { it.copy(isSaving = false) }
             }
         }
     }
@@ -118,7 +137,7 @@ class AdminCategoriesViewModel(
         name: String,
     ) {
         viewModelScope.launch {
-            state.value = state.value.copy(isSaving = true, error = null)
+            updateReady { it.copy(isSaving = true, error = null) }
             try {
                 genreRepository.updateGenre(id, name)
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
@@ -126,9 +145,9 @@ class AdminCategoriesViewModel(
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to rename genre" }
-                state.value = state.value.copy(error = e.message ?: "Failed to rename genre")
+                updateReady { it.copy(error = e.message ?: "Failed to rename genre") }
             } finally {
-                state.value = state.value.copy(isSaving = false)
+                updateReady { it.copy(isSaving = false) }
             }
         }
     }
@@ -138,7 +157,7 @@ class AdminCategoriesViewModel(
      */
     fun deleteGenre(id: String) {
         viewModelScope.launch {
-            state.value = state.value.copy(isSaving = true, error = null)
+            updateReady { it.copy(isSaving = true, error = null) }
             try {
                 genreRepository.deleteGenre(id)
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
@@ -146,9 +165,9 @@ class AdminCategoriesViewModel(
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to delete genre" }
-                state.value = state.value.copy(error = e.message ?: "Failed to delete genre")
+                updateReady { it.copy(error = e.message ?: "Failed to delete genre") }
             } finally {
-                state.value = state.value.copy(isSaving = false)
+                updateReady { it.copy(isSaving = false) }
             }
         }
     }
@@ -161,23 +180,25 @@ class AdminCategoriesViewModel(
         newParentId: String?,
     ) {
         viewModelScope.launch {
-            state.value = state.value.copy(isSaving = true, error = null)
+            updateReady { it.copy(isSaving = true, error = null) }
             try {
                 genreRepository.moveGenre(id, newParentId)
                 // Auto-expand new parent so user sees the moved genre
                 if (newParentId != null) {
-                    val expanded = state.value.expandedIds.toMutableSet()
-                    expanded.add(newParentId)
-                    state.value = state.value.copy(expandedIds = expanded)
+                    updateReady { ready ->
+                        val expanded = ready.expandedIds.toMutableSet()
+                        expanded.add(newParentId)
+                        ready.copy(expandedIds = expanded)
+                    }
                 }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ErrorBus.emit(e)
                 logger.error(e) { "Failed to move genre" }
-                state.value = state.value.copy(error = e.message ?: "Failed to move genre")
+                updateReady { it.copy(error = e.message ?: "Failed to move genre") }
             } finally {
-                state.value = state.value.copy(isSaving = false)
+                updateReady { it.copy(isSaving = false) }
             }
         }
     }
@@ -186,7 +207,17 @@ class AdminCategoriesViewModel(
      * Clear the error state.
      */
     fun clearError() {
-        state.value = state.value.copy(error = null)
+        updateReady { it.copy(error = null) }
+    }
+
+    /**
+     * Apply [transform] to state only if it is currently [AdminCategoriesUiState.Ready].
+     * No-ops when state is [AdminCategoriesUiState.Loading] or [AdminCategoriesUiState.Error].
+     */
+    private fun updateReady(transform: (AdminCategoriesUiState.Ready) -> AdminCategoriesUiState.Ready) {
+        state.update { current ->
+            if (current is AdminCategoriesUiState.Ready) transform(current) else current
+        }
     }
 
     /**
@@ -245,13 +276,27 @@ data class GenreTreeNode(
 
 /**
  * UI state for the admin categories screen.
+ *
+ * Sealed hierarchy:
+ * - [Loading] before the first emission from `observeAll()`.
+ * - [Ready] once genres have loaded; carries tree, expand/collapse state,
+ *   a transient `error` for mutation failures surfaced in a snackbar, and
+ *   an `isSaving` flag driving the top linear progress indicator.
+ * - [Error] if the observe pipeline fails (terminal until the flow recovers).
  */
-data class AdminCategoriesUiState(
-    val isLoading: Boolean = true,
-    val isSaving: Boolean = false,
-    val genres: List<Genre> = emptyList(),
-    val tree: List<GenreTreeNode> = emptyList(),
-    val expandedIds: Set<String> = emptySet(),
-    val totalBookCount: Int = 0,
-    val error: String? = null,
-)
+sealed interface AdminCategoriesUiState {
+    data object Loading : AdminCategoriesUiState
+
+    data class Ready(
+        val isSaving: Boolean = false,
+        val genres: List<Genre> = emptyList(),
+        val tree: List<GenreTreeNode> = emptyList(),
+        val expandedIds: Set<String> = emptySet(),
+        val totalBookCount: Int = 0,
+        val error: String? = null,
+    ) : AdminCategoriesUiState
+
+    data class Error(
+        val message: String,
+    ) : AdminCategoriesUiState
+}
