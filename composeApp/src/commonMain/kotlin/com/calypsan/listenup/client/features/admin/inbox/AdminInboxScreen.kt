@@ -5,7 +5,9 @@ package com.calypsan.listenup.client.features.admin.inbox
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -86,17 +88,19 @@ fun AdminInboxScreen(
 
     var showReleaseConfirmation by remember { mutableStateOf(false) }
 
-    // Handle errors
-    LaunchedEffect(state.error) {
-        state.error?.let {
+    // Transient mutation-failure error in snackbar (only meaningful in Ready).
+    val readyError = (state as? AdminInboxUiState.Ready)?.error
+    LaunchedEffect(readyError) {
+        readyError?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
     }
 
-    // Handle release success
-    LaunchedEffect(state.lastReleaseResult) {
-        state.lastReleaseResult?.let { result ->
+    // Release success confirmation (only meaningful in Ready).
+    val readyReleaseResult = (state as? AdminInboxUiState.Ready)?.lastReleaseResult
+    LaunchedEffect(readyReleaseResult) {
+        readyReleaseResult?.let { result ->
             val message =
                 buildString {
                     append("Released ${result.released} book${if (result.released != 1) "s" else ""}")
@@ -112,83 +116,47 @@ fun AdminInboxScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = {
-                    if (state.hasSelection) {
-                        Text("${state.selectedCount} selected")
-                    } else {
-                        Text(stringResource(Res.string.common_inbox))
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (state.hasSelection) {
-                            viewModel.clearSelection()
-                        } else {
-                            onBackClick()
-                        }
-                    }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    if (state.hasBooks) {
-                        IconButton(onClick = {
-                            if (state.allSelected) {
-                                viewModel.clearSelection()
-                            } else {
-                                viewModel.selectAll()
-                            }
-                        }) {
-                            Icon(
-                                imageVector =
-                                    if (state.allSelected) {
-                                        Icons.Outlined.CheckBox
-                                    } else {
-                                        Icons.Outlined.SelectAll
-                                    },
-                                contentDescription = if (state.allSelected) "Deselect all" else "Select all",
-                            )
-                        }
-                    }
-                },
+            AdminInboxTopBar(
+                ready = state as? AdminInboxUiState.Ready,
+                onBackClick = onBackClick,
+                onClearSelection = viewModel::clearSelection,
+                onSelectAll = viewModel::selectAll,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            if (state.hasSelection) {
+            val ready = state as? AdminInboxUiState.Ready
+            if (ready != null && ready.hasSelection) {
                 ListenUpExtendedFab(
                     onClick = {
                         if (viewModel.hasSelectedBooksWithoutCollections()) {
                             showReleaseConfirmation = true
                         } else {
-                            viewModel.releaseBooks(state.selectedBookIds.toList())
+                            viewModel.releaseBooks(ready.selectedBookIds.toList())
                         }
                     },
                     icon = Icons.Outlined.Publish,
                     text = stringResource(Res.string.common_release),
-                    isLoading = state.isReleasing,
+                    isLoading = ready.isReleasing,
                 )
             }
         },
     ) { innerPadding ->
-        if (state.isLoading && state.books.isEmpty()) {
-            FullScreenLoadingIndicator()
-        } else {
-            InboxContent(
-                state = state,
-                onBookClick = onBookClick,
-                onBookSelectionToggle = { viewModel.toggleBookSelection(it) },
-                modifier = Modifier.padding(innerPadding),
-            )
-        }
+        AdminInboxBody(
+            state = state,
+            innerPadding = innerPadding,
+            onBookClick = onBookClick,
+            onBookSelectionToggle = viewModel::toggleBookSelection,
+        )
     }
 
-    // Release confirmation dialog (shown when releasing books without collections)
-    if (showReleaseConfirmation) {
+    // Release confirmation dialog (shown when releasing books without collections).
+    // Only meaningful when Ready — the dialog reads selection state from Ready.
+    val ready = state as? AdminInboxUiState.Ready
+    if (showReleaseConfirmation && ready != null) {
         val booksWithoutCollections =
-            state.books
-                .filter { it.id in state.selectedBookIds && it.stagedCollectionIds.isEmpty() }
+            ready.books
+                .filter { it.id in ready.selectedBookIds && it.stagedCollectionIds.isEmpty() }
                 .size
 
         ListenUpDestructiveDialog(
@@ -201,16 +169,95 @@ fun AdminInboxScreen(
             confirmText = stringResource(Res.string.admin_release_anyway),
             onConfirm = {
                 showReleaseConfirmation = false
-                viewModel.releaseBooks(state.selectedBookIds.toList())
+                viewModel.releaseBooks(ready.selectedBookIds.toList())
             },
             onDismiss = { showReleaseConfirmation = false },
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun InboxContent(
+private fun AdminInboxTopBar(
+    ready: AdminInboxUiState.Ready?,
+    onBackClick: () -> Unit,
+    onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+) {
+    TopAppBar(
+        title = {
+            if (ready != null && ready.hasSelection) {
+                Text("${ready.selectedCount} selected")
+            } else {
+                Text(stringResource(Res.string.common_inbox))
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = {
+                if (ready != null && ready.hasSelection) {
+                    onClearSelection()
+                } else {
+                    onBackClick()
+                }
+            }) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+            }
+        },
+        actions = {
+            if (ready != null && ready.hasBooks) {
+                IconButton(onClick = {
+                    if (ready.allSelected) onClearSelection() else onSelectAll()
+                }) {
+                    Icon(
+                        imageVector =
+                            if (ready.allSelected) Icons.Outlined.CheckBox else Icons.Outlined.SelectAll,
+                        contentDescription = if (ready.allSelected) "Deselect all" else "Select all",
+                    )
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun AdminInboxBody(
     state: AdminInboxUiState,
+    innerPadding: PaddingValues,
+    onBookClick: (String) -> Unit,
+    onBookSelectionToggle: (String) -> Unit,
+) {
+    when (state) {
+        is AdminInboxUiState.Loading -> {
+            FullScreenLoadingIndicator()
+        }
+
+        is AdminInboxUiState.Error -> {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+
+        is AdminInboxUiState.Ready -> {
+            AdminInboxReadyContent(
+                state = state,
+                onBookClick = onBookClick,
+                onBookSelectionToggle = onBookSelectionToggle,
+                modifier = Modifier.padding(innerPadding),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AdminInboxReadyContent(
+    state: AdminInboxUiState.Ready,
     onBookClick: (String) -> Unit,
     onBookSelectionToggle: (String) -> Unit,
     modifier: Modifier = Modifier,

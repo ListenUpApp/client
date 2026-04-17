@@ -30,6 +30,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -86,18 +87,18 @@ class AdminInboxViewModelTest {
     }
 
     @Test
-    fun `initial state is loading`() =
+    fun `initial state is Loading`() =
         runTest {
             val fixture = TestFixture()
             everySuspend { fixture.loadInboxBooksUseCase() } returns Success(emptyList())
 
             val viewModel = fixture.build()
 
-            assertTrue(viewModel.state.value.isLoading)
+            assertIs<AdminInboxUiState.Loading>(viewModel.state.value)
         }
 
     @Test
-    fun `loadInboxBooks fetches books from use case`() =
+    fun `loadInboxBooks transitions to Ready with books`() =
         runTest {
             val books =
                 listOf(
@@ -110,22 +111,14 @@ class AdminInboxViewModelTest {
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertEquals(2, viewModel.state.value.books.size)
-            assertEquals(
-                "book-1",
-                viewModel.state.value.books[0]
-                    .id,
-            )
-            assertEquals(
-                "book-2",
-                viewModel.state.value.books[1]
-                    .id,
-            )
+            val ready = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertEquals(2, ready.books.size)
+            assertEquals("book-1", ready.books[0].id)
+            assertEquals("book-2", ready.books[1].id)
         }
 
     @Test
-    fun `loadInboxBooks handles error`() =
+    fun `loadInboxBooks initial failure transitions to Error`() =
         runTest {
             val fixture = TestFixture()
             everySuspend { fixture.loadInboxBooksUseCase() } returns
@@ -134,11 +127,8 @@ class AdminInboxViewModelTest {
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertTrue(
-                viewModel.state.value.error
-                    ?.contains("Network error") == true,
-            )
+            val error = assertIs<AdminInboxUiState.Error>(viewModel.state.value)
+            assertTrue(error.message.contains("Network error"))
         }
 
     @Test
@@ -153,10 +143,8 @@ class AdminInboxViewModelTest {
 
             viewModel.toggleBookSelection("book-1")
 
-            assertTrue(
-                viewModel.state.value.selectedBookIds
-                    .contains("book-1"),
-            )
+            val ready = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertTrue(ready.selectedBookIds.contains("book-1"))
         }
 
     @Test
@@ -170,16 +158,12 @@ class AdminInboxViewModelTest {
             advanceUntilIdle()
 
             viewModel.toggleBookSelection("book-1")
-            assertTrue(
-                viewModel.state.value.selectedBookIds
-                    .contains("book-1"),
-            )
+            val afterFirstToggle = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertTrue(afterFirstToggle.selectedBookIds.contains("book-1"))
 
             viewModel.toggleBookSelection("book-1")
-            assertFalse(
-                viewModel.state.value.selectedBookIds
-                    .contains("book-1"),
-            )
+            val afterSecondToggle = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertFalse(afterSecondToggle.selectedBookIds.contains("book-1"))
         }
 
     @Test
@@ -199,8 +183,9 @@ class AdminInboxViewModelTest {
 
             viewModel.selectAll()
 
-            assertEquals(3, viewModel.state.value.selectedBookIds.size)
-            assertTrue(viewModel.state.value.allSelected)
+            val ready = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertEquals(3, ready.selectedBookIds.size)
+            assertTrue(ready.allSelected)
         }
 
     @Test
@@ -214,13 +199,12 @@ class AdminInboxViewModelTest {
             advanceUntilIdle()
 
             viewModel.selectAll()
-            assertEquals(2, viewModel.state.value.selectedBookIds.size)
+            val afterSelectAll = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertEquals(2, afterSelectAll.selectedBookIds.size)
 
             viewModel.clearSelection()
-            assertTrue(
-                viewModel.state.value.selectedBookIds
-                    .isEmpty(),
-            )
+            val afterClear = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertTrue(afterClear.selectedBookIds.isEmpty())
         }
 
     @Test
@@ -244,18 +228,11 @@ class AdminInboxViewModelTest {
             viewModel.releaseBooks(listOf("book-1"))
             advanceUntilIdle()
 
-            assertEquals(1, viewModel.state.value.books.size)
-            assertEquals(
-                "book-2",
-                viewModel.state.value.books[0]
-                    .id,
-            )
-            assertFalse(viewModel.state.value.isReleasing)
-            assertEquals(
-                1,
-                viewModel.state.value.lastReleaseResult
-                    ?.released,
-            )
+            val ready = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertEquals(1, ready.books.size)
+            assertEquals("book-2", ready.books[0].id)
+            assertFalse(ready.isReleasing)
+            assertEquals(1, ready.lastReleaseResult?.released)
         }
 
     @Test
@@ -277,15 +254,14 @@ class AdminInboxViewModelTest {
             advanceUntilIdle()
 
             viewModel.toggleBookSelection("book-1")
-            assertEquals(1, viewModel.state.value.selectedBookIds.size)
+            val afterToggle = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertEquals(1, afterToggle.selectedBookIds.size)
 
             viewModel.releaseBooks(listOf("book-1"))
             advanceUntilIdle()
 
-            assertTrue(
-                viewModel.state.value.selectedBookIds
-                    .isEmpty(),
-            )
+            val ready = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertTrue(ready.selectedBookIds.isEmpty())
         }
 
     @Test
@@ -303,10 +279,11 @@ class AdminInboxViewModelTest {
             viewModel.releaseBooks(listOf("book-1"))
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isReleasing)
-            assertTrue(viewModel.state.value.error != null)
+            val ready = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.isReleasing)
+            assertTrue(ready.error != null)
             // Book should still be in the list
-            assertEquals(1, viewModel.state.value.books.size)
+            assertEquals(1, ready.books.size)
         }
 
     @Test
@@ -393,18 +370,16 @@ class AdminInboxViewModelTest {
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            assertEquals(2, viewModel.state.value.books.size)
+            val afterLoad = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertEquals(2, afterLoad.books.size)
 
             // Emit SSE event
             fixture.adminEvents.emit(AdminEvent.InboxBookReleased("book-1"))
             advanceUntilIdle()
 
-            assertEquals(1, viewModel.state.value.books.size)
-            assertEquals(
-                "book-2",
-                viewModel.state.value.books[0]
-                    .id,
-            )
+            val afterEvent = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertEquals(1, afterEvent.books.size)
+            assertEquals("book-2", afterEvent.books[0].id)
         }
 
     @Test
@@ -418,8 +393,8 @@ class AdminInboxViewModelTest {
             advanceUntilIdle()
 
             // Initial load done
-            assertFalse(viewModel.state.value.isLoading)
-            assertEquals(1, viewModel.state.value.books.size)
+            val afterLoad = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertEquals(1, afterLoad.books.size)
 
             // Emit SSE event for new book
             fixture.adminEvents.emit(AdminEvent.InboxBookAdded(bookId = "book-2", title = "New Book"))
@@ -432,18 +407,28 @@ class AdminInboxViewModelTest {
     @Test
     fun `clearError clears error state`() =
         runTest {
+            // Use a refresh-after-success failure path to exercise Ready.error rather
+            // than the terminal Error state: initial load succeeds, then a release
+            // failure surfaces a transient snackbar error that clearError resets.
+            val books = listOf(createInboxBook("book-1"))
             val fixture = TestFixture()
-            everySuspend { fixture.loadInboxBooksUseCase() } returns
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
+            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns
                 Failure(RuntimeException("Error"))
 
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            assertTrue(viewModel.state.value.error != null)
+            viewModel.releaseBooks(listOf("book-1"))
+            advanceUntilIdle()
+
+            val withError = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertTrue(withError.error != null)
 
             viewModel.clearError()
 
-            assertNull(viewModel.state.value.error)
+            val cleared = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertNull(cleared.error)
         }
 
     @Test
@@ -467,11 +452,13 @@ class AdminInboxViewModelTest {
             viewModel.releaseBooks(listOf("book-1"))
             advanceUntilIdle()
 
-            assertTrue(viewModel.state.value.lastReleaseResult != null)
+            val withResult = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertTrue(withResult.lastReleaseResult != null)
 
             viewModel.clearReleaseResult()
 
-            assertNull(viewModel.state.value.lastReleaseResult)
+            val cleared = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertNull(cleared.lastReleaseResult)
         }
 
     @Test
@@ -484,7 +471,8 @@ class AdminInboxViewModelTest {
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            assertTrue(viewModel.state.value.hasBooks)
+            val ready = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertTrue(ready.hasBooks)
         }
 
     @Test
@@ -496,7 +484,8 @@ class AdminInboxViewModelTest {
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.hasBooks)
+            val ready = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertFalse(ready.hasBooks)
         }
 
     @Test
@@ -509,10 +498,12 @@ class AdminInboxViewModelTest {
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.hasSelection)
+            val beforeToggle = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertFalse(beforeToggle.hasSelection)
 
             viewModel.toggleBookSelection("book-1")
 
-            assertTrue(viewModel.state.value.hasSelection)
+            val afterToggle = assertIs<AdminInboxUiState.Ready>(viewModel.state.value)
+            assertTrue(afterToggle.hasSelection)
         }
 }
