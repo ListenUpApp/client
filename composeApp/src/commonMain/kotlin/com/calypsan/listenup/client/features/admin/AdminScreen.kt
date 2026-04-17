@@ -153,8 +153,10 @@ fun AdminScreen(
     var inviteToRevoke by remember { mutableStateOf<InviteInfo?>(null) }
     var userToDeny by remember { mutableStateOf<AdminUserInfo?>(null) }
 
-    LaunchedEffect(state.error) {
-        state.error?.let {
+    // Transient mutation-failure error in snackbar (only meaningful in Ready).
+    val readyError = (state as? AdminUiState.Ready)?.error
+    LaunchedEffect(readyError) {
+        readyError?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
@@ -189,38 +191,50 @@ fun AdminScreen(
             )
         },
     ) { innerPadding ->
-        if (state.isLoading) {
-            FullScreenLoadingIndicator()
-        } else {
-            AdminContent(
-                state = state,
-                onOpenRegistrationChange = { viewModel.setOpenRegistration(it) },
-                onApproveUserClick = { viewModel.approveUser(it.id) },
-                onDenyUserClick = { userToDeny = it },
-                onDeleteUserClick = { userToDelete = it },
-                onUserClick = onUserClick,
-                onCopyInviteClick = { invite ->
-                    copyToClipboard(invite.url)
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Link copied!")
-                    }
-                },
-                onRevokeInviteClick = { inviteToRevoke = it },
-                onInviteClick = onInviteClick,
-                onCollectionsClick = onCollectionsClick,
-                onCategoriesClick = onCategoriesClick,
-                onInboxClick = onInboxClick,
-                onBackupClick = onBackupClick,
-                serverName = serverName,
-                onServerNameChange = onServerNameChange,
-                remoteUrl = remoteUrl,
-                onRemoteUrlChange = onRemoteUrlChange,
-                inboxEnabled = inboxEnabled,
-                inboxCount = inboxCount,
-                isSaving = isSaving,
-                onInboxEnabledChange = onInboxEnabledChange,
-                modifier = Modifier.padding(innerPadding),
-            )
+        when (val current = state) {
+            is AdminUiState.Loading -> {
+                FullScreenLoadingIndicator()
+            }
+
+            is AdminUiState.Error -> {
+                Text(
+                    text = current.message,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(innerPadding).padding(16.dp),
+                )
+            }
+
+            is AdminUiState.Ready -> {
+                AdminContent(
+                    state = current,
+                    onOpenRegistrationChange = { viewModel.setOpenRegistration(it) },
+                    onApproveUserClick = { viewModel.approveUser(it.id) },
+                    onDenyUserClick = { userToDeny = it },
+                    onDeleteUserClick = { userToDelete = it },
+                    onUserClick = onUserClick,
+                    onCopyInviteClick = { invite ->
+                        copyToClipboard(invite.url)
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Link copied!")
+                        }
+                    },
+                    onRevokeInviteClick = { inviteToRevoke = it },
+                    onInviteClick = onInviteClick,
+                    onCollectionsClick = onCollectionsClick,
+                    onCategoriesClick = onCategoriesClick,
+                    onInboxClick = onInboxClick,
+                    onBackupClick = onBackupClick,
+                    serverName = serverName,
+                    onServerNameChange = onServerNameChange,
+                    remoteUrl = remoteUrl,
+                    onRemoteUrlChange = onRemoteUrlChange,
+                    inboxEnabled = inboxEnabled,
+                    inboxCount = inboxCount,
+                    isSaving = isSaving,
+                    onInboxEnabledChange = onInboxEnabledChange,
+                    modifier = Modifier.padding(innerPadding),
+                )
+            }
         }
     }
 
@@ -276,7 +290,7 @@ fun AdminScreen(
 
 @Composable
 private fun AdminContent(
-    state: AdminUiState,
+    state: AdminUiState.Ready,
     onOpenRegistrationChange: (Boolean) -> Unit,
     onApproveUserClick: (AdminUserInfo) -> Unit,
     onDenyUserClick: (AdminUserInfo) -> Unit,

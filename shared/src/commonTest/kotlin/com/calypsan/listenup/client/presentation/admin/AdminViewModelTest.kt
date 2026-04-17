@@ -36,7 +36,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
@@ -113,7 +113,7 @@ class AdminViewModelTest {
     }
 
     @Test
-    fun `initial state is loading`() =
+    fun `initial state is Loading`() =
         runTest {
             val instanceRepo = createMockInstanceRepository()
             val loadUsersUseCase: LoadUsersUseCase = mock()
@@ -143,11 +143,11 @@ class AdminViewModelTest {
                     eventStreamRepository = createMockEventStreamRepository(),
                 )
 
-            assertTrue(viewModel.state.value.isLoading)
+            assertIs<AdminUiState.Loading>(viewModel.state.value)
         }
 
     @Test
-    fun `loadData fetches users and invites`() =
+    fun `loadData transitions to Ready with users and invites`() =
         runTest {
             val instanceRepo = createMockInstanceRepository()
             val loadUsersUseCase: LoadUsersUseCase = mock()
@@ -180,9 +180,9 @@ class AdminViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertEquals(2, viewModel.state.value.users.size)
-            assertEquals(1, viewModel.state.value.pendingInvites.size)
+            val ready = assertIs<AdminUiState.Ready>(viewModel.state.value)
+            assertEquals(2, ready.users.size)
+            assertEquals(1, ready.pendingInvites.size)
         }
 
     @Test
@@ -222,16 +222,13 @@ class AdminViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertEquals(1, viewModel.state.value.pendingInvites.size)
-            assertEquals(
-                "pending",
-                viewModel.state.value.pendingInvites[0]
-                    .id,
-            )
+            val ready = assertIs<AdminUiState.Ready>(viewModel.state.value)
+            assertEquals(1, ready.pendingInvites.size)
+            assertEquals("pending", ready.pendingInvites[0].id)
         }
 
     @Test
-    fun `loadData handles user fetch error`() =
+    fun `loadData initial users failure transitions to Error`() =
         runTest {
             val instanceRepo = createMockInstanceRepository()
             val loadUsersUseCase: LoadUsersUseCase = mock()
@@ -262,11 +259,8 @@ class AdminViewModelTest {
                 )
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertTrue(
-                viewModel.state.value.error
-                    ?.contains("users") == true,
-            )
+            val error = assertIs<AdminUiState.Error>(viewModel.state.value)
+            assertTrue(error.message.contains("users"))
         }
 
     @Test
@@ -302,17 +296,15 @@ class AdminViewModelTest {
                     eventStreamRepository = createMockEventStreamRepository(),
                 )
             advanceUntilIdle()
-            assertEquals(2, viewModel.state.value.users.size)
+            val afterLoad = assertIs<AdminUiState.Ready>(viewModel.state.value)
+            assertEquals(2, afterLoad.users.size)
 
             viewModel.deleteUser("user-1")
             advanceUntilIdle()
 
-            assertEquals(1, viewModel.state.value.users.size)
-            assertEquals(
-                "user-2",
-                viewModel.state.value.users[0]
-                    .id,
-            )
+            val ready = assertIs<AdminUiState.Ready>(viewModel.state.value)
+            assertEquals(1, ready.users.size)
+            assertEquals("user-2", ready.users[0].id)
         }
 
     @Test
@@ -352,12 +344,9 @@ class AdminViewModelTest {
             viewModel.revokeInvite("invite-1")
             advanceUntilIdle()
 
-            assertEquals(1, viewModel.state.value.pendingInvites.size)
-            assertEquals(
-                "invite-2",
-                viewModel.state.value.pendingInvites[0]
-                    .id,
-            )
+            val ready = assertIs<AdminUiState.Ready>(viewModel.state.value)
+            assertEquals(1, ready.pendingInvites.size)
+            assertEquals("invite-2", ready.pendingInvites[0].id)
         }
 
     @Test
@@ -373,9 +362,10 @@ class AdminViewModelTest {
             val denyUserUseCase: DenyUserUseCase = mock()
             val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
 
-            everySuspend { loadUsersUseCase() } returns Failure(RuntimeException("Error"))
+            // Users succeeds to land in Ready; invites fails to surface transient error on Ready.
+            everySuspend { loadUsersUseCase() } returns Success(emptyList())
             everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
-            everySuspend { loadInvitesUseCase() } returns Success(emptyList())
+            everySuspend { loadInvitesUseCase() } returns Failure(RuntimeException("Invites error"))
 
             val viewModel =
                 AdminViewModel(
@@ -391,11 +381,13 @@ class AdminViewModelTest {
                     eventStreamRepository = createMockEventStreamRepository(),
                 )
             advanceUntilIdle()
-            assertTrue(viewModel.state.value.error != null)
+            val beforeClear = assertIs<AdminUiState.Ready>(viewModel.state.value)
+            assertTrue(beforeClear.error != null)
 
             viewModel.clearError()
 
-            assertNull(viewModel.state.value.error)
+            val afterClear = assertIs<AdminUiState.Ready>(viewModel.state.value)
+            assertNull(afterClear.error)
         }
 
     @Test
@@ -448,8 +440,8 @@ class AdminViewModelTest {
             // Advance 150ms — enough for parallel, not enough for sequential.
             advanceTimeBy(150)
 
-            assertFalse(viewModel.state.value.isLoading)
-            assertEquals(1, viewModel.state.value.users.size)
-            assertEquals(1, viewModel.state.value.pendingInvites.size)
+            val ready = assertIs<AdminUiState.Ready>(viewModel.state.value)
+            assertEquals(1, ready.users.size)
+            assertEquals(1, ready.pendingInvites.size)
         }
 }

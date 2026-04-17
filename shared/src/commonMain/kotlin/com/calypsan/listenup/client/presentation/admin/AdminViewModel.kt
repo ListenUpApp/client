@@ -21,6 +21,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -44,7 +45,7 @@ class AdminViewModel(
     private val eventStreamRepository: EventStreamRepository,
 ) : ViewModel() {
     val state: StateFlow<AdminUiState>
-        field = MutableStateFlow(AdminUiState())
+        field = MutableStateFlow<AdminUiState>(AdminUiState.Loading)
 
     init {
         loadData()
@@ -74,38 +75,34 @@ class AdminViewModel(
 
     private fun handleUserPending(user: AdminUserInfo) {
         logger.debug { "SSE: User pending - ${user.email}" }
-        val currentPending = state.value.pendingUsers
-        // Only add if not already in list
-        if (currentPending.none { it.id == user.id }) {
-            state.value =
-                state.value.copy(
-                    pendingUsers = currentPending + user,
-                )
+        updateReady { ready ->
+            // Only add if not already in list
+            if (ready.pendingUsers.none { it.id == user.id }) {
+                ready.copy(pendingUsers = ready.pendingUsers + user)
+            } else {
+                ready
+            }
         }
     }
 
     private fun handleUserApproved(user: AdminUserInfo) {
         logger.debug { "SSE: User approved - ${user.email}" }
-        // Remove from pending
-        val updatedPending = state.value.pendingUsers.filter { it.id != user.id }
-        // Only add to users if not already present (avoid duplicates from button + SSE)
-        val updatedUsers =
-            if (state.value.users.none { it.id == user.id }) {
-                state.value.users + user
-            } else {
-                state.value.users
-            }
-        state.value =
-            state.value.copy(
-                pendingUsers = updatedPending,
-                users = updatedUsers,
-            )
+        updateReady { ready ->
+            // Remove from pending
+            val updatedPending = ready.pendingUsers.filter { it.id != user.id }
+            // Only add to users if not already present (avoid duplicates from button + SSE)
+            val updatedUsers =
+                if (ready.users.none { it.id == user.id }) {
+                    ready.users + user
+                } else {
+                    ready.users
+                }
+            ready.copy(pendingUsers = updatedPending, users = updatedUsers)
+        }
     }
 
     fun loadData() {
         viewModelScope.launch {
-            state.value = state.value.copy(isLoading = true, error = null)
-
             // Load all data in parallel — no dependencies between these calls
             val deferredInstance = async { instanceRepository.getInstance() }
             val deferredUsers = async { loadUsersUseCase() }
@@ -118,36 +115,39 @@ class AdminViewModel(
                     is Failure -> false
                 }
 
-            val users =
-                when (val result = deferredUsers.await()) {
-                    is Success -> {
-                        result.data
-                    }
+            val usersResult = deferredUsers.await()
+            val pendingResult = deferredPending.await()
+            val invitesResult = deferredInvites.await()
 
-                    is Failure -> {
-                        state.value = state.value.copy(error = "Failed to load users: ${result.message}")
-                        emptyList()
+            // Users fetch is the primary load. If it fails on initial load, surface as Error.
+            // If already Ready (refresh), surface as transient error on Ready.
+            if (usersResult is Failure) {
+                val message = "Failed to load users: ${usersResult.message}"
+                state.update { current ->
+                    if (current is AdminUiState.Ready) {
+                        current.copy(error = message)
+                    } else {
+                        AdminUiState.Error(message)
                     }
                 }
+                return@launch
+            }
 
+            val users = (usersResult as Success).data
             val pendingUsers =
-                when (val result = deferredPending.await()) {
-                    is Success -> result.data
+                when (pendingResult) {
+                    is Success -> pendingResult.data
                     is Failure -> emptyList()
                 }
-
             val pendingInvites =
-                when (val result = deferredInvites.await()) {
-                    is Success -> {
-                        result.data.filter { it.claimedAt == null }
-                    }
-
-                    is Failure -> {
-                        if (state.value.error == null) {
-                            state.value = state.value.copy(error = "Failed to load invites: ${result.message}")
-                        }
-                        emptyList()
-                    }
+                when (invitesResult) {
+                    is Success -> invitesResult.data.filter { it.claimedAt == null }
+                    is Failure -> emptyList()
+                }
+            val invitesError =
+                when (invitesResult) {
+                    is Success -> null
+                    is Failure -> "Failed to load invites: ${invitesResult.message}"
                 }
 
             // Sort users: root user first, then by creation date (oldest first)
@@ -157,37 +157,51 @@ class AdminViewModel(
                         .thenBy { it.createdAt },
                 )
 
-            state.value =
-                state.value.copy(
-                    isLoading = false,
-                    openRegistration = openRegistration,
-                    users = sortedUsers,
-                    pendingUsers = pendingUsers,
-                    pendingInvites = pendingInvites,
-                )
+            state.update { current ->
+                if (current is AdminUiState.Ready) {
+                    current.copy(
+                        openRegistration = openRegistration,
+                        users = sortedUsers,
+                        pendingUsers = pendingUsers,
+                        pendingInvites = pendingInvites,
+                        error = invitesError,
+                    )
+                } else {
+                    // First emission (from Loading) or recovering from Error:
+                    // transition to Ready with fresh data and default UI fields.
+                    AdminUiState.Ready(
+                        openRegistration = openRegistration,
+                        users = sortedUsers,
+                        pendingUsers = pendingUsers,
+                        pendingInvites = pendingInvites,
+                        error = invitesError,
+                    )
+                }
+            }
         }
     }
 
     fun deleteUser(userId: String) {
         viewModelScope.launch {
-            state.value = state.value.copy(deletingUserId = userId)
+            updateReady { it.copy(deletingUserId = userId) }
 
             when (val result = deleteUserUseCase(userId)) {
                 is Success -> {
-                    val updatedUsers = state.value.users.filter { it.id != userId }
-                    state.value =
-                        state.value.copy(
+                    updateReady { ready ->
+                        ready.copy(
                             deletingUserId = null,
-                            users = updatedUsers,
+                            users = ready.users.filter { it.id != userId },
                         )
+                    }
                 }
 
                 is Failure -> {
-                    state.value =
-                        state.value.copy(
+                    updateReady {
+                        it.copy(
                             deletingUserId = null,
                             error = result.message,
                         )
+                    }
                 }
             }
         }
@@ -195,63 +209,66 @@ class AdminViewModel(
 
     fun revokeInvite(inviteId: String) {
         viewModelScope.launch {
-            state.value = state.value.copy(revokingInviteId = inviteId)
+            updateReady { it.copy(revokingInviteId = inviteId) }
 
             when (val result = revokeInviteUseCase(inviteId)) {
                 is Success -> {
-                    val updatedInvites = state.value.pendingInvites.filter { it.id != inviteId }
-                    state.value =
-                        state.value.copy(
+                    updateReady { ready ->
+                        ready.copy(
                             revokingInviteId = null,
-                            pendingInvites = updatedInvites,
+                            pendingInvites = ready.pendingInvites.filter { it.id != inviteId },
                         )
+                    }
                 }
 
                 is Failure -> {
-                    state.value =
-                        state.value.copy(
+                    updateReady {
+                        it.copy(
                             revokingInviteId = null,
                             error = result.message,
                         )
+                    }
                 }
             }
         }
     }
 
     fun clearError() {
-        state.value = state.value.copy(error = null)
+        updateReady { it.copy(error = null) }
     }
 
     fun approveUser(userId: String) {
         viewModelScope.launch {
-            state.value = state.value.copy(approvingUserId = userId)
+            updateReady { it.copy(approvingUserId = userId) }
 
             when (val result = approveUserUseCase(userId)) {
                 is Success -> {
                     val approvedUser = result.data
-                    // Move from pending to active users
-                    val updatedPending = state.value.pendingUsers.filter { it.id != userId }
-                    // Only add to users if not already present (avoid duplicates from button + SSE)
-                    val updatedUsers =
-                        if (state.value.users.none { it.id == userId }) {
-                            state.value.users + approvedUser
-                        } else {
-                            state.value.users
-                        }
-                    state.value =
-                        state.value.copy(
+                    updateReady { ready ->
+                        // Move from pending to active users
+                        val updatedPending = ready.pendingUsers.filter { it.id != userId }
+                        // Only add to users if not already present (avoid duplicates from button + SSE)
+                        val updatedUsers =
+                            if (ready.users.none { it.id == userId }) {
+                                ready.users + approvedUser
+                            } else {
+                                ready.users
+                            }
+                        ready.copy(
                             approvingUserId = null,
                             pendingUsers = updatedPending,
                             users = updatedUsers,
                         )
+                    }
                 }
 
                 is Failure -> {
-                    state.value =
-                        state.value.copy(
+                    updateReady {
+                        it.copy(
                             approvingUserId = null,
                             error = result.message,
                         )
+                    }
                 }
             }
         }
@@ -259,24 +276,25 @@ class AdminViewModel(
 
     fun denyUser(userId: String) {
         viewModelScope.launch {
-            state.value = state.value.copy(denyingUserId = userId)
+            updateReady { it.copy(denyingUserId = userId) }
 
             when (val result = denyUserUseCase(userId)) {
                 is Success -> {
-                    val updatedPending = state.value.pendingUsers.filter { it.id != userId }
-                    state.value =
-                        state.value.copy(
+                    updateReady { ready ->
+                        ready.copy(
                             denyingUserId = null,
-                            pendingUsers = updatedPending,
+                            pendingUsers = ready.pendingUsers.filter { it.id != userId },
                         )
+                    }
                 }
 
                 is Failure -> {
-                    state.value =
-                        state.value.copy(
+                    updateReady {
+                        it.copy(
                             denyingUserId = null,
                             error = result.message,
                         )
+                    }
                 }
             }
         }
@@ -284,39 +302,72 @@ class AdminViewModel(
 
     fun setOpenRegistration(enabled: Boolean) {
         viewModelScope.launch {
-            state.value = state.value.copy(isTogglingOpenRegistration = true)
+            updateReady { it.copy(isTogglingOpenRegistration = true) }
 
             when (val result = setOpenRegistrationUseCase(enabled)) {
                 is Success -> {
-                    state.value =
-                        state.value.copy(
+                    updateReady {
+                        it.copy(
                             isTogglingOpenRegistration = false,
                             openRegistration = enabled,
                         )
+                    }
                 }
 
                 is Failure -> {
-                    state.value =
-                        state.value.copy(
+                    updateReady {
+                        it.copy(
                             isTogglingOpenRegistration = false,
                             error = result.message,
                         )
+                    }
                 }
             }
         }
     }
+
+    /**
+     * Apply [transform] to state only if it is currently [AdminUiState.Ready].
+     * No-ops when state is [AdminUiState.Loading] or [AdminUiState.Error].
+     */
+    private fun updateReady(transform: (AdminUiState.Ready) -> AdminUiState.Ready) {
+        state.update { current ->
+            if (current is AdminUiState.Ready) transform(current) else current
+        }
+    }
 }
 
-data class AdminUiState(
-    val isLoading: Boolean = true,
-    val openRegistration: Boolean = false,
-    val users: List<AdminUserInfo> = emptyList(),
-    val pendingUsers: List<AdminUserInfo> = emptyList(),
-    val pendingInvites: List<InviteInfo> = emptyList(),
-    val deletingUserId: String? = null,
-    val revokingInviteId: String? = null,
-    val approvingUserId: String? = null,
-    val denyingUserId: String? = null,
-    val isTogglingOpenRegistration: Boolean = false,
-    val error: String? = null,
-)
+/**
+ * UI state for the combined admin screen.
+ *
+ * Sealed hierarchy:
+ * - [Loading] before the first `loadData()` emission.
+ * - [Ready] once data has loaded; carries openRegistration, users,
+ *   pendingUsers, pendingInvites, per-action overlays
+ *   (`deletingUserId`, `revokingInviteId`, `approvingUserId`,
+ *   `denyingUserId`, `isTogglingOpenRegistration`), and a transient
+ *   `error` surfaced as a snackbar.
+ * - [Error] terminal state when the initial users load (or a retry from
+ *   [Error]) fails. Refresh failures after we've reached [Ready] surface
+ *   via the transient `error` field on [Ready] instead.
+ */
+sealed interface AdminUiState {
+    data object Loading : AdminUiState
+
+    data class Ready(
+        val openRegistration: Boolean = false,
+        val users: List<AdminUserInfo> = emptyList(),
+        val pendingUsers: List<AdminUserInfo> = emptyList(),
+        val pendingInvites: List<InviteInfo> = emptyList(),
+        val deletingUserId: String? = null,
+        val revokingInviteId: String? = null,
+        val approvingUserId: String? = null,
+        val denyingUserId: String? = null,
+        val isTogglingOpenRegistration: Boolean = false,
+        val error: String? = null,
+    ) : AdminUiState
+
+    data class Error(
+        val message: String,
+    ) : AdminUiState
+}
