@@ -56,7 +56,7 @@ import kotlin.test.assertIs
  * - Sorting logic for books, series, and contributors
  * - Auto-sync behavior on screen visibility
  * - Event handling
- * - Terminal .catch emits Error on upstream failure
+ * - Per-upstream .catch gracefully degrades to empty defaults on transient failures
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryViewModelTest {
@@ -946,18 +946,34 @@ class LibraryViewModelTest {
             assertEquals(0.995f, loaded.bookProgress["book-1"])
         }
 
-    // ========== Terminal Catch Test ==========
+    // ========== Per-Upstream Catch Tests ==========
 
     @Test
-    fun `upstream failure surfaces as Error state`() =
+    fun `transient observeBooks failure keeps state as Loaded with empty books`() =
         runTest {
-            // Given - book repository flow throws on first collect
+            // Given - book repository flow throws on first collect; per-upstream .catch emits empty list
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flow { throw RuntimeException("boom") }
+            every { fixture.bookRepository.observeBooks() } returns flow { throw RuntimeException("transient") }
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
-            // Then - pipeline's terminal .catch emits Error
-            assertIs<LibraryUiState.Error>(viewModel.uiState.value)
+            // Then - state degrades gracefully to Loaded with empty books rather than Error
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(0, loaded.books.size)
+        }
+
+    @Test
+    fun `transient observeAll(positions) failure keeps state as Loaded with empty progress`() =
+        runTest {
+            // Given - playback position flow throws on first collect; per-upstream .catch emits empty map
+            val fixture = createFixture()
+            every { fixture.playbackPositionRepository.observeAll() } returns flow { throw RuntimeException("transient") }
+            val viewModel = fixture.build().also { keepStateHot(it) }
+            advanceUntilIdle()
+
+            // Then - state degrades gracefully to Loaded with empty progress maps rather than Error
+            val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
+            assertEquals(0, loaded.bookProgress.size)
+            assertEquals(0, loaded.bookIsFinished.size)
         }
 }

@@ -21,10 +21,12 @@ import com.calypsan.listenup.client.util.sortableTitle
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -104,19 +106,53 @@ class LibraryViewModel(
     // PIPELINE
     // ═══════════════════════════════════════════════════════════════════════
 
-    private val rawContent: Flow<RawContent> =
+    private val rawContent: SharedFlow<RawContent> =
         combine(
-            bookRepository.observeBooks(),
-            seriesRepository.observeAllWithBooks(),
-            contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue),
-            contributorRepository.observeContributorsByRole(ContributorRole.NARRATOR.apiValue),
+            bookRepository
+                .observeBooks()
+                .catch { e ->
+                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                    logger.error(e) { "observeBooks failed; emitting empty list" }
+                    emit(emptyList())
+                },
+            seriesRepository
+                .observeAllWithBooks()
+                .catch { e ->
+                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                    logger.error(e) { "observeAllWithBooks failed; emitting empty list" }
+                    emit(emptyList())
+                },
+            contributorRepository
+                .observeContributorsByRole(ContributorRole.AUTHOR.apiValue)
+                .catch { e ->
+                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                    logger.error(e) { "observeContributorsByRole(AUTHOR) failed; emitting empty list" }
+                    emit(emptyList())
+                },
+            contributorRepository
+                .observeContributorsByRole(ContributorRole.NARRATOR.apiValue)
+                .catch { e ->
+                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                    logger.error(e) { "observeContributorsByRole(NARRATOR) failed; emitting empty list" }
+                    emit(emptyList())
+                },
             ::RawContent,
+        ).shareIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+            replay = 1,
         )
 
     private val progressSnapshot: Flow<ProgressSnapshot> =
         combine(
             rawContent,
-            playbackPositionRepository.observeAll(),
+            playbackPositionRepository
+                .observeAll()
+                .catch { e ->
+                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                    logger.error(e) { "observeAll(positions) failed; emitting empty map" }
+                    emit(emptyMap())
+                },
         ) { content, positions ->
             computeProgress(content.books, positions)
         }
