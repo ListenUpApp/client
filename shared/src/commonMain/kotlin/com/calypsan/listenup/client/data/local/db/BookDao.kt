@@ -396,10 +396,43 @@ interface BookDao {
 
     /**
      * Observe recently added books with primary author, newest first.
-     * Used for "Recently Added" section on Discover screen.
+     *
+     * Neutral query: returns every book ordered by `createdAt` DESC, with no series-sequence
+     * filter. Callers that specifically want the "first-in-series or standalone" product
+     * filter should use [observeRecentlyAddedFirstInSeriesWithAuthor] instead.
      *
      * @param limit Maximum number of books to return
      * @return Flow emitting list of recently added books with author
+     */
+    @Query(
+        """
+        SELECT
+            b.id, b.title, b.coverBlurHash, b.createdAt,
+            (
+                SELECT c.name FROM book_contributors bc
+                INNER JOIN contributors c ON bc.contributorId = c.id
+                WHERE bc.bookId = b.id AND bc.role = 'author'
+                LIMIT 1
+            ) as authorName
+        FROM books b
+        ORDER BY b.createdAt DESC
+        LIMIT :limit
+    """,
+    )
+    fun observeRecentlyAddedWithAuthor(limit: Int = 10): Flow<List<DiscoveryBookWithAuthor>>
+
+    /**
+     * Observe recently added books that are either standalone or the first entry
+     * of a series, with primary author, newest first.
+     *
+     * Applies a product-level filter: a book is included only if it has no
+     * `book_series` rows, or at least one of its rows has
+     * `sequence IN ('1', '0', '0.5')` (i.e. a prologue, series-zero, or first book).
+     * Mid-series entries are silently excluded — use [observeRecentlyAddedWithAuthor]
+     * when you want the unfiltered recency list.
+     *
+     * @param limit Maximum number of books to return
+     * @return Flow emitting list of standalone / first-in-series recently added books with author
      */
     @Query(
         """
@@ -423,7 +456,7 @@ interface BookDao {
         LIMIT :limit
     """,
     )
-    fun observeRecentlyAddedWithAuthor(limit: Int = 10): Flow<List<DiscoveryBookWithAuthor>>
+    fun observeRecentlyAddedFirstInSeriesWithAuthor(limit: Int = 10): Flow<List<DiscoveryBookWithAuthor>>
 
     /**
      * Observe random unstarted books with primary author.
