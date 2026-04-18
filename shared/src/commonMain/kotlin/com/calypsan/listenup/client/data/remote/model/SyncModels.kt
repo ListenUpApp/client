@@ -765,6 +765,10 @@ data class SSEProgressUpdatedEvent(
     val isFinished: Boolean,
     @SerialName("last_played_at")
     val lastPlayedAt: String,
+    @SerialName("started_at")
+    val startedAt: String? = null,
+    @SerialName("finished_at")
+    val finishedAt: String? = null,
 )
 
 /**
