@@ -25,6 +25,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 /**
  * Tests that totalBooks/totalUsers from AnalysisStatusResponse
@@ -112,7 +113,7 @@ class ABSImportViewModelAnalysisCountsTest {
             // Advance past the first poll (launch + analyzeABSBackupAsync + first getAnalysisStatus)
             advanceTimeBy(100)
 
-            val stateAfterFirstPoll = viewModel.state.value
+            val stateAfterFirstPoll = assertIs<ABSImportUiState.Ready>(viewModel.state.value)
             assertEquals(ABSImportStep.ANALYZING, stateAfterFirstPoll.step)
             assertEquals(1011, stateAfterFirstPoll.totalBooks)
             assertEquals(5, stateAfterFirstPoll.totalUsers)
@@ -121,7 +122,7 @@ class ABSImportViewModelAnalysisCountsTest {
             advanceUntilIdle()
 
             // After completion, counts should still be populated
-            val finalState = viewModel.state.value
+            val finalState = assertIs<ABSImportUiState.Ready>(viewModel.state.value)
             assertEquals(1011, finalState.totalBooks)
             assertEquals(5, finalState.totalUsers)
         }
@@ -157,7 +158,7 @@ class ABSImportViewModelAnalysisCountsTest {
             // Advance past the first poll
             advanceTimeBy(100)
 
-            val stateAfterFirstPoll = viewModel.state.value
+            val stateAfterFirstPoll = assertIs<ABSImportUiState.Ready>(viewModel.state.value)
             assertEquals(ABSImportStep.ANALYZING, stateAfterFirstPoll.step)
             assertEquals(0, stateAfterFirstPoll.totalBooks)
             assertEquals(0, stateAfterFirstPoll.totalUsers)
@@ -201,12 +202,14 @@ class ABSImportViewModelAnalysisCountsTest {
 
             // First poll sees users only
             advanceTimeBy(100)
-            assertEquals(5, viewModel.state.value.totalUsers)
-            assertEquals(0, viewModel.state.value.totalBooks)
+            val afterFirst = assertIs<ABSImportUiState.Ready>(viewModel.state.value)
+            assertEquals(5, afterFirst.totalUsers)
+            assertEquals(0, afterFirst.totalBooks)
 
             // Second poll sees both
             advanceTimeBy(1600)
-            assertEquals(5, viewModel.state.value.totalUsers)
-            assertEquals(1011, viewModel.state.value.totalBooks)
+            val afterSecond = assertIs<ABSImportUiState.Ready>(viewModel.state.value)
+            assertEquals(5, afterSecond.totalUsers)
+            assertEquals(1011, afterSecond.totalBooks)
         }
 }

@@ -1,5 +1,3 @@
-@file:Suppress("LongMethod", "LongParameterList", "CognitiveComplexMethod")
-
 package com.calypsan.listenup.client.features.admin.backup
 
 import androidx.compose.animation.AnimatedContent
@@ -78,8 +76,8 @@ import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
-import com.calypsan.listenup.client.presentation.admin.ABSImportState
 import com.calypsan.listenup.client.presentation.admin.ABSImportStep
+import com.calypsan.listenup.client.presentation.admin.ABSImportUiState
 import com.calypsan.listenup.client.presentation.admin.ABSImportViewModel
 import com.calypsan.listenup.client.presentation.admin.ABSSourceType
 import com.calypsan.listenup.client.presentation.admin.BookMappingTab
@@ -89,7 +87,6 @@ import com.calypsan.listenup.client.presentation.admin.UserMappingTab
 import com.calypsan.listenup.client.util.DocumentPickerResult
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import org.koin.compose.koinInject
-import com.calypsan.listenup.client.core.Success
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,7 +95,7 @@ fun ABSImportScreen(
     onBackClick: () -> Unit,
     onComplete: () -> Unit,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val uiState by viewModel.state.collectAsStateWithLifecycle()
 
     // Document picker for local file selection
     val documentPicker =
@@ -119,6 +116,69 @@ fun ABSImportScreen(
             }
         }
 
+    when (val state = uiState) {
+        ABSImportUiState.Loading -> {
+            FullScreenLoadingIndicator(message = "Loading\u2026")
+        }
+
+        is ABSImportUiState.Error -> {
+            ABSImportErrorScaffold(message = state.message, onBackClick = onBackClick)
+        }
+
+        is ABSImportUiState.Ready -> {
+            ABSImportReadyContent(
+                state = state,
+                viewModel = viewModel,
+                documentPicker = documentPicker,
+                onBackClick = onBackClick,
+                onComplete = onComplete,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ABSImportErrorScaffold(
+    message: String,
+    onBackClick: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Import from Audiobookshelf") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        },
+    ) { paddingValues ->
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            ErrorCard(text = message)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+@Suppress("LongMethod")
+private fun ABSImportReadyContent(
+    state: ABSImportUiState.Ready,
+    viewModel: ABSImportViewModel,
+    documentPicker: com.calypsan.listenup.client.util.DocumentPickerState,
+    onBackClick: () -> Unit,
+    onComplete: () -> Unit,
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -265,7 +325,7 @@ private fun getStepTitle(step: ABSImportStep): String =
 
 @Composable
 private fun SourceSelectionContent(
-    state: ABSImportState,
+    state: ABSImportUiState.Ready,
     onSelectLocal: () -> Unit,
     onSelectRemote: () -> Unit,
     onPickDifferentFile: () -> Unit,
@@ -484,7 +544,7 @@ private fun formatFileSize(bytes: Long): String =
 
 @Composable
 private fun FileBrowserContent(
-    state: ABSImportState,
+    state: ABSImportUiState.Ready,
     onDirectoryClick: (String) -> Unit,
     onFileSelect: (String) -> Unit,
     onNavigateUp: () -> Unit,
@@ -669,7 +729,7 @@ private fun DirectoryBrowserItem(
 
 @Composable
 private fun UploadingContent(
-    state: ABSImportState,
+    state: ABSImportUiState.Ready,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -791,7 +851,7 @@ private fun AnalyzingContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UserMappingContent(
-    state: ABSImportState,
+    state: ABSImportUiState.Ready,
     onTabChange: (UserMappingTab) -> Unit,
     onActivateSearch: (String) -> Unit,
     onSearchQueryChange: (String) -> Unit,
@@ -898,6 +958,7 @@ private fun UserMappingContent(
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun UserNeedsReviewTabContent(
     users: List<ABSUserMatch>,
     selectedUserDisplays: Map<String, SelectedUserDisplay>,
@@ -962,6 +1023,7 @@ private fun UserNeedsReviewTabContent(
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun UserAutoMatchedTabContent(
     users: List<ABSUserMatch>,
     selectedUserDisplays: Map<String, SelectedUserDisplay>,
@@ -999,6 +1061,7 @@ private fun UserAutoMatchedTabContent(
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun UserMappingCard(
     userMatch: ABSUserMatch,
     selectedDisplay: SelectedUserDisplay?,
@@ -1287,7 +1350,7 @@ private fun UserSearchResultItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BookMappingContent(
-    state: ABSImportState,
+    state: ABSImportUiState.Ready,
     onTabChange: (BookMappingTab) -> Unit,
     onActivateSearch: (String) -> Unit,
     onSearchQueryChange: (String) -> Unit,
@@ -1394,6 +1457,7 @@ private fun BookMappingContent(
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun NeedsReviewTabContent(
     books: List<ABSBookMatch>,
     selectedBookDisplays: Map<String, SelectedBookDisplay>,
@@ -1458,6 +1522,7 @@ private fun NeedsReviewTabContent(
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun AutoMatchedTabContent(
     books: List<ABSBookMatch>,
     selectedBookDisplays: Map<String, SelectedBookDisplay>,
@@ -1495,6 +1560,7 @@ private fun AutoMatchedTabContent(
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun BookMappingCard(
     bookMatch: ABSBookMatch,
     selectedDisplay: SelectedBookDisplay?,
@@ -1784,8 +1850,9 @@ private fun BookSearchResultItem(
 // === Import Options ===
 
 @Composable
+@Suppress("LongMethod")
 private fun ImportOptionsContent(
-    state: ABSImportState,
+    state: ABSImportUiState.Ready,
     onImportSessionsChange: (Boolean) -> Unit,
     onImportProgressChange: (Boolean) -> Unit,
     onRebuildProgressChange: (Boolean) -> Unit,
@@ -1974,8 +2041,9 @@ private fun ImportingContent(modifier: Modifier = Modifier) {
 // === Results ===
 
 @Composable
+@Suppress("LongMethod", "CognitiveComplexMethod")
 private fun ResultsContent(
-    state: ABSImportState,
+    state: ABSImportUiState.Ready,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
