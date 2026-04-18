@@ -58,6 +58,7 @@ import com.calypsan.listenup.client.data.repository.AuthRepositoryImpl
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryImpl
 import com.calypsan.listenup.client.data.repository.BookRepositoryImpl
 import com.calypsan.listenup.client.data.repository.CollectionRepositoryImpl
+import com.calypsan.listenup.client.data.repository.CoverDownloadRepositoryImpl
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.ShortcutActionManager
 import com.calypsan.listenup.client.data.repository.EventStreamRepositoryImpl
@@ -143,6 +144,7 @@ import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import com.calypsan.listenup.client.domain.repository.ContributorEditRepository
+import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
@@ -887,6 +889,20 @@ val syncModule =
             )
         } bind ConflictDetectorContract::class
 
+        // CoverDownloadRepository - owns scope for fire-and-forget cover downloads
+        single<CoverDownloadRepository> {
+            CoverDownloadRepositoryImpl(
+                imageDownloader = get(),
+                bookDao = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
+
         // SSEEventProcessor - processes real-time SSE events
         single {
             SSEEventProcessor(
@@ -922,6 +938,7 @@ val syncModule =
                         downloadService = get(),
                     ),
                 activityDao = get(),
+                coverDownloadRepository = get(),
                 scope =
                     get(
                         qualifier =

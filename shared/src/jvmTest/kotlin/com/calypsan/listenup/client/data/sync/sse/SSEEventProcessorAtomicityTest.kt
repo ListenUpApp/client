@@ -30,6 +30,7 @@ import com.calypsan.listenup.client.data.sync.SSEEventType
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
@@ -57,6 +58,11 @@ import kotlin.test.assertEquals
  */
 class SSEEventProcessorAtomicityTest {
     private val db: ListenUpDatabase = createInMemoryTestDatabase()
+
+    private val noOpCoverDownloadRepository =
+        object : CoverDownloadRepository {
+            override fun queueCoverDownload(bookId: BookId) = Unit
+        }
 
     @AfterTest
     fun tearDown() {
@@ -157,6 +163,7 @@ class SSEEventProcessorAtomicityTest {
                             downloadService = downloadService,
                         ),
                     activityDao = activityDao,
+                    coverDownloadRepository = noOpCoverDownloadRepository,
                     scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
                 )
 
@@ -291,6 +298,7 @@ class SSEEventProcessorAtomicityTest {
                             downloadService = downloadService,
                         ),
                     activityDao = activityDao,
+                    coverDownloadRepository = noOpCoverDownloadRepository,
                     scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
                 )
 
@@ -413,6 +421,7 @@ class SSEEventProcessorAtomicityTest {
                             downloadService = downloadService,
                         ),
                     activityDao = activityDao,
+                    coverDownloadRepository = noOpCoverDownloadRepository,
                     scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
                 )
 

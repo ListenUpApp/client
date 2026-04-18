@@ -31,6 +31,7 @@ import com.calypsan.listenup.client.data.sync.SSEEventType
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -42,7 +43,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
-import com.calypsan.listenup.client.core.Success
 
 private val logger = KotlinLogging.logger {}
 
@@ -80,6 +80,7 @@ class SSEEventProcessor(
     sessionDaos: SessionDaos,
     sseExternalServices: SSEExternalServices,
     private val activityDao: ActivityDao,
+    private val coverDownloadRepository: CoverDownloadRepository,
     private val scope: CoroutineScope,
 ) {
     private val bookContributorDao = bookRelationshipDaos.bookContributorDao
@@ -330,7 +331,7 @@ class SSEEventProcessor(
         }
 
         scope.launch {
-            downloadCoverForBook(event.book.id)
+            coverDownloadRepository.queueCoverDownload(BookId(event.book.id))
         }
     }
 
@@ -348,7 +349,7 @@ class SSEEventProcessor(
         }
 
         scope.launch {
-            downloadCoverForBook(event.book.id)
+            coverDownloadRepository.queueCoverDownload(BookId(event.book.id))
         }
     }
 
@@ -555,29 +556,6 @@ class SSEEventProcessor(
         if (rows.isNotEmpty()) {
             audioFileDao.upsertAll(rows)
             logger.debug { "SSE: Saved ${rows.size} audio file rows for book ${book.id}" }
-        }
-    }
-
-    /**
-     * Download cover for a book and trigger UI refresh if successful.
-     */
-    private suspend fun downloadCoverForBook(bookId: String) {
-        try {
-            val result = imageDownloader.downloadCover(BookId(bookId))
-            if (result is Success && result.data) {
-                try {
-                    bookDao.touchUpdatedAt(BookId(bookId), Timestamp.now())
-                    logger.debug { "Touched book $bookId to trigger UI refresh" }
-                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logger.warn(e) { "Failed to touch updatedAt for book $bookId" }
-                }
-            }
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to download cover for book $bookId" }
         }
     }
 

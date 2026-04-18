@@ -37,6 +37,7 @@ import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
+import com.calypsan.listenup.client.data.repository.CoverDownloadRepositoryImpl
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
@@ -249,6 +250,12 @@ class SSEEventProcessorTest {
                         downloadService = downloadService,
                     ),
                 activityDao = activityDao,
+                coverDownloadRepository =
+                    CoverDownloadRepositoryImpl(
+                        imageDownloader = imageDownloader,
+                        bookDao = bookDao,
+                        scope = scope,
+                    ),
                 scope = scope,
             )
     }
