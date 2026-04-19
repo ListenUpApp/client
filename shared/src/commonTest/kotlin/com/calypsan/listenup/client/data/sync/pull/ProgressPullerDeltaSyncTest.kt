@@ -26,38 +26,43 @@ import kotlin.test.assertEquals
  * (jvmTest) using a real in-memory DB + RoomTransactionRunner.
  */
 class ProgressPullerDeltaSyncTest {
-    private fun passthroughTxRunner() = mock<TransactionRunner> {
-        everySuspend { atomically(any<suspend () -> Any>()) } calls { args ->
-            @Suppress("UNCHECKED_CAST")
-            val block = args.arg(0) as suspend () -> Any
-            block()
+    private fun passthroughTxRunner() =
+        mock<TransactionRunner> {
+            everySuspend { atomically(any<suspend () -> Any>()) } calls { args ->
+                @Suppress("UNCHECKED_CAST")
+                val block = args.arg(0) as suspend () -> Any
+                block()
+            }
         }
-    }
 
     @Test
     fun `pull with updatedAfter forwards it to getAllProgress`() =
         runTest {
             val capturedUpdatedAfter = mutableListOf<String?>()
-            val syncApi = mock<SyncApiContract> {
-                everySuspend { getAllProgress(any()) } calls { args ->
-                    capturedUpdatedAfter.add(args.arg(0) as String?)
-                    Success(AllProgressResponse(items = emptyList()))
+            val syncApi =
+                mock<SyncApiContract> {
+                    everySuspend { getAllProgress(any()) } calls { args ->
+                        capturedUpdatedAfter.add(args.arg(0) as String?)
+                        Success(AllProgressResponse(items = emptyList()))
+                    }
                 }
-            }
-            val playbackPositionDao = mock<PlaybackPositionDao> {
-                everySuspend { getByBookIds(any()) } returns emptyList()
-                everySuspend { saveAll(any()) } returns Unit
-            }
-            val pendingOperationDao = mock<PendingOperationDao> {
-                everySuspend { getPendingMarkCompleteBookIds() } returns emptyList()
-            }
+            val playbackPositionDao =
+                mock<PlaybackPositionDao> {
+                    everySuspend { getByBookIds(any()) } returns emptyList()
+                    everySuspend { saveAll(any()) } returns Unit
+                }
+            val pendingOperationDao =
+                mock<PendingOperationDao> {
+                    everySuspend { getPendingMarkCompleteBookIds() } returns emptyList()
+                }
 
-            val puller = ProgressPuller(
-                syncApi,
-                playbackPositionDao,
-                pendingOperationDao,
-                passthroughTxRunner(),
-            )
+            val puller =
+                ProgressPuller(
+                    syncApi,
+                    playbackPositionDao,
+                    pendingOperationDao,
+                    passthroughTxRunner(),
+                )
 
             puller.pull(updatedAfter = "2026-04-19T10:00:00Z") {}
 
@@ -68,26 +73,30 @@ class ProgressPullerDeltaSyncTest {
     fun `pull with null updatedAfter forwards null to getAllProgress`() =
         runTest {
             val capturedUpdatedAfter = mutableListOf<String?>()
-            val syncApi = mock<SyncApiContract> {
-                everySuspend { getAllProgress(any()) } calls { args ->
-                    capturedUpdatedAfter.add(args.arg(0) as String?)
-                    Success(AllProgressResponse(items = emptyList()))
+            val syncApi =
+                mock<SyncApiContract> {
+                    everySuspend { getAllProgress(any()) } calls { args ->
+                        capturedUpdatedAfter.add(args.arg(0) as String?)
+                        Success(AllProgressResponse(items = emptyList()))
+                    }
                 }
-            }
-            val playbackPositionDao = mock<PlaybackPositionDao> {
-                everySuspend { getByBookIds(any()) } returns emptyList()
-                everySuspend { saveAll(any()) } returns Unit
-            }
-            val pendingOperationDao = mock<PendingOperationDao> {
-                everySuspend { getPendingMarkCompleteBookIds() } returns emptyList()
-            }
+            val playbackPositionDao =
+                mock<PlaybackPositionDao> {
+                    everySuspend { getByBookIds(any()) } returns emptyList()
+                    everySuspend { saveAll(any()) } returns Unit
+                }
+            val pendingOperationDao =
+                mock<PendingOperationDao> {
+                    everySuspend { getPendingMarkCompleteBookIds() } returns emptyList()
+                }
 
-            val puller = ProgressPuller(
-                syncApi,
-                playbackPositionDao,
-                pendingOperationDao,
-                passthroughTxRunner(),
-            )
+            val puller =
+                ProgressPuller(
+                    syncApi,
+                    playbackPositionDao,
+                    pendingOperationDao,
+                    passthroughTxRunner(),
+                )
 
             puller.pull(updatedAfter = null) {}
 

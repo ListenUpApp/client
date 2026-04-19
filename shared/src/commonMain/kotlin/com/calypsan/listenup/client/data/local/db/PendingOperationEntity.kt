@@ -77,8 +77,6 @@ enum class OperationType {
 
     // Mark book as complete (retry on failure)
     MARK_COMPLETE,
-    ;
-
 }
 
 /**
@@ -90,8 +88,6 @@ enum class EntityType {
     SERIES,
     USER,
     SHELF,
-    ;
-
 }
 
 /**
@@ -106,6 +102,4 @@ enum class OperationStatus {
 
     /** Failed after retries, awaiting user action */
     FAILED,
-    ;
-
 }

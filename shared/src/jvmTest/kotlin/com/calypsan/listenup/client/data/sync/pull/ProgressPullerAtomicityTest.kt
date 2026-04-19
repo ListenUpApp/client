@@ -48,36 +48,42 @@ class ProgressPullerAtomicityTest {
     @Test
     fun `no rows persist when saveAll throws inside transaction`() =
         runTest {
-            val syncApi = mock<SyncApiContract> {
-                everySuspend { getAllProgress(any()) } returns Success(
-                    AllProgressResponse(
-                        items = listOf(
-                            ProgressSyncItem(
-                                bookId = "book-rollback",
-                                currentPositionMs = 1000L,
-                                isFinished = false,
-                                lastPlayedAt = "2026-04-19T10:00:00Z",
-                                updatedAt = "2026-04-19T10:00:00Z",
+            val syncApi =
+                mock<SyncApiContract> {
+                    everySuspend { getAllProgress(any()) } returns
+                        Success(
+                            AllProgressResponse(
+                                items =
+                                    listOf(
+                                        ProgressSyncItem(
+                                            bookId = "book-rollback",
+                                            currentPositionMs = 1000L,
+                                            isFinished = false,
+                                            lastPlayedAt = "2026-04-19T10:00:00Z",
+                                            updatedAt = "2026-04-19T10:00:00Z",
+                                        ),
+                                    ),
                             ),
-                        ),
-                    ),
-                )
-            }
-            val failingPlaybackPositionDao = mock<PlaybackPositionDao> {
-                everySuspend { getByBookIds(any()) } returns emptyList()
-                everySuspend { saveAll(any()) } throws RuntimeException("simulated save failure")
-            }
-            val pendingOperationDao = mock<PendingOperationDao> {
-                everySuspend { getPendingMarkCompleteBookIds() } returns emptyList()
-            }
+                        )
+                }
+            val failingPlaybackPositionDao =
+                mock<PlaybackPositionDao> {
+                    everySuspend { getByBookIds(any()) } returns emptyList()
+                    everySuspend { saveAll(any()) } throws RuntimeException("simulated save failure")
+                }
+            val pendingOperationDao =
+                mock<PendingOperationDao> {
+                    everySuspend { getPendingMarkCompleteBookIds() } returns emptyList()
+                }
             val realTransactionRunner = RoomTransactionRunner(db)
 
-            val puller = ProgressPuller(
-                syncApi,
-                failingPlaybackPositionDao,
-                pendingOperationDao,
-                realTransactionRunner,
-            )
+            val puller =
+                ProgressPuller(
+                    syncApi,
+                    failingPlaybackPositionDao,
+                    pendingOperationDao,
+                    realTransactionRunner,
+                )
 
             // ProgressPuller.pull catches Exception at the outer envelope and logs —
             // it does NOT propagate. So we assert the DB state directly.
