@@ -56,6 +56,24 @@ private fun parseTimestamp(isoString: String): Timestamp =
     }
 
 /**
+ * Parse an ISO-8601 timestamp from the wire, returning null on any parse failure.
+ *
+ * Used for fields where a silent fallback to "now" is a lie of omission — e.g.,
+ * `progress_updated.last_played_at`. Callers log and skip the affected row when
+ * this returns null; next full sync reconciles.
+ *
+ * Contrast with [parseTimestamp], which falls back to `Timestamp.now()` for fields
+ * where the fallback is semantically acceptable (e.g., session `startedAt` defaults
+ * to "now" if malformed).
+ */
+private fun parseLastPlayedOrNull(isoString: String): Timestamp? =
+    try {
+        Timestamp.fromEpochMillis(Instant.parse(isoString).toEpochMilliseconds())
+    } catch (_: Exception) {
+        null
+    }
+
+/**
  * Processes real-time Server-Sent Events and applies changes to local database.
  *
  * Handles:
@@ -826,7 +844,15 @@ class SSEEventProcessor(
             return
         }
 
-        val lastPlayedAtMs = parseTimestamp(payload.lastPlayedAt).epochMillis
+        val lastPlayedAt =
+            parseLastPlayedOrNull(payload.lastPlayedAt) ?: run {
+                logger.warn {
+                    "SSE: malformed last_played_at '${payload.lastPlayedAt}' for book ${payload.bookId} — " +
+                        "skipping row; next sync will reconcile"
+                }
+                return
+            }
+        val lastPlayedAtMs = lastPlayedAt.epochMillis
         val finishedAtMs = payload.finishedAt?.let { parseTimestamp(it).epochMillis }
         val startedAtMs = payload.startedAt?.let { parseTimestamp(it).epochMillis }
 
