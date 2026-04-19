@@ -1098,6 +1098,7 @@ val syncModule =
                 syncApi = get<SyncApiContract>(),
                 playbackPositionDao = get(),
                 pendingOperationDao = get(),
+                transactionRunner = get(),
             )
         }
 
