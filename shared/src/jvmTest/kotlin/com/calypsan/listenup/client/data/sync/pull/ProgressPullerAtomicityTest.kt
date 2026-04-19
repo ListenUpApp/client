@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.sync.pull
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
@@ -18,14 +19,23 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
- * Proves `ProgressPuller.guardAndSaveEntities` is atomic — when `saveAll` throws
- * mid-transaction, no rows persist. Mirrors `BookPullerAtomicityTest` precedent (W4.2).
+ * Proves `ProgressPuller.guardAndSaveEntities` reaches the transactional seam and
+ * no partial writes persist when the seam's inner body throws.
  *
- * Uses a real in-memory [ListenUpDatabase] so transaction semantics are exercised
- * end-to-end; a fake TransactionRunner cannot prove rollback. The `PlaybackPositionDao`
- * is mocked to throw, forcing the failure after the pending-ids read.
+ * Uses a real in-memory [ListenUpDatabase] and real [RoomTransactionRunner] so
+ * transaction semantics are exercised end-to-end; `PlaybackPositionDao` is mocked
+ * to throw on `saveAll`.
+ *
+ * Honest scope: `guardAndSaveEntities` contains only one DAO write (`saveAll`), so
+ * exception-driven rollback cannot be distinguished from "throw before write" at the
+ * single-write level. The stronger invariant — serialisation against concurrent
+ * MARK_COMPLETE queue inserts — is not exercised here because `runTest`'s
+ * single-threaded dispatcher cannot reproduce the concurrent race. That invariant is
+ * defended structurally: the production code's `atomically { read; compute; saveAll }`
+ * block matches the W4 precedent (`BookPullerAtomicityTest.kt`) and rubric §P-R1.
  */
 class ProgressPullerAtomicityTest {
     private val db: ListenUpDatabase = createInMemoryTestDatabase()
@@ -36,7 +46,7 @@ class ProgressPullerAtomicityTest {
     }
 
     @Test
-    fun `rollback when saveAll throws mid-transaction`() =
+    fun `no rows persist when saveAll throws inside transaction`() =
         runTest {
             val syncApi = mock<SyncApiContract> {
                 everySuspend { getAllProgress(any()) } returns Success(
@@ -70,11 +80,13 @@ class ProgressPullerAtomicityTest {
             )
 
             // ProgressPuller.pull catches Exception at the outer envelope and logs —
-            // it does NOT propagate. So we assert the DB state directly: zero rows
-            // in playback_positions after pull returns.
+            // it does NOT propagate. So we assert the DB state directly.
             puller.pull(updatedAfter = null) {}
 
-            val persisted = db.playbackPositionDao().getByBookIds(emptyList())
-            assertEquals(0, persisted.size, "no rows should have persisted after rollback")
+            val rolledBackRow = db.playbackPositionDao().get(BookId("book-rollback"))
+            assertNull(rolledBackRow, "book-rollback row must not persist after transaction rollback")
+
+            val unsyncedAfterRollback = db.playbackPositionDao().getUnsyncedPositions()
+            assertEquals(0, unsyncedAfterRollback.size, "no rows should exist in playback_positions after rollback")
         }
 }
