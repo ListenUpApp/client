@@ -12,6 +12,12 @@ import kotlinx.coroutines.flow.Flow
  *
  * Manages the unified queue for all push sync operations.
  * Supports coalescing, batching, and status tracking.
+ *
+ * Status column is stored as the string name of [OperationStatus] (e.g. 'PENDING'),
+ * so all WHERE/SET clauses use string literals, not ordinals.
+ *
+ * OperationType column is stored as the string name of [OperationType] (e.g. 'USER_PREFERENCES'),
+ * so all WHERE clauses that filter by type also use string literals.
  */
 @Dao
 interface PendingOperationDao {
@@ -33,7 +39,7 @@ interface PendingOperationDao {
         SELECT * FROM pending_operations
         WHERE operationType = :type
           AND entityId = :entityId
-          AND status = ${OperationStatus.PENDING_ORDINAL}
+          AND status = 'PENDING'
         LIMIT 1
         """,
     )
@@ -49,8 +55,8 @@ interface PendingOperationDao {
     @Query(
         """
         SELECT * FROM pending_operations
-        WHERE operationType = ${OperationType.USER_PREFERENCES_ORDINAL}
-          AND status = ${OperationStatus.PENDING_ORDINAL}
+        WHERE operationType = 'USER_PREFERENCES'
+          AND status = 'PENDING'
         LIMIT 1
         """,
     )
@@ -62,7 +68,7 @@ interface PendingOperationDao {
     @Query(
         """
         SELECT * FROM pending_operations
-        WHERE status = ${OperationStatus.PENDING_ORDINAL}
+        WHERE status = 'PENDING'
         ORDER BY createdAt ASC
         LIMIT 1
         """,
@@ -77,7 +83,7 @@ interface PendingOperationDao {
         """
         SELECT * FROM pending_operations
         WHERE batchKey = :batchKey
-          AND status = ${OperationStatus.PENDING_ORDINAL}
+          AND status = 'PENDING'
         ORDER BY createdAt ASC
         LIMIT :limit
         """,
@@ -93,7 +99,7 @@ interface PendingOperationDao {
     @Query(
         """
         SELECT * FROM pending_operations
-        WHERE status = ${OperationStatus.PENDING_ORDINAL}
+        WHERE status = 'PENDING'
         ORDER BY createdAt ASC
         LIMIT :limit
         """,
@@ -106,7 +112,7 @@ interface PendingOperationDao {
     @Query(
         """
         UPDATE pending_operations
-        SET status = ${OperationStatus.IN_PROGRESS_ORDINAL}
+        SET status = 'IN_PROGRESS'
         WHERE id IN (:ids)
         """,
     )
@@ -124,7 +130,7 @@ interface PendingOperationDao {
     @Query(
         """
         UPDATE pending_operations
-        SET status = ${OperationStatus.FAILED_ORDINAL},
+        SET status = 'FAILED',
             lastError = :error,
             attemptCount = attemptCount + 1
         WHERE id = :id
@@ -141,7 +147,7 @@ interface PendingOperationDao {
     @Query(
         """
         UPDATE pending_operations
-        SET status = ${OperationStatus.PENDING_ORDINAL},
+        SET status = 'PENDING',
             attemptCount = 0,
             lastError = NULL
         WHERE id = :id
@@ -161,7 +167,7 @@ interface PendingOperationDao {
     @Query(
         """
         SELECT COUNT(*) FROM pending_operations
-        WHERE status = ${OperationStatus.PENDING_ORDINAL}
+        WHERE status = 'PENDING'
         """,
     )
     fun observePendingCount(): Flow<Int>
@@ -172,7 +178,7 @@ interface PendingOperationDao {
     @Query(
         """
         SELECT * FROM pending_operations
-        WHERE status = ${OperationStatus.FAILED_ORDINAL}
+        WHERE status = 'FAILED'
         ORDER BY updatedAt DESC
         """,
     )
@@ -184,7 +190,7 @@ interface PendingOperationDao {
     @Query(
         """
         SELECT * FROM pending_operations
-        WHERE status = ${OperationStatus.IN_PROGRESS_ORDINAL}
+        WHERE status = 'IN_PROGRESS'
         LIMIT 1
         """,
     )
@@ -210,8 +216,8 @@ interface PendingOperationDao {
     @Query(
         """
         UPDATE pending_operations
-        SET status = ${OperationStatus.PENDING_ORDINAL}
-        WHERE status = ${OperationStatus.IN_PROGRESS_ORDINAL}
+        SET status = 'PENDING'
+        WHERE status = 'IN_PROGRESS'
         """,
     )
     suspend fun resetStuckOperations()
@@ -223,8 +229,8 @@ interface PendingOperationDao {
     @Query(
         """
         SELECT entityId FROM pending_operations
-        WHERE operationType = ${OperationType.MARK_COMPLETE_ORDINAL}
-          AND status IN (${OperationStatus.PENDING_ORDINAL}, ${OperationStatus.IN_PROGRESS_ORDINAL})
+        WHERE operationType = 'MARK_COMPLETE'
+          AND status IN ('PENDING', 'IN_PROGRESS')
         """,
     )
     suspend fun getPendingMarkCompleteBookIds(): List<String>
