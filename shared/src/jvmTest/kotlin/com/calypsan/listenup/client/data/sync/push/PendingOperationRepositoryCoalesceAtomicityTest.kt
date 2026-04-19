@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 /**
  * Proves two invariants for `PendingOperationRepository.queue`:
@@ -149,24 +149,18 @@ class PendingOperationRepositoryCoalesceAtomicityTest {
                     shelfDao = db.shelfDao(),
                 )
 
-            val caught =
-                try {
-                    txRunner.atomically {
-                        repo.queue(
-                            type = OperationType.PLAYBACK_POSITION,
-                            entityType = EntityType.BOOK,
-                            entityId = "book-nested-throw",
-                            payload = "payload-throw",
-                            handler = testHandler,
-                        )
-                        throw RuntimeException("outer throws after inner queue")
-                    }
-                    null
-                } catch (e: Exception) {
-                    e
+            assertFailsWith<RuntimeException> {
+                txRunner.atomically {
+                    repo.queue(
+                        type = OperationType.PLAYBACK_POSITION,
+                        entityType = EntityType.BOOK,
+                        entityId = "book-nested-throw",
+                        payload = "payload-throw",
+                        handler = testHandler,
+                    )
+                    throw RuntimeException("outer throws after inner queue")
                 }
-
-            assertNotNull(caught, "outer throw must propagate")
+            }
             val rows =
                 db.pendingOperationDao().observeAll().first().filter {
                     it.entityId == "book-nested-throw"
