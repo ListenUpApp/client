@@ -23,6 +23,7 @@ import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.download.DownloadService
@@ -30,7 +31,6 @@ import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.mock
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -60,6 +60,11 @@ class SSEEventProcessorProgressMergeTest {
     private val noOpCoverDownloadRepository =
         object : CoverDownloadRepository {
             override fun queueCoverDownload(bookId: BookId) = Unit
+        }
+
+    private val noOpAvatarDownloadRepository =
+        object : AvatarDownloadRepository {
+            override fun queueAvatarDownload(userId: String) = Unit
         }
 
     @AfterTest
@@ -122,7 +127,7 @@ class SSEEventProcessorProgressMergeTest {
                 ),
             activityDao = activityDao,
             coverDownloadRepository = noOpCoverDownloadRepository,
-            scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
+            avatarDownloadRepository = noOpAvatarDownloadRepository,
         )
     }
 

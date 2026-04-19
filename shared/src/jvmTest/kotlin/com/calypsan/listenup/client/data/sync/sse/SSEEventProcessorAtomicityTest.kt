@@ -32,6 +32,7 @@ import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.download.DownloadService
@@ -42,9 +43,7 @@ import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -64,6 +63,11 @@ class SSEEventProcessorAtomicityTest {
     private val noOpCoverDownloadRepository =
         object : CoverDownloadRepository {
             override fun queueCoverDownload(bookId: BookId) = Unit
+        }
+
+    private val noOpAvatarDownloadRepository =
+        object : AvatarDownloadRepository {
+            override fun queueAvatarDownload(userId: String) = Unit
         }
 
     @AfterTest
@@ -166,7 +170,7 @@ class SSEEventProcessorAtomicityTest {
                         ),
                     activityDao = activityDao,
                     coverDownloadRepository = noOpCoverDownloadRepository,
-                    scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
+                    avatarDownloadRepository = noOpAvatarDownloadRepository,
                 )
 
             processor.process(
@@ -308,7 +312,7 @@ class SSEEventProcessorAtomicityTest {
                         ),
                     activityDao = activityDao,
                     coverDownloadRepository = noOpCoverDownloadRepository,
-                    scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
+                    avatarDownloadRepository = noOpAvatarDownloadRepository,
                 )
 
             processor.process(
@@ -438,7 +442,7 @@ class SSEEventProcessorAtomicityTest {
                         ),
                     activityDao = activityDao,
                     coverDownloadRepository = noOpCoverDownloadRepository,
-                    scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
+                    avatarDownloadRepository = noOpAvatarDownloadRepository,
                 )
 
             processor.process(

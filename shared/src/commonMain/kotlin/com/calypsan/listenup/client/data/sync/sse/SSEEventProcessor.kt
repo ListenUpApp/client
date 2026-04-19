@@ -31,16 +31,15 @@ import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -81,7 +80,7 @@ class SSEEventProcessor(
     sseExternalServices: SSEExternalServices,
     private val activityDao: ActivityDao,
     private val coverDownloadRepository: CoverDownloadRepository,
-    private val scope: CoroutineScope,
+    private val avatarDownloadRepository: AvatarDownloadRepository,
 ) {
     private val bookContributorDao = bookRelationshipDaos.bookContributorDao
     private val bookSeriesDao = bookRelationshipDaos.bookSeriesDao
@@ -1009,21 +1008,11 @@ class SSEEventProcessor(
         val payload = event.data
         logger.debug { "SSE: Session started - ${payload.sessionId} for user ${payload.userId}" }
 
-        // Download user's avatar if they have an image avatar and it's not cached locally
-        // Do this BEFORE storing the session so the avatar file exists when UI renders
+        // Queue avatar download via the repository (owns its own scope — no fire-and-forget
+        // launch inside a suspend handler). The repo internally skips if the file is cached.
         val userProfile = userProfileDao.getById(payload.userId)
         if (userProfile != null && userProfile.avatarType == "image") {
-            scope.launch {
-                try {
-                    // downloadUserAvatar checks if file exists locally and skips if so
-                    imageDownloader.downloadUserAvatar(payload.userId, forceRefresh = false)
-                    logger.debug { "SSE: Ensured avatar exists for user ${payload.userId}" }
-                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logger.warn(e) { "SSE: Failed to download avatar for user ${payload.userId}" }
-                }
-            }
+            avatarDownloadRepository.queueAvatarDownload(payload.userId)
         }
 
         val startedAtMs = parseTimestamp(payload.startedAt).epochMillis
