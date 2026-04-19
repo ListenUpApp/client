@@ -1,5 +1,4 @@
 @file:OptIn(ExperimentalTime::class)
-@file:Suppress("CyclomaticComplexMethod")
 
 package com.calypsan.listenup.client.data.sync.sse
 
@@ -371,6 +370,7 @@ class SSEEventProcessor(
             saveBookAudioFiles(book)
         }
 
+        // See handleBookCreated above for rationale on calling queueCoverDownload directly.
         coverDownloadRepository.queueCoverDownload(BookId(book.id))
     }
 
@@ -848,10 +848,14 @@ class SSEEventProcessor(
                     isFinished = payload.isFinished,
                     lastPlayedAt = lastPlayedAtMs,
                     updatedAt = lastPlayedAtMs,
+                    // TODO(W6): syncedAt semantically means "last server-sync time"; assigning
+                    // lastPlayedAtMs is a pre-SP1 carry-over. Revisit during Phase C
+                    // ProgressPuller unification.
                     syncedAt = lastPlayedAtMs,
                     // Preserve un-carried timestamps; overwrite only when event provides a value.
-                    // Post-SP1 server always provides these; the null-coalesce protects against
-                    // pre-SP1 echoes and future schema evolution.
+                    // Server omits `finishedAt` when null (Go `json:"finished_at,omitempty"`), so
+                    // wire-absence means "no change" — not "clear." Un-mark-finished propagates
+                    // via ProgressDeleted, not this event. Same contract applies to `startedAt`.
                     finishedAt = finishedAtMs ?: existing.finishedAt,
                     startedAt = startedAtMs ?: existing.startedAt,
                     // playbackSpeed and hasCustomSpeed are preserved implicitly by .copy()

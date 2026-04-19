@@ -112,35 +112,3 @@ data class ShelfSummaryResponse(
     @SerialName("book_count")
     val bookCount: Int,
 )
-
-// =============================================================================
-// SSE Event Models
-// =============================================================================
-
-/**
- * SSE profile updated event data.
- * Sent when any user's profile is updated.
- */
-@Serializable
-data class SSEProfileUpdatedEvent(
-    @SerialName("user_id")
-    val userId: String,
-    @SerialName("first_name")
-    val firstName: String,
-    @SerialName("last_name")
-    val lastName: String,
-    @SerialName("avatar_type")
-    val avatarType: String,
-    @SerialName("avatar_value")
-    val avatarValue: String? = null,
-    @SerialName("avatar_color")
-    val avatarColor: String,
-    @SerialName("tagline")
-    val tagline: String? = null,
-) {
-    /**
-     * Computed display name from firstName + lastName.
-     */
-    val displayName: String
-        get() = "$firstName $lastName".trim()
-}

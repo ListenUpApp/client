@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.model.BookEvent
 import com.calypsan.listenup.client.domain.repository.EventStreamRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 
@@ -29,8 +30,7 @@ class EventStreamRepositoryImpl(
      * and transforms them to use domain models.
      */
     override val adminEvents: Flow<AdminEvent> =
-        sseManager.eventFlow.mapNotNull { message ->
-            val event = (message as? SSEChannelMessage.Wire)?.event ?: return@mapNotNull null
+        sseManager.eventFlow.wireEvents().mapNotNull { event ->
             when (event) {
                 is SSEEvent.UserPending -> {
                     AdminEvent.UserPending(
@@ -71,9 +71,9 @@ class EventStreamRepositoryImpl(
      */
     override val bookEvents: Flow<BookEvent> =
         sseManager.eventFlow
-            .mapNotNull { message ->
-                (message as? SSEChannelMessage.Wire)?.event as? SSEEvent.ReadingSessionUpdated
-            }.map { event ->
+            .wireEvents()
+            .filterIsInstance<SSEEvent.ReadingSessionUpdated>()
+            .map { event ->
                 val payload = event.data
                 BookEvent.ReadingSessionUpdated(
                     sessionId = payload.sessionId,
@@ -84,6 +84,12 @@ class EventStreamRepositoryImpl(
                 )
             }
 }
+
+/**
+ * Unwraps [SSEChannelMessage.Wire] entries to their payload [SSEEvent], dropping
+ * synthetic signals (e.g. [SSEChannelMessage.Reconnected]) that domain flows don't consume.
+ */
+private fun Flow<SSEChannelMessage>.wireEvents(): Flow<SSEEvent> = mapNotNull { (it as? SSEChannelMessage.Wire)?.event }
 
 /**
  * Convert SSE user data to domain AdminUserInfo model.

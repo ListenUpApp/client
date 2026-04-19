@@ -299,7 +299,10 @@ class SSEManager(
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                logger.warn(e) { "Failed to parse SSE event: $eventJson" }
+                // Log a bounded prefix + exception message instead of the full payload.
+                // Raw eventJson can contain PII (user profiles, reading sessions) and can be large;
+                // preserve debuggability without dumping the full body.
+                logger.warn(e) { "Failed to parse SSE event: ${e.message} (head='${eventJson.take(120)}')" }
                 return
             }
         _eventFlow.emit(SSEChannelMessage.Wire(event))
