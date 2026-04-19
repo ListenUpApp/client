@@ -352,9 +352,9 @@ class SSEEventProcessor(
             saveBookAudioFiles(book)
         }
 
-        scope.launch {
-            coverDownloadRepository.queueCoverDownload(BookId(book.id))
-        }
+        // Structured cover download — queueCoverDownload is non-suspending and owns
+        // its own scope, so wrapping in scope.launch here would be a redundant hop.
+        coverDownloadRepository.queueCoverDownload(BookId(book.id))
     }
 
     private suspend fun handleBookUpdated(event: SSEEvent.BookUpdated) {
@@ -371,9 +371,7 @@ class SSEEventProcessor(
             saveBookAudioFiles(book)
         }
 
-        scope.launch {
-            coverDownloadRepository.queueCoverDownload(BookId(book.id))
-        }
+        coverDownloadRepository.queueCoverDownload(BookId(book.id))
     }
 
     private suspend fun handleBookDeleted(event: SSEEvent.BookDeleted) {
