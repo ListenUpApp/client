@@ -830,6 +830,8 @@ class SSEEventProcessor(
         }
 
         val lastPlayedAtMs = parseTimestamp(payload.lastPlayedAt).epochMillis
+        val finishedAtMs = payload.finishedAt?.let { parseTimestamp(it).epochMillis }
+        val startedAtMs = payload.startedAt?.let { parseTimestamp(it).epochMillis }
 
         try {
             // Only update if the remote progress is newer than local
@@ -842,18 +844,33 @@ class SSEEventProcessor(
                 return
             }
 
-            playbackPositionDao.save(
-                PlaybackPositionEntity(
-                    bookId = bookId,
+            val merged =
+                existing?.copy(
                     positionMs = payload.currentPositionMs,
-                    playbackSpeed = existing?.playbackSpeed ?: 1.0f,
-                    hasCustomSpeed = existing?.hasCustomSpeed ?: false,
+                    isFinished = payload.isFinished,
+                    lastPlayedAt = lastPlayedAtMs,
                     updatedAt = lastPlayedAtMs,
                     syncedAt = lastPlayedAtMs,
-                    lastPlayedAt = lastPlayedAtMs,
+                    // Preserve un-carried timestamps; overwrite only when event provides a value.
+                    // Post-SP1 server always provides these; the null-coalesce protects against
+                    // pre-SP1 echoes and future schema evolution.
+                    finishedAt = finishedAtMs ?: existing.finishedAt,
+                    startedAt = startedAtMs ?: existing.startedAt,
+                    // playbackSpeed and hasCustomSpeed are preserved implicitly by .copy()
+                ) ?: PlaybackPositionEntity(
+                    bookId = bookId,
+                    positionMs = payload.currentPositionMs,
+                    playbackSpeed = 1.0f,
+                    hasCustomSpeed = false,
                     isFinished = payload.isFinished,
-                ),
-            )
+                    lastPlayedAt = lastPlayedAtMs,
+                    updatedAt = lastPlayedAtMs,
+                    syncedAt = lastPlayedAtMs,
+                    finishedAt = finishedAtMs,
+                    startedAt = startedAtMs,
+                )
+
+            playbackPositionDao.save(merged)
             logger.info { "SSE: Updated local position for ${payload.bookId} to ${payload.currentPositionMs}ms" }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
