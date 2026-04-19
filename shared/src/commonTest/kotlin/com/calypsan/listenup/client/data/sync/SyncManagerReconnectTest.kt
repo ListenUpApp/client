@@ -14,79 +14,79 @@ import kotlin.test.assertTrue
  * Tests for SSE reconnection behavior.
  *
  * Validates:
- * - Reconnected event type carries disconnectedAt timestamp
- * - Reconnected events are distinguishable by timestamp
- * - SSEEventType sealed interface properly includes Reconnected
- * - Reconnected event can be pattern-matched in when expressions
+ * - Reconnected message carries disconnectedAt timestamp
+ * - Reconnected messages are distinguishable by timestamp
+ * - SSEChannelMessage sealed interface properly includes Reconnected
+ * - Reconnected message can be pattern-matched in when expressions
  */
 class SyncManagerReconnectTest {
     @Test
-    fun `Reconnected event carries disconnectedAt timestamp`() {
+    fun `Reconnected message carries disconnectedAt timestamp`() {
         val timestamp = "2026-03-14T18:30:00.000Z"
-        val event = SSEEventType.Reconnected(disconnectedAt = timestamp)
+        val message = SSEChannelMessage.Reconnected(disconnectedAt = timestamp)
 
-        assertEquals(timestamp, event.disconnectedAt)
+        assertEquals(timestamp, message.disconnectedAt)
     }
 
     @Test
-    fun `Reconnected event is data class with equality`() {
+    fun `Reconnected message is data class with equality`() {
         val ts = "2026-03-14T18:30:00.000Z"
-        val event1 = SSEEventType.Reconnected(disconnectedAt = ts)
-        val event2 = SSEEventType.Reconnected(disconnectedAt = ts)
+        val m1 = SSEChannelMessage.Reconnected(disconnectedAt = ts)
+        val m2 = SSEChannelMessage.Reconnected(disconnectedAt = ts)
 
-        assertEquals(event1, event2)
+        assertEquals(m1, m2)
     }
 
     @Test
-    fun `Reconnected events with different timestamps are not equal`() {
-        val event1 = SSEEventType.Reconnected(disconnectedAt = "2026-03-14T18:30:00.000Z")
-        val event2 = SSEEventType.Reconnected(disconnectedAt = "2026-03-14T18:31:00.000Z")
+    fun `Reconnected messages with different timestamps are not equal`() {
+        val m1 = SSEChannelMessage.Reconnected(disconnectedAt = "2026-03-14T18:30:00.000Z")
+        val m2 = SSEChannelMessage.Reconnected(disconnectedAt = "2026-03-14T18:31:00.000Z")
 
-        assertTrue(event1 != event2)
+        assertTrue(m1 != m2)
     }
 
     @Test
-    fun `Reconnected event is SSEEventType`() {
-        val event: SSEEventType = SSEEventType.Reconnected(disconnectedAt = "2026-03-14T18:30:00.000Z")
+    fun `Reconnected message is SSEChannelMessage`() {
+        val message: SSEChannelMessage = SSEChannelMessage.Reconnected(disconnectedAt = "2026-03-14T18:30:00.000Z")
 
-        assertIs<SSEEventType.Reconnected>(event)
-        assertNotNull(event.disconnectedAt)
+        assertIs<SSEChannelMessage.Reconnected>(message)
+        assertNotNull(message.disconnectedAt)
     }
 
     @Test
-    fun `Reconnected event can be pattern matched in when expression`() {
-        val event: SSEEventType = SSEEventType.Reconnected(disconnectedAt = "2026-03-14T18:30:00.000Z")
+    fun `Reconnected message can be pattern matched in when expression`() {
+        val message: SSEChannelMessage = SSEChannelMessage.Reconnected(disconnectedAt = "2026-03-14T18:30:00.000Z")
 
         val result =
-            when (event) {
-                is SSEEventType.Reconnected -> event.disconnectedAt
-                else -> null
+            when (message) {
+                is SSEChannelMessage.Reconnected -> message.disconnectedAt
+                is SSEChannelMessage.Wire -> null
             }
 
         assertEquals("2026-03-14T18:30:00.000Z", result)
     }
 
     @Test
-    fun `Reconnected event flows through SharedFlow with timestamp`() =
+    fun `Reconnected message flows through SharedFlow with timestamp`() =
         runTest {
-            val eventFlow = MutableSharedFlow<SSEEventType>(replay = 1)
+            val eventFlow = MutableSharedFlow<SSEChannelMessage>(replay = 1)
             val disconnectedAt = "2026-03-14T18:30:00.000Z"
 
-            eventFlow.emit(SSEEventType.Reconnected(disconnectedAt = disconnectedAt))
+            eventFlow.emit(SSEChannelMessage.Reconnected(disconnectedAt = disconnectedAt))
 
             val received = eventFlow.first()
-            assertIs<SSEEventType.Reconnected>(received)
+            assertIs<SSEChannelMessage.Reconnected>(received)
             assertEquals(disconnectedAt, received.disconnectedAt)
         }
 
     @Test
-    fun `Reconnected event is correctly identified vs other event types`() {
-        val reconnected = SSEEventType.Reconnected(disconnectedAt = "2026-03-14T18:30:00.000Z")
-        val heartbeat = SSEEventType.Heartbeat
+    fun `Reconnected message is correctly identified vs Wire messages`() {
+        val reconnected = SSEChannelMessage.Reconnected(disconnectedAt = "2026-03-14T18:30:00.000Z")
+        val wire = SSEChannelMessage.Wire(SSEEvent.Heartbeat(timestamp = "2026-03-14T18:30:00.000Z"))
 
-        assertIs<SSEEventType.Reconnected>(reconnected)
-        assertIs<SSEEventType.Heartbeat>(heartbeat)
-        assertTrue(reconnected != heartbeat)
+        assertIs<SSEChannelMessage.Reconnected>(reconnected)
+        assertIs<SSEChannelMessage.Wire>(wire)
+        assertTrue(reconnected != wire)
     }
 
     @Test

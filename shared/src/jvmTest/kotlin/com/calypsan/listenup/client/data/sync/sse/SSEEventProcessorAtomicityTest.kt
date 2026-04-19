@@ -25,8 +25,10 @@ import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
+import com.calypsan.listenup.client.data.sync.BookPayload
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
-import com.calypsan.listenup.client.data.sync.SSEEventType
+import com.calypsan.listenup.client.data.sync.SSEChannelMessage
+import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
@@ -167,7 +169,14 @@ class SSEEventProcessorAtomicityTest {
                     scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
                 )
 
-            processor.process(SSEEventType.BookUpdated(bookResponse))
+            processor.process(
+                SSEChannelMessage.Wire(
+                    SSEEvent.BookUpdated(
+                        timestamp = "2026-04-18T10:00:00Z",
+                        data = BookPayload(book = bookResponse),
+                    ),
+                ),
+            )
 
             assertEquals(
                 0,
@@ -302,7 +311,14 @@ class SSEEventProcessorAtomicityTest {
                     scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
                 )
 
-            processor.process(SSEEventType.BookUpdated(bookResponse))
+            processor.process(
+                SSEChannelMessage.Wire(
+                    SSEEvent.BookUpdated(
+                        timestamp = "2026-04-18T10:00:00Z",
+                        data = BookPayload(book = bookResponse),
+                    ),
+                ),
+            )
 
             assertEquals(
                 0,
@@ -425,7 +441,14 @@ class SSEEventProcessorAtomicityTest {
                     scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
                 )
 
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(
+                SSEChannelMessage.Wire(
+                    SSEEvent.BookCreated(
+                        timestamp = "2026-04-18T10:00:00Z",
+                        data = BookPayload(book = bookResponse),
+                    ),
+                ),
+            )
 
             assertEquals(
                 0,

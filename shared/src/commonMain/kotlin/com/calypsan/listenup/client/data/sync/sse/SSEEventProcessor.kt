@@ -27,7 +27,8 @@ import com.calypsan.listenup.client.data.local.db.UserProfileEntity
 import com.calypsan.listenup.client.data.local.db.UserStatsEntity
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
-import com.calypsan.listenup.client.data.sync.SSEEventType
+import com.calypsan.listenup.client.data.sync.SSEChannelMessage
+import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
@@ -168,199 +169,222 @@ class SSEEventProcessor(
     }
 
     /**
-     * Process an incoming SSE event.
+     * Process an incoming SSE channel message.
+     *
+     * Splits wire events (decoded [SSEEvent] variants) from synthetic channel
+     * signals (like [SSEChannelMessage.Reconnected]) and dispatches each to its
+     * handler. Exceptions are caught and logged; [CancellationException] always
+     * rethrows per the error-model rubric.
      */
-    suspend fun process(event: SSEEventType) {
+    suspend fun process(message: SSEChannelMessage) {
         try {
-            when (event) {
-                is SSEEventType.BookCreated -> {
-                    handleBookCreated(event)
+            when (message) {
+                is SSEChannelMessage.Wire -> {
+                    dispatch(message.event)
                 }
 
-                is SSEEventType.BookUpdated -> {
-                    handleBookUpdated(event)
-                }
-
-                is SSEEventType.BookDeleted -> {
-                    handleBookDeleted(event)
-                }
-
-                is SSEEventType.ScanStarted -> {
-                    handleScanStarted(event)
-                }
-
-                is SSEEventType.ScanProgress -> {
-                    handleScanProgress(event)
-                }
-
-                is SSEEventType.ScanCompleted -> {
-                    handleScanCompleted(event)
-                }
-
-                is SSEEventType.Heartbeat -> { /* Keep-alive, no action */ }
-
-                is SSEEventType.Reconnected -> {
+                is SSEChannelMessage.Reconnected -> {
                     // Handled by SyncManager - triggers delta sync with disconnectedAt timestamp
                     logger.debug {
-                        "SSE: Reconnected event (disconnectedAt=${event.disconnectedAt}), SyncManager will handle delta sync"
+                        "SSE: Reconnected message (disconnectedAt=${message.disconnectedAt}), " +
+                            "SyncManager will handle delta sync"
                     }
-                }
-
-                is SSEEventType.UserPending,
-                is SSEEventType.UserApproved,
-                is SSEEventType.InboxBookAdded,
-                is SSEEventType.InboxBookReleased,
-                -> {
-                    // Admin-only events, handled by AdminViewModel/AdminInboxViewModel
-                }
-
-                is SSEEventType.LibraryAccessModeChanged -> {
-                    handleLibraryAccessModeChanged(event)
-                }
-
-                is SSEEventType.UserDeleted -> {
-                    handleUserDeleted(event)
-                }
-
-                is SSEEventType.CollectionCreated -> {
-                    handleCollectionCreated(event)
-                }
-
-                is SSEEventType.CollectionUpdated -> {
-                    handleCollectionUpdated(event)
-                }
-
-                is SSEEventType.CollectionDeleted -> {
-                    handleCollectionDeleted(event)
-                }
-
-                is SSEEventType.CollectionBookAdded -> {
-                    handleCollectionBookAdded(event)
-                }
-
-                is SSEEventType.CollectionBookRemoved -> {
-                    handleCollectionBookRemoved(event)
-                }
-
-                is SSEEventType.ShelfCreated -> {
-                    handleShelfCreated(event)
-                }
-
-                is SSEEventType.ShelfUpdated -> {
-                    handleShelfUpdated(event)
-                }
-
-                is SSEEventType.ShelfDeleted -> {
-                    handleShelfDeleted(event)
-                }
-
-                is SSEEventType.ShelfBookAdded -> {
-                    handleShelfBookAdded(event)
-                }
-
-                is SSEEventType.ShelfBookRemoved -> {
-                    handleShelfBookRemoved(event)
-                }
-
-                is SSEEventType.TagCreated -> {
-                    handleTagCreated(event)
-                }
-
-                is SSEEventType.BookTagAdded -> {
-                    handleBookTagAdded(event)
-                }
-
-                is SSEEventType.BookTagRemoved -> {
-                    handleBookTagRemoved(event)
-                }
-
-                is SSEEventType.ProgressUpdated -> {
-                    handleProgressUpdated(event)
-                }
-
-                is SSEEventType.ProgressDeleted -> {
-                    handleProgressDeleted(event)
-                }
-
-                is SSEEventType.ReadingSessionUpdated -> {
-                    handleReadingSessionUpdated(event)
-                }
-
-                is SSEEventType.ListeningEventCreated -> {
-                    handleListeningEventCreated(event)
-                }
-
-                is SSEEventType.ActivityCreated -> {
-                    handleActivityCreated(event)
-                }
-
-                is SSEEventType.ProfileUpdated -> {
-                    handleProfileUpdated(event)
-                }
-
-                is SSEEventType.SessionStarted -> {
-                    handleSessionStarted(event)
-                }
-
-                is SSEEventType.SessionEnded -> {
-                    handleSessionEnded(event)
-                }
-
-                is SSEEventType.UserStatsUpdated -> {
-                    handleUserStatsUpdated(event)
                 }
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.error(e) { "Failed to process SSE event: $event" }
+            logger.error(e) { "Failed to process SSE message: $message" }
         }
     }
 
-    private suspend fun handleBookCreated(event: SSEEventType.BookCreated) {
-        logger.debug { "SSE: Book created - ${event.book.title}" }
-        val entity = event.book.toEntity()
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    private suspend fun dispatch(event: SSEEvent) {
+        when (event) {
+            is SSEEvent.BookCreated -> {
+                handleBookCreated(event)
+            }
+
+            is SSEEvent.BookUpdated -> {
+                handleBookUpdated(event)
+            }
+
+            is SSEEvent.BookDeleted -> {
+                handleBookDeleted(event)
+            }
+
+            is SSEEvent.ScanStarted -> {
+                handleScanStarted(event)
+            }
+
+            is SSEEvent.ScanCompleted -> {
+                handleScanCompleted(event)
+            }
+
+            is SSEEvent.ScanProgress -> {
+                handleScanProgress(event)
+            }
+
+            is SSEEvent.LibraryAccessModeChanged -> {
+                handleLibraryAccessModeChanged(event)
+            }
+
+            is SSEEvent.Heartbeat -> { /* keepalive — no-op */ }
+
+            // Admin-only events handled by AdminViewModel/AdminInboxViewModel via EventStreamRepository.
+            is SSEEvent.UserPending,
+            is SSEEvent.UserApproved,
+            is SSEEvent.InboxBookAdded,
+            is SSEEvent.InboxBookReleased,
+            -> { /* no-op — consumed downstream */ }
+
+            is SSEEvent.UserDeleted -> {
+                handleUserDeleted(event)
+            }
+
+            is SSEEvent.CollectionCreated -> {
+                handleCollectionCreated(event)
+            }
+
+            is SSEEvent.CollectionUpdated -> {
+                handleCollectionUpdated(event)
+            }
+
+            is SSEEvent.CollectionDeleted -> {
+                handleCollectionDeleted(event)
+            }
+
+            is SSEEvent.CollectionBookAdded -> {
+                handleCollectionBookAdded(event)
+            }
+
+            is SSEEvent.CollectionBookRemoved -> {
+                handleCollectionBookRemoved(event)
+            }
+
+            is SSEEvent.ShelfCreated -> {
+                handleShelfCreated(event)
+            }
+
+            is SSEEvent.ShelfUpdated -> {
+                handleShelfUpdated(event)
+            }
+
+            is SSEEvent.ShelfDeleted -> {
+                handleShelfDeleted(event)
+            }
+
+            is SSEEvent.ShelfBookAdded -> {
+                handleShelfBookAdded(event)
+            }
+
+            is SSEEvent.ShelfBookRemoved -> {
+                handleShelfBookRemoved(event)
+            }
+
+            is SSEEvent.TagCreated -> {
+                handleTagCreated(event)
+            }
+
+            is SSEEvent.BookTagAdded -> {
+                handleBookTagAdded(event)
+            }
+
+            is SSEEvent.BookTagRemoved -> {
+                handleBookTagRemoved(event)
+            }
+
+            is SSEEvent.ProgressUpdated -> {
+                handleProgressUpdated(event)
+            }
+
+            is SSEEvent.ProgressDeleted -> {
+                handleProgressDeleted(event)
+            }
+
+            is SSEEvent.SessionStarted -> {
+                handleSessionStarted(event)
+            }
+
+            is SSEEvent.SessionEnded -> {
+                handleSessionEnded(event)
+            }
+
+            is SSEEvent.ReadingSessionUpdated -> {
+                handleReadingSessionUpdated(event)
+            }
+
+            is SSEEvent.ListeningEventCreated -> {
+                handleListeningEventCreated(event)
+            }
+
+            is SSEEvent.UserStatsUpdated -> {
+                handleUserStatsUpdated(event)
+            }
+
+            is SSEEvent.ProfileUpdated -> {
+                handleProfileUpdated(event)
+            }
+
+            is SSEEvent.ActivityCreated -> {
+                handleActivityCreated(event)
+            }
+
+            is SSEEvent.Unknown -> {
+                logger.warn {
+                    "SSE: unknown event type '${event.rawType}' at ${event.timestamp}"
+                }
+            }
+        }
+    }
+
+    private suspend fun handleBookCreated(event: SSEEvent.BookCreated) {
+        val book = event.data.book
+        logger.debug { "SSE: Book created - ${book.title}" }
+        val entity = book.toEntity()
         val withLocalFields = preserveLocalBookFields(entity)
 
         transactionRunner.atomically {
             bookDao.upsert(withLocalFields)
-            saveBookContributors(event.book)
-            saveBookSeries(event.book)
-            saveBookGenres(event.book)
-            saveBookAudioFiles(event.book)
+            saveBookContributors(book)
+            saveBookSeries(book)
+            saveBookGenres(book)
+            saveBookAudioFiles(book)
         }
 
         scope.launch {
-            coverDownloadRepository.queueCoverDownload(BookId(event.book.id))
+            coverDownloadRepository.queueCoverDownload(BookId(book.id))
         }
     }
 
-    private suspend fun handleBookUpdated(event: SSEEventType.BookUpdated) {
-        logger.debug { "SSE: Book updated - ${event.book.title}" }
-        val entity = event.book.toEntity()
+    private suspend fun handleBookUpdated(event: SSEEvent.BookUpdated) {
+        val book = event.data.book
+        logger.debug { "SSE: Book updated - ${book.title}" }
+        val entity = book.toEntity()
         val withLocalFields = preserveLocalBookFields(entity)
 
         transactionRunner.atomically {
             bookDao.upsert(withLocalFields)
-            saveBookContributors(event.book)
-            saveBookSeries(event.book)
-            saveBookGenres(event.book)
-            saveBookAudioFiles(event.book)
+            saveBookContributors(book)
+            saveBookSeries(book)
+            saveBookGenres(book)
+            saveBookAudioFiles(book)
         }
 
         scope.launch {
-            coverDownloadRepository.queueCoverDownload(BookId(event.book.id))
+            coverDownloadRepository.queueCoverDownload(BookId(book.id))
         }
     }
 
-    private suspend fun handleBookDeleted(event: SSEEventType.BookDeleted) {
-        logger.debug { "SSE: Book deleted - ${event.bookId}" }
-        val bookId = BookId(event.bookId)
+    private suspend fun handleBookDeleted(event: SSEEvent.BookDeleted) {
+        val payload = event.data
+        logger.debug { "SSE: Book deleted - ${payload.bookId}" }
+        val bookId = BookId(payload.bookId)
 
         // Check if this book is currently playing and stop playback
         val isCurrentlyPlaying = playbackStateProvider.currentBookId.value == bookId
         if (isCurrentlyPlaying) {
-            logger.info { "Book ${event.bookId} is currently playing, clearing playback" }
+            logger.info { "Book ${payload.bookId} is currently playing, clearing playback" }
             playbackStateProvider.clearPlayback()
             _accessRevokedEvents.tryEmit(AccessRevokedEvent(bookId))
         }
@@ -373,39 +397,41 @@ class SSEEventProcessor(
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.warn(e) { "Failed to cancel/delete download for book ${event.bookId}" }
+            logger.warn(e) { "Failed to cancel/delete download for book ${payload.bookId}" }
         }
 
         // Remove from database
         bookDao.deleteById(bookId)
     }
 
-    private fun handleScanStarted(event: SSEEventType.ScanStarted) {
-        logger.debug { "SSE: Library scan started - ${event.libraryId}" }
+    private fun handleScanStarted(event: SSEEvent.ScanStarted) {
+        logger.debug { "SSE: Library scan started - ${event.data.libraryId}" }
         _isServerScanning.value = true
         _scanProgress.value = null
     }
 
-    private fun handleScanProgress(event: SSEEventType.ScanProgress) {
+    private fun handleScanProgress(event: SSEEvent.ScanProgress) {
+        val payload = event.data
         logger.debug {
-            "SSE: Scan progress - phase=${event.phase}, ${event.current}/${event.total}, " +
-                "added=${event.added}, updated=${event.updated}, removed=${event.removed}"
+            "SSE: Scan progress - phase=${payload.phase}, ${payload.current}/${payload.total}, " +
+                "added=${payload.added}, updated=${payload.updated}, removed=${payload.removed}"
         }
         _scanProgress.value =
             ScanProgressState(
-                phase = event.phase,
-                current = event.current,
-                total = event.total,
-                added = event.added,
-                updated = event.updated,
-                removed = event.removed,
+                phase = payload.phase,
+                current = payload.current,
+                total = payload.total,
+                added = payload.added,
+                updated = payload.updated,
+                removed = payload.removed,
             )
     }
 
-    private suspend fun handleScanCompleted(event: SSEEventType.ScanCompleted) {
+    private suspend fun handleScanCompleted(event: SSEEvent.ScanCompleted) {
+        val payload = event.data
         logger.debug {
-            "SSE: Library scan completed - added=${event.booksAdded}, " +
-                "updated=${event.booksUpdated}, removed=${event.booksRemoved}"
+            "SSE: Library scan completed - added=${payload.booksAdded}, " +
+                "updated=${payload.booksUpdated}, removed=${payload.booksRemoved}"
         }
 
         // Clear scanning flag and progress - UI can now show books or empty state
@@ -415,24 +441,25 @@ class SSEEventProcessor(
         // Emit event so SyncManager can trigger delta sync to fetch newly scanned books
         _scanCompletedEvent.emit(
             ScanCompletedInfo(
-                libraryId = event.libraryId,
-                booksAdded = event.booksAdded,
-                booksUpdated = event.booksUpdated,
-                booksRemoved = event.booksRemoved,
+                libraryId = payload.libraryId,
+                booksAdded = payload.booksAdded,
+                booksUpdated = payload.booksUpdated,
+                booksRemoved = payload.booksRemoved,
             ),
         )
     }
 
-    private suspend fun handleLibraryAccessModeChanged(event: SSEEventType.LibraryAccessModeChanged) {
+    private suspend fun handleLibraryAccessModeChanged(event: SSEEvent.LibraryAccessModeChanged) {
+        val payload = event.data
         logger.info {
-            "SSE: Library access mode changed to ${event.accessMode} for library ${event.libraryId}"
+            "SSE: Library access mode changed to ${payload.accessMode} for library ${payload.libraryId}"
         }
 
         // Emit event for app to handle (trigger delta sync to refresh book lists)
         _libraryAccessModeChangedEvent.emit(
             LibraryAccessModeChangedInfo(
-                libraryId = event.libraryId,
-                accessMode = event.accessMode,
+                libraryId = payload.libraryId,
+                accessMode = payload.accessMode,
             ),
         )
     }
@@ -561,45 +588,49 @@ class SSEEventProcessor(
 
     // ========== Collection Event Handlers ==========
 
-    private suspend fun handleCollectionCreated(event: SSEEventType.CollectionCreated) {
-        logger.debug { "SSE: Collection created - ${event.name} (${event.id})" }
+    private suspend fun handleCollectionCreated(event: SSEEvent.CollectionCreated) {
+        val payload = event.data
+        logger.debug { "SSE: Collection created - ${payload.name} (${payload.id})" }
         val now = Timestamp.now()
         collectionDao.upsert(
             CollectionEntity(
-                id = event.id,
-                name = event.name,
-                bookCount = event.bookCount,
+                id = payload.id,
+                name = payload.name,
+                bookCount = payload.bookCount,
                 createdAt = now,
                 updatedAt = now,
             ),
         )
     }
 
-    private suspend fun handleCollectionUpdated(event: SSEEventType.CollectionUpdated) {
-        logger.debug { "SSE: Collection updated - ${event.name} (${event.id})" }
+    private suspend fun handleCollectionUpdated(event: SSEEvent.CollectionUpdated) {
+        val payload = event.data
+        logger.debug { "SSE: Collection updated - ${payload.name} (${payload.id})" }
         // Get existing to preserve createdAt, or use now if not found
-        val existing = collectionDao.getById(event.id)
+        val existing = collectionDao.getById(payload.id)
         val createdAt = existing?.createdAt ?: Timestamp.now()
         collectionDao.upsert(
             CollectionEntity(
-                id = event.id,
-                name = event.name,
-                bookCount = event.bookCount,
+                id = payload.id,
+                name = payload.name,
+                bookCount = payload.bookCount,
                 createdAt = createdAt,
                 updatedAt = Timestamp.now(),
             ),
         )
     }
 
-    private suspend fun handleCollectionDeleted(event: SSEEventType.CollectionDeleted) {
-        logger.debug { "SSE: Collection deleted - ${event.name} (${event.id})" }
-        collectionDao.deleteById(event.id)
+    private suspend fun handleCollectionDeleted(event: SSEEvent.CollectionDeleted) {
+        val payload = event.data
+        logger.debug { "SSE: Collection deleted - ${payload.name} (${payload.id})" }
+        collectionDao.deleteById(payload.id)
     }
 
-    private suspend fun handleCollectionBookAdded(event: SSEEventType.CollectionBookAdded) {
-        logger.debug { "SSE: Book ${event.bookId} added to collection ${event.collectionName}" }
+    private suspend fun handleCollectionBookAdded(event: SSEEvent.CollectionBookAdded) {
+        val payload = event.data
+        logger.debug { "SSE: Book ${payload.bookId} added to collection ${payload.collectionName}" }
         // Update the book count for the collection
-        val existing = collectionDao.getById(event.collectionId)
+        val existing = collectionDao.getById(payload.collectionId)
         if (existing != null) {
             collectionDao.upsert(
                 existing.copy(
@@ -610,10 +641,11 @@ class SSEEventProcessor(
         }
     }
 
-    private suspend fun handleCollectionBookRemoved(event: SSEEventType.CollectionBookRemoved) {
-        logger.debug { "SSE: Book ${event.bookId} removed from collection ${event.collectionName}" }
+    private suspend fun handleCollectionBookRemoved(event: SSEEvent.CollectionBookRemoved) {
+        val payload = event.data
+        logger.debug { "SSE: Book ${payload.bookId} removed from collection ${payload.collectionName}" }
         // Update the book count for the collection
-        val existing = collectionDao.getById(event.collectionId)
+        val existing = collectionDao.getById(payload.collectionId)
         if (existing != null) {
             collectionDao.upsert(
                 existing.copy(
@@ -626,71 +658,76 @@ class SSEEventProcessor(
 
     // ========== Shelf Event Handlers ==========
 
-    private suspend fun handleShelfCreated(event: SSEEventType.ShelfCreated) {
-        logger.debug { "SSE: Shelf created - ${event.name} (${event.id})" }
+    private suspend fun handleShelfCreated(event: SSEEvent.ShelfCreated) {
+        val payload = event.data
+        logger.debug { "SSE: Shelf created - ${payload.name} (${payload.id})" }
         shelfDao.upsert(
             ShelfEntity(
-                id = event.id,
-                name = event.name,
-                description = event.description,
-                ownerId = event.ownerId,
-                ownerDisplayName = event.ownerDisplayName,
-                ownerAvatarColor = event.ownerAvatarColor,
-                bookCount = event.bookCount,
+                id = payload.id,
+                name = payload.name,
+                description = payload.description,
+                ownerId = payload.ownerId,
+                ownerDisplayName = payload.ownerDisplayName,
+                ownerAvatarColor = payload.ownerAvatarColor,
+                bookCount = payload.bookCount,
                 totalDurationSeconds = 0, // Will be updated on first detail view
-                createdAt = parseTimestamp(event.createdAt),
-                updatedAt = parseTimestamp(event.updatedAt),
+                createdAt = parseTimestamp(payload.createdAt),
+                updatedAt = parseTimestamp(payload.updatedAt),
             ),
         )
     }
 
-    private suspend fun handleShelfUpdated(event: SSEEventType.ShelfUpdated) {
-        logger.debug { "SSE: Shelf updated - ${event.name} (${event.id})" }
+    private suspend fun handleShelfUpdated(event: SSEEvent.ShelfUpdated) {
+        val payload = event.data
+        logger.debug { "SSE: Shelf updated - ${payload.name} (${payload.id})" }
         // Get existing to preserve totalDurationSeconds
-        val existing = shelfDao.getById(event.id)
+        val existing = shelfDao.getById(payload.id)
         shelfDao.upsert(
             ShelfEntity(
-                id = event.id,
-                name = event.name,
-                description = event.description,
-                ownerId = event.ownerId,
-                ownerDisplayName = event.ownerDisplayName,
-                ownerAvatarColor = event.ownerAvatarColor,
-                bookCount = event.bookCount,
+                id = payload.id,
+                name = payload.name,
+                description = payload.description,
+                ownerId = payload.ownerId,
+                ownerDisplayName = payload.ownerDisplayName,
+                ownerAvatarColor = payload.ownerAvatarColor,
+                bookCount = payload.bookCount,
                 totalDurationSeconds = existing?.totalDurationSeconds ?: 0,
-                createdAt = parseTimestamp(event.createdAt),
-                updatedAt = parseTimestamp(event.updatedAt),
+                createdAt = parseTimestamp(payload.createdAt),
+                updatedAt = parseTimestamp(payload.updatedAt),
             ),
         )
     }
 
-    private suspend fun handleShelfDeleted(event: SSEEventType.ShelfDeleted) {
-        logger.debug { "SSE: Shelf deleted - ${event.id}" }
-        shelfDao.deleteById(event.id)
+    private suspend fun handleShelfDeleted(event: SSEEvent.ShelfDeleted) {
+        val payload = event.data
+        logger.debug { "SSE: Shelf deleted - ${payload.id}" }
+        shelfDao.deleteById(payload.id)
     }
 
-    private suspend fun handleShelfBookAdded(event: SSEEventType.ShelfBookAdded) {
-        logger.debug { "SSE: Book ${event.bookId} added to shelf ${event.shelfId}" }
+    private suspend fun handleShelfBookAdded(event: SSEEvent.ShelfBookAdded) {
+        val payload = event.data
+        logger.debug { "SSE: Book ${payload.bookId} added to shelf ${payload.shelfId}" }
         // Update the book count for the shelf
-        val existing = shelfDao.getById(event.shelfId)
+        val existing = shelfDao.getById(payload.shelfId)
         if (existing != null) {
             shelfDao.upsert(
                 existing.copy(
-                    bookCount = event.bookCount,
+                    bookCount = payload.bookCount,
                     updatedAt = Timestamp.now(),
                 ),
             )
         }
     }
 
-    private suspend fun handleShelfBookRemoved(event: SSEEventType.ShelfBookRemoved) {
-        logger.debug { "SSE: Book ${event.bookId} removed from shelf ${event.shelfId}" }
+    private suspend fun handleShelfBookRemoved(event: SSEEvent.ShelfBookRemoved) {
+        val payload = event.data
+        logger.debug { "SSE: Book ${payload.bookId} removed from shelf ${payload.shelfId}" }
         // Update the book count for the shelf
-        val existing = shelfDao.getById(event.shelfId)
+        val existing = shelfDao.getById(payload.shelfId)
         if (existing != null) {
             shelfDao.upsert(
                 existing.copy(
-                    bookCount = event.bookCount,
+                    bookCount = payload.bookCount,
                     updatedAt = Timestamp.now(),
                 ),
             )
@@ -699,27 +736,30 @@ class SSEEventProcessor(
 
     // ========== Tag Event Handlers ==========
 
-    private suspend fun handleTagCreated(event: SSEEventType.TagCreated) {
-        logger.debug { "SSE: Tag created - ${event.slug} (${event.id})" }
+    private suspend fun handleTagCreated(event: SSEEvent.TagCreated) {
+        val payload = event.data
+        logger.debug { "SSE: Tag created - ${payload.slug} (${payload.id})" }
         tagDao.upsert(
             TagEntity(
-                id = event.id,
-                slug = event.slug,
-                bookCount = event.bookCount,
+                id = payload.id,
+                slug = payload.slug,
+                bookCount = payload.bookCount,
                 createdAt = Timestamp.now(),
             ),
         )
     }
 
-    private suspend fun handleBookTagAdded(event: SSEEventType.BookTagAdded) {
-        logger.debug { "SSE: Tag ${event.tagSlug} added to book ${event.bookId}" }
+    private suspend fun handleBookTagAdded(event: SSEEvent.BookTagAdded) {
+        val payload = event.data
+        val tag = payload.tag
+        logger.debug { "SSE: Tag ${tag.slug} added to book ${payload.bookId}" }
 
         // Ensure the tag exists locally (upsert with updated book count)
         tagDao.upsert(
             TagEntity(
-                id = event.tagId,
-                slug = event.tagSlug,
-                bookCount = event.tagBookCount,
+                id = tag.id,
+                slug = tag.slug,
+                bookCount = tag.bookCount,
                 createdAt = Timestamp.now(),
             ),
         )
@@ -727,73 +767,76 @@ class SSEEventProcessor(
         // Add the book-tag relationship
         tagDao.insertBookTag(
             BookTagCrossRef(
-                bookId = BookId(event.bookId),
-                tagId = event.tagId,
+                bookId = BookId(payload.bookId),
+                tagId = tag.id,
             ),
         )
 
         // Touch the book's updatedAt to trigger UI refresh
         try {
-            bookDao.touchUpdatedAt(BookId(event.bookId), Timestamp.now())
+            bookDao.touchUpdatedAt(BookId(payload.bookId), Timestamp.now())
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.warn(e) { "Failed to touch book ${event.bookId} after tag added" }
+            logger.warn(e) { "Failed to touch book ${payload.bookId} after tag added" }
         }
     }
 
-    private suspend fun handleBookTagRemoved(event: SSEEventType.BookTagRemoved) {
-        logger.debug { "SSE: Tag ${event.tagSlug} removed from book ${event.bookId}" }
+    private suspend fun handleBookTagRemoved(event: SSEEvent.BookTagRemoved) {
+        val payload = event.data
+        val tag = payload.tag
+        logger.debug { "SSE: Tag ${tag.slug} removed from book ${payload.bookId}" }
 
         // Remove the book-tag relationship
-        tagDao.deleteBookTag(BookId(event.bookId), event.tagId)
+        tagDao.deleteBookTag(BookId(payload.bookId), tag.id)
 
         // Update the tag's book count
-        val existingTag = tagDao.getById(event.tagId)
+        val existingTag = tagDao.getById(tag.id)
         if (existingTag != null) {
             tagDao.upsert(
                 existingTag.copy(
-                    bookCount = event.tagBookCount,
+                    bookCount = tag.bookCount,
                 ),
             )
         }
 
         // Touch the book's updatedAt to trigger UI refresh
         try {
-            bookDao.touchUpdatedAt(BookId(event.bookId), Timestamp.now())
+            bookDao.touchUpdatedAt(BookId(payload.bookId), Timestamp.now())
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.warn(e) { "Failed to touch book ${event.bookId} after tag removed" }
+            logger.warn(e) { "Failed to touch book ${payload.bookId} after tag removed" }
         }
     }
 
     // ========== Listening Event Handlers ==========
 
-    private suspend fun handleProgressUpdated(event: SSEEventType.ProgressUpdated) {
+    private suspend fun handleProgressUpdated(event: SSEEvent.ProgressUpdated) {
+        val payload = event.data
         logger.info {
-            "SSE: Progress updated for book ${event.bookId} - " +
-                "${(event.progress * 100).toInt()}%, position=${event.currentPositionMs}ms (from another device)"
+            "SSE: Progress updated for book ${payload.bookId} - " +
+                "${(payload.progress * 100).toInt()}%, position=${payload.currentPositionMs}ms (from another device)"
         }
 
-        val bookId = BookId(event.bookId)
+        val bookId = BookId(payload.bookId)
 
         // Skip if this book is currently playing locally — local playback is authoritative
         if (playbackStateProvider.currentBookId.value == bookId) {
             logger.info {
-                "SSE: Skipping progress update for ${event.bookId} — book is currently playing locally"
+                "SSE: Skipping progress update for ${payload.bookId} — book is currently playing locally"
             }
             return
         }
 
-        val lastPlayedAtMs = parseTimestamp(event.lastPlayedAt).epochMillis
+        val lastPlayedAtMs = parseTimestamp(payload.lastPlayedAt).epochMillis
 
         try {
             // Only update if the remote progress is newer than local
             val existing = playbackPositionDao.get(bookId)
             if (existing != null && (existing.lastPlayedAt ?: 0L) >= lastPlayedAtMs) {
                 logger.debug {
-                    "SSE: Skipping progress update for ${event.bookId} - local is newer " +
+                    "SSE: Skipping progress update for ${payload.bookId} - local is newer " +
                         "(local=${existing.lastPlayedAt}, remote=$lastPlayedAtMs)"
                 }
                 return
@@ -802,80 +845,86 @@ class SSEEventProcessor(
             playbackPositionDao.save(
                 PlaybackPositionEntity(
                     bookId = bookId,
-                    positionMs = event.currentPositionMs,
+                    positionMs = payload.currentPositionMs,
                     playbackSpeed = existing?.playbackSpeed ?: 1.0f,
                     hasCustomSpeed = existing?.hasCustomSpeed ?: false,
                     updatedAt = lastPlayedAtMs,
                     syncedAt = lastPlayedAtMs,
                     lastPlayedAt = lastPlayedAtMs,
-                    isFinished = event.isFinished,
+                    isFinished = payload.isFinished,
                 ),
             )
-            logger.info { "SSE: Updated local position for ${event.bookId} to ${event.currentPositionMs}ms" }
+            logger.info { "SSE: Updated local position for ${payload.bookId} to ${payload.currentPositionMs}ms" }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.error(e) { "SSE: Failed to update progress for ${event.bookId}" }
+            logger.error(e) { "SSE: Failed to update progress for ${payload.bookId}" }
         }
     }
 
-    private suspend fun handleProgressDeleted(event: SSEEventType.ProgressDeleted) {
-        logger.info { "SSE: Progress deleted for book ${event.bookId} (from another device)" }
+    private suspend fun handleProgressDeleted(event: SSEEvent.ProgressDeleted) {
+        val payload = event.data
+        logger.info { "SSE: Progress deleted for book ${payload.bookId} (from another device)" }
         try {
-            playbackPositionDao.delete(BookId(event.bookId))
-            logger.debug { "SSE: Deleted local progress for book ${event.bookId}" }
+            playbackPositionDao.delete(BookId(payload.bookId))
+            logger.debug { "SSE: Deleted local progress for book ${payload.bookId}" }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.error(e) { "SSE: Failed to delete progress for book ${event.bookId}" }
+            logger.error(e) { "SSE: Failed to delete progress for book ${payload.bookId}" }
         }
     }
 
-    private suspend fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {
+    private suspend fun handleReadingSessionUpdated(event: SSEEvent.ReadingSessionUpdated) {
+        val payload = event.data
         logger.info {
-            "SSE: Reading session ${event.sessionId} updated for book ${event.bookId} - completed=${event.isCompleted}"
+            "SSE: Reading session ${payload.sessionId} updated for book ${payload.bookId} - " +
+                "completed=${payload.isCompleted}"
         }
         // Refresh reading sessions cache in Room for offline-first display.
         // When the user later visits this book's detail page, readers data is already available.
         try {
-            sessionRepository.refreshBookReaders(event.bookId)
+            sessionRepository.refreshBookReaders(payload.bookId)
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.error(e) { "SSE: Failed to refresh readers for book ${event.bookId}" }
+            logger.error(e) { "SSE: Failed to refresh readers for book ${payload.bookId}" }
         }
     }
 
-    private suspend fun handleListeningEventCreated(event: SSEEventType.ListeningEventCreated) {
-        logger.info { "SSE: Listening event ${event.id} received for book ${event.bookId} (from another device)" }
+    private suspend fun handleListeningEventCreated(event: SSEEvent.ListeningEventCreated) {
+        val payload = event.data
+        logger.info {
+            "SSE: Listening event ${payload.id} received for book ${payload.bookId} (from another device)"
+        }
 
         // Convert ISO timestamps to epoch ms
-        val startedAtMs = parseTimestamp(event.startedAt).epochMillis
-        val endedAtMs = parseTimestamp(event.endedAt).epochMillis
-        val createdAtMs = parseTimestamp(event.createdAt).epochMillis
+        val startedAtMs = parseTimestamp(payload.startedAt).epochMillis
+        val endedAtMs = parseTimestamp(payload.endedAt).epochMillis
+        val createdAtMs = parseTimestamp(payload.createdAt).epochMillis
 
         // Save to Room - this triggers stats to auto-update via Flow
         val entity =
             ListeningEventEntity(
-                id = event.id,
-                bookId = event.bookId,
-                startPositionMs = event.startPositionMs,
-                endPositionMs = event.endPositionMs,
+                id = payload.id,
+                bookId = payload.bookId,
+                startPositionMs = payload.startPositionMs,
+                endPositionMs = payload.endPositionMs,
                 startedAt = startedAtMs,
                 endedAt = endedAtMs,
-                playbackSpeed = event.playbackSpeed,
-                deviceId = event.deviceId,
+                playbackSpeed = payload.playbackSpeed,
+                deviceId = payload.deviceId,
                 syncState = SyncState.SYNCED, // Already synced since it came from server
                 createdAt = createdAtMs,
             )
 
         try {
             listeningEventDao.upsert(entity)
-            logger.debug { "SSE: Saved listening event ${event.id} to Room" }
+            logger.debug { "SSE: Saved listening event ${payload.id} to Room" }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.error(e) { "SSE: Failed to save listening event ${event.id}" }
+            logger.error(e) { "SSE: Failed to save listening event ${payload.id}" }
         }
     }
 
@@ -888,40 +937,41 @@ class SSEEventProcessor(
      * Activities are denormalized with all display data (user name, avatar, book info)
      * to avoid joins and enable instant offline display.
      */
-    private suspend fun handleActivityCreated(event: SSEEventType.ActivityCreated) {
-        logger.debug { "SSE: Activity created - ${event.type} by ${event.userDisplayName}" }
+    private suspend fun handleActivityCreated(event: SSEEvent.ActivityCreated) {
+        val payload = event.data
+        logger.debug { "SSE: Activity created - ${payload.type} by ${payload.userDisplayName}" }
 
-        val createdAtMs = parseTimestamp(event.createdAt).epochMillis
+        val createdAtMs = parseTimestamp(payload.createdAt).epochMillis
 
         val entity =
             ActivityEntity(
-                id = event.id,
-                userId = event.userId,
-                type = event.type,
+                id = payload.id,
+                userId = payload.userId,
+                type = payload.type,
                 createdAt = createdAtMs,
-                userDisplayName = event.userDisplayName,
-                userAvatarColor = event.userAvatarColor,
-                userAvatarType = event.userAvatarType,
-                userAvatarValue = event.userAvatarValue,
-                bookId = event.bookId,
-                bookTitle = event.bookTitle,
-                bookAuthorName = event.bookAuthorName,
-                bookCoverPath = event.bookCoverPath,
-                isReread = event.isReread,
-                durationMs = event.durationMs,
-                milestoneValue = event.milestoneValue,
-                milestoneUnit = event.milestoneUnit,
-                shelfId = event.shelfId,
-                shelfName = event.shelfName,
+                userDisplayName = payload.userDisplayName,
+                userAvatarColor = payload.userAvatarColor,
+                userAvatarType = payload.userAvatarType,
+                userAvatarValue = payload.userAvatarValue,
+                bookId = payload.bookId,
+                bookTitle = payload.bookTitle,
+                bookAuthorName = payload.bookAuthorName,
+                bookCoverPath = payload.bookCoverPath,
+                isReread = payload.isReread,
+                durationMs = payload.durationMs,
+                milestoneValue = payload.milestoneValue,
+                milestoneUnit = payload.milestoneUnit,
+                shelfId = payload.shelfId,
+                shelfName = payload.shelfName,
             )
 
         try {
             activityDao.upsert(entity)
-            logger.debug { "SSE: Saved activity ${event.id} to Room" }
+            logger.debug { "SSE: Saved activity ${payload.id} to Room" }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.error(e) { "SSE: Failed to save activity ${event.id}" }
+            logger.error(e) { "SSE: Failed to save activity ${payload.id}" }
         }
     }
 
@@ -936,34 +986,35 @@ class SSEEventProcessor(
      * Also ensures the user's avatar image is downloaded locally if they have one,
      * so the avatar displays correctly in offline-first UI.
      */
-    private suspend fun handleSessionStarted(event: SSEEventType.SessionStarted) {
-        logger.debug { "SSE: Session started - ${event.sessionId} for user ${event.userId}" }
+    private suspend fun handleSessionStarted(event: SSEEvent.SessionStarted) {
+        val payload = event.data
+        logger.debug { "SSE: Session started - ${payload.sessionId} for user ${payload.userId}" }
 
         // Download user's avatar if they have an image avatar and it's not cached locally
         // Do this BEFORE storing the session so the avatar file exists when UI renders
-        val userProfile = userProfileDao.getById(event.userId)
+        val userProfile = userProfileDao.getById(payload.userId)
         if (userProfile != null && userProfile.avatarType == "image") {
             scope.launch {
                 try {
                     // downloadUserAvatar checks if file exists locally and skips if so
-                    imageDownloader.downloadUserAvatar(event.userId, forceRefresh = false)
-                    logger.debug { "SSE: Ensured avatar exists for user ${event.userId}" }
+                    imageDownloader.downloadUserAvatar(payload.userId, forceRefresh = false)
+                    logger.debug { "SSE: Ensured avatar exists for user ${payload.userId}" }
                 } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    logger.warn(e) { "SSE: Failed to download avatar for user ${event.userId}" }
+                    logger.warn(e) { "SSE: Failed to download avatar for user ${payload.userId}" }
                 }
             }
         }
 
-        val startedAtMs = parseTimestamp(event.startedAt).epochMillis
+        val startedAtMs = parseTimestamp(payload.startedAt).epochMillis
         val now = Timestamp.now().epochMillis
 
         activeSessionDao.upsert(
             ActiveSessionEntity(
-                sessionId = event.sessionId,
-                userId = event.userId,
-                bookId = event.bookId,
+                sessionId = payload.sessionId,
+                userId = payload.userId,
+                bookId = payload.bookId,
                 startedAt = startedAtMs,
                 updatedAt = now,
             ),
@@ -975,9 +1026,10 @@ class SSEEventProcessor(
      *
      * Removes the session from Room.
      */
-    private suspend fun handleSessionEnded(event: SSEEventType.SessionEnded) {
-        logger.debug { "SSE: Session ended - ${event.sessionId}" }
-        activeSessionDao.deleteBySessionId(event.sessionId)
+    private suspend fun handleSessionEnded(event: SSEEvent.SessionEnded) {
+        val payload = event.data
+        logger.debug { "SSE: Session ended - ${payload.sessionId}" }
+        activeSessionDao.deleteBySessionId(payload.sessionId)
     }
 
     // ========== User Stats Event Handlers ==========
@@ -988,29 +1040,30 @@ class SSEEventProcessor(
      * Updates the cached user stats in Room for leaderboard display.
      * This enables offline-first leaderboard with real-time updates.
      */
-    private suspend fun handleUserStatsUpdated(event: SSEEventType.UserStatsUpdated) {
-        logger.debug { "SSE: User stats updated - ${event.displayName} (${event.userId})" }
+    private suspend fun handleUserStatsUpdated(event: SSEEvent.UserStatsUpdated) {
+        val payload = event.data
+        logger.debug { "SSE: User stats updated - ${payload.displayName} (${payload.userId})" }
 
         val entity =
             UserStatsEntity(
-                userId = event.userId,
-                displayName = event.displayName,
-                avatarColor = event.avatarColor,
-                avatarType = event.avatarType,
-                avatarValue = event.avatarValue,
-                totalTimeMs = event.totalTimeMs,
-                totalBooks = event.totalBooks,
-                currentStreak = event.currentStreak,
+                userId = payload.userId,
+                displayName = payload.displayName,
+                avatarColor = payload.avatarColor,
+                avatarType = payload.avatarType,
+                avatarValue = payload.avatarValue,
+                totalTimeMs = payload.totalTimeMs,
+                totalBooks = payload.totalBooks,
+                currentStreak = payload.currentStreak,
                 updatedAt = Timestamp.now().epochMillis,
             )
 
         try {
             userStatsDao.upsert(entity)
-            logger.debug { "SSE: Cached user stats for ${event.userId}" }
+            logger.debug { "SSE: Cached user stats for ${payload.userId}" }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.error(e) { "SSE: Failed to cache user stats for ${event.userId}" }
+            logger.error(e) { "SSE: Failed to cache user stats for ${payload.userId}" }
         }
     }
 
@@ -1030,33 +1083,34 @@ class SSEEventProcessor(
      * profile update was received while online.
      */
     @Suppress("ThrowsCount") // Per-field failures each throw; CancellationException rethrow adds one more
-    private suspend fun handleProfileUpdated(event: SSEEventType.ProfileUpdated) {
-        logger.info { "SSE: Profile updated - ${event.displayName} (${event.userId})" }
+    private suspend fun handleProfileUpdated(event: SSEEvent.ProfileUpdated) {
+        val payload = event.data
+        logger.info { "SSE: Profile updated - ${payload.displayName} (${payload.userId})" }
 
         val currentUser = userDao.getCurrentUser()
-        val isCurrentUser = currentUser != null && event.userId == currentUser.id.value
+        val isCurrentUser = currentUser != null && payload.userId == currentUser.id.value
 
         // IMPORTANT: Download/delete avatar FIRST, before updating userDao
         // This ensures the local file exists when the UI Flow emits after userDao update.
         // If we update userDao first, the UI checks for the file before it's downloaded.
-        if (event.avatarType == "image" && event.avatarValue != null) {
+        if (payload.avatarType == "image" && payload.avatarValue != null) {
             try {
-                imageDownloader.downloadUserAvatar(event.userId, forceRefresh = true)
-                logger.info { "SSE: Downloaded avatar image for user ${event.userId}" }
+                imageDownloader.downloadUserAvatar(payload.userId, forceRefresh = true)
+                logger.info { "SSE: Downloaded avatar image for user ${payload.userId}" }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                logger.warn(e) { "SSE: Failed to download avatar for user ${event.userId}" }
+                logger.warn(e) { "SSE: Failed to download avatar for user ${payload.userId}" }
             }
-        } else if (event.avatarType == "auto") {
+        } else if (payload.avatarType == "auto") {
             // User reverted to auto avatar, delete the local image file
             try {
-                imageDownloader.deleteUserAvatar(event.userId)
-                logger.info { "SSE: Deleted local avatar for user ${event.userId} (reverted to auto)" }
+                imageDownloader.deleteUserAvatar(payload.userId)
+                logger.info { "SSE: Deleted local avatar for user ${payload.userId} (reverted to auto)" }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                logger.warn(e) { "SSS: Failed to delete avatar for user ${event.userId}" }
+                logger.warn(e) { "SSS: Failed to delete avatar for user ${payload.userId}" }
             }
         }
 
@@ -1064,19 +1118,19 @@ class SSEEventProcessor(
         try {
             userProfileDao.upsert(
                 UserProfileEntity(
-                    id = event.userId,
-                    displayName = event.displayName,
-                    avatarType = event.avatarType,
-                    avatarValue = event.avatarValue,
-                    avatarColor = event.avatarColor,
+                    id = payload.userId,
+                    displayName = payload.displayName,
+                    avatarType = payload.avatarType,
+                    avatarValue = payload.avatarValue,
+                    avatarColor = payload.avatarColor,
                     updatedAt = Timestamp.now().epochMillis,
                 ),
             )
-            logger.debug { "SSE: Cached user profile for ${event.userId}" }
+            logger.debug { "SSE: Cached user profile for ${payload.userId}" }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.warn(e) { "SSE: Failed to cache user profile for ${event.userId}" }
+            logger.warn(e) { "SSE: Failed to cache user profile for ${payload.userId}" }
         }
 
         // Now update local UserEntity for current user - avatar file is already ready
@@ -1085,31 +1139,31 @@ class SSEEventProcessor(
             try {
                 // Update name fields
                 userDao.updateName(
-                    userId = event.userId,
-                    firstName = event.firstName,
-                    lastName = event.lastName,
-                    displayName = event.displayName,
+                    userId = payload.userId,
+                    firstName = payload.firstName,
+                    lastName = payload.lastName,
+                    displayName = payload.displayName,
                     updatedAt = Timestamp.now().epochMillis,
                 )
                 // Update avatar
                 userDao.updateAvatar(
-                    userId = event.userId,
-                    avatarType = event.avatarType,
-                    avatarValue = event.avatarValue,
-                    avatarColor = event.avatarColor,
+                    userId = payload.userId,
+                    avatarType = payload.avatarType,
+                    avatarValue = payload.avatarValue,
+                    avatarColor = payload.avatarColor,
                     updatedAt = Timestamp.now().epochMillis,
                 )
                 // Update tagline
-                if (event.tagline != null || currentUser.tagline != null) {
+                if (payload.tagline != null || currentUser.tagline != null) {
                     userDao.updateTagline(
-                        userId = event.userId,
-                        tagline = event.tagline,
+                        userId = payload.userId,
+                        tagline = payload.tagline,
                         updatedAt = Timestamp.now().epochMillis,
                     )
                 }
                 logger.info {
                     "SSE: Updated local UserEntity with profile changes - " +
-                        "name=${event.displayName}, avatar=${event.avatarType}/${event.avatarValue}"
+                        "name=${payload.displayName}, avatar=${payload.avatarType}/${payload.avatarValue}"
                 }
             } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                 throw e
@@ -1127,14 +1181,15 @@ class SSEEventProcessor(
      * Emits to userDeletedEvent flow so the app can clear auth state
      * and navigate to login. The SSE connection will be closed after this.
      */
-    private suspend fun handleUserDeleted(event: SSEEventType.UserDeleted) {
-        logger.warn { "SSE: User account deleted - ${event.userId}, reason: ${event.reason}" }
+    private suspend fun handleUserDeleted(event: SSEEvent.UserDeleted) {
+        val payload = event.data
+        logger.warn { "SSE: User account deleted - ${payload.userId}, reason: ${payload.reason}" }
 
         // Emit event for app to handle (clear auth, navigate to login)
         _userDeletedEvent.emit(
             UserDeletedInfo(
-                userId = event.userId,
-                reason = event.reason,
+                userId = payload.userId,
+                reason = payload.reason,
             ),
         )
     }

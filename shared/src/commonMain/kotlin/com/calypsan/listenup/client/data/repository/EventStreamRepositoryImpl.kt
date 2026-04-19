@@ -1,13 +1,13 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.data.sync.SSEEventType
+import com.calypsan.listenup.client.data.sync.SSEChannelMessage
+import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SSEManagerContract
 import com.calypsan.listenup.client.domain.model.AdminEvent
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.model.BookEvent
 import com.calypsan.listenup.client.domain.repository.EventStreamRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 
@@ -29,30 +29,31 @@ class EventStreamRepositoryImpl(
      * and transforms them to use domain models.
      */
     override val adminEvents: Flow<AdminEvent> =
-        sseManager.eventFlow.mapNotNull { event ->
+        sseManager.eventFlow.mapNotNull { message ->
+            val event = (message as? SSEChannelMessage.Wire)?.event ?: return@mapNotNull null
             when (event) {
-                is SSEEventType.UserPending -> {
+                is SSEEvent.UserPending -> {
                     AdminEvent.UserPending(
-                        user = event.user.toDomain(),
+                        user = event.data.user.toDomain(),
                     )
                 }
 
-                is SSEEventType.UserApproved -> {
+                is SSEEvent.UserApproved -> {
                     AdminEvent.UserApproved(
-                        user = event.user.toDomain(),
+                        user = event.data.user.toDomain(),
                     )
                 }
 
-                is SSEEventType.InboxBookAdded -> {
+                is SSEEvent.InboxBookAdded -> {
                     AdminEvent.InboxBookAdded(
-                        bookId = event.bookId,
-                        title = event.title,
+                        bookId = event.data.book.id,
+                        title = event.data.book.title,
                     )
                 }
 
-                is SSEEventType.InboxBookReleased -> {
+                is SSEEvent.InboxBookReleased -> {
                     AdminEvent.InboxBookReleased(
-                        bookId = event.bookId,
+                        bookId = event.data.bookId,
                     )
                 }
 
@@ -70,14 +71,16 @@ class EventStreamRepositoryImpl(
      */
     override val bookEvents: Flow<BookEvent> =
         sseManager.eventFlow
-            .filterIsInstance<SSEEventType.ReadingSessionUpdated>()
-            .map { event ->
+            .mapNotNull { message ->
+                (message as? SSEChannelMessage.Wire)?.event as? SSEEvent.ReadingSessionUpdated
+            }.map { event ->
+                val payload = event.data
                 BookEvent.ReadingSessionUpdated(
-                    sessionId = event.sessionId,
-                    bookId = event.bookId,
-                    isCompleted = event.isCompleted,
-                    listenTimeMs = event.listenTimeMs,
-                    finishedAt = event.finishedAt,
+                    sessionId = payload.sessionId,
+                    bookId = payload.bookId,
+                    isCompleted = payload.isCompleted,
+                    listenTimeMs = payload.listenTimeMs,
+                    finishedAt = payload.finishedAt,
                 )
             }
 }

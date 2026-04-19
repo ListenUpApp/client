@@ -1,51 +1,10 @@
-@file:Suppress(
-    "LoopWithTooManyJumpStatements",
-    "InstanceOfCheckForException",
-    "LongMethod",
-    "CyclomaticComplexMethod",
-)
-
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.core.error.SyncError
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
-import com.calypsan.listenup.client.data.remote.model.SSEActivityCreatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEBookDeletedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEBookEvent
-import com.calypsan.listenup.client.data.remote.model.SSEBookTagAddedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEBookTagRemovedEvent
-import com.calypsan.listenup.client.data.remote.model.SSECollectionBookAddedEvent
-import com.calypsan.listenup.client.data.remote.model.SSECollectionBookRemovedEvent
-import com.calypsan.listenup.client.data.remote.model.SSECollectionCreatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSECollectionDeletedEvent
-import com.calypsan.listenup.client.data.remote.model.SSECollectionUpdatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEEvent
-import com.calypsan.listenup.client.data.remote.model.SSEInboxBookAddedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEInboxBookReleasedEvent
-import com.calypsan.listenup.client.data.remote.model.SSELibraryAccessModeChangedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEShelfBookAddedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEShelfBookRemovedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEShelfCreatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEShelfDeletedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEShelfUpdatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
-import com.calypsan.listenup.client.data.remote.model.SSELibraryScanProgressEvent
-import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEProfileUpdatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEProgressDeletedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEReadingSessionUpdatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSESessionEndedEvent
-import com.calypsan.listenup.client.data.remote.model.SSESessionStartedEvent
-import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEUserData
-import com.calypsan.listenup.client.data.remote.model.SSEUserDeletedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEUserPendingEvent
-import com.calypsan.listenup.client.data.remote.model.SSEUserStatsUpdatedEvent
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.plugins.ResponseException
@@ -64,7 +23,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import com.calypsan.listenup.client.core.Timestamp
 
 private val logger = KotlinLogging.logger {}
 
@@ -78,7 +36,8 @@ private val logger = KotlinLogging.logger {}
  * 4. disconnect() closes stream and cancels reconnection
  *
  * Event Flow Architecture:
- * - Events emitted as sealed SSEEventType for type-safe handling
+ * - Events emitted as [SSEChannelMessage] — a wire-decoded [SSEEvent] or a synthetic
+ *   [SSEChannelMessage.Reconnected] signal.
  * - SharedFlow allows multiple collectors (e.g., SyncManager + UI)
  * - Hot flow: Events are broadcast even if no collectors (replay=0)
  *
@@ -88,7 +47,7 @@ private val logger = KotlinLogging.logger {}
  * - Reconnection uses exponential backoff to avoid server overload
  *
  * @property clientFactory Factory for creating authenticated HttpClient
- * @property settingsRepository For retrieving server URL
+ * @property serverConfig For retrieving server URL
  * @property scope CoroutineScope for SSE connection lifecycle
  */
 class SSEManager(
@@ -97,12 +56,12 @@ class SSEManager(
     private val scope: CoroutineScope,
 ) : SSEManagerContract {
     private val _eventFlow =
-        MutableSharedFlow<SSEEventType>(
+        MutableSharedFlow<SSEChannelMessage>(
             replay = 0,
             extraBufferCapacity = 256,
             onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST,
         )
-    override val eventFlow: SharedFlow<SSEEventType> = _eventFlow.asSharedFlow()
+    override val eventFlow: SharedFlow<SSEChannelMessage> = _eventFlow.asSharedFlow()
 
     private val _isConnected = MutableStateFlow(false)
 
@@ -117,7 +76,7 @@ class SSEManager(
     /** RFC3339 timestamp of when the SSE connection was last lost. Used for ?since= on reconnect. */
     private var disconnectedAt: String? = null
 
-    // JSON parser for manually parsing SSE event data field
+    // JSON parser for polymorphic SSE event decode
     private val json = appJson
 
     companion object {
@@ -125,6 +84,8 @@ class SSEManager(
         private const val INITIAL_RECONNECT_DELAY_MS = 1000L
         private const val MAX_RECONNECT_DELAY_MS = 30000L
         private const val RECONNECT_BACKOFF_MULTIPLIER = 2.0
+        private const val HTTP_UNAUTHORIZED = 401
+        private const val HTTP_FORBIDDEN = 403
     }
 
     /**
@@ -137,7 +98,6 @@ class SSEManager(
      *
      * Call this after successful login or sync to start receiving real-time updates.
      */
-    @Suppress("MagicNumber", "CognitiveComplexMethod")
     override fun connect() {
         if (connectionJob?.isActive == true) {
             return // Already connected
@@ -146,50 +106,11 @@ class SSEManager(
         connectionJob =
             scope.launch {
                 var reconnectDelay = INITIAL_RECONNECT_DELAY_MS
+                var keepReconnecting = true
 
-                while (isActive) {
-                    try {
-                        // Check if server URL is configured before attempting connection
-                        val serverUrl = serverConfig.getServerUrl()
-                        if (serverUrl == null) {
-                            logger.debug { "Server URL not configured, skipping SSE connection" }
-                            break // Don't reconnect if not configured
-                        }
-
-                        logger.info { "Connecting to SSE stream..." }
-                        streamEvents()
-
-                        // If we get here, connection ended gracefully
-                        logger.debug { "Connection ended gracefully" }
-                        break
-                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        _isConnected.value = false
-
-                        // Record when we disconnected for reconnect delta sync
-                        disconnectedAt = Timestamp.now().toIsoString()
-                        logger.debug { "SSE disconnected at $disconnectedAt" }
-
-                        // Check for authentication errors - don't retry on 401/403
-                        if (e is ResponseException) {
-                            val statusCode = e.response.status.value
-                            if (statusCode == 401 || statusCode == 403) {
-                                logger.warn {
-                                    "SSE connection failed with auth error ($statusCode), not retrying"
-                                }
-                                break // Don't reconnect - auth is invalid
-                            }
-                        }
-
-                        ErrorBus.emit(SyncError.RealtimeDisconnected(debugInfo = e.message))
-                        logger.warn(e) { "Connection error" }
-
-                        if (!isActive) {
-                            break // Don't reconnect if job was cancelled
-                        }
-
-                        // Exponential backoff
+                while (isActive && keepReconnecting) {
+                    keepReconnecting = runConnectionAttempt()
+                    if (keepReconnecting && isActive) {
                         logger.debug { "Reconnecting in ${reconnectDelay}ms..." }
                         delay(reconnectDelay)
                         reconnectDelay =
@@ -200,6 +121,47 @@ class SSEManager(
                 }
             }
     }
+
+    /**
+     * Run one SSE connection attempt.
+     *
+     * @return `true` if the caller should reconnect after backoff, `false` if the
+     *   outer loop should exit (graceful close, missing config, or auth failure).
+     */
+    @Suppress("ReturnCount")
+    private suspend fun runConnectionAttempt(): Boolean =
+        try {
+            val serverUrl = serverConfig.getServerUrl()
+            if (serverUrl == null) {
+                logger.debug { "Server URL not configured, skipping SSE connection" }
+                return false
+            }
+            logger.info { "Connecting to SSE stream..." }
+            streamEvents()
+            logger.debug { "Connection ended gracefully" }
+            false
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: ResponseException) {
+            _isConnected.value = false
+            disconnectedAt = Timestamp.now().toIsoString()
+            logger.debug { "SSE disconnected at $disconnectedAt" }
+            val statusCode = e.response.status.value
+            if (statusCode == HTTP_UNAUTHORIZED || statusCode == HTTP_FORBIDDEN) {
+                logger.warn { "SSE connection failed with auth error ($statusCode), not retrying" }
+                return false
+            }
+            ErrorBus.emit(SyncError.RealtimeDisconnected(debugInfo = e.message))
+            logger.warn(e) { "Connection error" }
+            true
+        } catch (e: Exception) {
+            _isConnected.value = false
+            disconnectedAt = Timestamp.now().toIsoString()
+            logger.debug { "SSE disconnected at $disconnectedAt" }
+            ErrorBus.emit(SyncError.RealtimeDisconnected(debugInfo = e.message))
+            logger.warn(e) { "Connection error" }
+            true
+        }
 
     /**
      * Disconnects from SSE stream and stops emitting events.
@@ -256,12 +218,12 @@ class SSEManager(
                     logger.info {
                         "SSE reconnected after disconnect at $sinceParam - emitting Reconnected event for delta sync"
                     }
-                    _eventFlow.emit(SSEEventType.Reconnected(disconnectedAt = sinceParam))
+                    _eventFlow.emit(SSEChannelMessage.Reconnected(disconnectedAt = sinceParam))
                     // Clear disconnectedAt after successful reconnection with replay
                     disconnectedAt = null
                 } else if (isReconnection) {
                     logger.info { "SSE reconnected (no disconnectedAt recorded) - emitting Reconnected event" }
-                    _eventFlow.emit(SSEEventType.Reconnected(disconnectedAt = Timestamp.now().toIsoString()))
+                    _eventFlow.emit(SSEChannelMessage.Reconnected(disconnectedAt = Timestamp.now().toIsoString()))
                 }
 
                 parseSSEStream(channel)
@@ -279,10 +241,10 @@ class SSEManager(
      * SSE Format (from server):
      * ```
      * event: book.created
-     * data: {"timestamp":"...","type":"book.created","data":"{...}"}
+     * data: {"timestamp":"...","type":"book.created","data":{...}}
      *
      * event: heartbeat
-     * data: {"timestamp":"...","type":"heartbeat","data":"{...}"}
+     * data: {"timestamp":"...","type":"heartbeat","data":{...}}
      *
      * ```
      *
@@ -290,7 +252,6 @@ class SSEManager(
      */
     private suspend fun parseSSEStream(channel: ByteReadChannel) {
         var currentEventData = StringBuilder()
-        var currentEventType: String? = null
 
         while (!channel.isClosedForRead) {
             val line = channel.readLine() ?: break
@@ -301,13 +262,11 @@ class SSEManager(
                     if (currentEventData.isNotEmpty()) {
                         processEvent(currentEventData.toString())
                         currentEventData = StringBuilder()
-                        currentEventType = null
                     }
                 }
 
                 line.startsWith("event: ") -> {
-                    // SSE event type line (we don't use this, data JSON has type field)
-                    currentEventType = line.removePrefix("event: ")
+                    // SSE event type line (we don't use this; the JSON payload carries `type`)
                 }
 
                 line.startsWith("data: ") -> {
@@ -328,809 +287,21 @@ class SSEManager(
 
     /**
      * Processes a complete SSE event JSON string.
+     *
+     * Decodes the envelope polymorphically via [appJson]; unknown discriminators
+     * produce an [SSEEvent.Unknown] sentinel that consumers log without crashing.
+     * Malformed JSON is logged and dropped; the SSE channel continues.
      */
     private suspend fun processEvent(eventJson: String) {
-        try {
-            logger.trace { "Processing event: $eventJson" }
-
-            // Parse the SSE event envelope
-            val sseEvent =
-                try {
-                    json.decodeFromString<SSEEvent>(eventJson)
-                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    // Skip non-standard events (like initial "connected" message)
-                    logger.trace { "Skipping non-standard event: ${e.message}" }
-                    return
-                }
-
-            val eventType =
-                when (sseEvent.type) {
-                    "book.created", "book.updated" -> {
-                        val bookEvent = json.decodeFromJsonElement(SSEBookEvent.serializer(), sseEvent.data)
-                        if (sseEvent.type == "book.created") {
-                            SSEEventType.BookCreated(bookEvent.book)
-                        } else {
-                            SSEEventType.BookUpdated(bookEvent.book)
-                        }
-                    }
-
-                    "book.deleted" -> {
-                        val deleteEvent = json.decodeFromJsonElement(SSEBookDeletedEvent.serializer(), sseEvent.data)
-                        SSEEventType.BookDeleted(deleteEvent.bookId, deleteEvent.deletedAt)
-                    }
-
-                    "library.scan_started" -> {
-                        val scanEvent =
-                            json.decodeFromJsonElement(
-                                SSELibraryScanStartedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ScanStarted(scanEvent.libraryId, scanEvent.startedAt)
-                    }
-
-                    "library.scan_completed" -> {
-                        val scanEvent =
-                            json.decodeFromJsonElement(
-                                SSELibraryScanCompletedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ScanCompleted(
-                            libraryId = scanEvent.libraryId,
-                            booksAdded = scanEvent.booksAdded,
-                            booksUpdated = scanEvent.booksUpdated,
-                            booksRemoved = scanEvent.booksRemoved,
-                        )
-                    }
-
-                    "library.scan_progress" -> {
-                        val progressEvent =
-                            json.decodeFromJsonElement(
-                                SSELibraryScanProgressEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ScanProgress(
-                            libraryId = progressEvent.libraryId,
-                            phase = progressEvent.phase,
-                            current = progressEvent.current,
-                            total = progressEvent.total,
-                            added = progressEvent.added,
-                            updated = progressEvent.updated,
-                            removed = progressEvent.removed,
-                        )
-                    }
-
-                    "library.access_mode_changed" -> {
-                        val event =
-                            json.decodeFromJsonElement(
-                                SSELibraryAccessModeChangedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.LibraryAccessModeChanged(
-                            libraryId = event.libraryId,
-                            accessMode = event.accessMode,
-                        )
-                    }
-
-                    "heartbeat" -> {
-                        // Heartbeat keeps connection alive, no action needed
-                        SSEEventType.Heartbeat
-                    }
-
-                    "user.pending" -> {
-                        val userEvent = json.decodeFromJsonElement(SSEUserPendingEvent.serializer(), sseEvent.data)
-                        SSEEventType.UserPending(userEvent.user)
-                    }
-
-                    "user.approved" -> {
-                        val userEvent = json.decodeFromJsonElement(SSEUserApprovedEvent.serializer(), sseEvent.data)
-                        SSEEventType.UserApproved(userEvent.user)
-                    }
-
-                    "user.deleted" -> {
-                        val userEvent = json.decodeFromJsonElement(SSEUserDeletedEvent.serializer(), sseEvent.data)
-                        SSEEventType.UserDeleted(
-                            userId = userEvent.userId,
-                            reason = userEvent.reason,
-                        )
-                    }
-
-                    "collection.created" -> {
-                        val collectionEvent =
-                            json.decodeFromJsonElement(SSECollectionCreatedEvent.serializer(), sseEvent.data)
-                        SSEEventType.CollectionCreated(
-                            id = collectionEvent.id,
-                            name = collectionEvent.name,
-                            bookCount = collectionEvent.bookCount,
-                        )
-                    }
-
-                    "collection.updated" -> {
-                        val collectionEvent =
-                            json.decodeFromJsonElement(SSECollectionUpdatedEvent.serializer(), sseEvent.data)
-                        SSEEventType.CollectionUpdated(
-                            id = collectionEvent.id,
-                            name = collectionEvent.name,
-                            bookCount = collectionEvent.bookCount,
-                        )
-                    }
-
-                    "collection.deleted" -> {
-                        val collectionEvent =
-                            json.decodeFromJsonElement(SSECollectionDeletedEvent.serializer(), sseEvent.data)
-                        SSEEventType.CollectionDeleted(
-                            id = collectionEvent.id,
-                            name = collectionEvent.name,
-                        )
-                    }
-
-                    "collection.book_added" -> {
-                        val collectionEvent =
-                            json.decodeFromJsonElement(SSECollectionBookAddedEvent.serializer(), sseEvent.data)
-                        SSEEventType.CollectionBookAdded(
-                            collectionId = collectionEvent.collectionId,
-                            collectionName = collectionEvent.collectionName,
-                            bookId = collectionEvent.bookId,
-                        )
-                    }
-
-                    "collection.book_removed" -> {
-                        val collectionEvent =
-                            json.decodeFromJsonElement(SSECollectionBookRemovedEvent.serializer(), sseEvent.data)
-                        SSEEventType.CollectionBookRemoved(
-                            collectionId = collectionEvent.collectionId,
-                            collectionName = collectionEvent.collectionName,
-                            bookId = collectionEvent.bookId,
-                        )
-                    }
-
-                    "shelf.created" -> {
-                        val shelfEvent = json.decodeFromJsonElement(SSEShelfCreatedEvent.serializer(), sseEvent.data)
-                        SSEEventType.ShelfCreated(
-                            id = shelfEvent.id,
-                            ownerId = shelfEvent.ownerId,
-                            name = shelfEvent.name,
-                            description = shelfEvent.description,
-                            bookCount = shelfEvent.bookCount,
-                            ownerDisplayName = shelfEvent.ownerDisplayName,
-                            ownerAvatarColor = shelfEvent.ownerAvatarColor,
-                            createdAt = shelfEvent.createdAt,
-                            updatedAt = shelfEvent.updatedAt,
-                        )
-                    }
-
-                    "shelf.updated" -> {
-                        val shelfEvent = json.decodeFromJsonElement(SSEShelfUpdatedEvent.serializer(), sseEvent.data)
-                        SSEEventType.ShelfUpdated(
-                            id = shelfEvent.id,
-                            ownerId = shelfEvent.ownerId,
-                            name = shelfEvent.name,
-                            description = shelfEvent.description,
-                            bookCount = shelfEvent.bookCount,
-                            ownerDisplayName = shelfEvent.ownerDisplayName,
-                            ownerAvatarColor = shelfEvent.ownerAvatarColor,
-                            createdAt = shelfEvent.createdAt,
-                            updatedAt = shelfEvent.updatedAt,
-                        )
-                    }
-
-                    "shelf.deleted" -> {
-                        val shelfEvent = json.decodeFromJsonElement(SSEShelfDeletedEvent.serializer(), sseEvent.data)
-                        SSEEventType.ShelfDeleted(
-                            id = shelfEvent.id,
-                            ownerId = shelfEvent.ownerId,
-                        )
-                    }
-
-                    "shelf.book_added" -> {
-                        val shelfEvent = json.decodeFromJsonElement(SSEShelfBookAddedEvent.serializer(), sseEvent.data)
-                        SSEEventType.ShelfBookAdded(
-                            shelfId = shelfEvent.shelfId,
-                            ownerId = shelfEvent.ownerId,
-                            bookId = shelfEvent.bookId,
-                            bookCount = shelfEvent.bookCount,
-                        )
-                    }
-
-                    "shelf.book_removed" -> {
-                        val shelfEvent =
-                            json.decodeFromJsonElement(
-                                SSEShelfBookRemovedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ShelfBookRemoved(
-                            shelfId = shelfEvent.shelfId,
-                            ownerId = shelfEvent.ownerId,
-                            bookId = shelfEvent.bookId,
-                            bookCount = shelfEvent.bookCount,
-                        )
-                    }
-
-                    "tag.created" -> {
-                        val tagEvent = json.decodeFromJsonElement(SSETagCreatedEvent.serializer(), sseEvent.data)
-                        SSEEventType.TagCreated(
-                            id = tagEvent.id,
-                            slug = tagEvent.slug,
-                            bookCount = tagEvent.bookCount,
-                        )
-                    }
-
-                    "book.tag_added" -> {
-                        val tagEvent = json.decodeFromJsonElement(SSEBookTagAddedEvent.serializer(), sseEvent.data)
-                        SSEEventType.BookTagAdded(
-                            bookId = tagEvent.bookId,
-                            tagId = tagEvent.tag.id,
-                            tagSlug = tagEvent.tag.slug,
-                            tagBookCount = tagEvent.tag.bookCount,
-                        )
-                    }
-
-                    "book.tag_removed" -> {
-                        val tagEvent = json.decodeFromJsonElement(SSEBookTagRemovedEvent.serializer(), sseEvent.data)
-                        SSEEventType.BookTagRemoved(
-                            bookId = tagEvent.bookId,
-                            tagId = tagEvent.tag.id,
-                            tagSlug = tagEvent.tag.slug,
-                            tagBookCount = tagEvent.tag.bookCount,
-                        )
-                    }
-
-                    "inbox.book_added" -> {
-                        val inboxEvent = json.decodeFromJsonElement(SSEInboxBookAddedEvent.serializer(), sseEvent.data)
-                        SSEEventType.InboxBookAdded(
-                            bookId = inboxEvent.book.id,
-                            title = inboxEvent.book.title,
-                        )
-                    }
-
-                    "inbox.book_released" -> {
-                        val inboxEvent =
-                            json.decodeFromJsonElement(
-                                SSEInboxBookReleasedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.InboxBookReleased(
-                            bookId = inboxEvent.bookId,
-                        )
-                    }
-
-                    "listening.progress_updated" -> {
-                        val progressEvent =
-                            json.decodeFromJsonElement(
-                                SSEProgressUpdatedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ProgressUpdated(
-                            bookId = progressEvent.bookId,
-                            currentPositionMs = progressEvent.currentPositionMs,
-                            progress = progressEvent.progress,
-                            totalListenTimeMs = progressEvent.totalListenTimeMs,
-                            isFinished = progressEvent.isFinished,
-                            lastPlayedAt = progressEvent.lastPlayedAt,
-                        )
-                    }
-
-                    "listening.progress_deleted" -> {
-                        val progressEvent =
-                            json.decodeFromJsonElement(
-                                SSEProgressDeletedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ProgressDeleted(
-                            bookId = progressEvent.bookId,
-                        )
-                    }
-
-                    "reading_session.updated" -> {
-                        val sessionEvent =
-                            json.decodeFromJsonElement(
-                                SSEReadingSessionUpdatedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ReadingSessionUpdated(
-                            sessionId = sessionEvent.sessionId,
-                            bookId = sessionEvent.bookId,
-                            isCompleted = sessionEvent.isCompleted,
-                            listenTimeMs = sessionEvent.listenTimeMs,
-                            finishedAt = sessionEvent.finishedAt,
-                        )
-                    }
-
-                    "listening.event_created" -> {
-                        val listeningEvent =
-                            json.decodeFromJsonElement(
-                                SSEListeningEventCreatedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ListeningEventCreated(
-                            id = listeningEvent.id,
-                            bookId = listeningEvent.bookId,
-                            startPositionMs = listeningEvent.startPositionMs,
-                            endPositionMs = listeningEvent.endPositionMs,
-                            startedAt = listeningEvent.startedAt,
-                            endedAt = listeningEvent.endedAt,
-                            playbackSpeed = listeningEvent.playbackSpeed,
-                            deviceId = listeningEvent.deviceId,
-                            createdAt = listeningEvent.createdAt,
-                        )
-                    }
-
-                    "activity.created" -> {
-                        val activityEvent =
-                            json.decodeFromJsonElement(
-                                SSEActivityCreatedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ActivityCreated(
-                            id = activityEvent.id,
-                            userId = activityEvent.userId,
-                            type = activityEvent.type,
-                            createdAt = activityEvent.createdAt,
-                            userDisplayName = activityEvent.userDisplayName,
-                            userAvatarColor = activityEvent.userAvatarColor,
-                            userAvatarType = activityEvent.userAvatarType,
-                            userAvatarValue = activityEvent.userAvatarValue,
-                            bookId = activityEvent.bookId,
-                            bookTitle = activityEvent.bookTitle,
-                            bookAuthorName = activityEvent.bookAuthorName,
-                            bookCoverPath = activityEvent.bookCoverPath,
-                            isReread = activityEvent.isReread,
-                            durationMs = activityEvent.durationMs,
-                            milestoneValue = activityEvent.milestoneValue,
-                            milestoneUnit = activityEvent.milestoneUnit,
-                            shelfId = activityEvent.shelfId,
-                            shelfName = activityEvent.shelfName,
-                        )
-                    }
-
-                    "profile.updated" -> {
-                        val profileEvent =
-                            json.decodeFromJsonElement(
-                                SSEProfileUpdatedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.ProfileUpdated(
-                            userId = profileEvent.userId,
-                            firstName = profileEvent.firstName,
-                            lastName = profileEvent.lastName,
-                            avatarType = profileEvent.avatarType,
-                            avatarValue = profileEvent.avatarValue,
-                            avatarColor = profileEvent.avatarColor,
-                            tagline = profileEvent.tagline,
-                        )
-                    }
-
-                    "session.started" -> {
-                        val sessionEvent =
-                            json.decodeFromJsonElement(
-                                SSESessionStartedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.SessionStarted(
-                            sessionId = sessionEvent.sessionId,
-                            userId = sessionEvent.userId,
-                            bookId = sessionEvent.bookId,
-                            startedAt = sessionEvent.startedAt,
-                        )
-                    }
-
-                    "session.ended" -> {
-                        val sessionEvent =
-                            json.decodeFromJsonElement(
-                                SSESessionEndedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.SessionEnded(
-                            sessionId = sessionEvent.sessionId,
-                        )
-                    }
-
-                    "user_stats.updated" -> {
-                        val statsEvent =
-                            json.decodeFromJsonElement(
-                                SSEUserStatsUpdatedEvent.serializer(),
-                                sseEvent.data,
-                            )
-                        SSEEventType.UserStatsUpdated(
-                            userId = statsEvent.userId,
-                            displayName = statsEvent.displayName,
-                            avatarType = statsEvent.avatarType,
-                            avatarValue = statsEvent.avatarValue,
-                            avatarColor = statsEvent.avatarColor,
-                            totalTimeMs = statsEvent.totalTimeMs,
-                            totalBooks = statsEvent.totalBooks,
-                            currentStreak = statsEvent.currentStreak,
-                        )
-                    }
-
-                    else -> {
-                        logger.debug { "Unknown event type: ${sseEvent.type}" }
-                        return
-                    }
-                }
-
-            _eventFlow.emit(eventType)
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to parse event" }
-        }
+        val event =
+            try {
+                json.decodeFromString<SSEEvent>(eventJson)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.warn(e) { "Failed to parse SSE event: $eventJson" }
+                return
+            }
+        _eventFlow.emit(SSEChannelMessage.Wire(event))
     }
-}
-
-/**
- * Sealed interface for type-safe SSE event handling.
- * Each event type corresponds to a server event defined in sse/events.go.
- */
-sealed interface SSEEventType {
-    data class BookCreated(
-        val book: com.calypsan.listenup.client.data.remote.model.BookResponse,
-    ) : SSEEventType
-
-    data class BookUpdated(
-        val book: com.calypsan.listenup.client.data.remote.model.BookResponse,
-    ) : SSEEventType
-
-    data class BookDeleted(
-        val bookId: String,
-        val deletedAt: String,
-    ) : SSEEventType
-
-    data class ScanStarted(
-        val libraryId: String,
-        val startedAt: String,
-    ) : SSEEventType
-
-    data class ScanCompleted(
-        val libraryId: String,
-        val booksAdded: Int,
-        val booksUpdated: Int,
-        val booksRemoved: Int,
-    ) : SSEEventType
-
-    /**
-     * Library scan progress update.
-     * Contains current phase, progress counts, and change counts.
-     */
-    data class ScanProgress(
-        val libraryId: String,
-        val phase: String,
-        val current: Int,
-        val total: Int,
-        val added: Int,
-        val updated: Int,
-        val removed: Int,
-    ) : SSEEventType
-
-    /**
-     * Admin-only: Library access mode was changed.
-     * Clients should refresh their book lists as visibility may have changed.
-     */
-    data class LibraryAccessModeChanged(
-        val libraryId: String,
-        val accessMode: String,
-    ) : SSEEventType
-
-    data object Heartbeat : SSEEventType
-
-    /**
-     * SSE connection was re-established after a disconnect.
-     * Triggers delta sync to catch up on missed events.
-     *
-     * @property disconnectedAt RFC3339 timestamp of when the connection was lost.
-     *   Used as `updated_after` for delta sync to catch missed events.
-     */
-    data class Reconnected(
-        val disconnectedAt: String,
-    ) : SSEEventType
-
-    /**
-     * Admin-only: New user registered and is pending approval.
-     */
-    data class UserPending(
-        val user: SSEUserData,
-    ) : SSEEventType
-
-    /**
-     * Admin-only: Pending user was approved.
-     */
-    data class UserApproved(
-        val user: SSEUserData,
-    ) : SSEEventType
-
-    /**
-     * Current user's account was deleted.
-     * Client should clear auth state and navigate to login.
-     */
-    data class UserDeleted(
-        val userId: String,
-        val reason: String?,
-    ) : SSEEventType
-
-    // Collection events (admin-only)
-
-    /**
-     * Admin-only: New collection was created.
-     */
-    data class CollectionCreated(
-        val id: String,
-        val name: String,
-        val bookCount: Int,
-    ) : SSEEventType
-
-    /**
-     * Admin-only: Collection was updated.
-     */
-    data class CollectionUpdated(
-        val id: String,
-        val name: String,
-        val bookCount: Int,
-    ) : SSEEventType
-
-    /**
-     * Admin-only: Collection was deleted.
-     */
-    data class CollectionDeleted(
-        val id: String,
-        val name: String,
-    ) : SSEEventType
-
-    /**
-     * Admin-only: Book was added to a collection.
-     */
-    data class CollectionBookAdded(
-        val collectionId: String,
-        val collectionName: String,
-        val bookId: String,
-    ) : SSEEventType
-
-    /**
-     * Admin-only: Book was removed from a collection.
-     */
-    data class CollectionBookRemoved(
-        val collectionId: String,
-        val collectionName: String,
-        val bookId: String,
-    ) : SSEEventType
-
-    // Shelf events
-
-    /**
-     * A new shelf was created.
-     */
-    data class ShelfCreated(
-        val id: String,
-        val ownerId: String,
-        val name: String,
-        val description: String?,
-        val bookCount: Int,
-        val ownerDisplayName: String,
-        val ownerAvatarColor: String,
-        val createdAt: String,
-        val updatedAt: String,
-    ) : SSEEventType
-
-    /**
-     * An existing shelf was updated.
-     */
-    data class ShelfUpdated(
-        val id: String,
-        val ownerId: String,
-        val name: String,
-        val description: String?,
-        val bookCount: Int,
-        val ownerDisplayName: String,
-        val ownerAvatarColor: String,
-        val createdAt: String,
-        val updatedAt: String,
-    ) : SSEEventType
-
-    /**
-     * A shelf was deleted.
-     */
-    data class ShelfDeleted(
-        val id: String,
-        val ownerId: String,
-    ) : SSEEventType
-
-    /**
-     * A book was added to a shelf.
-     */
-    data class ShelfBookAdded(
-        val shelfId: String,
-        val ownerId: String,
-        val bookId: String,
-        val bookCount: Int,
-    ) : SSEEventType
-
-    /**
-     * A book was removed from a shelf.
-     */
-    data class ShelfBookRemoved(
-        val shelfId: String,
-        val ownerId: String,
-        val bookId: String,
-        val bookCount: Int,
-    ) : SSEEventType
-
-    // Tag events
-
-    /**
-     * A new tag was created globally.
-     */
-    data class TagCreated(
-        val id: String,
-        val slug: String,
-        val bookCount: Int,
-    ) : SSEEventType
-
-    /**
-     * A tag was added to a book.
-     */
-    data class BookTagAdded(
-        val bookId: String,
-        val tagId: String,
-        val tagSlug: String,
-        val tagBookCount: Int,
-    ) : SSEEventType
-
-    /**
-     * A tag was removed from a book.
-     */
-    data class BookTagRemoved(
-        val bookId: String,
-        val tagId: String,
-        val tagSlug: String,
-        val tagBookCount: Int,
-    ) : SSEEventType
-
-    // Inbox events (admin-only)
-
-    /**
-     * Admin-only: A book was added to the inbox.
-     */
-    data class InboxBookAdded(
-        val bookId: String,
-        val title: String,
-    ) : SSEEventType
-
-    /**
-     * Admin-only: A book was released from the inbox.
-     */
-    data class InboxBookReleased(
-        val bookId: String,
-    ) : SSEEventType
-
-    // Listening events
-
-    /**
-     * User's playback progress was updated.
-     * Used to refresh stats and continue listening.
-     */
-    data class ProgressUpdated(
-        val bookId: String,
-        val currentPositionMs: Long,
-        val progress: Double,
-        val totalListenTimeMs: Long,
-        val isFinished: Boolean,
-        val lastPlayedAt: String,
-    ) : SSEEventType
-
-    /**
-     * User's playback progress was deleted (discarded).
-     * Used to sync progress deletion across devices.
-     */
-    data class ProgressDeleted(
-        val bookId: String,
-    ) : SSEEventType
-
-    /**
-     * A reading session was created or updated.
-     * Used to refresh book readers list.
-     */
-    data class ReadingSessionUpdated(
-        val sessionId: String,
-        val bookId: String,
-        val isCompleted: Boolean,
-        val listenTimeMs: Long,
-        val finishedAt: String?,
-    ) : SSEEventType
-
-    /**
-     * A listening event was created on another device.
-     * Used to sync events for offline stats computation.
-     */
-    data class ListeningEventCreated(
-        val id: String,
-        val bookId: String,
-        val startPositionMs: Long,
-        val endPositionMs: Long,
-        val startedAt: String,
-        val endedAt: String,
-        val playbackSpeed: Float,
-        val deviceId: String,
-        val createdAt: String,
-    ) : SSEEventType
-
-    // Activity events
-
-    /**
-     * A new activity was created (started book, finished book, milestone, listening session, shelf created, etc.).
-     * Used for real-time activity feed updates.
-     */
-    data class ActivityCreated(
-        val id: String,
-        val userId: String,
-        val type: String,
-        val createdAt: String,
-        val userDisplayName: String,
-        val userAvatarColor: String,
-        val userAvatarType: String = "auto",
-        val userAvatarValue: String? = null,
-        val bookId: String? = null,
-        val bookTitle: String? = null,
-        val bookAuthorName: String? = null,
-        val bookCoverPath: String? = null,
-        val isReread: Boolean = false,
-        val durationMs: Long = 0,
-        val milestoneValue: Int = 0,
-        val milestoneUnit: String? = null,
-        val shelfId: String? = null,
-        val shelfName: String? = null,
-    ) : SSEEventType
-
-    // Profile events
-
-    /**
-     * A user's profile was updated.
-     * Used to refresh profile data in UI.
-     */
-    data class ProfileUpdated(
-        val userId: String,
-        val firstName: String,
-        val lastName: String,
-        val avatarType: String,
-        val avatarValue: String?,
-        val avatarColor: String,
-        val tagline: String?,
-    ) : SSEEventType {
-        val displayName: String get() = "$firstName $lastName".trim()
-    }
-
-    // Active session events (for "What Others Are Listening To")
-
-    /**
-     * Another user started a reading session.
-     * Broadcast to all users for the "What Others Are Listening To" feature.
-     */
-    data class SessionStarted(
-        val sessionId: String,
-        val userId: String,
-        val bookId: String,
-        val startedAt: String,
-    ) : SSEEventType
-
-    /**
-     * A reading session ended.
-     * Broadcast to all users to remove from "What Others Are Listening To".
-     */
-    data class SessionEnded(
-        val sessionId: String,
-    ) : SSEEventType
-
-    /**
-     * A user's all-time stats were updated.
-     * Broadcast to all users for leaderboard caching.
-     */
-    data class UserStatsUpdated(
-        val userId: String,
-        val displayName: String,
-        val avatarType: String,
-        val avatarValue: String?,
-        val avatarColor: String,
-        val totalTimeMs: Long,
-        val totalBooks: Int,
-        val currentStreak: Int,
-    ) : SSEEventType
 }

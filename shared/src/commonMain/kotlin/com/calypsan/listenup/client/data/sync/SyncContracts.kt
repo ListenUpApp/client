@@ -119,9 +119,12 @@ interface ImageDownloaderContract {
  */
 interface SSEManagerContract {
     /**
-     * Flow of SSE events for real-time library updates.
+     * Flow of SSE messages for real-time library updates.
+     *
+     * Emits [SSEChannelMessage.Wire] for decoded wire events and
+     * [SSEChannelMessage.Reconnected] for synthetic reconnection signals.
      */
-    val eventFlow: SharedFlow<SSEEventType>
+    val eventFlow: SharedFlow<SSEChannelMessage>
 
     /**
      * Connect to SSE stream and begin emitting events.

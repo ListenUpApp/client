@@ -151,16 +151,16 @@ class SyncManager(
     override val scanProgress: StateFlow<ScanProgressState?> = sseEventProcessor.scanProgress
 
     init {
-        // Route SSE events to processor
+        // Route SSE messages to processor
         // Mutex ensures SSE writes don't race with push sync conflict detection
         scope.launch {
-            sseManager.eventFlow.collect { event ->
+            sseManager.eventFlow.collect { message ->
                 // Handle reconnection event - trigger delta sync to catch missed events
-                if (event is SSEEventType.Reconnected) {
-                    handleReconnection(event.disconnectedAt)
+                if (message is SSEChannelMessage.Reconnected) {
+                    handleReconnection(message.disconnectedAt)
                 } else {
                     syncMutex.withLock {
-                        sseEventProcessor.process(event)
+                        sseEventProcessor.process(message)
                     }
                 }
             }

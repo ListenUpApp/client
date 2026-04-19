@@ -43,7 +43,12 @@ import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
 import com.calypsan.listenup.client.domain.repository.SessionRepository
-import com.calypsan.listenup.client.data.sync.SSEEventType
+import com.calypsan.listenup.client.data.sync.BookPayload
+import com.calypsan.listenup.client.data.sync.BookDeletedPayload
+import com.calypsan.listenup.client.data.sync.SSEChannelMessage
+import com.calypsan.listenup.client.data.sync.SSEEvent
+import com.calypsan.listenup.client.data.sync.ScanCompletedPayload
+import com.calypsan.listenup.client.data.sync.ScanStartedPayload
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.download.DownloadService
 import dev.mokkery.answering.returns
@@ -271,7 +276,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-1", title = "New Book")
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then
@@ -295,7 +300,7 @@ class SSEEventProcessorTest {
                 )
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then - should delete old and insert new relationships
@@ -319,7 +324,7 @@ class SSEEventProcessorTest {
                 )
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then - should delete old and insert new relationships
@@ -336,7 +341,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-1")
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then
@@ -352,7 +357,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-1", contributors = emptyList())
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then - should delete but NOT insert (empty list)
@@ -371,7 +376,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-1", title = "Updated Title")
 
             // When
-            processor.process(SSEEventType.BookUpdated(bookResponse))
+            processor.process(wireBookUpdated(bookResponse))
             advanceUntilIdle()
 
             // Then
@@ -391,7 +396,7 @@ class SSEEventProcessorTest {
                 )
 
             // When
-            processor.process(SSEEventType.BookUpdated(bookResponse))
+            processor.process(wireBookUpdated(bookResponse))
             advanceUntilIdle()
 
             // Then - old relationships deleted, new ones inserted
@@ -408,7 +413,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-1")
 
             // When
-            processor.process(SSEEventType.BookUpdated(bookResponse))
+            processor.process(wireBookUpdated(bookResponse))
             advanceUntilIdle()
 
             // Then
@@ -425,7 +430,14 @@ class SSEEventProcessorTest {
             val processor = fixture.build()
 
             // When
-            processor.process(SSEEventType.BookDeleted(bookId = "book-1", deletedAt = "2024-01-01T00:00:00Z"))
+            processor.process(
+                SSEChannelMessage.Wire(
+                    SSEEvent.BookDeleted(
+                        timestamp = TEST_TIMESTAMP,
+                        data = BookDeletedPayload(bookId = "book-1", deletedAt = "2024-01-01T00:00:00Z"),
+                    ),
+                ),
+            )
             advanceUntilIdle()
 
             // Then
@@ -440,7 +452,14 @@ class SSEEventProcessorTest {
             val processor = fixture.build()
 
             // When
-            processor.process(SSEEventType.BookDeleted(bookId = "book-1", deletedAt = "2024-01-01T00:00:00Z"))
+            processor.process(
+                SSEChannelMessage.Wire(
+                    SSEEvent.BookDeleted(
+                        timestamp = TEST_TIMESTAMP,
+                        data = BookDeletedPayload(bookId = "book-1", deletedAt = "2024-01-01T00:00:00Z"),
+                    ),
+                ),
+            )
             advanceUntilIdle()
 
             // Then - no cover download for deleted books
@@ -457,7 +476,14 @@ class SSEEventProcessorTest {
             val processor = fixture.build()
 
             // When
-            processor.process(SSEEventType.ScanStarted(libraryId = "lib-1", startedAt = "2024-01-01T00:00:00Z"))
+            processor.process(
+                SSEChannelMessage.Wire(
+                    SSEEvent.ScanStarted(
+                        timestamp = TEST_TIMESTAMP,
+                        data = ScanStartedPayload(libraryId = "lib-1", startedAt = "2024-01-01T00:00:00Z"),
+                    ),
+                ),
+            )
             advanceUntilIdle()
 
             // Then - no database operations
@@ -474,11 +500,17 @@ class SSEEventProcessorTest {
 
             // When
             processor.process(
-                SSEEventType.ScanCompleted(
-                    libraryId = "lib-1",
-                    booksAdded = 5,
-                    booksUpdated = 3,
-                    booksRemoved = 1,
+                SSEChannelMessage.Wire(
+                    SSEEvent.ScanCompleted(
+                        timestamp = TEST_TIMESTAMP,
+                        data =
+                            ScanCompletedPayload(
+                                libraryId = "lib-1",
+                                booksAdded = 5,
+                                booksUpdated = 3,
+                                booksRemoved = 1,
+                            ),
+                    ),
                 ),
             )
             advanceUntilIdle()
@@ -498,7 +530,9 @@ class SSEEventProcessorTest {
             val processor = fixture.build()
 
             // When
-            processor.process(SSEEventType.Heartbeat)
+            processor.process(
+                SSEChannelMessage.Wire(SSEEvent.Heartbeat(timestamp = TEST_TIMESTAMP)),
+            )
             advanceUntilIdle()
 
             // Then - no operations
@@ -519,7 +553,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-1")
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then - book's updatedAt is touched to trigger UI refresh
@@ -537,7 +571,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-1")
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then - book not touched on failure
@@ -556,7 +590,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-1")
 
             // When - should not throw
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then - no exception thrown (error is logged)
@@ -594,7 +628,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-1", title = "New Title")
 
             // When
-            processor.process(SSEEventType.BookUpdated(bookResponse))
+            processor.process(wireBookUpdated(bookResponse))
             advanceUntilIdle()
 
             // Then - getById is called to look up existing local fields before upsert
@@ -615,7 +649,7 @@ class SSEEventProcessorTest {
             val bookResponse = createBookResponse(id = "book-new", title = "Brand New")
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then - getById is called (returns null, so no preservation needed) and upsert proceeds
@@ -644,7 +678,7 @@ class SSEEventProcessorTest {
                 )
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then - insertAll is called (with 2 cross refs for 2 roles)
@@ -668,7 +702,7 @@ class SSEEventProcessorTest {
                 )
 
             // When
-            processor.process(SSEEventType.BookCreated(bookResponse))
+            processor.process(wireBookCreated(bookResponse))
             advanceUntilIdle()
 
             // Then - existing junction is wiped, resolved name becomes a row, unresolved is dropped
@@ -699,7 +733,7 @@ class SSEEventProcessorTest {
                 )
 
             // When
-            processor.process(SSEEventType.BookUpdated(bookResponse))
+            processor.process(wireBookUpdated(bookResponse))
             advanceUntilIdle()
 
             // Then - old rows deleted, resolved row inserted
@@ -721,22 +755,21 @@ class SSEEventProcessorTest {
             val fixture = TestFixture(this)
             val processor = fixture.build()
             val event =
-                SSEEventType.BookCreated(
-                    book =
-                        createBookResponse(
-                            id = "book-1",
-                            audioFiles =
-                                listOf(
-                                    AudioFileResponse(
-                                        id = "af-1",
-                                        filename = "chapter01.m4b",
-                                        format = "m4b",
-                                        codec = "aac",
-                                        duration = 1_800_000L,
-                                        size = 45_000_000L,
-                                    ),
+                wireBookCreated(
+                    createBookResponse(
+                        id = "book-1",
+                        audioFiles =
+                            listOf(
+                                AudioFileResponse(
+                                    id = "af-1",
+                                    filename = "chapter01.m4b",
+                                    format = "m4b",
+                                    codec = "aac",
+                                    duration = 1_800_000L,
+                                    size = 45_000_000L,
                                 ),
-                        ),
+                            ),
+                    ),
                 )
 
             processor.process(event)
@@ -761,22 +794,21 @@ class SSEEventProcessorTest {
             val fixture = TestFixture(this)
             val processor = fixture.build()
             val event =
-                SSEEventType.BookUpdated(
-                    book =
-                        createBookResponse(
-                            id = "book-1",
-                            audioFiles =
-                                listOf(
-                                    AudioFileResponse(
-                                        id = "af-new",
-                                        filename = "chapter01-updated.m4b",
-                                        format = "m4b",
-                                        codec = "aac",
-                                        duration = 1_800_000L,
-                                        size = 45_000_000L,
-                                    ),
+                wireBookUpdated(
+                    createBookResponse(
+                        id = "book-1",
+                        audioFiles =
+                            listOf(
+                                AudioFileResponse(
+                                    id = "af-new",
+                                    filename = "chapter01-updated.m4b",
+                                    format = "m4b",
+                                    codec = "aac",
+                                    duration = 1_800_000L,
+                                    size = 45_000_000L,
                                 ),
-                        ),
+                            ),
+                    ),
                 )
 
             processor.process(event)
@@ -789,4 +821,64 @@ class SSEEventProcessorTest {
                 )
             }
         }
+
+    // ========== Unknown / Reconnected channel-level tests ==========
+
+    @Test
+    fun `dispatch logs warn and does not touch DAOs for Unknown event`() =
+        runTest {
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+
+            processor.process(
+                SSEChannelMessage.Wire(
+                    SSEEvent.Unknown(
+                        timestamp = TEST_TIMESTAMP,
+                        rawType = "future.archived_event_type",
+                    ),
+                ),
+            )
+            advanceUntilIdle()
+
+            verifySuspend(VerifyMode.not) { fixture.bookDao.upsert(any<BookEntity>()) }
+            verifySuspend(VerifyMode.not) { fixture.bookDao.deleteById(any()) }
+            verifySuspend(VerifyMode.not) { fixture.imageDownloader.downloadCover(any()) }
+        }
+
+    @Test
+    fun `process handles Reconnected channel message without touching DAOs`() =
+        runTest {
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+
+            processor.process(
+                SSEChannelMessage.Reconnected(disconnectedAt = "2026-04-18T10:00:00Z"),
+            )
+            advanceUntilIdle()
+
+            // Reconnected is a signal for SyncManager to trigger delta sync.
+            // SSEEventProcessor itself must NOT write to DAOs for this message.
+            verifySuspend(VerifyMode.not) { fixture.bookDao.upsert(any<BookEntity>()) }
+            verifySuspend(VerifyMode.not) { fixture.bookDao.deleteById(any()) }
+        }
+
+    companion object {
+        private const val TEST_TIMESTAMP = "2026-04-18T10:00:00Z"
+
+        private fun wireBookCreated(book: BookResponse): SSEChannelMessage =
+            SSEChannelMessage.Wire(
+                SSEEvent.BookCreated(
+                    timestamp = TEST_TIMESTAMP,
+                    data = BookPayload(book = book),
+                ),
+            )
+
+        private fun wireBookUpdated(book: BookResponse): SSEChannelMessage =
+            SSEChannelMessage.Wire(
+                SSEEvent.BookUpdated(
+                    timestamp = TEST_TIMESTAMP,
+                    data = BookPayload(book = book),
+                ),
+            )
+    }
 }
