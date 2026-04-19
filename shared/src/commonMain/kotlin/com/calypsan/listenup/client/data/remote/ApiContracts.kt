@@ -151,17 +151,18 @@ interface SyncApiContract {
     suspend fun getContinueListening(limit: Int = 10): AppResult<List<ContinueListeningItemResponse>>
 
     /**
-     * Get all playback progress for the current user (for sync).
+     * Get all playback progress records for the authenticated user.
      *
-     * Returns all progress records including isFinished status.
+     * Returns progress records filtered by `updated_after` if provided, otherwise all.
      * Used for bulk sync to ensure client has accurate finished state.
      *
      * Endpoint: GET /api/v1/listening/progress
      * Auth: Required
      *
-     * @return Result containing AllProgressResponse with all progress items
+     * @param updatedAfter Optional ISO-8601 timestamp; server returns only rows updated after this point (SP2).
+     * @return Result containing AllProgressResponse with filtered (or all) progress items
      */
-    suspend fun getAllProgress(): AppResult<AllProgressResponse>
+    suspend fun getAllProgress(updatedAfter: String? = null): AppResult<AllProgressResponse>
 
     /**
      * Get a single book by ID.

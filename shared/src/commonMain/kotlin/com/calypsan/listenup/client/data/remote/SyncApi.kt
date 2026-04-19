@@ -305,11 +305,14 @@ class SyncApi(
             response.toResult().getOrThrow().items
         }
 
-    override suspend fun getAllProgress(): AppResult<AllProgressResponse> =
+    override suspend fun getAllProgress(updatedAfter: String?): AppResult<AllProgressResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<AllProgressResponse> =
-                client.get("/api/v1/listening/progress").body()
+                client
+                    .get("/api/v1/listening/progress") {
+                        updatedAfter?.let { parameter("updated_after", it) }
+                    }.body()
             response.toResult().getOrThrow()
         }
 

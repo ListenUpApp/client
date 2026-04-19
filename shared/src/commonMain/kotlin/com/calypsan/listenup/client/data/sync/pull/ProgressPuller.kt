@@ -30,20 +30,22 @@ class ProgressPuller(
     private val pendingOperationDao: PendingOperationDao,
 ) : Puller {
     /**
-     * Pull all progress from server and upsert locally.
+     * Pull progress from server and upsert locally.
      *
      * Merges server progress with local records, preserving local-only fields
      * (playbackSpeed, hasCustomSpeed) while syncing server fields (position,
      * isFinished, lastPlayedAt).
      *
-     * @param updatedAfter Ignored - always fetches all progress
-     * @param onProgress Callback for progress updates
+     * @param updatedAfter ISO-8601 timestamp; when non-null, only rows updated server-side
+     *                     after this point are returned (SP2 delta sync). When null, all
+     *                     progress is fetched (used for full sync and `refreshListeningHistory`).
+     * @param onProgress Callback for progress updates.
      */
     override suspend fun pull(
         updatedAfter: String?,
         onProgress: (SyncStatus) -> Unit,
     ) {
-        logger.debug { "Starting progress sync..." }
+        logger.debug { "Starting progress sync (updatedAfter=$updatedAfter)..." }
 
         onProgress(
             SyncStatus.Progress(
@@ -55,7 +57,7 @@ class ProgressPuller(
         )
 
         try {
-            when (val result = syncApi.getAllProgress()) {
+            when (val result = syncApi.getAllProgress(updatedAfter)) {
                 is Success -> {
                     val items = result.data.items
                     logger.info { "Fetched ${items.size} progress records from server" }
