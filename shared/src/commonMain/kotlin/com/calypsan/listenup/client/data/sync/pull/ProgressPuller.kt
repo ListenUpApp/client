@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
@@ -28,22 +29,25 @@ class ProgressPuller(
     private val syncApi: SyncApiContract,
     private val playbackPositionDao: PlaybackPositionDao,
     private val pendingOperationDao: PendingOperationDao,
+    private val transactionRunner: TransactionRunner,
 ) : Puller {
     /**
-     * Pull all progress from server and upsert locally.
+     * Pull progress from server and upsert locally.
      *
      * Merges server progress with local records, preserving local-only fields
      * (playbackSpeed, hasCustomSpeed) while syncing server fields (position,
      * isFinished, lastPlayedAt).
      *
-     * @param updatedAfter Ignored - always fetches all progress
-     * @param onProgress Callback for progress updates
+     * @param updatedAfter ISO-8601 timestamp; when non-null, only rows updated server-side
+     *                     after this point are returned (SP2 delta sync). When null, all
+     *                     progress is fetched (used for full sync and `refreshListeningHistory`).
+     * @param onProgress Callback for progress updates.
      */
     override suspend fun pull(
         updatedAfter: String?,
         onProgress: (SyncStatus) -> Unit,
     ) {
-        logger.debug { "Starting progress sync..." }
+        logger.debug { "Starting progress sync (updatedAfter=$updatedAfter)..." }
 
         onProgress(
             SyncStatus.Progress(
@@ -55,7 +59,7 @@ class ProgressPuller(
         )
 
         try {
-            when (val result = syncApi.getAllProgress()) {
+            when (val result = syncApi.getAllProgress(updatedAfter)) {
                 is Success -> {
                     val items = result.data.items
                     logger.info { "Fetched ${items.size} progress records from server" }
@@ -107,56 +111,33 @@ class ProgressPuller(
     }
 
     /**
-     * Apply pending MARK_COMPLETE guards, persist entities, and verify isFinished state.
+     * Apply pending MARK_COMPLETE guards and persist entities in one transaction.
      *
-     * Ensures books with pending local MARK_COMPLETE operations retain isFinished=true
-     * even if the server hasn't processed the operation yet.
+     * Reads pending MARK_COMPLETE ids and writes the guarded entity rows inside a single
+     * write transaction so a concurrent MARK_COMPLETE queue cannot commit between the
+     * read and the write — closing the single-pull window where a server "not finished"
+     * reply could overwrite the user's mark-complete intent.
      */
     private suspend fun guardAndSaveEntities(entities: List<PlaybackPositionEntity>) {
-        val finishedEntities = entities.filter { it.isFinished }
-        logger.debug {
-            "Entities with isFinished=true BEFORE saveAll: ${finishedEntities.size}"
-        }
-        if (finishedEntities.isNotEmpty()) {
-            val sample = finishedEntities.take(3)
-            logger.debug {
-                "Sample finished entities: ${sample.map {
-                    "${it.bookId.value}: isFinished=${it.isFinished}"
-                }}"
-            }
-        }
-
-        // Guard: don't overwrite isFinished for books with pending MARK_COMPLETE
-        val pendingCompleteBookIds =
-            pendingOperationDao.getPendingMarkCompleteBookIds().toSet()
-        val guardedEntities =
-            if (pendingCompleteBookIds.isEmpty()) {
-                entities
-            } else {
-                entities.map { entity ->
-                    if (entity.bookId.value in pendingCompleteBookIds && !entity.isFinished) {
-                        logger.info {
-                            "Preserving isFinished=true for ${entity.bookId.value} (pending MARK_COMPLETE)"
+        transactionRunner.atomically {
+            val pendingCompleteBookIds =
+                pendingOperationDao.getPendingMarkCompleteBookIds().toSet()
+            val guardedEntities =
+                if (pendingCompleteBookIds.isEmpty()) {
+                    entities
+                } else {
+                    entities.map { entity ->
+                        if (entity.bookId.value in pendingCompleteBookIds && !entity.isFinished) {
+                            logger.info {
+                                "Preserving isFinished=true for ${entity.bookId.value} (pending MARK_COMPLETE)"
+                            }
+                            entity.copy(isFinished = true)
+                        } else {
+                            entity
                         }
-                        entity.copy(isFinished = true)
-                    } else {
-                        entity
                     }
                 }
-            }
-
-        playbackPositionDao.saveAll(guardedEntities)
-
-        // Debug: Verify what's in DB after save
-        val dbCheck = playbackPositionDao.getByBookIds(entities.map { it.bookId })
-        val dbFinishedCount = dbCheck.count { it.isFinished }
-        logger.debug {
-            "DB check AFTER saveAll: ${dbCheck.size} positions, $dbFinishedCount finished"
-        }
-        if (dbFinishedCount == 0 && finishedEntities.isNotEmpty()) {
-            logger.warn {
-                "BUG: isFinished not persisting! ${finishedEntities.size} entities had isFinished=true but DB shows 0"
-            }
+            playbackPositionDao.saveAll(guardedEntities)
         }
     }
 }

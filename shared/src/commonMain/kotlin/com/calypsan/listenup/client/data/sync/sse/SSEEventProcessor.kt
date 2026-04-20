@@ -31,16 +31,15 @@ import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -54,6 +53,24 @@ private fun parseTimestamp(isoString: String): Timestamp =
         Timestamp.fromEpochMillis(Instant.parse(isoString).toEpochMilliseconds())
     } catch (_: Exception) {
         Timestamp.now()
+    }
+
+/**
+ * Parse an ISO-8601 timestamp from the wire, returning null on any parse failure.
+ *
+ * Used for fields where a silent fallback to "now" is a lie of omission — e.g.,
+ * `progress_updated.last_played_at`. Callers log and skip the affected row when
+ * this returns null; next full sync reconciles.
+ *
+ * Contrast with [parseTimestamp], which falls back to `Timestamp.now()` for fields
+ * where the fallback is semantically acceptable (e.g., session `startedAt` defaults
+ * to "now" if malformed).
+ */
+private fun parseLastPlayedOrNull(isoString: String): Timestamp? =
+    try {
+        Timestamp.fromEpochMillis(Instant.parse(isoString).toEpochMilliseconds())
+    } catch (_: Exception) {
+        null
     }
 
 /**
@@ -81,7 +98,7 @@ class SSEEventProcessor(
     sseExternalServices: SSEExternalServices,
     private val activityDao: ActivityDao,
     private val coverDownloadRepository: CoverDownloadRepository,
-    private val scope: CoroutineScope,
+    private val avatarDownloadRepository: AvatarDownloadRepository,
 ) {
     private val bookContributorDao = bookRelationshipDaos.bookContributorDao
     private val bookSeriesDao = bookRelationshipDaos.bookSeriesDao
@@ -827,7 +844,15 @@ class SSEEventProcessor(
             return
         }
 
-        val lastPlayedAtMs = parseTimestamp(payload.lastPlayedAt).epochMillis
+        val lastPlayedAt =
+            parseLastPlayedOrNull(payload.lastPlayedAt) ?: run {
+                logger.warn {
+                    "SSE: malformed last_played_at '${payload.lastPlayedAt}' for book ${payload.bookId} — " +
+                        "skipping row; next sync will reconcile"
+                }
+                return
+            }
+        val lastPlayedAtMs = lastPlayedAt.epochMillis
         val finishedAtMs = payload.finishedAt?.let { parseTimestamp(it).epochMillis }
         val startedAtMs = payload.startedAt?.let { parseTimestamp(it).epochMillis }
 
@@ -1009,21 +1034,11 @@ class SSEEventProcessor(
         val payload = event.data
         logger.debug { "SSE: Session started - ${payload.sessionId} for user ${payload.userId}" }
 
-        // Download user's avatar if they have an image avatar and it's not cached locally
-        // Do this BEFORE storing the session so the avatar file exists when UI renders
+        // Queue avatar download via the repository (owns its own scope — no fire-and-forget
+        // launch inside a suspend handler). The repo internally skips if the file is cached.
         val userProfile = userProfileDao.getById(payload.userId)
         if (userProfile != null && userProfile.avatarType == "image") {
-            scope.launch {
-                try {
-                    // downloadUserAvatar checks if file exists locally and skips if so
-                    imageDownloader.downloadUserAvatar(payload.userId, forceRefresh = false)
-                    logger.debug { "SSE: Ensured avatar exists for user ${payload.userId}" }
-                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logger.warn(e) { "SSE: Failed to download avatar for user ${payload.userId}" }
-                }
-            }
+            avatarDownloadRepository.queueAvatarDownload(payload.userId)
         }
 
         val startedAtMs = parseTimestamp(payload.startedAt).epochMillis

@@ -77,24 +77,6 @@ enum class OperationType {
 
     // Mark book as complete (retry on failure)
     MARK_COMPLETE,
-    ;
-
-    companion object {
-        // Ordinal constants for Room @Query annotations
-        const val BOOK_UPDATE_ORDINAL = 0
-        const val CONTRIBUTOR_UPDATE_ORDINAL = 1
-        const val SERIES_UPDATE_ORDINAL = 2
-        const val SET_BOOK_CONTRIBUTORS_ORDINAL = 3
-        const val SET_BOOK_SERIES_ORDINAL = 4
-        const val MERGE_CONTRIBUTOR_ORDINAL = 5
-        const val UNMERGE_CONTRIBUTOR_ORDINAL = 6
-        const val LISTENING_EVENT_ORDINAL = 7
-        const val PLAYBACK_POSITION_ORDINAL = 8
-        const val USER_PREFERENCES_ORDINAL = 9
-        const val PROFILE_UPDATE_ORDINAL = 10
-        const val PROFILE_AVATAR_ORDINAL = 11
-        const val MARK_COMPLETE_ORDINAL = 12
-    }
 }
 
 /**
@@ -106,15 +88,6 @@ enum class EntityType {
     SERIES,
     USER,
     SHELF,
-    ;
-
-    companion object {
-        const val BOOK_ORDINAL = 0
-        const val CONTRIBUTOR_ORDINAL = 1
-        const val SERIES_ORDINAL = 2
-        const val USER_ORDINAL = 3
-        const val SHELF_ORDINAL = 4
-    }
 }
 
 /**
@@ -129,11 +102,4 @@ enum class OperationStatus {
 
     /** Failed after retries, awaiting user action */
     FAILED,
-    ;
-
-    companion object {
-        const val PENDING_ORDINAL = 0
-        const val IN_PROGRESS_ORDINAL = 1
-        const val FAILED_ORDINAL = 2
-    }
 }

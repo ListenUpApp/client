@@ -138,50 +138,50 @@ class PendingOperationRepository(
     ) {
         val now = currentEpochMilliseconds()
 
-        // Check for existing operation to coalesce with
-        val existing = findExistingForCoalesce(type, entityId)
+        transactionRunner.atomically {
+            val existing = findExistingForCoalesce(type, entityId)
 
-        // Try to coalesce if there's an existing operation
-        val merged =
-            existing?.let {
-                val existingPayload = handler.parsePayload(it.payload)
-                handler.tryCoalesce(it, existingPayload, payload)
+            val merged =
+                existing?.let {
+                    val existingPayload = handler.parsePayload(it.payload)
+                    handler.tryCoalesce(it, existingPayload, payload)
+                }
+
+            if (existing != null && merged != null) {
+                val updated =
+                    existing.copy(
+                        payload = handler.serializePayload(merged),
+                        updatedAt = now,
+                        attemptCount = 0,
+                        status = OperationStatus.PENDING,
+                        lastError = null,
+                    )
+                dao.update(updated)
+                logger.debug { "Coalesced operation: ${type.name} for entity $entityId" }
+            } else {
+                val batchKey = handler.batchKey(payload)
+                val operation =
+                    PendingOperationEntity(
+                        id = NanoId.generate("op"),
+                        operationType = type,
+                        entityType = entityType,
+                        entityId = entityId,
+                        payload = handler.serializePayload(payload),
+                        batchKey = batchKey,
+                        status = OperationStatus.PENDING,
+                        createdAt = now,
+                        updatedAt = now,
+                        attemptCount = 0,
+                        lastError = null,
+                    )
+                dao.insert(operation)
+                logger.debug { "Queued operation: ${type.name} for entity $entityId (batch=$batchKey)" }
             }
-
-        if (existing != null && merged != null) {
-            // Coalesce succeeded - update existing operation with merged payload
-            val updated =
-                existing.copy(
-                    payload = handler.serializePayload(merged),
-                    updatedAt = now,
-                    attemptCount = 0,
-                    status = OperationStatus.PENDING,
-                    lastError = null,
-                )
-            dao.update(updated)
-            logger.debug { "Coalesced operation: ${type.name} for entity $entityId" }
-        } else {
-            // No existing operation or coalesce not possible - insert new
-            val batchKey = handler.batchKey(payload)
-            val operation =
-                PendingOperationEntity(
-                    id = NanoId.generate("op"),
-                    operationType = type,
-                    entityType = entityType,
-                    entityId = entityId,
-                    payload = handler.serializePayload(payload),
-                    batchKey = batchKey,
-                    status = OperationStatus.PENDING,
-                    createdAt = now,
-                    updatedAt = now,
-                    attemptCount = 0,
-                    lastError = null,
-                )
-            dao.insert(operation)
-            logger.debug { "Queued operation: ${type.name} for entity $entityId (batch=$batchKey)" }
         }
 
-        // Notify orchestrator that a new operation was queued (triggers flush if online)
+        // Notify orchestrator that a new operation was queued (triggers flush if online).
+        // OUTSIDE the transaction per DatabaseTransactions.kt guidance — flow emission is
+        // not a DB write and should not hold the single writer connection.
         _newOperationQueued.tryEmit(Unit)
     }
 

@@ -23,6 +23,7 @@ import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.download.DownloadService
@@ -30,7 +31,6 @@ import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.mock
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -60,6 +60,11 @@ class SSEEventProcessorProgressMergeTest {
     private val noOpCoverDownloadRepository =
         object : CoverDownloadRepository {
             override fun queueCoverDownload(bookId: BookId) = Unit
+        }
+
+    private val noOpAvatarDownloadRepository =
+        object : AvatarDownloadRepository {
+            override fun queueAvatarDownload(userId: String) = Unit
         }
 
     @AfterTest
@@ -122,7 +127,7 @@ class SSEEventProcessorProgressMergeTest {
                 ),
             activityDao = activityDao,
             coverDownloadRepository = noOpCoverDownloadRepository,
-            scope = CoroutineScope(TestScope(testScheduler).coroutineContext),
+            avatarDownloadRepository = noOpAvatarDownloadRepository,
         )
     }
 
@@ -298,5 +303,80 @@ class SSEEventProcessorProgressMergeTest {
             val unchanged = playbackPositionDao.get(bookId)
             assertNotNull(unchanged)
             assertEquals(50_000L, unchanged.positionMs) // NOT overwritten.
+        }
+
+    @Test
+    fun `handleProgressUpdated skips row when last_played_at is malformed`() =
+        runTest {
+            val processor = createProcessor()
+            val bookId = BookId("book-malformed-ts")
+
+            val event =
+                SSEEvent.ProgressUpdated(
+                    timestamp = "2026-04-19T10:00:00Z",
+                    data =
+                        ProgressPayload(
+                            bookId = bookId.value,
+                            currentPositionMs = 1000L,
+                            progress = 0.01,
+                            totalListenTimeMs = 100L,
+                            isFinished = false,
+                            lastPlayedAt = "not-a-valid-timestamp",
+                            startedAt = null,
+                            finishedAt = null,
+                        ),
+                )
+
+            processor.process(SSEChannelMessage.Wire(event))
+
+            assertNull(
+                playbackPositionDao.get(bookId),
+                "malformed timestamp should cause row skip, not fabricated persistence",
+            )
+        }
+
+    @Test
+    fun `handleProgressUpdated still persists adjacent valid event after malformed one`() =
+        runTest {
+            val processor = createProcessor()
+            val malformedBookId = BookId("book-malformed-ts-adj")
+            val validBookId = BookId("book-valid-adj")
+
+            val malformedEvent =
+                SSEEvent.ProgressUpdated(
+                    timestamp = "2026-04-19T10:00:00Z",
+                    data =
+                        ProgressPayload(
+                            bookId = malformedBookId.value,
+                            currentPositionMs = 1000L,
+                            progress = 0.01,
+                            totalListenTimeMs = 100L,
+                            isFinished = false,
+                            lastPlayedAt = "2026-99-99T99:99:99Z",
+                            startedAt = null,
+                            finishedAt = null,
+                        ),
+                )
+            val validEvent =
+                SSEEvent.ProgressUpdated(
+                    timestamp = "2026-04-19T10:00:01Z",
+                    data =
+                        ProgressPayload(
+                            bookId = validBookId.value,
+                            currentPositionMs = 2000L,
+                            progress = 0.02,
+                            totalListenTimeMs = 200L,
+                            isFinished = false,
+                            lastPlayedAt = "2026-04-19T10:00:00Z",
+                            startedAt = null,
+                            finishedAt = null,
+                        ),
+                )
+
+            processor.process(SSEChannelMessage.Wire(malformedEvent))
+            processor.process(SSEChannelMessage.Wire(validEvent))
+
+            assertNull(playbackPositionDao.get(malformedBookId), "malformed row should be skipped")
+            assertNotNull(playbackPositionDao.get(validBookId), "adjacent valid row should still persist")
         }
 }

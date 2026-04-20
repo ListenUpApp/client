@@ -42,6 +42,7 @@ import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.data.sync.BookPayload
 import com.calypsan.listenup.client.data.sync.BookDeletedPayload
@@ -49,6 +50,7 @@ import com.calypsan.listenup.client.data.sync.SSEChannelMessage
 import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.ScanCompletedPayload
 import com.calypsan.listenup.client.data.sync.ScanStartedPayload
+import com.calypsan.listenup.client.data.sync.SessionStartedPayload
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.download.DownloadService
 import dev.mokkery.answering.returns
@@ -58,6 +60,7 @@ import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.matcher.matches
 import dev.mokkery.mock
+import dev.mokkery.verify
 import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -157,6 +160,7 @@ class SSEEventProcessorTest {
         val imageDownloader: ImageDownloaderContract = mock()
         val playbackStateProvider: PlaybackStateProvider = mock()
         val downloadService: DownloadService = mock()
+        val avatarDownloadRepository: AvatarDownloadRepository = mock()
 
         // StateFlow for current book ID
         private val currentBookIdFlow = MutableStateFlow<BookId?>(null)
@@ -202,6 +206,9 @@ class SSEEventProcessorTest {
             everySuspend { imageDownloader.downloadUserAvatar(any(), any()) } returns Success(false)
             everySuspend { imageDownloader.deleteUserAvatar(any()) } returns Success(Unit)
 
+            // AvatarDownloadRepository stubs
+            every { avatarDownloadRepository.queueAvatarDownload(any()) } returns Unit
+
             // PlaybackStateProvider stubs
             every { playbackStateProvider.currentBookId } returns currentBookIdFlow
             every { playbackStateProvider.clearPlayback() } returns Unit
@@ -221,7 +228,7 @@ class SSEEventProcessorTest {
             currentBookIdFlow.value = bookId
         }
 
-        fun build(): SSEEventProcessor =
+        fun build(avatarRepo: AvatarDownloadRepository = avatarDownloadRepository): SSEEventProcessor =
             SSEEventProcessor(
                 transactionRunner = transactionRunner,
                 bookDao = bookDao,
@@ -261,7 +268,7 @@ class SSEEventProcessorTest {
                         bookDao = bookDao,
                         scope = scope,
                     ),
-                scope = scope,
+                avatarDownloadRepository = avatarRepo,
             )
     }
 
@@ -860,6 +867,44 @@ class SSEEventProcessorTest {
             // SSEEventProcessor itself must NOT write to DAOs for this message.
             verifySuspend(VerifyMode.not) { fixture.bookDao.upsert(any<BookEntity>()) }
             verifySuspend(VerifyMode.not) { fixture.bookDao.deleteById(any()) }
+        }
+
+    // ========== SessionStarted Avatar Download Tests ==========
+
+    @Test
+    fun `handleSessionStarted delegates avatar download to AvatarDownloadRepository`() =
+        runTest {
+            val testUserId = "user-avatar-test"
+            val fixture = TestFixture(this)
+
+            // Stub userProfileDao to return a profile with avatarType = "image" for this user
+            everySuspend { fixture.userProfileDao.getById(testUserId) } returns
+                UserProfileEntity(
+                    id = testUserId,
+                    displayName = "Avatar User",
+                    avatarType = "image",
+                    avatarValue = "/avatars/user-avatar-test.jpg",
+                    avatarColor = "#6B7280",
+                    updatedAt = 1_700_000_000_000L,
+                )
+
+            val processor = fixture.build()
+
+            val event =
+                SSEEvent.SessionStarted(
+                    timestamp = "2026-04-19T10:00:00Z",
+                    data =
+                        SessionStartedPayload(
+                            sessionId = "session-avatar-test",
+                            userId = testUserId,
+                            bookId = "book-1",
+                            startedAt = "2026-04-19T10:00:00Z",
+                        ),
+                )
+            processor.process(SSEChannelMessage.Wire(event))
+            advanceUntilIdle()
+
+            verify { fixture.avatarDownloadRepository.queueAvatarDownload(testUserId) }
         }
 
     companion object {
