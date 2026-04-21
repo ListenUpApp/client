@@ -11,11 +11,13 @@ import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.ChapterDao
+import com.calypsan.listenup.client.data.local.db.ChapterEntity
 import com.calypsan.listenup.client.data.local.db.GenreDao
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
@@ -154,11 +156,21 @@ class BookPuller(
         val booksWithColors = preserveLocalColors(booksToUpsert)
 
         // Pure-collection phase — no DB writes, reads only. Held outside the transaction.
+        // Pair each book with its response once, enforcing the invariant that every booksToUpsert
+        // entry has a matching response (they are derived from the same response.books list).
         val responseById = response.books.associateBy { it.id }
-        val chaptersToUpsert = collectChapters(booksToUpsert, responseById)
-        val tagCatalog = collectTagCatalog(booksToUpsert, responseById)
-        val genreNameToId = resolveGenreNameToId(booksToUpsert, responseById)
-        val bundles = collectBundles(booksToUpsert, responseById, genreNameToId)
+        val pairedBooks: List<Pair<BookEntity, BookResponse>> =
+            booksToUpsert.map { book ->
+                val bookResponse =
+                    requireNotNull(responseById[book.id.value]) {
+                        "invariant: booksToUpsert entry ${book.id.value} has no matching response"
+                    }
+                book to bookResponse
+            }
+        val chaptersToUpsert = collectChapters(pairedBooks)
+        val tagCatalog = collectTagCatalog(pairedBooks)
+        val genreNameToId = resolveGenreNameToId(pairedBooks)
+        val bundles = collectBundles(pairedBooks, genreNameToId)
 
         transactionRunner.atomically {
             conflicts.forEach { (bookId, serverVersion) ->
@@ -225,27 +237,19 @@ class BookPuller(
         }
     }
 
-    private fun collectChapters(
-        booksToUpsert: List<BookEntity>,
-        responseById: Map<String, com.calypsan.listenup.client.data.remote.model.BookResponse>,
-    ): List<com.calypsan.listenup.client.data.local.db.ChapterEntity> =
-        booksToUpsert.flatMap { book ->
-            val bookResponse = responseById[book.id.value] ?: return@flatMap emptyList()
+    private fun collectChapters(pairedBooks: List<Pair<BookEntity, BookResponse>>): List<ChapterEntity> =
+        pairedBooks.flatMap { (book, bookResponse) ->
             bookResponse.chapters.mapIndexed { index, chapter ->
                 chapter.toEntity(book.id, index)
             }
         }
 
-    private fun collectTagCatalog(
-        booksToUpsert: List<BookEntity>,
-        responseById: Map<String, com.calypsan.listenup.client.data.remote.model.BookResponse>,
-    ): List<com.calypsan.listenup.client.data.local.db.TagEntity> =
-        booksToUpsert
-            .mapNotNull { responseById[it.id.value] }
-            .flatMap { it.tags }
+    private fun collectTagCatalog(pairedBooks: List<Pair<BookEntity, BookResponse>>): List<TagEntity> =
+        pairedBooks
+            .flatMap { (_, bookResponse) -> bookResponse.tags }
             .distinctBy { it.id }
             .map { tag ->
-                com.calypsan.listenup.client.data.local.db.TagEntity(
+                TagEntity(
                     id = tag.id,
                     slug = tag.slug,
                     bookCount = tag.bookCount,
@@ -259,14 +263,10 @@ class BookPuller(
      * next full sync populates them. Runs outside the transaction; the genre catalog is
      * immutable within a pull cycle (no concurrent writer), so this read is race-free.
      */
-    private suspend fun resolveGenreNameToId(
-        booksToUpsert: List<BookEntity>,
-        responseById: Map<String, com.calypsan.listenup.client.data.remote.model.BookResponse>,
-    ): Map<String, String> {
+    private suspend fun resolveGenreNameToId(pairedBooks: List<Pair<BookEntity, BookResponse>>): Map<String, String> {
         val allNames =
-            booksToUpsert
-                .mapNotNull { responseById[it.id.value] }
-                .flatMap { it.genres.orEmpty() }
+            pairedBooks
+                .flatMap { (_, bookResponse) -> bookResponse.genres.orEmpty() }
                 .distinctBy { it.lowercase() }
 
         if (allNames.isEmpty()) return emptyMap()
@@ -275,13 +275,10 @@ class BookPuller(
     }
 
     private fun collectBundles(
-        booksToUpsert: List<BookEntity>,
-        responseById: Map<String, com.calypsan.listenup.client.data.remote.model.BookResponse>,
+        pairedBooks: List<Pair<BookEntity, BookResponse>>,
         genreNameToId: Map<String, String>,
     ): List<BookRelationshipBundle> =
-        booksToUpsert.mapNotNull { book ->
-            val bookResponse = responseById[book.id.value] ?: return@mapNotNull null
-
+        pairedBooks.map { (book, bookResponse) ->
             val contributors =
                 bookResponse.contributors.flatMap { contributor ->
                     contributor.roles.map { role -> contributor.toEntity(book.id, role) }
@@ -291,7 +288,7 @@ class BookPuller(
 
             val tags =
                 bookResponse.tags.map {
-                    com.calypsan.listenup.client.data.local.db.BookTagCrossRef(
+                    BookTagCrossRef(
                         bookId = book.id,
                         tagId = it.id,
                     )
