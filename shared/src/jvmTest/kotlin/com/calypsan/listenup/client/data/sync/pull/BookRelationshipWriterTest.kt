@@ -40,11 +40,50 @@ class BookRelationshipWriterTest {
     }
 
     @Test
-    fun `replaceAll with empty bundles is a no-op`() =
+    fun `replaceAll with empty bundles does not mutate pre-existing junction rows`() =
         runTest {
+            val bookId = BookId("book-noop")
+            val contributorId = ContributorId("contrib-noop")
+            val seriesId = SeriesId("series-noop")
+            val now = Timestamp(500_000L)
+
+            // Seed parent rows
+            db.bookDao().upsertAll(listOf(makeBook(bookId, now)))
+            db.contributorDao().upsertAll(listOf(makeContributor(contributorId, now)))
+            db.seriesDao().upsertAll(listOf(makeSeries(seriesId, now)))
+
+            // Seed one row in contributors and audio_files junction tables
+            db.bookContributorDao().insertAll(
+                listOf(BookContributorCrossRef(bookId, contributorId, "author")),
+            )
+            db.audioFileDao().upsertAll(
+                listOf(
+                    AudioFileEntity(
+                        bookId = bookId,
+                        index = 0,
+                        id = "af-noop-1",
+                        filename = "ch1.m4b",
+                        format = "m4b",
+                        codec = "aac",
+                        duration = 1_000L,
+                        size = 1_000L,
+                    ),
+                ),
+            )
+
+            // Call with empty bundles — writer must not touch existing rows
             writer.replaceAll(emptyList(), emptyList())
-            // No exception thrown; nothing written
-            assertEquals(0, db.bookDao().count())
+
+            assertEquals(
+                1,
+                db.bookContributorDao().getByContributorId(contributorId.value).size,
+                "pre-seeded contributor row must still exist after empty-bundle call",
+            )
+            assertEquals(
+                1,
+                db.audioFileDao().getForBook(bookId.value).size,
+                "pre-seeded audio-file row must still exist after empty-bundle call",
+            )
         }
 
     @Test
@@ -172,79 +211,101 @@ class BookRelationshipWriterTest {
         }
 
     @Test
-    fun `replaceAll replaces existing relationships — old rows gone, new rows present`() =
+    fun `replaceAll replaces existing relationships — old rows gone, new rows present in all 5 tables`() =
         runTest {
             val bookId = BookId("book-replace")
-            val oldContrib1 = ContributorId("contrib-old-1")
-            val oldContrib2 = ContributorId("contrib-old-2")
-            val oldContrib3 = ContributorId("contrib-old-3")
-            val newContrib = ContributorId("contrib-new")
             val now = Timestamp(3_000_000L)
 
-            db.bookDao().upsertAll(listOf(makeBook(bookId, now)))
-            db
-                .contributorDao()
-                .upsertAll(
-                    listOf(
-                        makeContributor(oldContrib1, now),
-                        makeContributor(oldContrib2, now),
-                        makeContributor(oldContrib3, now),
-                        makeContributor(newContrib, now),
-                    ),
-                )
+            // Parents for OLD rows
+            val oldContrib = ContributorId("contrib-old")
+            val oldSeries = SeriesId("series-old")
+            val oldTagId = "tag-old"
+            val oldGenreId = "genre-old"
+            val oldAudioFileId = "af-old"
 
-            // Pre-seed 3 old contributor rows
-            db
-                .bookContributorDao()
-                .insertAll(
-                    listOf(
-                        BookContributorCrossRef(bookId, oldContrib1, "author"),
-                        BookContributorCrossRef(bookId, oldContrib2, "narrator"),
-                        BookContributorCrossRef(bookId, oldContrib3, "editor"),
+            // Parents for NEW rows
+            val newContrib = ContributorId("contrib-new")
+            val newSeries = SeriesId("series-new")
+            val newTagId = "tag-new"
+            val newGenreId = "genre-new"
+            val newAudioFileId = "af-new"
+
+            // Seed book
+            db.bookDao().upsertAll(listOf(makeBook(bookId, now)))
+
+            // Seed FK parents for OLD rows
+            db.contributorDao().upsertAll(listOf(makeContributor(oldContrib, now), makeContributor(newContrib, now)))
+            db.seriesDao().upsertAll(listOf(makeSeries(oldSeries, now), makeSeries(newSeries, now)))
+            db.genreDao().upsertAll(listOf(makeGenre(oldGenreId), makeGenre(newGenreId)))
+            // Tag catalog for old tag seeded directly; new tag provided via tagCatalog param
+            db.tagDao().upsertAll(listOf(TagEntity(id = oldTagId, slug = "old-tag", createdAt = now)))
+
+            // Pre-seed OLD junction rows across all 5 tables
+            db.bookContributorDao().insertAll(listOf(BookContributorCrossRef(bookId, oldContrib, "author")))
+            db.bookSeriesDao().insertAll(listOf(BookSeriesCrossRef(bookId, oldSeries, "1")))
+            db.tagDao().insertAllBookTags(listOf(BookTagCrossRef(bookId, oldTagId)))
+            db.genreDao().insertAllBookGenres(listOf(BookGenreCrossRef(bookId, oldGenreId)))
+            db.audioFileDao().upsertAll(
+                listOf(
+                    AudioFileEntity(
+                        bookId = bookId,
+                        index = 0,
+                        id = oldAudioFileId,
+                        filename = "old.m4b",
+                        format = "m4b",
+                        codec = "aac",
+                        duration = 1_000L,
+                        size = 1_000L,
                     ),
-                )
-            assertEquals(
-                3,
-                db.bookContributorDao().getByContributorId(oldContrib1.value).size +
-                    db.bookContributorDao().getByContributorId(oldContrib2.value).size +
-                    db.bookContributorDao().getByContributorId(oldContrib3.value).size,
-                "pre-condition: 3 old rows",
+                ),
             )
 
+            // Verify pre-condition: 1 row in each of the 5 tables
+            assertEquals(1, db.bookContributorDao().getByContributorId(oldContrib.value).size, "pre: contributor")
+            assertEquals(1, db.bookSeriesDao().getSeriesForBook(bookId).size, "pre: series")
+            assertEquals(1, db.tagDao().getTagsForBook(bookId).size, "pre: tags")
+            assertEquals(1, db.genreDao().getGenresForBook(bookId).size, "pre: genres")
+            assertEquals(1, db.audioFileDao().getForBook(bookId.value).size, "pre: audio files")
+
+            // Bundle carries NEW rows for all 5 tables
             val bundle =
                 BookRelationshipBundle(
                     bookId = bookId,
-                    contributors = listOf(BookContributorCrossRef(bookId, newContrib, "author")),
-                    series = emptyList(),
-                    tags = emptyList(),
-                    genres = emptyList(),
-                    audioFiles = emptyList(),
+                    contributors = listOf(BookContributorCrossRef(bookId, newContrib, "narrator")),
+                    series = listOf(BookSeriesCrossRef(bookId, newSeries, "2")),
+                    tags = listOf(BookTagCrossRef(bookId, newTagId)),
+                    genres = listOf(BookGenreCrossRef(bookId, newGenreId)),
+                    audioFiles =
+                        listOf(
+                            AudioFileEntity(
+                                bookId = bookId,
+                                index = 0,
+                                id = newAudioFileId,
+                                filename = "new.m4b",
+                                format = "m4b",
+                                codec = "aac",
+                                duration = 2_000L,
+                                size = 2_000L,
+                            ),
+                        ),
                 )
+            val tagCatalog = listOf(TagEntity(id = newTagId, slug = "new-tag", createdAt = now))
 
-            writer.replaceAll(listOf(bundle), emptyList())
+            writer.replaceAll(listOf(bundle), tagCatalog)
 
             // Old rows gone
-            assertEquals(
-                0,
-                db.bookContributorDao().getByContributorId(oldContrib1.value).size,
-                "old contrib-1 row gone",
-            )
-            assertEquals(
-                0,
-                db.bookContributorDao().getByContributorId(oldContrib2.value).size,
-                "old contrib-2 row gone",
-            )
-            assertEquals(
-                0,
-                db.bookContributorDao().getByContributorId(oldContrib3.value).size,
-                "old contrib-3 row gone",
-            )
-            // New row present
-            assertEquals(
-                1,
-                db.bookContributorDao().getByContributorId(newContrib.value).size,
-                "new contributor row present",
-            )
+            assertEquals(0, db.bookContributorDao().getByContributorId(oldContrib.value).size, "old contributor gone")
+            assertEquals(0, db.bookSeriesDao().getBookSeriesCrossRefs(bookId).count { it.seriesId == oldSeries }, "old series gone")
+            assertEquals(0, db.tagDao().getTagsForBook(bookId).count { it.id == oldTagId }, "old tag gone")
+            assertEquals(0, db.genreDao().getGenresForBook(bookId).count { it.id == oldGenreId }, "old genre gone")
+            assertEquals(0, db.audioFileDao().getForBook(bookId.value).count { it.id == oldAudioFileId }, "old audio file gone")
+
+            // New rows present
+            assertEquals(1, db.bookContributorDao().getByContributorId(newContrib.value).size, "new contributor present")
+            assertEquals(1, db.bookSeriesDao().getBookSeriesCrossRefs(bookId).count { it.seriesId == newSeries }, "new series present")
+            assertEquals(1, db.tagDao().getTagsForBook(bookId).count { it.id == newTagId }, "new tag present")
+            assertEquals(1, db.genreDao().getGenresForBook(bookId).count { it.id == newGenreId }, "new genre present")
+            assertEquals(1, db.audioFileDao().getForBook(bookId.value).count { it.id == newAudioFileId }, "new audio file present")
         }
 
     @Test

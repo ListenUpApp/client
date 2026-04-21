@@ -38,13 +38,13 @@ class BookRelationshipWriter(
         bundles: List<BookRelationshipBundle>,
         tagCatalog: List<TagEntity>,
     ) {
+        if (tagCatalog.isNotEmpty()) tagDao.upsertAll(tagCatalog)
+
         if (bundles.isEmpty()) return
 
         logger.debug {
             "Replacing relationships for ${bundles.size} books, upserting ${tagCatalog.size} tag catalog entries"
         }
-
-        if (tagCatalog.isNotEmpty()) tagDao.upsertAll(tagCatalog)
 
         bundles.forEach { bundle ->
             bookContributorDao.deleteContributorsForBook(bundle.bookId)

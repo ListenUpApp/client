@@ -12,11 +12,12 @@ import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
  * to replace the book's existing junction rows with.
  *
  * Built by [BookPuller] during the pure-collection phase (outside the write transaction).
- * Passing a populated list for a relationship type causes a full replace
- * (DELETE existing → INSERT these) for that book. An empty list causes a DELETE-only —
- * the book's prior rows in that table are removed, none are inserted — matching the
- * pre-refactor `BookPuller` behaviour of clearing stale junctions when the server
- * no longer carries entities for that relationship.
+ *
+ * For each relationship field:
+ * - **Non-empty list** → full replace: DELETE existing rows, then INSERT these.
+ * - **Empty list** → DELETE-only: prior rows for this book are removed, none inserted.
+ *   Matches the pre-refactor `BookPuller` behaviour of clearing stale junctions when
+ *   the server no longer carries entities for that relationship.
  */
 data class BookRelationshipBundle(
     val bookId: BookId,
