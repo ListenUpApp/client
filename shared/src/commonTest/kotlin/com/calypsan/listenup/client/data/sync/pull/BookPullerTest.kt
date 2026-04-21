@@ -167,24 +167,27 @@ class BookPullerTest {
             everySuspend { coverDownloadDao.enqueueAll(any()) } returns Unit
         }
 
-        fun build(): BookPuller =
-            BookPuller(
+        fun build(): BookPuller {
+            val bookRelationshipWriter =
+                BookRelationshipWriter(
+                    bookContributorDao = bookContributorDao,
+                    bookSeriesDao = bookSeriesDao,
+                    tagDao = tagDao,
+                    genreDao = genreDao,
+                    audioFileDao = audioFileDao,
+                )
+            return BookPuller(
                 transactionRunner = transactionRunner,
                 syncApi = syncApi,
                 bookDao = bookDao,
                 chapterDao = chapterDao,
-                relationshipDaos =
-                    BookRelationshipDaos(
-                        bookContributorDao = bookContributorDao,
-                        bookSeriesDao = bookSeriesDao,
-                        tagDao = tagDao,
-                        genreDao = genreDao,
-                        audioFileDao = audioFileDao,
-                    ),
+                genreDao = genreDao,
+                bookRelationshipWriter = bookRelationshipWriter,
                 conflictDetector = conflictDetector,
                 imageDownloader = imageDownloader,
                 coverDownloadDao = coverDownloadDao,
             )
+        }
     }
 
     // ========== Basic Pull Tests ==========

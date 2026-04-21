@@ -135,20 +135,23 @@ class BookPullerAtomicityTest {
                 ),
             )
 
+            val bookRelationshipWriter =
+                BookRelationshipWriter(
+                    bookContributorDao = db.bookContributorDao(),
+                    bookSeriesDao = db.bookSeriesDao(),
+                    tagDao = db.tagDao(),
+                    genreDao = db.genreDao(),
+                    audioFileDao = db.audioFileDao(),
+                )
+
             val puller =
                 BookPuller(
                     transactionRunner = RoomTransactionRunner(db),
                     syncApi = syncApi,
                     bookDao = db.bookDao(),
                     chapterDao = db.chapterDao(),
-                    relationshipDaos =
-                        BookRelationshipDaos(
-                            bookContributorDao = db.bookContributorDao(),
-                            bookSeriesDao = db.bookSeriesDao(),
-                            tagDao = db.tagDao(),
-                            genreDao = db.genreDao(),
-                            audioFileDao = db.audioFileDao(),
-                        ),
+                    genreDao = db.genreDao(),
+                    bookRelationshipWriter = bookRelationshipWriter,
                     conflictDetector = conflictDetector,
                     imageDownloader = imageDownloader,
                     coverDownloadDao = failingCoverDownloadDao,
