@@ -982,14 +982,8 @@ val syncModule =
                 syncApi = get<SyncApiContract>(),
                 bookDao = get(),
                 chapterDao = get(),
-                relationshipDaos =
-                    BookRelationshipDaos(
-                        bookContributorDao = get(),
-                        bookSeriesDao = get(),
-                        tagDao = get(),
-                        genreDao = get(),
-                        audioFileDao = get(),
-                    ),
+                genreDao = get(),
+                bookRelationshipWriter = get(),
                 imageDownloader = get(),
                 conflictDetector = get(),
                 coverDownloadDao = get(),

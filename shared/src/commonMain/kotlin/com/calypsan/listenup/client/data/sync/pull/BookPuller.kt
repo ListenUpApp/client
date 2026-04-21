@@ -50,17 +50,12 @@ class BookPuller(
     private val syncApi: SyncApiContract,
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
-    relationshipDaos: BookRelationshipDaos,
+    private val genreDao: GenreDao,
+    private val bookRelationshipWriter: BookRelationshipWriter,
     private val conflictDetector: ConflictDetectorContract,
     private val imageDownloader: ImageDownloaderContract,
     private val coverDownloadDao: com.calypsan.listenup.client.data.local.db.CoverDownloadDao,
 ) : Puller {
-    private val bookContributorDao: BookContributorDao = relationshipDaos.bookContributorDao
-    private val bookSeriesDao: BookSeriesDao = relationshipDaos.bookSeriesDao
-    private val tagDao: TagDao = relationshipDaos.tagDao
-    private val genreDao: GenreDao = relationshipDaos.genreDao
-    private val audioFileDao: AudioFileDao = relationshipDaos.audioFileDao
-
     /**
      * Pull all books from server with pagination.
      *
@@ -126,13 +121,14 @@ class BookPuller(
     /**
      * Process server books: detect conflicts, upsert, sync related entities.
      *
-     * All DB writes for a page — conflict marks, book upsert, chapters, contributor
-     * and series cross-refs, tags, cover-download tasks — commit atomically. If any
-     * step throws, Room rolls the transaction back so the DB never holds a half-synced
+     * All DB writes for a page — conflict marks, book upsert, chapters, per-book junction
+     * replacements via [BookRelationshipWriter], cover-download tasks — commit atomically.
+     * If any step throws, Room rolls the transaction back so the DB never holds a half-synced
      * book (Finding 05 D2).
      *
-     * Reads and disk I/O run outside the transaction so the writer connection is held
-     * only long enough to apply the actual mutations.
+     * Pure collection (bundles, tag catalog, genre name→id resolution) and disk I/O run
+     * outside the transaction so the writer connection is held only long enough to apply
+     * the actual mutations.
      */
     private suspend fun processServerBooks(
         serverBooks: List<BookEntity>,
@@ -157,6 +153,13 @@ class BookPuller(
 
         val booksWithColors = preserveLocalColors(booksToUpsert)
 
+        // Pure-collection phase — no DB writes, reads only. Held outside the transaction.
+        val responseById = response.books.associateBy { it.id }
+        val chaptersToUpsert = collectChapters(booksToUpsert, responseById)
+        val tagCatalog = collectTagCatalog(booksToUpsert, responseById)
+        val genreNameToId = resolveGenreNameToId(booksToUpsert, responseById)
+        val bundles = collectBundles(booksToUpsert, responseById, genreNameToId)
+
         transactionRunner.atomically {
             conflicts.forEach { (bookId, serverVersion) ->
                 bookDao.markConflict(bookId, serverVersion)
@@ -164,13 +167,11 @@ class BookPuller(
 
             bookDao.upsertAll(booksWithColors)
 
-            syncChapters(response, booksToUpsert)
+            if (chaptersToUpsert.isNotEmpty()) {
+                chapterDao.upsertAll(chaptersToUpsert)
+            }
 
-            syncBookContributors(response, booksToUpsert)
-            syncBookSeries(response, booksToUpsert)
-            syncBookTags(response, booksToUpsert)
-            syncBookGenres(response, booksToUpsert)
-            syncBookAudioFiles(response, booksToUpsert)
+            bookRelationshipWriter.replaceAll(bundles, tagCatalog)
 
             enqueueCoverDownloads(booksToUpsert)
         }
@@ -224,181 +225,112 @@ class BookPuller(
         }
     }
 
-    private suspend fun syncChapters(
-        response: SyncBooksResponse,
-        upsertedBooks: List<BookEntity>,
-    ) {
-        val chaptersToUpsert =
-            response.books
-                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-                .flatMap { bookResponse ->
-                    bookResponse.chapters.mapIndexed { index, chapter ->
-                        chapter.toEntity(BookId(bookResponse.id), index)
-                    }
-                }
-
-        logger.debug { "Upserting ${chaptersToUpsert.size} chapters total" }
-        if (chaptersToUpsert.isNotEmpty()) {
-            chapterDao.upsertAll(chaptersToUpsert)
+    private fun collectChapters(
+        booksToUpsert: List<BookEntity>,
+        responseById: Map<String, com.calypsan.listenup.client.data.remote.model.BookResponse>,
+    ): List<com.calypsan.listenup.client.data.local.db.ChapterEntity> =
+        booksToUpsert.flatMap { book ->
+            val bookResponse = responseById[book.id.value] ?: return@flatMap emptyList()
+            bookResponse.chapters.mapIndexed { index, chapter ->
+                chapter.toEntity(book.id, index)
+            }
         }
+
+    private fun collectTagCatalog(
+        booksToUpsert: List<BookEntity>,
+        responseById: Map<String, com.calypsan.listenup.client.data.remote.model.BookResponse>,
+    ): List<com.calypsan.listenup.client.data.local.db.TagEntity> =
+        booksToUpsert
+            .mapNotNull { responseById[it.id.value] }
+            .flatMap { it.tags }
+            .distinctBy { it.id }
+            .map { tag ->
+                com.calypsan.listenup.client.data.local.db.TagEntity(
+                    id = tag.id,
+                    slug = tag.slug,
+                    bookCount = tag.bookCount,
+                    createdAt = Timestamp.now(),
+                )
+            }
+
+    /**
+     * Resolve genre names (server-side representation) to local catalog IDs. Genres not
+     * present in the local catalog are logged and silently dropped from the cross-refs —
+     * next full sync populates them. Runs outside the transaction; the genre catalog is
+     * immutable within a pull cycle (no concurrent writer), so this read is race-free.
+     */
+    private suspend fun resolveGenreNameToId(
+        booksToUpsert: List<BookEntity>,
+        responseById: Map<String, com.calypsan.listenup.client.data.remote.model.BookResponse>,
+    ): Map<String, String> {
+        val allNames =
+            booksToUpsert
+                .mapNotNull { responseById[it.id.value] }
+                .flatMap { it.genres.orEmpty() }
+                .distinctBy { it.lowercase() }
+
+        if (allNames.isEmpty()) return emptyMap()
+
+        return genreDao.getIdsByNames(allNames).associate { it.name.lowercase() to it.id }
     }
 
-    private suspend fun syncBookContributors(
-        response: SyncBooksResponse,
-        upsertedBooks: List<BookEntity>,
-    ) {
-        val bookContributorsToUpsert =
-            response.books
-                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-                .flatMap { bookResponse ->
-                    bookContributorDao.deleteContributorsForBook(BookId(bookResponse.id))
+    private fun collectBundles(
+        booksToUpsert: List<BookEntity>,
+        responseById: Map<String, com.calypsan.listenup.client.data.remote.model.BookResponse>,
+        genreNameToId: Map<String, String>,
+    ): List<BookRelationshipBundle> =
+        booksToUpsert.mapNotNull { book ->
+            val bookResponse = responseById[book.id.value] ?: return@mapNotNull null
 
-                    bookResponse.contributors.flatMap { contributorResponse ->
-                        contributorResponse.roles.map { role ->
-                            contributorResponse.toEntity(BookId(bookResponse.id), role)
-                        }
-                    }
+            val contributors =
+                bookResponse.contributors.flatMap { contributor ->
+                    contributor.roles.map { role -> contributor.toEntity(book.id, role) }
                 }
 
-        if (bookContributorsToUpsert.isNotEmpty()) {
-            bookContributorDao.insertAll(bookContributorsToUpsert)
-        }
-    }
+            val series = bookResponse.seriesInfo.map { it.toEntity(book.id) }
 
-    private suspend fun syncBookSeries(
-        response: SyncBooksResponse,
-        upsertedBooks: List<BookEntity>,
-    ) {
-        val bookSeriesToUpsert =
-            response.books
-                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-                .flatMap { bookResponse ->
-                    bookSeriesDao.deleteSeriesForBook(BookId(bookResponse.id))
-
-                    bookResponse.seriesInfo.map { seriesInfo ->
-                        seriesInfo.toEntity(BookId(bookResponse.id))
-                    }
-                }
-
-        if (bookSeriesToUpsert.isNotEmpty()) {
-            bookSeriesDao.insertAll(bookSeriesToUpsert)
-        }
-    }
-
-    private suspend fun syncBookTags(
-        response: SyncBooksResponse,
-        upsertedBooks: List<BookEntity>,
-    ) {
-        // First, collect all unique tags and upsert them
-        val allTags =
-            response.books
-                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-                .flatMap { it.tags }
-                .distinctBy { it.id }
-                .map { tag ->
-                    TagEntity(
-                        id = tag.id,
-                        slug = tag.slug,
-                        bookCount = tag.bookCount,
-                        createdAt = Timestamp.now(),
+            val tags =
+                bookResponse.tags.map {
+                    com.calypsan.listenup.client.data.local.db.BookTagCrossRef(
+                        bookId = book.id,
+                        tagId = it.id,
                     )
                 }
 
-        if (allTags.isNotEmpty()) {
-            tagDao.upsertAll(allTags)
-            logger.debug { "Upserted ${allTags.size} unique tags" }
-        }
-
-        // Then create book-tag cross references
-        val bookTagCrossRefs =
-            response.books
-                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-                .flatMap { bookResponse ->
-                    tagDao.deleteTagsForBook(BookId(bookResponse.id))
-
-                    bookResponse.tags.map { tag ->
-                        BookTagCrossRef(bookId = BookId(bookResponse.id), tagId = tag.id)
-                    }
-                }
-
-        if (bookTagCrossRefs.isNotEmpty()) {
-            tagDao.insertAllBookTags(bookTagCrossRefs)
-            logger.debug { "Created ${bookTagCrossRefs.size} book-tag relationships" }
-        }
-    }
-
-    private suspend fun syncBookGenres(
-        response: SyncBooksResponse,
-        upsertedBooks: List<BookEntity>,
-    ) {
-        val upsertedIds = upsertedBooks.map { it.id.value }.toSet()
-        val perBook: List<Pair<String, List<String>>> =
-            response.books
-                .filter { it.id in upsertedIds }
-                .map { it.id to it.genres.orEmpty() }
-
-        val allNames = perBook.flatMap { it.second }.distinctBy { it.lowercase() }
-
-        if (allNames.isEmpty()) {
-            // Server sent no genres for these books — clear any existing junctions
-            // so the server remains the authoritative source of record.
-            upsertedIds.forEach { genreDao.deleteGenresForBook(BookId(it)) }
-            return
-        }
-
-        val nameToId: Map<String, String> =
-            genreDao.getIdsByNames(allNames).associate { it.name.lowercase() to it.id }
-
-        val crossRefs =
-            perBook.flatMap { (bookIdStr, names) ->
-                val bookId = BookId(bookIdStr)
-                genreDao.deleteGenresForBook(bookId)
-                names.mapNotNull { name ->
-                    val id = nameToId[name.lowercase()]
+            val genres =
+                bookResponse.genres.orEmpty().mapNotNull { name ->
+                    val id = genreNameToId[name.lowercase()]
                     if (id == null) {
-                        logger.warn { "Genre '$name' not in catalog; skipping for book $bookIdStr" }
+                        logger.warn { "Genre '$name' not in catalog; skipping for book ${book.id.value}" }
                         null
                     } else {
-                        BookGenreCrossRef(bookId = bookId, genreId = id)
-                    }
-                }
-            }
-
-        if (crossRefs.isNotEmpty()) {
-            genreDao.insertAllBookGenres(crossRefs)
-            logger.debug { "Created ${crossRefs.size} book-genre relationships" }
-        }
-    }
-
-    private suspend fun syncBookAudioFiles(
-        response: SyncBooksResponse,
-        upsertedBooks: List<BookEntity>,
-    ) {
-        val upsertedIds = upsertedBooks.map { it.id.value }.toSet()
-        val rows =
-            response.books
-                .filter { it.id in upsertedIds }
-                .flatMap { bookResponse ->
-                    audioFileDao.deleteForBook(bookResponse.id)
-                    bookResponse.audioFiles.mapIndexed { idx, af ->
-                        AudioFileEntity(
-                            bookId = BookId(bookResponse.id),
-                            index = idx,
-                            id = af.id,
-                            filename = af.filename,
-                            format = af.format,
-                            codec = af.codec,
-                            duration = af.duration,
-                            size = af.size,
-                        )
+                        BookGenreCrossRef(bookId = book.id, genreId = id)
                     }
                 }
 
-        if (rows.isNotEmpty()) {
-            audioFileDao.upsertAll(rows)
-            logger.debug { "Created ${rows.size} audio-file rows across ${upsertedIds.size} books" }
+            val audioFiles =
+                bookResponse.audioFiles.mapIndexed { idx, af ->
+                    AudioFileEntity(
+                        bookId = book.id,
+                        index = idx,
+                        id = af.id,
+                        filename = af.filename,
+                        format = af.format,
+                        codec = af.codec,
+                        duration = af.duration,
+                        size = af.size,
+                    )
+                }
+
+            BookRelationshipBundle(
+                bookId = book.id,
+                contributors = contributors,
+                series = series,
+                tags = tags,
+                genres = genres,
+                audioFiles = audioFiles,
+            )
         }
-    }
 
     /**
      * Enqueue cover downloads for the given books into the persistent queue.
