@@ -102,6 +102,7 @@ import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.data.sync.pull.BookRelationshipWriter
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
 import com.calypsan.listenup.client.data.sync.pull.ShelfPuller
@@ -955,6 +956,18 @@ val syncModule =
                 activityDao = get(),
                 coverDownloadRepository = get(),
                 avatarDownloadRepository = get(),
+            )
+        }
+
+        // BookRelationshipWriter — owns per-book junction-table DELETE+INSERT for BookPuller.
+        // MUST be called inside TransactionRunner.atomically { ... }; contributes no wrapping.
+        single {
+            BookRelationshipWriter(
+                bookContributorDao = get(),
+                bookSeriesDao = get(),
+                tagDao = get(),
+                genreDao = get(),
+                audioFileDao = get(),
             )
         }
 
