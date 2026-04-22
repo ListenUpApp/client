@@ -26,6 +26,8 @@ import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
+private const val SUBSCRIPTION_TIMEOUT_MS = 5_000L
+
 /**
  * ViewModel for the Book Readers screen.
  *
@@ -72,7 +74,7 @@ class BookReadersViewModel(
                     }.onStart { emit(BookReadersUiState.Loading) }
             }.stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
+                started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
                 initialValue = BookReadersUiState.Loading,
             )
 
@@ -80,6 +82,10 @@ class BookReadersViewModel(
         // SSE-trigger side-effect: when a reading session updates for the current
         // book, debounce-then-refresh. flatMapLatest cancels the previous book's
         // SSE subscription on switch, so no manual job management.
+        //
+        // Intentionally runs for the full viewModelScope lifetime (not gated by
+        // state's WhileSubscribed(5s)): refresh writes to Room so cache stays warm
+        // while the screen is briefly unmounted. Matches pre-rewrite behavior.
         viewModelScope.launch {
             currentBookId
                 .filterNotNull()
