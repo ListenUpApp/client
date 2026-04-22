@@ -1514,6 +1514,7 @@ val syncModule =
                 sessionApi = get(),
                 userReadingSessionDao = get(),
                 readerSessionCacheDao = get(),
+                bookReadersSummaryDao = get(),
                 transactionRunner = get(),
                 authSession = get(),
             )
