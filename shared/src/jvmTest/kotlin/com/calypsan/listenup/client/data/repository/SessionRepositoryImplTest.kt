@@ -1,9 +1,12 @@
 package com.calypsan.listenup.client.data.repository
 
+import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.turbineScope
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.core.error.NetworkError
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookReadersSummaryDao
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
@@ -21,14 +24,33 @@ import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
+import dev.mokkery.verify.VerifyMode
+import dev.mokkery.verifySuspend
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+
+/**
+ * Awaits emissions from this turbine until [predicate] returns true, or fails after [maxAttempts].
+ * Protects against indefinite hangs when Room invalidation timing diverges from expectations.
+ */
+private suspend fun <T> ReceiveTurbine<T>.awaitUntil(
+    maxAttempts: Int = 10,
+    predicate: (T) -> Boolean,
+): T {
+    repeat(maxAttempts) {
+        val item = awaitItem()
+        if (predicate(item)) return item
+    }
+    error("Predicate never satisfied within $maxAttempts emissions")
+}
 
 /**
  * Seam-level tests for [SessionRepositoryImpl]. Uses real in-memory [ListenUpDatabase]
@@ -130,10 +152,7 @@ class SessionRepositoryImplTest {
 
             turbineScope {
                 val turbine = repo.observeBookReaders(bookId).testIn(backgroundScope)
-                var result = turbine.awaitItem()
-                while (result.totalReaders == 0) {
-                    result = turbine.awaitItem()
-                }
+                val result = turbine.awaitUntil { it.totalReaders > 0 }
                 assertEquals(42, result.totalReaders)
                 assertEquals(7, result.totalCompletions)
                 turbine.cancel()
@@ -153,6 +172,33 @@ class SessionRepositoryImplTest {
                 assertEquals(0, first.totalReaders)
                 turbine.cancel()
             }
+        }
+
+    @Test
+    fun `refresh returning AppResult Failure logs and continues emitting from cache`() =
+        runTest {
+            seedBook()
+            everySuspend { authSession.getUserId() } returns userId
+            // API returns a typed Failure instead of throwing — exercises the `is Failure ->` branch
+            // at lines 163-165 of SessionRepositoryImpl (logs, returns without writing to DB).
+            everySuspend { sessionApi.getBookReaders(bookId) } returns
+                Failure(NetworkError(message = "simulated failure"))
+
+            turbineScope {
+                val turbine = repo.observeBookReaders(bookId).testIn(backgroundScope)
+                val first = turbine.awaitItem()
+                assertEquals(0, first.totalReaders)
+                // No exception surfaces; no summary row created
+                turbine.cancel()
+            }
+
+            // Assert no summary row was written
+            val summary =
+                db
+                    .bookReadersSummaryDao()
+                    .observeFor(BookId(bookId))
+                    .first()
+            assertNull(summary, "Failure branch must not write a summary row")
         }
 
     @Test
@@ -181,10 +227,7 @@ class SessionRepositoryImplTest {
 
             turbineScope {
                 val turbine = repo.observeBookReaders(bookId).testIn(backgroundScope)
-                var result = turbine.awaitItem()
-                while (result.totalReaders == 0) {
-                    result = turbine.awaitItem()
-                }
+                val result = turbine.awaitUntil { it.totalReaders > 0 }
                 assertEquals(42, result.totalReaders, "must use API's authoritative count, not derived from cache")
                 assertEquals(15, result.totalCompletions)
                 turbine.cancel()
@@ -216,10 +259,7 @@ class SessionRepositoryImplTest {
 
             turbineScope {
                 val turbine = repo.observeBookReaders(bookId).testIn(backgroundScope)
-                var result = turbine.awaitItem()
-                while (result.yourSessions.isEmpty()) {
-                    result = turbine.awaitItem()
-                }
+                val result = turbine.awaitUntil { it.yourSessions.isNotEmpty() }
                 assertEquals(1, result.yourSessions.size)
                 assertEquals("user-session-marker", result.yourSessions.first().id)
                 turbine.cancel()
@@ -269,13 +309,14 @@ class SessionRepositoryImplTest {
                     async { repo.refreshBookReaders(bookId) }
                 }.awaitAll()
 
+            verifySuspend(VerifyMode.exactly(10)) {
+                sessionApi.getBookReaders(bookId)
+            }
+
             val summaryFlow = db.bookReadersSummaryDao().observeFor(BookId(bookId))
             turbineScope {
                 val t = summaryFlow.testIn(backgroundScope)
-                var summary = t.awaitItem()
-                while (summary == null) {
-                    summary = t.awaitItem()
-                }
+                val summary = t.awaitUntil { it != null }!!
                 assertEquals(99, summary.totalReaders)
                 t.cancel()
             }
