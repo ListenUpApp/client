@@ -9,14 +9,20 @@ import com.calypsan.listenup.client.domain.repository.EventStreamRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
@@ -31,77 +37,83 @@ private val logger = KotlinLogging.logger {}
  * - Repository triggers background API refresh automatically
  * - SSE events update the cache for real-time updates
  */
-@OptIn(kotlinx.coroutines.FlowPreview::class)
+@OptIn(ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
 class BookReadersViewModel(
     private val sessionRepository: SessionRepository,
     private val eventStreamRepository: EventStreamRepository,
     private val userRepository: UserRepository,
 ) : ViewModel() {
-    val state: StateFlow<BookReadersUiState>
-        field = MutableStateFlow<BookReadersUiState>(BookReadersUiState.Loading)
+    /**
+     * The currently requested book id. Writing to this flow is the single entry
+     * point for switching books — both the state stream and the SSE-trigger
+     * side-effect subscribe via `flatMapLatest`, so book-switch cancellation is
+     * automatic.
+     */
+    private val currentBookId = MutableStateFlow<String?>(null)
 
-    // Track which book we're observing
-    private var currentBookId: String? = null
-    private var observeJob: Job? = null
-    private var sseJob: Job? = null
+    val state: StateFlow<BookReadersUiState> =
+        currentBookId
+            .filterNotNull()
+            .flatMapLatest { id ->
+                sessionRepository
+                    .observeBookReaders(id)
+                    .map { result ->
+                        BookReadersUiState.Ready(
+                            yourSessions = result.yourSessions,
+                            currentUserReaderInfo = buildCurrentUserReaderInfo(result.yourSessions),
+                            otherReaders = result.otherReaders,
+                            totalReaders = result.totalReaders,
+                            totalCompletions = result.totalCompletions,
+                        ) as BookReadersUiState
+                    }.catch { e ->
+                        if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                        logger.error(e) { "Error observing book readers for $id" }
+                        emit(BookReadersUiState.Error(e.message ?: "Failed to load readers"))
+                    }.onStart { emit(BookReadersUiState.Loading) }
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = BookReadersUiState.Loading,
+            )
+
+    init {
+        // SSE-trigger side-effect: when a reading session updates for the current
+        // book, debounce-then-refresh. flatMapLatest cancels the previous book's
+        // SSE subscription on switch, so no manual job management.
+        viewModelScope.launch {
+            currentBookId
+                .filterNotNull()
+                .flatMapLatest { id ->
+                    eventStreamRepository.bookEvents
+                        .mapNotNull { event ->
+                            if (event is BookEvent.ReadingSessionUpdated && event.bookId == id) id else null
+                        }.debounce(2.seconds)
+                }.collect { id ->
+                    try {
+                        logger.debug { "SSE: Reading session updated for book $id, refreshing cache (debounced)" }
+                        sessionRepository.refreshBookReaders(id)
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.warn(e) { "SSE-triggered refresh failed for $id" }
+                    }
+                }
+        }
+    }
 
     /**
-     * Start observing readers for a specific book.
-     *
-     * Observes the local Room cache via Flow for instant updates.
-     * The repository automatically triggers a background refresh
-     * and SSE events update the cache in real-time.
+     * Start observing readers for a specific book. Idempotent: repeated calls with
+     * the same book-id are no-ops because `MutableStateFlow` doesn't re-emit equal
+     * values.
      *
      * @param bookId Book ID to observe readers for
      */
     fun observeReaders(bookId: String) {
-        // Don't restart if already observing this book
-        if (currentBookId == bookId && observeJob?.isActive == true) {
-            return
-        }
-
-        // Cancel previous observations
-        observeJob?.cancel()
-        sseJob?.cancel()
-
-        currentBookId = bookId
-
-        // Observe local cache (repository triggers background refresh)
-        observeJob =
-            viewModelScope.launch {
-                sessionRepository
-                    .observeBookReaders(bookId)
-                    .onStart {
-                        state.value = BookReadersUiState.Loading
-                    }.catch { e ->
-                        if (e is kotlin.coroutines.cancellation.CancellationException) throw e
-                        logger.error(e) { "Error observing book readers" }
-                        state.value = BookReadersUiState.Error(e.message ?: "Failed to load readers")
-                    }.collect { result ->
-                        // Build current user's ReaderInfo from their sessions and profile
-                        val currentUserReaderInfo = buildCurrentUserReaderInfo(result.yourSessions)
-                        state.value =
-                            BookReadersUiState.Ready(
-                                yourSessions = result.yourSessions,
-                                currentUserReaderInfo = currentUserReaderInfo,
-                                otherReaders = result.otherReaders,
-                                totalReaders = result.totalReaders,
-                                totalCompletions = result.totalCompletions,
-                            )
-                        logger.debug {
-                            "Readers updated: ${result.otherReaders.size} readers, ${result.yourSessions.size} sessions"
-                        }
-                    }
-            }
-
-        // Also observe SSE events to trigger refresh
-        observeSSEEvents(bookId)
+        currentBookId.value = bookId
     }
 
     /**
-     * Load readers for a specific book (legacy method).
-     *
-     * Calls [observeReaders] for backwards compatibility.
+     * Legacy entry point kept for Phase F cleanup (parent spec Phase F Deliverable 6).
      *
      * @param bookId Book ID to load readers for
      */
@@ -110,40 +122,19 @@ class BookReadersViewModel(
     }
 
     /**
-     * Observe book events for reading session updates.
-     *
-     * When another user starts or completes reading the same book,
-     * trigger a cache refresh via the repository.
-     */
-    private fun observeSSEEvents(bookId: String) {
-        sseJob =
-            viewModelScope.launch {
-                eventStreamRepository.bookEvents
-                    .mapNotNull { event ->
-                        when (event) {
-                            is BookEvent.ReadingSessionUpdated -> {
-                                if (event.bookId == bookId) event else null
-                            }
-                        }
-                    }.debounce(2000)
-                    .collect {
-                        logger.debug { "SSE: Reading session updated for book $bookId, refreshing cache (debounced)" }
-                        sessionRepository.refreshBookReaders(bookId)
-                    }
-            }
-    }
-
-    /**
-     * Manually refresh the readers list.
-     *
-     * Triggers a background API fetch to update the local cache.
-     * The Flow observation will automatically emit the updated data.
+     * Manually refresh the readers list — bypasses the debounce.
      *
      * @param bookId Book ID to refresh readers for
      */
     fun refresh(bookId: String) {
         viewModelScope.launch {
-            sessionRepository.refreshBookReaders(bookId)
+            try {
+                sessionRepository.refreshBookReaders(bookId)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.warn(e) { "Manual refresh failed for $bookId" }
+            }
         }
     }
 
