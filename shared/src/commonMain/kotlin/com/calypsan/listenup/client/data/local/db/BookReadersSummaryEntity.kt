@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.local.db
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import com.calypsan.listenup.client.core.BookId
 
 /**
  * Per-book aggregate summary persisting the server's authoritative reader counts.
@@ -30,7 +31,7 @@ import androidx.room.PrimaryKey
     ],
 )
 data class BookReadersSummaryEntity(
-    @PrimaryKey val bookId: String,
+    @PrimaryKey val bookId: BookId,
     val totalReaders: Int,
     val totalCompletions: Int,
     val updatedAt: Long,

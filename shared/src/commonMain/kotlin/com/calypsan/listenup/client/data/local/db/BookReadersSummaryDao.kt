@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.local.db
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import com.calypsan.listenup.client.core.BookId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -17,5 +18,5 @@ interface BookReadersSummaryDao {
     suspend fun upsert(entity: BookReadersSummaryEntity)
 
     @Query("SELECT * FROM book_readers_summary WHERE bookId = :bookId")
-    fun observeFor(bookId: String): Flow<BookReadersSummaryEntity?>
+    fun observeFor(bookId: BookId): Flow<BookReadersSummaryEntity?>
 }
