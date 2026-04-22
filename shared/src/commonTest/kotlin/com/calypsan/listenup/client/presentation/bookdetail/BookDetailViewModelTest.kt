@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.bookdetail
 
+import app.cash.turbine.turbineScope
 import com.calypsan.listenup.client.TestData
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
@@ -129,8 +130,14 @@ class BookDetailViewModelTest {
             val fixture = createFixture()
             val viewModel = fixture.build()
 
-            // Then
-            assertIs<BookDetailUiState.Loading>(viewModel.state.value)
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                val initial = states.awaitItem()
+
+                // Then
+                assertIs<BookDetailUiState.Loading>(initial)
+                states.cancel()
+            }
         }
 
     // ========== Load Book Tests ==========
@@ -146,15 +153,21 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getChapters("book-1") } returns chapters
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertEquals(book, ready.book)
-            assertEquals("A description", ready.description)
-            assertEquals(2, ready.chapters.size)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals(book, ready.book)
+                assertEquals("A description", ready.description)
+                assertEquals(2, ready.chapters.size)
+                states.cancel()
+            }
         }
 
     @Test
@@ -165,13 +178,19 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getBook("nonexistent") } returns null
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("nonexistent")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val error = assertIs<BookDetailUiState.Error>(viewModel.state.value)
-            assertEquals("Book not found", error.message)
+                // When
+                viewModel.loadBook("nonexistent")
+                advanceUntilIdle()
+
+                // Then
+                val error = assertIs<BookDetailUiState.Error>(states.expectMostRecentItem())
+                assertEquals("Book not found", error.message)
+                states.cancel()
+            }
         }
 
     // ========== Subtitle Filtering Tests ==========
@@ -192,13 +211,19 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - subtitle should be filtered out (redundant)
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertNull(ready.subtitle)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then - subtitle should be filtered out (redundant)
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertNull(ready.subtitle)
+                states.cancel()
+            }
         }
 
     @Test
@@ -216,13 +241,19 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - subtitle should be kept (not redundant)
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertEquals("A Novel of Discovery", ready.subtitle)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then - subtitle should be kept (not redundant)
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals("A Novel of Discovery", ready.subtitle)
+                states.cancel()
+            }
         }
 
     @Test
@@ -239,13 +270,19 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - subtitle should be kept (no series to be redundant with)
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertEquals("Part 1", ready.subtitle)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then - subtitle should be kept (no series to be redundant with)
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals("Part 1", ready.subtitle)
+                states.cancel()
+            }
         }
 
     // ========== Genre Loading Tests ==========
@@ -267,17 +304,23 @@ class BookDetailViewModelTest {
             every { fixture.genreRepository.observeGenresForBook(any()) } returns flowOf(bookGenres)
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            val genresList = ready.genresList
-            assertEquals(3, genresList.size)
-            assertEquals("Fiction", genresList[0])
-            assertEquals("Fantasy", genresList[1])
-            assertEquals("Adventure", genresList[2])
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                val genresList = ready.genresList
+                assertEquals(3, genresList.size)
+                assertEquals("Fiction", genresList[0])
+                assertEquals("Fantasy", genresList[1])
+                assertEquals("Adventure", genresList[2])
+                states.cancel()
+            }
         }
 
     @Test
@@ -291,13 +334,19 @@ class BookDetailViewModelTest {
             // genreDao.observeGenresForBook already returns empty list from createFixture()
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertTrue(ready.genresList.isEmpty())
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertTrue(ready.genresList.isEmpty())
+                states.cancel()
+            }
         }
 
     @Test
@@ -311,14 +360,20 @@ class BookDetailViewModelTest {
             // genreDao.observeGenresForBook already returns empty list from createFixture()
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - book loads successfully despite genre failure
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertEquals(book, ready.book)
-            assertTrue(ready.genresList.isEmpty())
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then - book loads successfully despite genre failure
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals(book, ready.book)
+                assertTrue(ready.genresList.isEmpty())
+                states.cancel()
+            }
         }
 
     // ========== Progress Calculation Tests ==========
@@ -335,13 +390,19 @@ class BookDetailViewModelTest {
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - 30 min / 60 min = 0.5
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertEquals(0.5f, ready.progress)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then - 30 min / 60 min = 0.5
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals(0.5f, ready.progress)
+                states.cancel()
+            }
         }
 
     @Test
@@ -355,13 +416,19 @@ class BookDetailViewModelTest {
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertNull(ready.progress)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertNull(ready.progress)
+                states.cancel()
+            }
         }
 
     @Test
@@ -376,15 +443,21 @@ class BookDetailViewModelTest {
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - progress is shown based on position, hidden only when isFinished=true
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            val progress = ready.progress
-            assertNotNull(progress)
-            assertEquals(0.99f, progress, 0.01f)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then - progress is shown based on position, hidden only when isFinished=true
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                val progress = ready.progress
+                assertNotNull(progress)
+                assertEquals(0.99f, progress, 0.01f)
+                states.cancel()
+            }
         }
 
     // ========== Time Remaining Tests ==========
@@ -401,13 +474,19 @@ class BookDetailViewModelTest {
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - 2h 15m remaining
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertEquals("2h 15m left", ready.timeRemainingFormatted)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then - 2h 15m remaining
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals("2h 15m left", ready.timeRemainingFormatted)
+                states.cancel()
+            }
         }
 
     @Test
@@ -422,13 +501,19 @@ class BookDetailViewModelTest {
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - 15m remaining
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertEquals("15m left", ready.timeRemainingFormatted)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then - 15m remaining
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals("15m left", ready.timeRemainingFormatted)
+                states.cancel()
+            }
         }
 
     // ========== Tag Management Tests ==========
@@ -442,16 +527,24 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
-            assertFalse(assertIs<BookDetailUiState.Ready>(viewModel.state.value).showTagPicker)
 
-            // When
-            viewModel.showTagPicker()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertTrue(ready.showTagPicker)
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+                assertFalse(assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem()).showTagPicker)
+
+                // When
+                viewModel.showTagPicker()
+                advanceUntilIdle()
+
+                // Then
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertTrue(ready.showTagPicker)
+                states.cancel()
+            }
         }
 
     @Test
@@ -463,17 +556,26 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
-            viewModel.showTagPicker()
-            assertTrue(assertIs<BookDetailUiState.Ready>(viewModel.state.value).showTagPicker)
 
-            // When
-            viewModel.hideTagPicker()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertFalse(ready.showTagPicker)
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+                viewModel.showTagPicker()
+                advanceUntilIdle()
+                assertTrue(assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem()).showTagPicker)
+
+                // When
+                viewModel.hideTagPicker()
+                advanceUntilIdle()
+
+                // Then
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertFalse(ready.showTagPicker)
+                states.cancel()
+            }
         }
 
     @Test
@@ -497,15 +599,21 @@ class BookDetailViewModelTest {
             every { fixture.tagRepository.observeAll() } returns flowOf(allTags)
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertEquals(1, ready.tags.size)
-            assertEquals("Favorites", ready.tags[0].displayName())
-            assertEquals(2, ready.allTags.size)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals(1, ready.tags.size)
+                assertEquals("Favorites", ready.tags[0].displayName())
+                assertEquals(2, ready.allTags.size)
+                states.cancel()
+            }
         }
 
     @Test
@@ -519,15 +627,23 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.tagRepository.addTagToBook(any(), any()) } returns tag
             val viewModel = fixture.build()
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
 
-            // When - addTag takes a slug
-            viewModel.addTag("favorites")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            verifySuspend { fixture.tagRepository.addTagToBook("book-1", "favorites") }
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+                assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+
+                // When - addTag takes a slug
+                viewModel.addTag("favorites")
+                advanceUntilIdle()
+
+                // Then
+                verifySuspend { fixture.tagRepository.addTagToBook("book-1", "favorites") }
+                states.cancel()
+            }
         }
 
     @Test
@@ -543,15 +659,23 @@ class BookDetailViewModelTest {
             every { fixture.tagRepository.observeTagsForBook(any()) } returns flowOf(bookTags)
             everySuspend { fixture.tagRepository.removeTagFromBook(any(), any(), any()) } returns Unit
             val viewModel = fixture.build()
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
 
-            // When - removeTag takes a slug and finds tag ID from state
-            viewModel.removeTag("favorites")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            verifySuspend { fixture.tagRepository.removeTagFromBook("book-1", "favorites", "tag-1") }
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+                assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+
+                // When - removeTag takes a slug and finds tag ID from state
+                viewModel.removeTag("favorites")
+                advanceUntilIdle()
+
+                // Then
+                verifySuspend { fixture.tagRepository.removeTagFromBook("book-1", "favorites", "tag-1") }
+                states.cancel()
+            }
         }
 
     @Test
@@ -565,18 +689,27 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.tagRepository.addTagToBook(any(), any()) } returns newTag
             val viewModel = fixture.build()
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
-            viewModel.showTagPicker()
 
-            // When - addNewTag sends raw input, server normalizes to slug
-            viewModel.addNewTag("New Tag")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            verifySuspend { fixture.tagRepository.addTagToBook("book-1", "New Tag") }
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertFalse(ready.showTagPicker) // Picker should close
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+                assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                viewModel.showTagPicker()
+                advanceUntilIdle()
+
+                // When - addNewTag sends raw input, server normalizes to slug
+                viewModel.addNewTag("New Tag")
+                advanceUntilIdle()
+
+                // Then
+                verifySuspend { fixture.tagRepository.addTagToBook("book-1", "New Tag") }
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertFalse(ready.showTagPicker) // Picker should close
+                states.cancel()
+            }
         }
 
     @Test
@@ -586,12 +719,18 @@ class BookDetailViewModelTest {
             val fixture = createFixture()
             val viewModel = fixture.build()
 
-            // When - try to add tag without loading book
-            viewModel.addTag("tag-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                val initial = states.awaitItem() // initial Loading
 
-            // Then - state stays Loading, no API calls made
-            assertIs<BookDetailUiState.Loading>(viewModel.state.value)
+                // When - try to add tag without loading book
+                viewModel.addTag("tag-1")
+                advanceUntilIdle()
+
+                // Then - state stays Loading, no API calls made
+                assertIs<BookDetailUiState.Loading>(initial)
+                states.cancel()
+            }
         }
 
     @Test
@@ -605,12 +744,48 @@ class BookDetailViewModelTest {
             // Tags come from Room via observeTagsForBook (already returns empty in createFixture)
             val viewModel = fixture.build()
 
-            // When
-            viewModel.loadBook("book-1")
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - book loads successfully, tags are empty but no error
-            val ready = assertIs<BookDetailUiState.Ready>(viewModel.state.value)
-            assertEquals(book, ready.book)
+                // When
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+
+                // Then - book loads successfully, tags are empty but no error
+                val ready = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals(book, ready.book)
+                states.cancel()
+            }
+        }
+
+    // ========== Race Condition Tests ==========
+
+    @Test
+    fun `rapid loadBook calls for different bookIds emit one coherent sequence with no cross-book contamination`() =
+        runTest {
+            val fixture = createFixture()
+            val bookX = TestData.book(id = "book-X", title = "Book X")
+            val bookY = TestData.book(id = "book-Y", title = "Book Y")
+            everySuspend { fixture.bookRepository.getBook("book-X") } returns bookX
+            everySuspend { fixture.bookRepository.getBook("book-Y") } returns bookY
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            val viewModel = fixture.build()
+
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
+
+                viewModel.loadBook("book-X")
+                viewModel.loadBook("book-Y")
+                advanceUntilIdle()
+
+                val final = states.expectMostRecentItem()
+                // flatMapLatest cancels book-X load when book-Y is requested.
+                // Final state must be Ready for book-Y, not contaminated by book-X.
+                assertTrue(final is BookDetailUiState.Ready)
+                assertEquals("book-Y", final.book.id.value)
+                states.cancel()
+            }
         }
 }
