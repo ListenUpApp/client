@@ -64,9 +64,17 @@ class BookDetailViewModel(
     private val bookIdFlow = MutableStateFlow<String?>(null)
 
     /**
-     * Derives the active book ID from [state], emitting only when a new [BookDetailUiState.Ready]
-     * state arrives with a different book ID. Genre and tag observers subscribe here rather than
-     * directly to [bookIdFlow] so their [updateReady] calls always land on an already-Ready state.
+     * Gate for book-dependent observers (genre, tag). Emits a distinct book id only once
+     * `state` has reached Ready. Genre / tag observers subscribe here so their
+     * `updateReady` patches always land on a Ready state for the current book; they
+     * cannot fire during the Loading window.
+     *
+     * **Pattern: gated observer via state-derived key.** Two invariants make the
+     * state → derived-flow → updateReady → state loop safe:
+     *   1. `.distinctUntilChanged()` filters on the book-id key, not the Ready state.
+     *      Patches that produce a new Ready for the same book don't re-trigger.
+     *   2. `updateReady` is idempotent w.r.t. the book id — patches never change it.
+     * Before copying this pattern elsewhere, verify both invariants hold.
      */
     private val activeBookIdFlow: Flow<String> =
         state
@@ -74,10 +82,13 @@ class BookDetailViewModel(
             .map { it.book.id.value }
             .distinctUntilChanged()
 
-    // Mirrors of book-independent flow-fed fields. Updated inside the init
-    // collectors and read at [loadBookFlow] to seed the Ready state with the
-    // latest known values, since those collectors may have emitted while
+    // Mirrors of book-INDEPENDENT flow-fed fields (admin status, all-tags). Updated
+    // inside the init collectors and read at [loadBookFlow] to seed the Ready state
+    // with the latest known values, since those collectors may have emitted while
     // state was Loading (and been no-op'd by [updateReady]).
+    //
+    // Book-DEPENDENT observers (genre, tag-for-book) use [activeBookIdFlow] to avoid
+    // the Loading-window race entirely — they only fire post-Ready, so no mirror is needed.
     private var latestIsAdmin: Boolean = false
     private var latestAllTags: List<Tag> = emptyList()
 
@@ -159,6 +170,9 @@ class BookDetailViewModel(
     /**
      * Apply [transform] to state only if it is currently [BookDetailUiState.Ready].
      * No-ops when state is [BookDetailUiState.Loading] or [BookDetailUiState.Error].
+     *
+     * NOTE: [activeBookIdFlow] relies on this no-op-on-non-Ready contract to gate
+     * book-dependent observers so their patches never land during Loading.
      */
     private fun updateReady(transform: (BookDetailUiState.Ready) -> BookDetailUiState.Ready) {
         state.update { current ->

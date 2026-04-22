@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
 import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
+import dev.mokkery.answering.calls
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -21,6 +22,7 @@ import dev.mokkery.mock
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -767,7 +769,15 @@ class BookDetailViewModelTest {
             val fixture = createFixture()
             val bookX = TestData.book(id = "book-X", title = "Book X")
             val bookY = TestData.book(id = "book-Y", title = "Book Y")
-            everySuspend { fixture.bookRepository.getBook("book-X") } returns bookX
+            // Force X-load to suspend so Y can cancel it mid-flight via flatMapLatest.
+            // Without the delay, Mokkery returns synchronously and MutableStateFlow
+            // conflation means the X-load may never start — flatMapLatest cancellation
+            // is not exercised. With delay(1_000) the X-load is in-flight when
+            // loadBook("book-Y") fires; advanceUntilIdle() lets Y win and cancel X.
+            everySuspend { fixture.bookRepository.getBook("book-X") } calls {
+                delay(1_000)
+                bookX
+            }
             everySuspend { fixture.bookRepository.getBook("book-Y") } returns bookY
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
@@ -781,7 +791,7 @@ class BookDetailViewModelTest {
                 advanceUntilIdle()
 
                 val final = states.expectMostRecentItem()
-                // flatMapLatest cancels book-X load when book-Y is requested.
+                // flatMapLatest cancels the in-flight book-X load when book-Y is requested.
                 // Final state must be Ready for book-Y, not contaminated by book-X.
                 assertTrue(final is BookDetailUiState.Ready)
                 assertEquals("book-Y", final.book.id.value)
