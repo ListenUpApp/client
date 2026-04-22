@@ -378,6 +378,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().userStatsDao() }
         single { get<ListenUpDatabase>().userReadingSessionDao() }
         single { get<ListenUpDatabase>().readerSessionCacheDao() }
+        single { get<ListenUpDatabase>().bookReadersSummaryDao() }
 
         single<com.calypsan.listenup.client.data.local.db.TransactionRunner> {
             com.calypsan.listenup.client.data.local.db

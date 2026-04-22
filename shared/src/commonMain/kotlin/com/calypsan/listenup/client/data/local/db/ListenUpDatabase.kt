@@ -24,6 +24,7 @@ import androidx.room.TypeConverters
         UserEntity::class,
         UserProfileEntity::class,
         BookEntity::class,
+        BookReadersSummaryEntity::class, // Phase E
         SyncMetadataEntity::class,
         ChapterEntity::class,
         SeriesEntity::class,
@@ -51,7 +52,7 @@ import androidx.room.TypeConverters
         ReaderSessionCacheEntity::class,
         CoverDownloadTaskEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 @TypeConverters(
@@ -119,6 +120,8 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun readerSessionCacheDao(): ReaderSessionCacheDao
 
     abstract fun coverDownloadDao(): CoverDownloadDao
+
+    abstract fun bookReadersSummaryDao(): BookReadersSummaryDao
 }
 
 /**
