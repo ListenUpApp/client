@@ -1,8 +1,8 @@
 [versions]
-agp = "9.1.0"
-android-compileSdk = "36"
+agp = "9.2.0"
+android-compileSdk = "37"
 android-minSdk = "33"
-android-targetSdk = "36"
+android-targetSdk = "37"
 androidx-activity = "1.13.0"
 androidx-lifecycle = "2.10.0"
 androidx-material3-adaptive = "1.2.0"
@@ -10,7 +10,7 @@ androidx-navigation3 = "1.1.0"
 androidx-palette = "1.0.0"
 androidx-material-icons = "1.7.8"
 composeMultiplatform = "1.10.3"
-compose-material3 = "1.11.0-alpha06"
+compose-material3 = "1.11.0-beta03"
 kotlin = "2.3.20"
 ksp = "2.3.4"
 mokkery = "3.3.0"
@@ -45,7 +45,7 @@ ffmpeg-javacpp = "8.0.1-1.5.13"
 jnativehook = "2.2.2"
 
 # Multiplatform (JetBrains) - using dev builds from compose-dev repo
-navigation3-multiplatform = "1.0.0-alpha06"
+navigation3-multiplatform = "1.1.0"
 material3-adaptive-multiplatform = "1.2.0"
 
 # Quality Tools
