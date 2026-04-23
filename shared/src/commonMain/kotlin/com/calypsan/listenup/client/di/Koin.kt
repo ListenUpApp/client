@@ -101,7 +101,7 @@ import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
-import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.data.sync.sse.BookRelationshipDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipWriter
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
@@ -114,8 +114,11 @@ import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
 import com.calypsan.listenup.client.data.sync.pull.TagPuller
+import com.calypsan.listenup.client.data.sync.push.AddBooksToShelfHandler
 import com.calypsan.listenup.client.data.sync.push.BookUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.ContributorUpdateHandler
+import com.calypsan.listenup.client.data.sync.push.CreateShelfHandler
+import com.calypsan.listenup.client.data.sync.push.DeleteShelfHandler
 import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
 import com.calypsan.listenup.client.data.sync.push.MergeContributorHandler
 import com.calypsan.listenup.client.data.sync.push.OperationExecutor
@@ -129,10 +132,12 @@ import com.calypsan.listenup.client.data.sync.push.ProfileAvatarHandler
 import com.calypsan.listenup.client.data.sync.push.ProfileUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
+import com.calypsan.listenup.client.data.sync.push.RemoveBookFromShelfHandler
 import com.calypsan.listenup.client.data.sync.push.SeriesUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.SetBookContributorsHandler
 import com.calypsan.listenup.client.data.sync.push.SetBookSeriesHandler
 import com.calypsan.listenup.client.data.sync.push.UnmergeContributorHandler
+import com.calypsan.listenup.client.data.sync.push.UpdateShelfHandler
 import com.calypsan.listenup.client.data.sync.push.UserPreferencesHandler
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
@@ -1201,6 +1206,11 @@ val syncModule =
         single { ProfileUpdateHandler(transactionRunner = get(), api = get(), userDao = get()) }
         single { ProfileAvatarHandler(api = get(), userDao = get(), imageDownloader = get()) }
         single { MarkCompleteHandler(api = get()) }
+        single { CreateShelfHandler(api = get()) }
+        single { UpdateShelfHandler(api = get()) }
+        single { DeleteShelfHandler(api = get()) }
+        single { AddBooksToShelfHandler(api = get()) }
+        single { RemoveBookFromShelfHandler(api = get()) }
 
         // PreferencesSyncObserver - observes SettingsRepository.preferenceChanges and queues sync operations.
         // This breaks the circular dependency between SettingsRepository and the sync layer.
@@ -1238,6 +1248,11 @@ val syncModule =
                 profileUpdateHandler = get(),
                 profileAvatarHandler = get(),
                 markCompleteHandler = get(),
+                createShelfHandler = get(),
+                updateShelfHandler = get(),
+                deleteShelfHandler = get(),
+                addBooksToShelfHandler = get(),
+                removeBookFromShelfHandler = get(),
             )
         } bind OperationExecutorContract::class
 
@@ -1472,7 +1487,19 @@ val syncModule =
 
         // ShelfRepository for personal curation shelves (SOLID: interface in domain, impl in data)
         single<ShelfRepository> {
-            ShelfRepositoryImpl(dao = get(), shelfApi = get())
+            ShelfRepositoryImpl(
+                dao = get(),
+                shelfBookDao = get(),
+                userDao = get(),
+                shelfApi = get(),
+                pendingOperationRepository = get(),
+                transactionRunner = get(),
+                createShelfHandler = get(),
+                updateShelfHandler = get(),
+                deleteShelfHandler = get(),
+                addBooksToShelfHandler = get(),
+                removeBookFromShelfHandler = get(),
+            )
         }
 
         // CollectionRepository for admin collections (SOLID: interface in domain, impl in data)

@@ -23,27 +23,6 @@ class FakeSessionRepositoryTest {
         )
 
     @Test
-    fun seededReadersAreReturnedByGetBookReaders() =
-        runTest {
-            val seed =
-                mapOf(
-                    "book-1" to
-                        BookReadersResult(
-                            yourSessions = emptyList(),
-                            otherReaders = listOf(reader("alice"), reader("bob")),
-                            totalReaders = 2,
-                            totalCompletions = 0,
-                        ),
-                )
-            val repo = FakeSessionRepository(initialReaders = seed)
-
-            val readers = repo.getBookReaders("book-1")
-
-            assertEquals(2, readers.size)
-            assertTrue(readers.any { it.userId == "alice" })
-        }
-
-    @Test
     fun setReadersUpdatesObservers() =
         runTest {
             val repo = FakeSessionRepository()
@@ -77,25 +56,5 @@ class FakeSessionRepositoryTest {
             repo.refreshBookReaders("book-1")
 
             assertEquals(2, repo.refreshCounts["book-1"])
-        }
-
-    @Test
-    fun getBookReadersResultReturnsSuccess() =
-        runTest {
-            val seed =
-                mapOf(
-                    "book-1" to
-                        BookReadersResult(
-                            yourSessions = emptyList(),
-                            otherReaders = emptyList(),
-                            totalReaders = 0,
-                            totalCompletions = 0,
-                        ),
-                )
-            val repo = FakeSessionRepository(initialReaders = seed)
-
-            val result = repo.getBookReadersResult("book-1")
-
-            assertTrue(result is Success)
         }
 }

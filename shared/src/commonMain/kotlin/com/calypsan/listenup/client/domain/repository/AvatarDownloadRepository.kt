@@ -21,4 +21,27 @@ interface AvatarDownloadRepository {
      * @param userId the user whose avatar should be fetched.
      */
     fun queueAvatarDownload(userId: String)
+
+    /**
+     * Queue a force-refresh download for [userId], bypassing the file-exists skip.
+     *
+     * Returns immediately; the download happens on the repository's internal scope.
+     * Used by the SSE profile-updated handler when avatar bytes have changed server-side
+     * but the URL/path is unchanged — so the normal existence check would incorrectly skip it.
+     * On failure, the error is logged and dropped.
+     *
+     * @param userId the user whose avatar should be force-refreshed.
+     */
+    fun queueAvatarForceRefresh(userId: String)
+
+    /**
+     * Delete the locally-cached avatar for [userId].
+     *
+     * Suspends until the filesystem operation completes so callers know the file is gone
+     * before proceeding (e.g. before updating the local DB, to avoid a TOCTOU race where
+     * the UI reads the profile and finds no file). On failure, the error is logged and dropped.
+     *
+     * @param userId the user whose local avatar file should be removed.
+     */
+    suspend fun deleteAvatar(userId: String)
 }

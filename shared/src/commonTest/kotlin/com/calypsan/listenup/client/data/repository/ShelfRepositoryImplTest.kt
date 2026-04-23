@@ -1,9 +1,18 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.ShelfBookDao
 import com.calypsan.listenup.client.data.local.db.ShelfDao
 import com.calypsan.listenup.client.data.local.db.ShelfEntity
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
+import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.remote.ShelfApiContract
+import com.calypsan.listenup.client.data.sync.push.AddBooksToShelfHandler
+import com.calypsan.listenup.client.data.sync.push.CreateShelfHandler
+import com.calypsan.listenup.client.data.sync.push.DeleteShelfHandler
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.RemoveBookFromShelfHandler
+import com.calypsan.listenup.client.data.sync.push.UpdateShelfHandler
 import com.calypsan.listenup.client.domain.model.Shelf
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -42,7 +51,20 @@ class ShelfRepositoryImplTest {
     private fun createRepository(
         dao: ShelfDao = createMockShelfDao(),
         shelfApi: ShelfApiContract = createMockShelfApi(),
-    ): ShelfRepositoryImpl = ShelfRepositoryImpl(dao, shelfApi)
+    ): ShelfRepositoryImpl =
+        ShelfRepositoryImpl(
+            dao = dao,
+            shelfBookDao = mock(),
+            userDao = mock(),
+            shelfApi = shelfApi,
+            pendingOperationRepository = mock(),
+            transactionRunner = mock(),
+            createShelfHandler = CreateShelfHandler(api = shelfApi),
+            updateShelfHandler = UpdateShelfHandler(api = shelfApi),
+            deleteShelfHandler = DeleteShelfHandler(api = shelfApi),
+            addBooksToShelfHandler = AddBooksToShelfHandler(api = shelfApi),
+            removeBookFromShelfHandler = RemoveBookFromShelfHandler(api = shelfApi),
+        )
 
     // ========== Test Data Factories ==========
 

@@ -30,7 +30,6 @@ import com.calypsan.listenup.client.data.sync.SSEChannelMessage
 import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
-import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
 import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -1128,24 +1127,12 @@ class SSEEventProcessor(
         // This ensures the local file exists when the UI Flow emits after userDao update.
         // If we update userDao first, the UI checks for the file before it's downloaded.
         if (payload.avatarType == "image" && payload.avatarValue != null) {
-            try {
-                imageDownloader.downloadUserAvatar(payload.userId, forceRefresh = true)
-                logger.info { "SSE: Downloaded avatar image for user ${payload.userId}" }
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                logger.warn(e) { "SSE: Failed to download avatar for user ${payload.userId}" }
-            }
+            avatarDownloadRepository.queueAvatarForceRefresh(payload.userId)
+            logger.info { "SSE: Queued force-refresh avatar for user ${payload.userId}" }
         } else if (payload.avatarType == "auto") {
             // User reverted to auto avatar, delete the local image file
-            try {
-                imageDownloader.deleteUserAvatar(payload.userId)
-                logger.info { "SSE: Deleted local avatar for user ${payload.userId} (reverted to auto)" }
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                logger.warn(e) { "SSS: Failed to delete avatar for user ${payload.userId}" }
-            }
+            avatarDownloadRepository.deleteAvatar(payload.userId)
+            logger.info { "SSE: Deleted local avatar for user ${payload.userId} (reverted to auto)" }
         }
 
         // Cache user profile for offline display (for ALL users, not just current)

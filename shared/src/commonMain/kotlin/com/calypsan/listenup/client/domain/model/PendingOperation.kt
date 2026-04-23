@@ -41,6 +41,11 @@ enum class PendingOperationType {
     PROFILE_UPDATE,
     PROFILE_AVATAR,
     MARK_COMPLETE,
+    CREATE_SHELF,
+    UPDATE_SHELF,
+    DELETE_SHELF,
+    ADD_BOOKS_TO_SHELF,
+    REMOVE_BOOK_FROM_SHELF,
 }
 
 /**

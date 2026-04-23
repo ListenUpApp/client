@@ -119,15 +119,6 @@ class BookReadersViewModel(
     }
 
     /**
-     * Legacy entry point kept for Phase F cleanup (parent spec Phase F Deliverable 6).
-     *
-     * @param bookId Book ID to load readers for
-     */
-    fun loadReaders(bookId: String) {
-        observeReaders(bookId)
-    }
-
-    /**
      * Manually refresh the readers list — bypasses the debounce.
      *
      * @param bookId Book ID to refresh readers for

@@ -66,7 +66,6 @@ import com.calypsan.listenup.client.core.Failure
  * - Auto-reconnects on app resume
  *
  * Handles deep links for invite URLs:
- * - https://server.com/join/{code} (App Links)
  * - listenup://join?server=...&code=... (custom scheme)
  *
  * This ensures real-time updates when actively using the app
@@ -108,7 +107,7 @@ class MainActivity : ComponentActivity() {
      * Parses and stores deep link or shortcut action for navigation layer to consume.
      *
      * Handles:
-     * - Invite deep links (listenup://join, https://.../join/...)
+     * - Invite deep links (listenup://join)
      * - App shortcut actions (RESUME, PLAY_BOOK, SEARCH, SLEEP_TIMER)
      */
     private fun handleIntent(intent: Intent?) {

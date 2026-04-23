@@ -11,6 +11,7 @@ import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.remote.BookApiContract
+import com.calypsan.listenup.client.data.remote.ShelfApiContract
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.ListeningEventRequest
@@ -699,5 +700,177 @@ class MarkCompleteHandler(
         ) {
             is Success -> Success(Unit)
             is Failure -> result
+        }
+}
+
+/**
+ * Handler for CREATE_SHELF operations.
+ * Never coalesces — each create is a discrete intent.
+ */
+class CreateShelfHandler(
+    private val api: ShelfApiContract,
+) : OperationHandler<CreateShelfPayload> {
+    override val operationType = OperationType.CREATE_SHELF
+
+    override fun parsePayload(json: String): CreateShelfPayload = appJson.decodeFromString(json)
+
+    override fun serializePayload(payload: CreateShelfPayload): String = appJson.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: CreateShelfPayload,
+        newPayload: CreateShelfPayload,
+    ): CreateShelfPayload? = null // Create operations never coalesce
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: CreateShelfPayload,
+    ): AppResult<Unit> =
+        try {
+            api.createShelf(payload.name, payload.description)
+            Success(Unit)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn(e) { "CreateShelfHandler failed for localId=${payload.localId}" }
+            Failure(e)
+        }
+}
+
+/**
+ * Handler for UPDATE_SHELF operations.
+ * Never coalesces — each update carries the full desired state.
+ */
+class UpdateShelfHandler(
+    private val api: ShelfApiContract,
+) : OperationHandler<UpdateShelfPayload> {
+    override val operationType = OperationType.UPDATE_SHELF
+
+    override fun parsePayload(json: String): UpdateShelfPayload = appJson.decodeFromString(json)
+
+    override fun serializePayload(payload: UpdateShelfPayload): String = appJson.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: UpdateShelfPayload,
+        newPayload: UpdateShelfPayload,
+    ): UpdateShelfPayload? = null // Update operations never coalesce
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: UpdateShelfPayload,
+    ): AppResult<Unit> =
+        try {
+            api.updateShelf(payload.shelfId, payload.name, payload.description)
+            Success(Unit)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn(e) { "UpdateShelfHandler failed for shelfId=${payload.shelfId}" }
+            Failure(e)
+        }
+}
+
+/**
+ * Handler for DELETE_SHELF operations.
+ * Never coalesces — each delete is a discrete intent.
+ */
+class DeleteShelfHandler(
+    private val api: ShelfApiContract,
+) : OperationHandler<DeleteShelfPayload> {
+    override val operationType = OperationType.DELETE_SHELF
+
+    override fun parsePayload(json: String): DeleteShelfPayload = appJson.decodeFromString(json)
+
+    override fun serializePayload(payload: DeleteShelfPayload): String = appJson.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: DeleteShelfPayload,
+        newPayload: DeleteShelfPayload,
+    ): DeleteShelfPayload? = null // Delete operations never coalesce
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: DeleteShelfPayload,
+    ): AppResult<Unit> =
+        try {
+            api.deleteShelf(payload.shelfId)
+            Success(Unit)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn(e) { "DeleteShelfHandler failed for shelfId=${payload.shelfId}" }
+            Failure(e)
+        }
+}
+
+/**
+ * Handler for ADD_BOOKS_TO_SHELF operations.
+ * Never coalesces — each call is a discrete add intent.
+ */
+class AddBooksToShelfHandler(
+    private val api: ShelfApiContract,
+) : OperationHandler<AddBooksToShelfPayload> {
+    override val operationType = OperationType.ADD_BOOKS_TO_SHELF
+
+    override fun parsePayload(json: String): AddBooksToShelfPayload = appJson.decodeFromString(json)
+
+    override fun serializePayload(payload: AddBooksToShelfPayload): String = appJson.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: AddBooksToShelfPayload,
+        newPayload: AddBooksToShelfPayload,
+    ): AddBooksToShelfPayload? = null // Add operations never coalesce
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: AddBooksToShelfPayload,
+    ): AppResult<Unit> =
+        try {
+            api.addBooks(payload.shelfId, payload.bookIds)
+            Success(Unit)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn(e) { "AddBooksToShelfHandler failed for shelfId=${payload.shelfId}" }
+            Failure(e)
+        }
+}
+
+/**
+ * Handler for REMOVE_BOOK_FROM_SHELF operations.
+ * Never coalesces — each remove is a discrete intent.
+ */
+class RemoveBookFromShelfHandler(
+    private val api: ShelfApiContract,
+) : OperationHandler<RemoveBookFromShelfPayload> {
+    override val operationType = OperationType.REMOVE_BOOK_FROM_SHELF
+
+    override fun parsePayload(json: String): RemoveBookFromShelfPayload = appJson.decodeFromString(json)
+
+    override fun serializePayload(payload: RemoveBookFromShelfPayload): String = appJson.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: RemoveBookFromShelfPayload,
+        newPayload: RemoveBookFromShelfPayload,
+    ): RemoveBookFromShelfPayload? = null // Remove operations never coalesce
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: RemoveBookFromShelfPayload,
+    ): AppResult<Unit> =
+        try {
+            api.removeBook(payload.shelfId, payload.bookId)
+            Success(Unit)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn(
+                e,
+            ) { "RemoveBookFromShelfHandler failed for shelfId=${payload.shelfId}, bookId=${payload.bookId}" }
+            Failure(e)
         }
 }

@@ -1,8 +1,5 @@
-@file:Suppress("SwallowedException")
-
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
@@ -56,29 +53,6 @@ class SessionRepositoryImpl(
     private val transactionRunner: TransactionRunner,
     private val authSession: AuthSession,
 ) : SessionRepository {
-    // ═══════════════════════════════════════════════════════════════════════════
-    // LEGACY ONE-SHOT METHODS (kept for backwards compatibility)
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    override suspend fun getBookReaders(bookId: String): List<ReaderInfo> {
-        val result = sessionApi.getBookReaders(bookId)
-        return if (result is Success) {
-            result.data.otherReaders.map { it.toDomain() }
-        } else {
-            emptyList()
-        }
-    }
-
-    override suspend fun getBookReadersResult(bookId: String): AppResult<BookReadersResult> =
-        sessionApi.getBookReaders(bookId).map { response ->
-            BookReadersResult(
-                yourSessions = response.yourSessions.map { it.toDomain() },
-                otherReaders = response.otherReaders.map { it.toDomain() },
-                totalReaders = response.totalReaders,
-                totalCompletions = response.totalCompletions,
-            )
-        }
-
     // ═══════════════════════════════════════════════════════════════════════════
     // OFFLINE-FIRST REACTIVE METHODS
     // ═══════════════════════════════════════════════════════════════════════════
@@ -266,7 +240,9 @@ private fun com.calypsan.listenup.client.data.remote.SessionSummary.toUserSessio
     )
 
 /**
- * Parse ISO timestamp string to epoch milliseconds.
+ * Parse an ISO timestamp string to epoch millis. On parse failure, logs and falls
+ * back to the current epoch — best-effort semantics appropriate for cache entries
+ * that will be reconciled on next sync.
  */
 private fun parseTimestampToEpoch(iso: String): Long =
     try {
@@ -274,6 +250,7 @@ private fun parseTimestampToEpoch(iso: String): Long =
     } catch (e: kotlin.coroutines.cancellation.CancellationException) {
         throw e
     } catch (e: Exception) {
+        logger.warn(e) { "Failed to parse timestamp '$iso'; falling back to current time" }
         currentEpochMilliseconds()
     }
 

@@ -198,20 +198,28 @@ class SyncIndicatorViewModel(
      */
     private fun describeOperation(operation: PendingOperation): String {
         val entityName = operation.entityId?.take(8) ?: "item"
-        return when (operation.operationType) {
-            PendingOperationType.BOOK_UPDATE -> "Updating book $entityName"
-            PendingOperationType.CONTRIBUTOR_UPDATE -> "Updating contributor $entityName"
-            PendingOperationType.SERIES_UPDATE -> "Updating series $entityName"
-            PendingOperationType.SET_BOOK_CONTRIBUTORS -> "Setting contributors for book $entityName"
-            PendingOperationType.SET_BOOK_SERIES -> "Setting series for book $entityName"
-            PendingOperationType.MERGE_CONTRIBUTOR -> "Merging contributors"
-            PendingOperationType.UNMERGE_CONTRIBUTOR -> "Unmerging contributor"
-            PendingOperationType.LISTENING_EVENT -> "Syncing listening data"
-            PendingOperationType.PLAYBACK_POSITION -> "Syncing playback position"
-            PendingOperationType.USER_PREFERENCES -> "Syncing preferences"
-            PendingOperationType.PROFILE_UPDATE -> "Updating profile"
-            PendingOperationType.PROFILE_AVATAR -> "Uploading avatar"
-            PendingOperationType.MARK_COMPLETE -> "Marking book complete"
-        }
+        return operation.operationType.describe(entityName)
     }
 }
+
+private fun PendingOperationType.describe(entityName: String): String =
+    when (this) {
+        PendingOperationType.BOOK_UPDATE -> "Updating book $entityName"
+        PendingOperationType.CONTRIBUTOR_UPDATE -> "Updating contributor $entityName"
+        PendingOperationType.SERIES_UPDATE -> "Updating series $entityName"
+        PendingOperationType.SET_BOOK_CONTRIBUTORS -> "Setting contributors for book $entityName"
+        PendingOperationType.SET_BOOK_SERIES -> "Setting series for book $entityName"
+        PendingOperationType.MERGE_CONTRIBUTOR -> "Merging contributors"
+        PendingOperationType.UNMERGE_CONTRIBUTOR -> "Unmerging contributor"
+        PendingOperationType.LISTENING_EVENT -> "Syncing listening data"
+        PendingOperationType.PLAYBACK_POSITION -> "Syncing playback position"
+        PendingOperationType.USER_PREFERENCES -> "Syncing preferences"
+        PendingOperationType.PROFILE_UPDATE -> "Updating profile"
+        PendingOperationType.PROFILE_AVATAR -> "Uploading avatar"
+        PendingOperationType.MARK_COMPLETE -> "Marking book complete"
+        PendingOperationType.CREATE_SHELF -> "Creating shelf"
+        PendingOperationType.UPDATE_SHELF -> "Updating shelf"
+        PendingOperationType.DELETE_SHELF -> "Deleting shelf"
+        PendingOperationType.ADD_BOOKS_TO_SHELF -> "Adding books to shelf"
+        PendingOperationType.REMOVE_BOOK_FROM_SHELF -> "Removing book from shelf"
+    }
