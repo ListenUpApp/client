@@ -339,15 +339,16 @@ interface BookDao {
     fun observeRecentlyAdded(limit: Int = 10): Flow<List<BookEntity>>
 
     /**
-     * Observe random books the user hasn't started.
-     * Excludes books with playback position > 0.
-     * Used for "Discover Something New" section.
+     * Observe random unstarted books that are either standalone or the first entry
+     * of a series.
      *
-     * Note: Uses SQLite RANDOM() which produces a new random set each query.
-     * Flow re-emits when books table changes, triggering new random selection.
+     * Applies a product-level filter: a book is included only if it has no
+     * `book_series` rows, or at least one of its rows has
+     * `sequence IN ('1', '0', '0.5')`. Mid-series entries are silently excluded —
+     * use [observeRandomUnstartedBooks] when you want the unfiltered set.
      *
      * @param limit Maximum number of books to return
-     * @return Flow emitting list of random unstarted books
+     * @return Flow emitting list of random unstarted standalone/first-in-series books
      */
     @Query(
         """
@@ -365,14 +366,38 @@ interface BookDao {
         LIMIT :limit
     """,
     )
+    fun observeRandomUnstartedBooksFirstInSeriesOnly(limit: Int = 10): Flow<List<BookEntity>>
+
+    /**
+     * Observe random unstarted books with no series-sequence filter.
+     *
+     * Neutral query: returns every unstarted book regardless of series position.
+     * Callers that specifically want the "first-in-series or standalone" product
+     * filter should use [observeRandomUnstartedBooksFirstInSeriesOnly] instead.
+     *
+     * @param limit Maximum number of books to return
+     * @return Flow emitting list of random unstarted books
+     */
+    @Query(
+        """
+        SELECT b.* FROM books b
+        LEFT JOIN playback_positions p ON b.id = p.bookId
+        WHERE (p.bookId IS NULL OR p.positionMs = 0)
+        ORDER BY RANDOM()
+        LIMIT :limit
+    """,
+    )
     fun observeRandomUnstartedBooks(limit: Int = 10): Flow<List<BookEntity>>
 
     /**
-     * Get a snapshot of random unstarted books (non-reactive).
-     * Useful for manual refresh without reactive updates.
+     * Get a snapshot of random unstarted books that are either standalone or the first
+     * entry of a series (non-reactive).
+     *
+     * Applies a product-level filter: only standalone or first-in-series books are
+     * returned. Use [getRandomUnstartedBooks] for the unfiltered set.
      *
      * @param limit Maximum number of books to return
-     * @return List of random unstarted books
+     * @return List of random unstarted standalone/first-in-series books
      */
     @Query(
         """
@@ -386,6 +411,27 @@ interface BookDao {
                 AND bs.sequence IN ('1', '0', '0.5')
             )
         )
+        ORDER BY RANDOM()
+        LIMIT :limit
+    """,
+    )
+    suspend fun getRandomUnstartedBooksFirstInSeriesOnly(limit: Int = 10): List<BookEntity>
+
+    /**
+     * Get a snapshot of random unstarted books with no series-sequence filter (non-reactive).
+     *
+     * Neutral query: returns every unstarted book regardless of series position.
+     * Callers that specifically want the "first-in-series or standalone" product
+     * filter should use [getRandomUnstartedBooksFirstInSeriesOnly] instead.
+     *
+     * @param limit Maximum number of books to return
+     * @return List of random unstarted books
+     */
+    @Query(
+        """
+        SELECT b.* FROM books b
+        LEFT JOIN playback_positions p ON b.id = p.bookId
+        WHERE (p.bookId IS NULL OR p.positionMs = 0)
         ORDER BY RANDOM()
         LIMIT :limit
     """,
@@ -459,11 +505,16 @@ interface BookDao {
     fun observeRecentlyAddedFirstInSeriesWithAuthor(limit: Int = 10): Flow<List<DiscoveryBookWithAuthor>>
 
     /**
-     * Observe random unstarted books with primary author.
-     * Used for "Discover Something New" section.
+     * Observe random unstarted books with primary author, restricted to standalone or
+     * first-in-series books.
+     *
+     * Applies a product-level filter: only books with no `book_series` rows, or at
+     * least one row with `sequence IN ('1', '0', '0.5')`, are included. Mid-series
+     * entries are silently excluded — use [observeRandomUnstartedBooksWithAuthor] for
+     * the unfiltered set.
      *
      * @param limit Maximum number of books to return
-     * @return Flow emitting list of random unstarted books with author
+     * @return Flow emitting list of random unstarted standalone/first-in-series books with author
      */
     @Query(
         """
@@ -485,6 +536,35 @@ interface BookDao {
                 AND bs.sequence IN ('1', '0', '0.5')
             )
         )
+        ORDER BY RANDOM()
+        LIMIT :limit
+    """,
+    )
+    fun observeRandomUnstartedBooksFirstInSeriesWithAuthor(limit: Int = 10): Flow<List<DiscoveryBookWithAuthor>>
+
+    /**
+     * Observe random unstarted books with primary author, with no series-sequence filter.
+     *
+     * Neutral query: returns every unstarted book regardless of series position.
+     * Callers that specifically want the "first-in-series or standalone" product
+     * filter should use [observeRandomUnstartedBooksFirstInSeriesWithAuthor] instead.
+     *
+     * @param limit Maximum number of books to return
+     * @return Flow emitting list of random unstarted books with author
+     */
+    @Query(
+        """
+        SELECT
+            b.id, b.title, b.coverBlurHash, b.createdAt,
+            (
+                SELECT c.name FROM book_contributors bc
+                INNER JOIN contributors c ON bc.contributorId = c.id
+                WHERE bc.bookId = b.id AND bc.role = 'author'
+                LIMIT 1
+            ) as authorName
+        FROM books b
+        LEFT JOIN playback_positions p ON b.id = p.bookId
+        WHERE (p.bookId IS NULL OR p.positionMs = 0)
         ORDER BY RANDOM()
         LIMIT :limit
     """,
