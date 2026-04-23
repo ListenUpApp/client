@@ -1487,7 +1487,19 @@ val syncModule =
 
         // ShelfRepository for personal curation shelves (SOLID: interface in domain, impl in data)
         single<ShelfRepository> {
-            ShelfRepositoryImpl(dao = get(), shelfApi = get())
+            ShelfRepositoryImpl(
+                dao = get(),
+                shelfBookDao = get(),
+                userDao = get(),
+                shelfApi = get(),
+                pendingOperationRepository = get(),
+                transactionRunner = get(),
+                createShelfHandler = get(),
+                updateShelfHandler = get(),
+                deleteShelfHandler = get(),
+                addBooksToShelfHandler = get(),
+                removeBookFromShelfHandler = get(),
+            )
         }
 
         // CollectionRepository for admin collections (SOLID: interface in domain, impl in data)

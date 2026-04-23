@@ -1,19 +1,36 @@
-@file:Suppress("SwallowedException")
-
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
+import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.OperationType
+import com.calypsan.listenup.client.data.local.db.ShelfBookCrossRef
+import com.calypsan.listenup.client.data.local.db.ShelfBookDao
 import com.calypsan.listenup.client.data.local.db.ShelfDao
 import com.calypsan.listenup.client.data.local.db.ShelfEntity
+import com.calypsan.listenup.client.data.local.db.SyncState
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
+import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.remote.ShelfApiContract
 import com.calypsan.listenup.client.data.remote.ShelfDetailResponse
 import com.calypsan.listenup.client.data.remote.ShelfResponse
+import com.calypsan.listenup.client.data.sync.push.AddBooksToShelfPayload
+import com.calypsan.listenup.client.data.sync.push.CreateShelfHandler
+import com.calypsan.listenup.client.data.sync.push.CreateShelfPayload
+import com.calypsan.listenup.client.data.sync.push.DeleteShelfHandler
+import com.calypsan.listenup.client.data.sync.push.DeleteShelfPayload
+import com.calypsan.listenup.client.data.sync.push.AddBooksToShelfHandler
+import com.calypsan.listenup.client.data.sync.push.RemoveBookFromShelfHandler
+import com.calypsan.listenup.client.data.sync.push.RemoveBookFromShelfPayload
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.UpdateShelfHandler
+import com.calypsan.listenup.client.data.sync.push.UpdateShelfPayload
 import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.model.ShelfBook
 import com.calypsan.listenup.client.domain.model.ShelfDetail
 import com.calypsan.listenup.client.domain.model.ShelfOwner
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
+import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -22,17 +39,37 @@ import kotlin.time.Instant
 private val logger = KotlinLogging.logger {}
 
 /**
- * Implementation of ShelfRepository using Room.
+ * Implementation of ShelfRepository using Room-first + pending-op pattern.
  *
- * Wraps ShelfDao and converts entities to domain models.
- * Also handles fetching shelves from API and caching locally.
+ * Command methods (create, update, delete, addBooks, removeBook) write to Room
+ * atomically and enqueue a PendingOperation for server sync. The API boundary
+ * moves entirely to the operation handlers (Task 11). Read-side methods and
+ * fetch/cache methods retain direct API access for pull-side behaviour.
  *
  * @property dao Room DAO for shelf operations
- * @property shelfApi API client for fetching shelves from server
+ * @property shelfBookDao Room DAO for shelf-book junction operations
+ * @property userDao Room DAO for current user lookup (needed for owner fields on create)
+ * @property shelfApi API client for read-side fetches (getShelfDetail, fetchAndCache*)
+ * @property pendingOperationRepository Repository for queuing push-sync operations
+ * @property transactionRunner Runs multi-DAO writes atomically
+ * @property createShelfHandler Handler for CREATE_SHELF operations
+ * @property updateShelfHandler Handler for UPDATE_SHELF operations
+ * @property deleteShelfHandler Handler for DELETE_SHELF operations
+ * @property addBooksToShelfHandler Handler for ADD_BOOKS_TO_SHELF operations
+ * @property removeBookFromShelfHandler Handler for REMOVE_BOOK_FROM_SHELF operations
  */
 class ShelfRepositoryImpl(
     private val dao: ShelfDao,
+    private val shelfBookDao: ShelfBookDao,
+    private val userDao: UserDao,
     private val shelfApi: ShelfApiContract,
+    private val pendingOperationRepository: PendingOperationRepositoryContract,
+    private val transactionRunner: TransactionRunner,
+    private val createShelfHandler: CreateShelfHandler,
+    private val updateShelfHandler: UpdateShelfHandler,
+    private val deleteShelfHandler: DeleteShelfHandler,
+    private val addBooksToShelfHandler: AddBooksToShelfHandler,
+    private val removeBookFromShelfHandler: RemoveBookFromShelfHandler,
 ) : ShelfRepository {
     override fun observeMyShelves(userId: String): Flow<List<Shelf>> =
         dao.observeMyShelves(userId).map { entities ->
@@ -97,57 +134,169 @@ class ShelfRepositoryImpl(
         return response.toDomain()
     }
 
-    override suspend fun removeBookFromShelf(
-        shelfId: String,
-        bookId: String,
-    ) {
-        logger.info { "Removing book $bookId from shelf $shelfId" }
-        shelfApi.removeBook(shelfId, bookId)
-    }
-
-    override suspend fun addBooksToShelf(
-        shelfId: String,
-        bookIds: List<String>,
-    ) {
-        logger.info { "Adding ${bookIds.size} books to shelf $shelfId" }
-        shelfApi.addBooks(shelfId, bookIds)
-    }
-
+    /**
+     * Room-first: writes the new shelf locally then enqueues a CREATE_SHELF operation.
+     *
+     * A client-side NanoId is assigned immediately. The handler will create it on the
+     * server; ShelfPuller will later remap the local id to the server-assigned id via
+     * [ShelfDao.updateIdAndSyncState].
+     */
     override suspend fun createShelf(
         name: String,
         description: String?,
     ): Shelf {
-        logger.info { "Creating shelf: $name" }
-        val response = shelfApi.createShelf(name, description)
-        // Cache the new shelf locally
-        dao.upsert(response.toEntity())
-        return response.toDomain()
+        logger.info { "Creating shelf (offline-first): $name" }
+        val localId = NanoId.generate("shelf")
+        val now = currentEpochMilliseconds()
+
+        val currentUser = userDao.getCurrentUser()
+        val ownerId = currentUser?.id?.value ?: ""
+        val ownerDisplayName = currentUser?.displayName ?: ""
+        val ownerAvatarColor = currentUser?.avatarColor ?: "#6B7280"
+
+        val entity =
+            ShelfEntity(
+                id = localId,
+                name = name,
+                description = description,
+                ownerId = ownerId,
+                ownerDisplayName = ownerDisplayName,
+                ownerAvatarColor = ownerAvatarColor,
+                bookCount = 0,
+                totalDurationSeconds = 0L,
+                createdAt = Timestamp(now),
+                updatedAt = Timestamp(now),
+                syncState = SyncState.NOT_SYNCED,
+            )
+
+        val payload = CreateShelfPayload(localId = localId, name = name, description = description)
+        transactionRunner.atomically {
+            dao.upsert(entity)
+            pendingOperationRepository.queue(
+                type = OperationType.CREATE_SHELF,
+                entityType = EntityType.SHELF,
+                entityId = localId,
+                payload = payload,
+                handler = createShelfHandler,
+            )
+        }
+
+        logger.info { "Shelf create queued: $localId" }
+        return entity.toDomain()
     }
 
+    /**
+     * Room-first: applies the update locally then enqueues an UPDATE_SHELF operation.
+     */
     override suspend fun updateShelf(
         shelfId: String,
         name: String,
         description: String?,
     ): Shelf {
-        logger.info { "Updating shelf $shelfId: $name" }
-        val response = shelfApi.updateShelf(shelfId, name, description)
-        // Update local cache
-        dao.getById(shelfId)?.let { cached ->
-            dao.upsert(
-                cached.copy(
-                    name = response.name,
-                    description = response.description.ifEmpty { null },
-                ),
+        logger.info { "Updating shelf (offline-first): $shelfId" }
+        val existing =
+            requireNotNull(dao.getById(shelfId)) {
+                "Shelf not found: $shelfId"
+            }
+        val updated =
+            existing.copy(
+                name = name,
+                description = description,
+                updatedAt = Timestamp(currentEpochMilliseconds()),
+                syncState = SyncState.NOT_SYNCED,
+            )
+
+        val payload = UpdateShelfPayload(shelfId = shelfId, name = name, description = description)
+        transactionRunner.atomically {
+            dao.upsert(updated)
+            pendingOperationRepository.queue(
+                type = OperationType.UPDATE_SHELF,
+                entityType = EntityType.SHELF,
+                entityId = shelfId,
+                payload = payload,
+                handler = updateShelfHandler,
             )
         }
-        return response.toDomain()
+
+        logger.info { "Shelf update queued: $shelfId" }
+        return updated.toDomain()
     }
 
+    /**
+     * Room-first: removes the shelf locally then enqueues a DELETE_SHELF operation.
+     *
+     * The shelf_books junction rows are cascade-deleted by the foreign key constraint.
+     */
     override suspend fun deleteShelf(shelfId: String) {
-        logger.info { "Deleting shelf $shelfId" }
-        shelfApi.deleteShelf(shelfId)
-        // Remove from local cache
-        dao.deleteById(shelfId)
+        logger.info { "Deleting shelf (offline-first): $shelfId" }
+        val payload = DeleteShelfPayload(shelfId = shelfId)
+        transactionRunner.atomically {
+            dao.deleteById(shelfId)
+            pendingOperationRepository.queue(
+                type = OperationType.DELETE_SHELF,
+                entityType = EntityType.SHELF,
+                entityId = shelfId,
+                payload = payload,
+                handler = deleteShelfHandler,
+            )
+        }
+        logger.info { "Shelf delete queued: $shelfId" }
+    }
+
+    /**
+     * Room-first: inserts junction rows for each book then enqueues an ADD_BOOKS_TO_SHELF
+     * operation.
+     */
+    override suspend fun addBooksToShelf(
+        shelfId: String,
+        bookIds: List<String>,
+    ) {
+        logger.info { "Adding ${bookIds.size} books to shelf $shelfId (offline-first)" }
+        val now = currentEpochMilliseconds()
+        val crossRefs =
+            bookIds.mapIndexed { index, bookId ->
+                ShelfBookCrossRef(
+                    shelfId = shelfId,
+                    bookId = bookId,
+                    // Offset each entry so ordering by addedAt DESC remains stable
+                    addedAt = now - index,
+                )
+            }
+
+        val payload = AddBooksToShelfPayload(shelfId = shelfId, bookIds = bookIds)
+        transactionRunner.atomically {
+            shelfBookDao.upsertAll(crossRefs)
+            pendingOperationRepository.queue(
+                type = OperationType.ADD_BOOKS_TO_SHELF,
+                entityType = EntityType.SHELF,
+                entityId = shelfId,
+                payload = payload,
+                handler = addBooksToShelfHandler,
+            )
+        }
+        logger.info { "AddBooksToShelf queued: $shelfId (${bookIds.size} books)" }
+    }
+
+    /**
+     * Room-first: deletes the junction row then enqueues a REMOVE_BOOK_FROM_SHELF operation.
+     */
+    override suspend fun removeBookFromShelf(
+        shelfId: String,
+        bookId: String,
+    ) {
+        logger.info { "Removing book $bookId from shelf $shelfId (offline-first)" }
+        val payload = RemoveBookFromShelfPayload(shelfId = shelfId, bookId = bookId)
+        transactionRunner.atomically {
+            shelfBookDao.deleteShelfBook(shelfId, bookId)
+            pendingOperationRepository.queue(
+                type = OperationType.REMOVE_BOOK_FROM_SHELF,
+                entityType = EntityType.SHELF,
+                entityId = shelfId,
+                payload = payload,
+                handler = removeBookFromShelfHandler,
+            )
+        }
+        logger.info { "RemoveBookFromShelf queued: shelfId=$shelfId, bookId=$bookId" }
     }
 }
 
@@ -161,6 +310,7 @@ fun ShelfResponse.toDomain(): Shelf {
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
+            logger.warn(e) { "Failed to parse createdAt '$createdAt' for shelf $id; using current time" }
             currentEpochMilliseconds()
         }
     val updatedAtMs =
@@ -169,6 +319,7 @@ fun ShelfResponse.toDomain(): Shelf {
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
+            logger.warn(e) { "Failed to parse updatedAt '$updatedAt' for shelf $id; using current time" }
             currentEpochMilliseconds()
         }
 
@@ -196,6 +347,7 @@ private fun ShelfResponse.toEntity(): ShelfEntity {
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
+            logger.warn(e) { "Failed to parse createdAt '$createdAt' for shelf $id; using current time" }
             currentEpochMilliseconds()
         }
     val updatedAtMs =
@@ -204,6 +356,7 @@ private fun ShelfResponse.toEntity(): ShelfEntity {
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
+            logger.warn(e) { "Failed to parse updatedAt '$updatedAt' for shelf $id; using current time" }
             currentEpochMilliseconds()
         }
 
