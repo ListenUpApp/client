@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.bookdetail
 
+import app.cash.turbine.turbineScope
 import com.calypsan.listenup.client.core.UserId
 import com.calypsan.listenup.client.domain.model.BookEvent
 import com.calypsan.listenup.client.domain.model.BookReadersResult
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -45,6 +47,9 @@ import kotlin.test.assertTrue
  * - Repository flow throws → Error state with the thrown message
  * - `observeReaders(sameBookId)` is a no-op when already active
  * - `refresh(bookId)` delegates to `SessionRepository.refreshBookReaders`
+ * - Rapid book-switch emits one coherent sequence without cross-contamination
+ * - SSE event for current book triggers debounced refresh
+ * - SSE event for non-current book does not trigger refresh
  *
  * Uses Mokkery for mocking `SessionRepository`, `EventStreamRepository`, and `UserRepository`.
  */
@@ -164,8 +169,14 @@ class BookReadersViewModelTest {
             // When - viewModel created, observeReaders NOT called
             val viewModel = fixture.build()
 
-            // Then - state is Loading
-            assertIs<BookReadersUiState.Loading>(viewModel.state.value)
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                val initial = states.awaitItem()
+
+                // Then - state is Loading
+                assertIs<BookReadersUiState.Loading>(initial)
+                states.cancel()
+            }
         }
 
     // ========== Reactive Observation ==========
@@ -186,22 +197,28 @@ class BookReadersViewModelTest {
                 )
             val viewModel = fixture.build()
 
-            // When
-            viewModel.observeReaders(BOOK_ID)
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val ready = assertIs<BookReadersUiState.Ready>(viewModel.state.value)
-            assertEquals(listOf(session), ready.yourSessions)
-            assertEquals(listOf(other), ready.otherReaders)
-            assertEquals(2, ready.totalReaders)
-            assertEquals(1, ready.totalCompletions)
-            // Current user info built from sessions + profile
-            val currentUserInfo = ready.currentUserReaderInfo
-            assertNotNull(currentUserInfo)
-            assertEquals("user-1", currentUserInfo.userId)
-            assertTrue(ready.hasYourHistory)
-            assertTrue(ready.hasOtherReaders)
+                // When
+                viewModel.observeReaders(BOOK_ID)
+                advanceUntilIdle()
+
+                // Then
+                val ready = assertIs<BookReadersUiState.Ready>(states.expectMostRecentItem())
+                assertEquals(listOf(session), ready.yourSessions)
+                assertEquals(listOf(other), ready.otherReaders)
+                assertEquals(2, ready.totalReaders)
+                assertEquals(1, ready.totalCompletions)
+                // Current user info built from sessions + profile
+                val currentUserInfo = ready.currentUserReaderInfo
+                assertNotNull(currentUserInfo)
+                assertEquals("user-1", currentUserInfo.userId)
+                assertTrue(ready.hasYourHistory)
+                assertTrue(ready.hasOtherReaders)
+                states.cancel()
+            }
         }
 
     @Test
@@ -211,14 +228,20 @@ class BookReadersViewModelTest {
             val fixture = createFixture()
             val viewModel = fixture.build()
 
-            // When
-            viewModel.observeReaders(BOOK_ID)
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val ready = assertIs<BookReadersUiState.Ready>(viewModel.state.value)
-            assertTrue(ready.isEmpty)
-            assertEquals(emptyList(), ready.allReaders)
+                // When
+                viewModel.observeReaders(BOOK_ID)
+                advanceUntilIdle()
+
+                // Then
+                val ready = assertIs<BookReadersUiState.Ready>(states.expectMostRecentItem())
+                assertTrue(ready.isEmpty)
+                assertEquals(emptyList(), ready.allReaders)
+                states.cancel()
+            }
         }
 
     // ========== Error Handling ==========
@@ -238,13 +261,19 @@ class BookReadersViewModelTest {
 
             val viewModel = fixture.build()
 
-            // When
-            viewModel.observeReaders(BOOK_ID)
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            val err = assertIs<BookReadersUiState.Error>(viewModel.state.value)
-            assertEquals("boom", err.message)
+                // When
+                viewModel.observeReaders(BOOK_ID)
+                advanceUntilIdle()
+
+                // Then
+                val err = assertIs<BookReadersUiState.Error>(states.expectMostRecentItem())
+                assertEquals("boom", err.message)
+                states.cancel()
+            }
         }
 
     // ========== Observation Gating ==========
@@ -256,14 +285,21 @@ class BookReadersViewModelTest {
             val fixture = createFixture()
             val viewModel = fixture.build()
 
-            // When - call twice with the same book id
-            viewModel.observeReaders(BOOK_ID)
-            advanceUntilIdle()
-            viewModel.observeReaders(BOOK_ID)
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then - repository observed only once
-            verify(VerifyMode.exactly(1)) { fixture.sessionRepository.observeBookReaders(BOOK_ID) }
+                // When - call twice with the same book id
+                viewModel.observeReaders(BOOK_ID)
+                advanceUntilIdle()
+                viewModel.observeReaders(BOOK_ID)
+                advanceUntilIdle()
+
+                // Then - repository observed only once (MutableStateFlow idempotency)
+                verify(VerifyMode.exactly(1)) { fixture.sessionRepository.observeBookReaders(BOOK_ID) }
+                states.expectMostRecentItem() // drain emitted Ready before cancel
+                states.cancel()
+            }
         }
 
     // ========== Refresh ==========
@@ -275,11 +311,140 @@ class BookReadersViewModelTest {
             val fixture = createFixture()
             val viewModel = fixture.build()
 
-            // When
-            viewModel.refresh(BOOK_ID)
-            advanceUntilIdle()
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
 
-            // Then
-            verifySuspend { fixture.sessionRepository.refreshBookReaders(BOOK_ID) }
+                // When
+                viewModel.refresh(BOOK_ID)
+                advanceUntilIdle()
+
+                // Then
+                verifySuspend { fixture.sessionRepository.refreshBookReaders(BOOK_ID) }
+                states.cancel()
+            }
+        }
+
+    // ========== Race Condition Tests ==========
+
+    @Test
+    fun `rapid book-switch emits one coherent sequence without cross-contamination`() =
+        runTest {
+            val fixture = createFixture()
+            val resultX =
+                BookReadersResult(
+                    yourSessions = emptyList(),
+                    otherReaders = listOf(createReader(userId = "x-reader")),
+                    totalReaders = 1,
+                    totalCompletions = 0,
+                )
+            val resultY =
+                BookReadersResult(
+                    yourSessions = emptyList(),
+                    otherReaders = listOf(createReader(userId = "y-reader"), createReader(userId = "y-reader-2")),
+                    totalReaders = 2,
+                    totalCompletions = 0,
+                )
+            val flowX = MutableStateFlow(resultX)
+            val flowY = MutableStateFlow(resultY)
+            every { fixture.sessionRepository.observeBookReaders("book-X") } returns flowX
+            every { fixture.sessionRepository.observeBookReaders("book-Y") } returns flowY
+
+            val vm = fixture.build()
+
+            turbineScope {
+                val states = vm.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
+
+                vm.observeReaders("book-X")
+                advanceUntilIdle()
+                val xState = states.expectMostRecentItem()
+                assertTrue(xState is BookReadersUiState.Ready)
+                assertEquals(1, xState.totalReaders)
+
+                vm.observeReaders("book-Y")
+                advanceUntilIdle()
+                val yState = states.expectMostRecentItem()
+                assertTrue(yState is BookReadersUiState.Ready)
+                // Y-specific assertion: 2 readers, not 1 from X
+                assertEquals(2, yState.totalReaders)
+
+                states.cancel()
+            }
+        }
+
+    // ========== SSE Tests ==========
+
+    @Test
+    fun `SSE event for current book triggers debounced refresh`() =
+        runTest {
+            val fixture = createFixture()
+            val vm = fixture.build()
+
+            turbineScope {
+                val states = vm.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
+
+                vm.observeReaders("book-X")
+                advanceUntilIdle()
+                states.expectMostRecentItem() // consume Ready
+
+                // Emit an SSE event for book-X
+                fixture.bookEvents.emit(
+                    BookEvent.ReadingSessionUpdated(
+                        sessionId = "session-1",
+                        bookId = "book-X",
+                        isCompleted = false,
+                        listenTimeMs = 0L,
+                        finishedAt = null,
+                    ),
+                )
+
+                // Advance past the 2-second debounce
+                advanceTimeBy(2_500)
+                advanceUntilIdle()
+
+                verifySuspend(mode = VerifyMode.atLeast(1)) {
+                    fixture.sessionRepository.refreshBookReaders("book-X")
+                }
+
+                states.cancel()
+            }
+        }
+
+    @Test
+    fun `SSE event for non-current book does not trigger refresh`() =
+        runTest {
+            val fixture = createFixture()
+            val vm = fixture.build()
+
+            turbineScope {
+                val states = vm.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
+
+                vm.observeReaders("book-X")
+                advanceUntilIdle()
+                states.expectMostRecentItem() // consume Ready
+
+                // Emit an SSE event for a DIFFERENT book (book-Y) while VM is observing book-X
+                fixture.bookEvents.emit(
+                    BookEvent.ReadingSessionUpdated(
+                        sessionId = "session-2",
+                        bookId = "book-Y",
+                        isCompleted = false,
+                        listenTimeMs = 0L,
+                        finishedAt = null,
+                    ),
+                )
+
+                advanceTimeBy(3_000)
+                advanceUntilIdle()
+
+                verifySuspend(mode = VerifyMode.not) {
+                    fixture.sessionRepository.refreshBookReaders("book-Y")
+                }
+
+                states.cancel()
+            }
         }
 }

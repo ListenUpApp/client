@@ -3,9 +3,12 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.core.map
+import com.calypsan.listenup.client.data.local.db.BookReadersSummaryDao
+import com.calypsan.listenup.client.data.local.db.BookReadersSummaryEntity
 import com.calypsan.listenup.client.data.local.db.ReaderSessionCacheDao
 import com.calypsan.listenup.client.data.local.db.ReaderSessionCacheEntity
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
@@ -21,10 +24,11 @@ import com.calypsan.listenup.client.domain.repository.SessionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.onStart
 
 private val logger = KotlinLogging.logger {}
 
@@ -40,14 +44,15 @@ private val logger = KotlinLogging.logger {}
  * Writes to [userReadingSessionDao] and [readerSessionCacheDao] are wrapped in a
  * single atomically block so a mid-refresh failure doesn't leave one table stale.
  *
- * Bug 1's fixes (persist API's authoritative totalReaders; drop synthetic-self entirely;
- * ViewModel migration) live in W6 — this implementation still derives totalReaders
- * locally to match W4 scope.
+ * Phase E (Finding 06 D1) persists the API's authoritative `totalReaders` / `totalCompletions`
+ * via [BookReadersSummaryDao]. `observeBookReaders` uses `combine + onStart` — callers
+ * subscribe; the repository handles staleness-on-subscribe internally.
  */
 class SessionRepositoryImpl(
     private val sessionApi: SessionApiContract,
     private val userReadingSessionDao: UserReadingSessionDao,
     private val readerSessionCacheDao: ReaderSessionCacheDao,
+    private val bookReadersSummaryDao: BookReadersSummaryDao,
     private val transactionRunner: TransactionRunner,
     private val authSession: AuthSession,
 ) : SessionRepository {
@@ -79,20 +84,7 @@ class SessionRepositoryImpl(
     // ═══════════════════════════════════════════════════════════════════════════
 
     override fun observeBookReaders(bookId: String): Flow<BookReadersResult> =
-        channelFlow {
-            // Fire-and-forget background refresh on subscription — runs concurrent with collection
-            // so cached data is emitted immediately. W6 will migrate to .onStart { } with an
-            // injected CoroutineScope.
-            launch {
-                try {
-                    refreshBookReaders(bookId)
-                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logger.warn(e) { "Background refresh of readers for book $bookId failed" }
-                }
-            }
-
+        flow {
             val currentUserId = authSession.getUserId()
             logger.debug { "Observing readers for book $bookId (currentUserId=$currentUserId)" }
 
@@ -105,17 +97,26 @@ class SessionRepositoryImpl(
                     bookId = bookId,
                     excludingUserId = currentUserId ?: "",
                 )
+            val summaryFlow = bookReadersSummaryDao.observeFor(BookId(bookId))
 
-            combine(userFlow, cacheFlow) { userSessions, otherEntries ->
-                BookReadersResult(
-                    yourSessions = userSessions.map { it.toDomain() },
-                    otherReaders = otherEntries.map { it.toDomain() },
-                    totalReaders = otherEntries.size + if (userSessions.isNotEmpty()) 1 else 0,
-                    totalCompletions =
-                        otherEntries.sumOf { it.completionCount } +
-                            userSessions.count { it.isCompleted },
-                )
-            }.collect { send(it) }
+            emitAll(
+                combine(userFlow, cacheFlow, summaryFlow) { userSessions, otherEntries, summary ->
+                    BookReadersResult(
+                        yourSessions = userSessions.map { it.toDomain() },
+                        otherReaders = otherEntries.map { it.toDomain() },
+                        totalReaders = summary?.totalReaders ?: 0,
+                        totalCompletions = summary?.totalCompletions ?: 0,
+                    )
+                }.onStart {
+                    try {
+                        refreshBookReaders(bookId)
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.warn(e) { "Initial refresh failed for book $bookId; continuing from cache" }
+                    }
+                },
+            )
         }
 
     override suspend fun refreshBookReaders(bookId: String) {
@@ -144,6 +145,14 @@ class SessionRepositoryImpl(
                     if (cacheEntries.isNotEmpty()) {
                         readerSessionCacheDao.upsertAll(cacheEntries)
                     }
+                    bookReadersSummaryDao.upsert(
+                        BookReadersSummaryEntity(
+                            bookId = BookId(bookId),
+                            totalReaders = response.totalReaders,
+                            totalCompletions = response.totalCompletions,
+                            updatedAt = now,
+                        ),
+                    )
                 }
 
                 logger.debug {
