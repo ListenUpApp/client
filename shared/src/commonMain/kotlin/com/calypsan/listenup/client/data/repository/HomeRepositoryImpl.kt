@@ -72,11 +72,14 @@ class HomeRepositoryImpl(
         var booksNotFound = 0
         var booksFiltered = 0
 
+        val bookIds = positions.map { it.bookId.value }
+        val bookMap = bookRepository.getBooks(bookIds).associateBy { it.id.value }
+
         val books =
             positions.mapNotNull { position ->
                 val bookIdStr = position.bookId.value
                 val book =
-                    bookRepository.getBook(bookIdStr) ?: run {
+                    bookMap[bookIdStr] ?: run {
                         booksNotFound++
                         logger.warn { "Local fallback: book not found - id=$bookIdStr" }
                         return@mapNotNull null
@@ -157,9 +160,10 @@ class HomeRepositoryImpl(
                 }
             }.mapLatest { positions ->
                 val result = mutableListOf<ContinueListeningBook>()
+                val bookMap = bookRepository.getBooks(positions.map { it.bookId.value }).associateBy { it.id.value }
                 for (position in positions) {
                     val bookIdStr = position.bookId.value
-                    val book = bookRepository.getBook(bookIdStr) ?: continue
+                    val book = bookMap[bookIdStr] ?: continue
 
                     val effectivelyFinished =
                         book.duration > 0 && (

@@ -24,8 +24,6 @@ import kotlinx.coroutines.flow.stateIn
  * via [loadTag]; the flow pipeline uses `flatMapLatest` to swap upstream
  * sources when the id changes, and `.stateIn(WhileSubscribed)` so the
  * pipeline is only hot while the screen is observing.
- *
- * Known N+1 query on per-book fetch — tracked for W6; do not fix here.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TagDetailViewModel(
@@ -48,8 +46,8 @@ class TagDetailViewModel(
                             TagDetailUiState.Error("Tag not found")
                         } else {
                             val books =
-                                bookIds
-                                    .mapNotNull { bookRepository.getBook(it) }
+                                bookRepository
+                                    .getBooks(bookIds)
                                     .sortedBy { it.title }
                             TagDetailUiState.Ready(
                                 tagId = tagId,
