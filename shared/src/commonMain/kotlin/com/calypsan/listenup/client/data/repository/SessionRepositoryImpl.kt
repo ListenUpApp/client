@@ -240,7 +240,9 @@ private fun com.calypsan.listenup.client.data.remote.SessionSummary.toUserSessio
     )
 
 /**
- * Parse ISO timestamp string to epoch milliseconds.
+ * Parse an ISO timestamp string to epoch millis. On parse failure, logs and falls
+ * back to the current epoch — best-effort semantics appropriate for cache entries
+ * that will be reconciled on next sync.
  */
 private fun parseTimestampToEpoch(iso: String): Long =
     try {
@@ -248,6 +250,7 @@ private fun parseTimestampToEpoch(iso: String): Long =
     } catch (e: kotlin.coroutines.cancellation.CancellationException) {
         throw e
     } catch (e: Exception) {
+        logger.warn(e) { "Failed to parse timestamp '$iso'; falling back to current time" }
         currentEpochMilliseconds()
     }
 
