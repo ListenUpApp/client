@@ -34,4 +34,28 @@ class AvatarDownloadRepositoryImpl(
             }
         }
     }
+
+    override fun queueAvatarForceRefresh(userId: String) {
+        scope.launch {
+            try {
+                imageDownloader.downloadUserAvatar(userId, forceRefresh = true)
+                logger.debug { "Force-refreshed avatar for user $userId" }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.warn(e) { "Failed to force-refresh avatar for user $userId" }
+            }
+        }
+    }
+
+    override suspend fun deleteAvatar(userId: String) {
+        try {
+            imageDownloader.deleteUserAvatar(userId)
+            logger.debug { "Deleted avatar for user $userId" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to delete avatar for user $userId" }
+        }
+    }
 }

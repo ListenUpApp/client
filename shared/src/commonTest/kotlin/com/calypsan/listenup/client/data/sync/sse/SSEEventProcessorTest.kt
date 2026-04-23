@@ -48,6 +48,7 @@ import com.calypsan.listenup.client.data.sync.BookPayload
 import com.calypsan.listenup.client.data.sync.BookDeletedPayload
 import com.calypsan.listenup.client.data.sync.SSEChannelMessage
 import com.calypsan.listenup.client.data.sync.SSEEvent
+import com.calypsan.listenup.client.data.sync.ProfilePayload
 import com.calypsan.listenup.client.data.sync.ScanCompletedPayload
 import com.calypsan.listenup.client.data.sync.ScanStartedPayload
 import com.calypsan.listenup.client.data.sync.SessionStartedPayload
@@ -208,6 +209,8 @@ class SSEEventProcessorTest {
 
             // AvatarDownloadRepository stubs
             every { avatarDownloadRepository.queueAvatarDownload(any()) } returns Unit
+            every { avatarDownloadRepository.queueAvatarForceRefresh(any()) } returns Unit
+            everySuspend { avatarDownloadRepository.deleteAvatar(any()) } returns Unit
 
             // PlaybackStateProvider stubs
             every { playbackStateProvider.currentBookId } returns currentBookIdFlow
@@ -905,6 +908,39 @@ class SSEEventProcessorTest {
             advanceUntilIdle()
 
             verify { fixture.avatarDownloadRepository.queueAvatarDownload(testUserId) }
+        }
+
+    // ========== ProfileUpdated Avatar Routing Tests ==========
+
+    @Test
+    fun `handleProfileUpdated routes force-refresh through avatarDownloadRepository not imageDownloader`() =
+        runTest {
+            val testUserId = "user-profile-updated"
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+
+            val event =
+                SSEEvent.ProfileUpdated(
+                    timestamp = "2026-04-19T10:00:00Z",
+                    data =
+                        ProfilePayload(
+                            userId = testUserId,
+                            firstName = "Test",
+                            lastName = "User",
+                            avatarType = "image",
+                            avatarValue = "/avatars/$testUserId.jpg",
+                            avatarColor = "#6B7280",
+                        ),
+                )
+            processor.process(SSEChannelMessage.Wire(event))
+            advanceUntilIdle()
+
+            // Must route through repository
+            verify { fixture.avatarDownloadRepository.queueAvatarForceRefresh(testUserId) }
+            // Must NOT call imageDownloader directly
+            verifySuspend(VerifyMode.not) {
+                fixture.imageDownloader.downloadUserAvatar(testUserId, forceRefresh = true)
+            }
         }
 
     companion object {

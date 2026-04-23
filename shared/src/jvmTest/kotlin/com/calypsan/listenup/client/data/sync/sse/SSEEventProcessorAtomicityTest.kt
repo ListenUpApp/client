@@ -68,6 +68,10 @@ class SSEEventProcessorAtomicityTest {
     private val noOpAvatarDownloadRepository =
         object : AvatarDownloadRepository {
             override fun queueAvatarDownload(userId: String) = Unit
+
+            override fun queueAvatarForceRefresh(userId: String) = Unit
+
+            override suspend fun deleteAvatar(userId: String) = Unit
         }
 
     @AfterTest
