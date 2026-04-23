@@ -23,13 +23,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -63,32 +64,13 @@ class BookDetailViewModel(
      */
     private val bookIdFlow = MutableStateFlow<String?>(null)
 
-    /**
-     * Gate for book-dependent observers (genre, tag). Emits a distinct book id only once
-     * `state` has reached Ready. Genre / tag observers subscribe here so their
-     * `updateReady` patches always land on a Ready state for the current book; they
-     * cannot fire during the Loading window.
-     *
-     * **Pattern: gated observer via state-derived key.** Two invariants make the
-     * state → derived-flow → updateReady → state loop safe:
-     *   1. `.distinctUntilChanged()` filters on the book-id key, not the Ready state.
-     *      Patches that produce a new Ready for the same book don't re-trigger.
-     *   2. `updateReady` is idempotent w.r.t. the book id — patches never change it.
-     * Before copying this pattern elsewhere, verify both invariants hold.
-     */
-    private val activeBookIdFlow: Flow<String> =
-        state
-            .filterIsInstance<BookDetailUiState.Ready>()
-            .map { it.book.id.value }
-            .distinctUntilChanged()
-
     // Mirrors of book-INDEPENDENT flow-fed fields (admin status, all-tags). Updated
     // inside the init collectors and read at [loadBookFlow] to seed the Ready state
     // with the latest known values, since those collectors may have emitted while
     // state was Loading (and been no-op'd by [updateReady]).
     //
-    // Book-DEPENDENT observers (genre, tag-for-book) use [activeBookIdFlow] to avoid
-    // the Loading-window race entirely — they only fire post-Ready, so no mirror is needed.
+    // Per-book observers (genre, tag-for-book) are folded into [loadBookFlow] via
+    // combine, so they are naturally scoped to one book and need no mirror.
     private var latestIsAdmin: Boolean = false
     private var latestAllTags: List<Tag> = emptyList()
 
@@ -99,38 +81,6 @@ class BookDetailViewModel(
                 latestIsAdmin = isAdmin
                 updateReady { it.copy(isAdmin = isAdmin) }
             }
-        }
-
-        // Reactive genre observer - automatically switches when book changes.
-        // Subscribes to activeBookIdFlow so updateReady always lands on a Ready state.
-        viewModelScope.launch {
-            activeBookIdFlow
-                .flatMapLatest { bookId ->
-                    genreRepository.observeGenresForBook(bookId)
-                }.collect { genres ->
-                    updateReady {
-                        it.copy(
-                            genres = genres,
-                            genresList = genres.map { g -> g.name },
-                        )
-                    }
-                }
-        }
-
-        // Reactive book-specific tags observer - automatically switches when book changes.
-        // Subscribes to activeBookIdFlow so updateReady always lands on a Ready state.
-        viewModelScope.launch {
-            activeBookIdFlow
-                .flatMapLatest { bookId ->
-                    tagRepository.observeTagsForBook(bookId)
-                }.collect { tags ->
-                    updateReady {
-                        it.copy(
-                            tags = tags,
-                            isLoadingTags = false,
-                        )
-                    }
-                }
         }
 
         // All tags observer (doesn't depend on current book - for tag picker)
@@ -144,12 +94,13 @@ class BookDetailViewModel(
         }
 
         // Main load flow: bookIdFlow changes drive loadBookFlow, which emits
-        // Loading then Ready. flatMapLatest cancels the previous load on switch.
+        // Loading then a combine of Ready + per-book genres + per-book tags.
+        // flatMapLatest cancels the previous load (and its inner combine) on switch.
         viewModelScope.launch {
             bookIdFlow
                 .filterNotNull()
                 .flatMapLatest { id -> loadBookFlow(id) }
-                .collect { base -> state.value = base }
+                .collect { state.value = it }
         }
     }
 
@@ -170,9 +121,6 @@ class BookDetailViewModel(
     /**
      * Apply [transform] to state only if it is currently [BookDetailUiState.Ready].
      * No-ops when state is [BookDetailUiState.Loading] or [BookDetailUiState.Error].
-     *
-     * NOTE: [activeBookIdFlow] relies on this no-op-on-non-Ready contract to gate
-     * book-dependent observers so their patches never land during Loading.
      */
     private fun updateReady(transform: (BookDetailUiState.Ready) -> BookDetailUiState.Ready) {
         state.update { current ->
@@ -184,8 +132,9 @@ class BookDetailViewModel(
      * Switch the view model to observe [bookId].
      *
      * Pushes into [bookIdFlow]; the main-load `flatMapLatest` in init collects
-     * `loadBookFlow(id)` and updates state. Tag + genre observers are downstream
-     * of the same [bookIdFlow] change and auto-switch via their own flatMapLatest.
+     * `loadBookFlow(id)`, which combines per-book genres + tags into the Ready
+     * state, and updates [state]. Switching books cancels the in-flight load
+     * (and its inner combine) automatically.
      */
     fun loadBook(bookId: String) {
         bookIdFlow.value = bookId
@@ -195,9 +144,10 @@ class BookDetailViewModel(
      * Pure flow that drives the main book-load pipeline for [bookId].
      *
      * Emits [BookDetailUiState.Loading] immediately, then fetches all required
-     * data and emits [BookDetailUiState.Ready] (or [BookDetailUiState.Error] on
-     * failure). The caller ([init] block) collects into [state] via
-     * `flatMapLatest`, so switching books cancels an in-flight load automatically.
+     * data and emits a [combine] of base [BookDetailUiState.Ready] with live
+     * per-book genres and tags streams (or [BookDetailUiState.Error] on failure).
+     * The caller ([init] block) collects into [state] via `flatMapLatest`, so
+     * switching books cancels the in-flight load and the inner combine automatically.
      */
     private fun loadBookFlow(bookId: String): Flow<BookDetailUiState> =
         flow {
@@ -255,12 +205,7 @@ class BookDetailViewModel(
             // allTags). Their emissions may have been no-op'd by updateReady
             // while state was Loading, so we copy the mirrored latest values
             // into the new Ready state.
-            //
-            // Tags and genres default to empty here — the tag/genre init-block
-            // collectors will patch them via updateReady shortly after this
-            // Ready state lands (driven by the same bookIdFlow change via their
-            // own flatMapLatest).
-            emit(
+            val baseReady =
                 BookDetailUiState.Ready(
                     book = book,
                     isAdmin = latestIsAdmin,
@@ -277,8 +222,24 @@ class BookDetailViewModel(
                     progress = if (progress != null && progress > 0f && !isComplete) progress else null,
                     timeRemainingFormatted = timeRemaining,
                     addedAt = book.addedAt.epochMillis,
-                    isLoadingTags = true,
-                ),
+                )
+
+            // Combine base Ready with live per-book genre and tag streams.
+            // onStart ensures the combine emits immediately with empty lists before
+            // any repository data arrives. flatMapLatest in the caller cancels this
+            // combine when the book switches, preventing cross-book contamination.
+            emitAll(
+                combine(
+                    flowOf(baseReady),
+                    genreRepository.observeGenresForBook(bookId).onStart { emit(emptyList()) },
+                    tagRepository.observeTagsForBook(bookId).onStart { emit(emptyList()) },
+                ) { base, genres, tags ->
+                    base.copy(
+                        genres = genres,
+                        genresList = genres.map { it.name },
+                        tags = tags,
+                    )
+                },
             )
         }
 
