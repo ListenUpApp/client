@@ -414,4 +414,22 @@ class ProgressTrackerTest {
             // Then - verify save was called (position captured)
             verifySuspend { fixture.positionDao.save(any()) }
         }
+
+    // ========== clearProgress Tests ==========
+
+    @Test
+    fun `clearProgress delegates to positionRepository not positionDao`() =
+        runTest {
+            // Verifies Finding 07 Rule 5: DAO writes in /playback/ routed through repository.
+            // positionRepository.delete is the correct domain-layer entry point.
+            val fixture = createFixture()
+            val bookId = BookId("book-clear")
+            everySuspend { fixture.positionRepository.delete(bookId.value) } returns Unit
+
+            val tracker = fixture.build()
+
+            tracker.clearProgress(bookId)
+
+            verifySuspend { fixture.positionRepository.delete(bookId.value) }
+        }
 }

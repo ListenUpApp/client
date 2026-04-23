@@ -539,7 +539,7 @@ class ProgressTracker(
      * Clear progress for a book (reset to beginning).
      */
     suspend fun clearProgress(bookId: BookId) {
-        positionDao.delete(bookId)
+        positionRepository.delete(bookId.value)
         logger.info { "Progress cleared for book: ${bookId.value}" }
     }
 
