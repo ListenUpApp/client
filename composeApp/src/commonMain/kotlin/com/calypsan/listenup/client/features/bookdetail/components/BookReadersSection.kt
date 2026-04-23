@@ -49,7 +49,7 @@ fun BookReadersSection(
     viewModel: BookReadersViewModel = koinViewModel(),
 ) {
     LaunchedEffect(bookId) {
-        viewModel.loadReaders(bookId)
+        viewModel.observeReaders(bookId)
     }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
