@@ -110,6 +110,11 @@ class OperationExecutor(
             profileUpdateHandler: ProfileUpdateHandler,
             profileAvatarHandler: ProfileAvatarHandler,
             markCompleteHandler: MarkCompleteHandler,
+            createShelfHandler: CreateShelfHandler,
+            updateShelfHandler: UpdateShelfHandler,
+            deleteShelfHandler: DeleteShelfHandler,
+            addBooksToShelfHandler: AddBooksToShelfHandler,
+            removeBookFromShelfHandler: RemoveBookFromShelfHandler,
         ): OperationExecutor =
             OperationExecutor(
                 mapOf(
@@ -126,6 +131,11 @@ class OperationExecutor(
                     OperationType.PROFILE_UPDATE to profileUpdateHandler,
                     OperationType.PROFILE_AVATAR to profileAvatarHandler,
                     OperationType.MARK_COMPLETE to markCompleteHandler,
+                    OperationType.CREATE_SHELF to createShelfHandler,
+                    OperationType.UPDATE_SHELF to updateShelfHandler,
+                    OperationType.DELETE_SHELF to deleteShelfHandler,
+                    OperationType.ADD_BOOKS_TO_SHELF to addBooksToShelfHandler,
+                    OperationType.REMOVE_BOOK_FROM_SHELF to removeBookFromShelfHandler,
                 ),
             )
     }

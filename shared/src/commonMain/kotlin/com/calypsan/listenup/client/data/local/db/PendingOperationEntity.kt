@@ -77,6 +77,13 @@ enum class OperationType {
 
     // Mark book as complete (retry on failure)
     MARK_COMPLETE,
+
+    // Shelf mutations (never coalesce - each is a discrete intent)
+    CREATE_SHELF,
+    UPDATE_SHELF,
+    DELETE_SHELF,
+    ADD_BOOKS_TO_SHELF,
+    REMOVE_BOOK_FROM_SHELF,
 }
 
 /**

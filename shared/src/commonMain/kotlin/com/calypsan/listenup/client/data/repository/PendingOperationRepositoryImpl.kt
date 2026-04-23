@@ -75,6 +75,11 @@ private fun OperationType.toDomain(): PendingOperationType =
         OperationType.PROFILE_UPDATE -> PendingOperationType.PROFILE_UPDATE
         OperationType.PROFILE_AVATAR -> PendingOperationType.PROFILE_AVATAR
         OperationType.MARK_COMPLETE -> PendingOperationType.MARK_COMPLETE
+        OperationType.CREATE_SHELF -> PendingOperationType.CREATE_SHELF
+        OperationType.UPDATE_SHELF -> PendingOperationType.UPDATE_SHELF
+        OperationType.DELETE_SHELF -> PendingOperationType.DELETE_SHELF
+        OperationType.ADD_BOOKS_TO_SHELF -> PendingOperationType.ADD_BOOKS_TO_SHELF
+        OperationType.REMOVE_BOOK_FROM_SHELF -> PendingOperationType.REMOVE_BOOK_FROM_SHELF
     }
 
 /**
