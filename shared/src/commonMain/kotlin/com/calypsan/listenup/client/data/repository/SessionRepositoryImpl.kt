@@ -1,8 +1,5 @@
-@file:Suppress("SwallowedException")
-
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
@@ -56,29 +53,6 @@ class SessionRepositoryImpl(
     private val transactionRunner: TransactionRunner,
     private val authSession: AuthSession,
 ) : SessionRepository {
-    // ═══════════════════════════════════════════════════════════════════════════
-    // LEGACY ONE-SHOT METHODS (kept for backwards compatibility)
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    override suspend fun getBookReaders(bookId: String): List<ReaderInfo> {
-        val result = sessionApi.getBookReaders(bookId)
-        return if (result is Success) {
-            result.data.otherReaders.map { it.toDomain() }
-        } else {
-            emptyList()
-        }
-    }
-
-    override suspend fun getBookReadersResult(bookId: String): AppResult<BookReadersResult> =
-        sessionApi.getBookReaders(bookId).map { response ->
-            BookReadersResult(
-                yourSessions = response.yourSessions.map { it.toDomain() },
-                otherReaders = response.otherReaders.map { it.toDomain() },
-                totalReaders = response.totalReaders,
-                totalCompletions = response.totalCompletions,
-            )
-        }
-
     // ═══════════════════════════════════════════════════════════════════════════
     // OFFLINE-FIRST REACTIVE METHODS
     // ═══════════════════════════════════════════════════════════════════════════

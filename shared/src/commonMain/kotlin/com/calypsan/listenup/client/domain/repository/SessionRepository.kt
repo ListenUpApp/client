@@ -1,8 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
-import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.BookReadersResult
-import com.calypsan.listenup.client.domain.model.ReaderInfo
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -16,23 +14,6 @@ import kotlinx.coroutines.flow.Flow
  * Part of the domain layer - implementations live in the data layer.
  */
 interface SessionRepository {
-    /**
-     * Get all users currently reading a specific book.
-     *
-     * @param bookId The book ID to check
-     * @return List of readers currently listening to this book
-     */
-    suspend fun getBookReaders(bookId: String): List<ReaderInfo>
-
-    /**
-     * Get comprehensive book readers information including the current user's
-     * reading history and other readers.
-     *
-     * @param bookId The book ID to get readers for
-     * @return Result containing readers information or error
-     */
-    suspend fun getBookReadersResult(bookId: String): AppResult<BookReadersResult>
-
     /**
      * Observe book readers reactively from local cache.
      *

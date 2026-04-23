@@ -29,11 +29,6 @@ class FakeSessionRepository(
     /** Map of bookId → number of times [refreshBookReaders] was called. */
     val refreshCounts: Map<String, Int> get() = _refreshCounts.toMap()
 
-    override suspend fun getBookReaders(bookId: String): List<ReaderInfo> = state.value[bookId]?.otherReaders.orEmpty()
-
-    override suspend fun getBookReadersResult(bookId: String): AppResult<BookReadersResult> =
-        Success(state.value[bookId] ?: empty)
-
     override fun observeBookReaders(bookId: String): Flow<BookReadersResult> =
         state.asStateFlow().map { it[bookId] ?: empty }
 
