@@ -41,7 +41,7 @@ import com.calypsan.listenup.client.data.repository.CoverDownloadRepositoryImpl
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
-import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.data.sync.sse.BookRelationshipDaos
 import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.data.sync.BookPayload

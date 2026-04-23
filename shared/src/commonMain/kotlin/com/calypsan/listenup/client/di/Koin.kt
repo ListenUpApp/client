@@ -101,7 +101,7 @@ import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
-import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
+import com.calypsan.listenup.client.data.sync.sse.BookRelationshipDaos
 import com.calypsan.listenup.client.data.sync.pull.BookRelationshipWriter
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller

@@ -2,18 +2,14 @@ package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
-import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
-import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
 import com.calypsan.listenup.client.data.local.db.GenreDao
-import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.SyncApiContract
@@ -30,19 +26,6 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
-
-/**
- * Bundle of junction-table DAOs BookPuller writes to when replacing a book's
- * relationships on each sync. Grouped to keep the puller's constructor focused
- * on distinct collaborators rather than individual relationship tables.
- */
-data class BookRelationshipDaos(
-    val bookContributorDao: BookContributorDao,
-    val bookSeriesDao: BookSeriesDao,
-    val tagDao: TagDao,
-    val genreDao: GenreDao,
-    val audioFileDao: AudioFileDao,
-)
 
 /**
  * Handles paginated book fetching, processing, and relationship syncing.

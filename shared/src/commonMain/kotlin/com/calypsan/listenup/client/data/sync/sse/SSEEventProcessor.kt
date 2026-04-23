@@ -30,7 +30,6 @@ import com.calypsan.listenup.client.data.sync.SSEChannelMessage
 import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
-import com.calypsan.listenup.client.data.sync.pull.BookRelationshipDaos
 import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
