@@ -34,7 +34,7 @@ fun MetadataSearchRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(bookId) {
-        val book = bookRepository.getBook(bookId) ?: return@LaunchedEffect
+        val book = bookRepository.getBookDetail(bookId) ?: return@LaunchedEffect
         viewModel.initForBook(
             bookId = bookId,
             title = book.title,
