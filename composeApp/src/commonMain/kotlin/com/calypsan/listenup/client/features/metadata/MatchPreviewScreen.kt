@@ -52,7 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.repository.CoverOption
 import com.calypsan.listenup.client.domain.repository.MetadataBook
 import com.calypsan.listenup.client.domain.repository.MetadataContributor
@@ -88,7 +88,7 @@ import listenup.composeapp.generated.resources.metadata_your_book_already_has_al
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MatchPreviewScreen(
-    currentBook: Book,
+    currentBook: BookDetail,
     newMetadata: MetadataBook,
     selections: MetadataSelections,
     isApplying: Boolean,

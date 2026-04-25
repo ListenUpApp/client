@@ -25,7 +25,14 @@ extension User {
 
 // MARK: - Book Extensions
 
-extension Book {
+extension BookListItem {
+    /// The book's ID as a Swift String.
+    var idString: String {
+        String(describing: id)
+    }
+}
+
+extension BookDetail {
     /// The book's ID as a Swift String.
     var idString: String {
         String(describing: id)

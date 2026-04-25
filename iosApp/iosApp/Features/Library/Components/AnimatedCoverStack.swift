@@ -11,7 +11,7 @@ import UIKit
 /// - BlurHash placeholders for missing covers
 /// - Smooth spring transitions between cycles
 struct AnimatedCoverStack: View {
-    let books: [Book]
+    let books: [BookListItem]
     var cycleDurationSeconds: Double = 3.0
     var maxVisibleCovers: Int = 5
 
@@ -22,10 +22,10 @@ struct AnimatedCoverStack: View {
     @State private var timer: Timer?
 
     /// Books to display, limited and offset for cycling
-    private var visibleBooks: [Book] {
+    private var visibleBooks: [BookListItem] {
         guard !books.isEmpty else { return [] }
         let count = min(books.count, maxVisibleCovers)
-        var result: [Book] = []
+        var result: [BookListItem] = []
         for i in 0 ..< count {
             let index = (cycleOffset + i) % books.count
             result.append(books[index])
@@ -100,7 +100,7 @@ struct AnimatedCoverStack: View {
 
 /// Single cover view with local image or BlurHash fallback.
 private struct CoverView: View {
-    let book: Book
+    let book: BookListItem
 
     private var cachedImage: UIImage? {
         guard let path = book.coverPath else { return nil }

@@ -73,7 +73,7 @@ class HomeRepositoryImpl(
         var booksFiltered = 0
 
         val bookIds = positions.map { it.bookId.value }
-        val bookMap = bookRepository.getBooks(bookIds).associateBy { it.id.value }
+        val bookMap = bookRepository.getBookListItems(bookIds).associateBy { it.id.value }
 
         val books =
             positions.mapNotNull { position ->
@@ -160,7 +160,11 @@ class HomeRepositoryImpl(
                 }
             }.mapLatest { positions ->
                 val result = mutableListOf<ContinueListeningBook>()
-                val bookMap = bookRepository.getBooks(positions.map { it.bookId.value }).associateBy { it.id.value }
+                val bookMap =
+                    bookRepository
+                        .getBookListItems(
+                            positions.map { it.bookId.value },
+                        ).associateBy { it.id.value }
                 for (position in positions) {
                     val bookIdStr = position.bookId.value
                     val book = bookMap[bookIdStr] ?: continue

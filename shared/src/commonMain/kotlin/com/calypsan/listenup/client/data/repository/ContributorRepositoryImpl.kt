@@ -12,7 +12,7 @@ import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.ContributorWithAliases
 import com.calypsan.listenup.client.data.local.db.SearchDao
-import com.calypsan.listenup.client.data.local.db.toDomain
+import com.calypsan.listenup.client.data.local.db.toListItem
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.ApplyContributorMetadataResult
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
@@ -123,13 +123,12 @@ class ContributorRepositoryImpl(
     ): Flow<List<BookWithContributorRole>> =
         bookDao.observeByContributorAndRole(contributorId, role).map { booksWithContributors ->
             booksWithContributors.map { bwc ->
-                val book = bwc.toDomain(imageStorage, includeSeries = false)
                 val creditedAs =
                     bwc.contributorRoles
                         .find {
                             it.contributorId.value == contributorId && it.role == role
                         }?.creditedAs
-                BookWithContributorRole(book = book, creditedAs = creditedAs)
+                BookWithContributorRole(book = bwc.toListItem(imageStorage), creditedAs = creditedAs)
             }
         }
 

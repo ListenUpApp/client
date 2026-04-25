@@ -57,7 +57,7 @@ class TagDetailViewModelTest {
 
         every { fixture.tagRepository.observeById(any()) } returns flowOf(null)
         every { fixture.tagRepository.observeBookIdsForTag(any()) } returns flowOf(emptyList())
-        everySuspend { fixture.bookRepository.getBooks(any()) } returns emptyList()
+        everySuspend { fixture.bookRepository.getBookListItems(any()) } returns emptyList()
 
         return fixture
     }
@@ -89,11 +89,11 @@ class TagDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val tag = Tag(id = "tag-1", slug = "found-family", bookCount = 2)
-            val books = listOf(TestData.book(id = "book-1"), TestData.book(id = "book-2"))
+            val books = listOf(TestData.bookListItem(id = "book-1"), TestData.bookListItem(id = "book-2"))
 
             every { fixture.tagRepository.observeById("tag-1") } returns flowOf(tag)
             every { fixture.tagRepository.observeBookIdsForTag("tag-1") } returns flowOf(listOf("book-1", "book-2"))
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns books
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns books
 
             val viewModel = fixture.build()
             backgroundScope.launch { viewModel.state.collect { } }
@@ -106,20 +106,20 @@ class TagDetailViewModelTest {
             assertIs<TagDetailUiState.Ready>(viewModel.state.value)
         }
 
-    // ========== Regression Test: N+1 fix — getBooks called once with full list ==========
+    // ========== Regression Test: N+1 fix — getBookListItems called once with full list ==========
 
     @Test
-    fun `observeBooksForTag calls getBooks once with full list, not per-book getBook`() =
+    fun `observeBooksForTag calls getBookListItems once with full list, not per book`() =
         runTest {
             // Given: tag with three book IDs — verifies batched call replaces per-book loop
             val fixture = createFixture()
             val tag = Tag(id = "tag-1", slug = "mystery", bookCount = 3)
             val bookIds = listOf("book-1", "book-2", "book-3")
-            val books = bookIds.map { TestData.book(id = it) }
+            val books = bookIds.map { TestData.bookListItem(id = it) }
 
             every { fixture.tagRepository.observeById("tag-1") } returns flowOf(tag)
             every { fixture.tagRepository.observeBookIdsForTag("tag-1") } returns flowOf(bookIds)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns books
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns books
 
             val viewModel = fixture.build()
             backgroundScope.launch { viewModel.state.collect { } }
@@ -128,8 +128,7 @@ class TagDetailViewModelTest {
             viewModel.loadTag("tag-1")
             advanceUntilIdle()
 
-            // Then: getBooks called exactly once (batched), never the per-book getBook
-            verifySuspend(VerifyMode.exactly(1)) { fixture.bookRepository.getBooks(any()) }
-            verifySuspend(VerifyMode.exactly(0)) { fixture.bookRepository.getBook(any()) }
+            // Then: getBookListItems called exactly once (batched)
+            verifySuspend(VerifyMode.exactly(1)) { fixture.bookRepository.getBookListItems(any()) }
         }
 }

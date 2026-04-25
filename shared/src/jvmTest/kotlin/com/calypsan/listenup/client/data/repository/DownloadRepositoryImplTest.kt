@@ -7,8 +7,9 @@ import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookDetail
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.DiscoveryBook
@@ -168,8 +169,8 @@ class DownloadRepositoryImplTest {
         id: String,
         title: String,
         authors: List<String>,
-    ): Book =
-        Book(
+    ): BookListItem =
+        BookListItem(
             id = BookId(id),
             title = title,
             authors =
@@ -185,19 +186,23 @@ class DownloadRepositoryImplTest {
 }
 
 private class FakeBookRepository : BookRepository {
-    var books: List<Book> = emptyList()
-
-    override fun observeBooks(): Flow<List<Book>> = flowOf(books)
+    var books: List<BookListItem> = emptyList()
 
     override suspend fun refreshBooks(): AppResult<Unit> = AppResult.Success(Unit)
-
-    override suspend fun getBook(id: String): Book? = books.firstOrNull { it.id.value == id }
-
-    override suspend fun getBooks(ids: List<String>): List<Book> = books.filter { it.id.value in ids }
 
     override suspend fun getChapters(bookId: String): List<Chapter> = emptyList()
 
     override fun observeRandomUnstartedBooks(limit: Int): Flow<List<DiscoveryBook>> = flowOf(emptyList())
 
     override fun observeRecentlyAddedBooks(limit: Int): Flow<List<DiscoveryBook>> = flowOf(emptyList())
+
+    override fun observeBookListItems(): Flow<List<BookListItem>> = flowOf(books)
+
+    override suspend fun getBookListItem(id: String): BookListItem? = books.firstOrNull { it.id.value == id }
+
+    override suspend fun getBookListItems(ids: List<String>): List<BookListItem> = books.filter { it.id.value in ids }
+
+    override fun observeBookDetail(id: String): Flow<BookDetail?> = flowOf(null)
+
+    override suspend fun getBookDetail(id: String): BookDetail? = null
 }

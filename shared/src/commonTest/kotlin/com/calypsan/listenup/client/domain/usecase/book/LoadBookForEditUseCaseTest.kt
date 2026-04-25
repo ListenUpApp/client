@@ -4,7 +4,6 @@ import com.calypsan.listenup.client.TestData
 import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.BookRepository
@@ -70,7 +69,7 @@ class LoadBookForEditUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("nonexistent") } returns null
+            everySuspend { fixture.bookRepository.getBookDetail("nonexistent") } returns null
             val useCase = fixture.build()
 
             // When
@@ -89,7 +88,7 @@ class LoadBookForEditUseCaseTest {
         runTest {
             // Given
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     id = "book-1",
                     title = "The Great Gatsby",
                     subtitle = "A Novel",
@@ -102,7 +101,7 @@ class LoadBookForEditUseCaseTest {
                     abridged = false,
                 )
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             val useCase = fixture.build()
 
             // When
@@ -129,7 +128,7 @@ class LoadBookForEditUseCaseTest {
         runTest {
             // Given
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     id = "book-1",
                     title = "Minimal Book",
                     subtitle = null,
@@ -141,7 +140,7 @@ class LoadBookForEditUseCaseTest {
                     asin = null,
                 )
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             val useCase = fixture.build()
 
             // When
@@ -169,12 +168,12 @@ class LoadBookForEditUseCaseTest {
             val author = TestData.contributor(id = "c1", name = "Jane Austen", roles = listOf("Author"))
             val narrator = TestData.contributor(id = "c2", name = "Rosamund Pike", roles = listOf("Narrator"))
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     id = "book-1",
                     allContributors = listOf(author, narrator),
                 )
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             val useCase = fixture.build()
 
             // When
@@ -208,12 +207,12 @@ class LoadBookForEditUseCaseTest {
                     roles = listOf("Author", "Narrator"),
                 )
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     id = "book-1",
                     allContributors = listOf(multiRoleContributor),
                 )
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             val useCase = fixture.build()
 
             // When
@@ -245,7 +244,7 @@ class LoadBookForEditUseCaseTest {
                     seriesSequence = "1",
                 )
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             val useCase = fixture.build()
 
             // When
@@ -266,9 +265,9 @@ class LoadBookForEditUseCaseTest {
     fun `handles book with no series`() =
         runTest {
             // Given
-            val book = TestData.book(id = "book-1")
+            val book = TestData.bookDetail(id = "book-1")
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             val useCase = fixture.build()
 
             // When
@@ -293,9 +292,9 @@ class LoadBookForEditUseCaseTest {
                     TestData.genre(id = "g2", name = "Mystery", path = "/mystery"),
                     TestData.genre(id = "g3", name = "Romance", path = "/romance"),
                 )
-            val book = TestData.book(id = "book-1")
+            val book = TestData.bookDetail(id = "book-1")
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             everySuspend { fixture.genreRepository.getAll() } returns allGenres
             val useCase = fixture.build()
 
@@ -320,9 +319,9 @@ class LoadBookForEditUseCaseTest {
                 listOf(
                     TestData.genre(id = "g1", name = "Fiction", path = "/fiction"),
                 )
-            val book = TestData.book(id = "book-1")
+            val book = TestData.bookDetail(id = "book-1")
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             everySuspend { fixture.genreRepository.getGenresForBook("book-1") } returns bookGenres
             val useCase = fixture.build()
 
@@ -342,9 +341,9 @@ class LoadBookForEditUseCaseTest {
     fun `returns empty genres when genre loading fails`() =
         runTest {
             // Given
-            val book = TestData.book(id = "book-1")
+            val book = TestData.bookDetail(id = "book-1")
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             everySuspend { fixture.genreRepository.getAll() } throws Exception("Network error")
             everySuspend { fixture.genreRepository.getGenresForBook(any()) } throws Exception("Network error")
             val useCase = fixture.build()
@@ -372,9 +371,9 @@ class LoadBookForEditUseCaseTest {
                     TestData.tag(id = "t2", slug = "to-read"),
                     TestData.tag(id = "t3", slug = "completed"),
                 )
-            val book = TestData.book(id = "book-1")
+            val book = TestData.bookDetail(id = "book-1")
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             everySuspend { fixture.tagRepository.getAll() } returns allTags
             val useCase = fixture.build()
 
@@ -399,9 +398,9 @@ class LoadBookForEditUseCaseTest {
                 listOf(
                     TestData.tag(id = "t1", slug = "favorites"),
                 )
-            val book = TestData.book(id = "book-1")
+            val book = TestData.bookDetail(id = "book-1")
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             everySuspend { fixture.tagRepository.getTagsForBook("book-1") } returns bookTags
             val useCase = fixture.build()
 
@@ -421,9 +420,9 @@ class LoadBookForEditUseCaseTest {
     fun `returns empty tags when tag loading fails`() =
         runTest {
             // Given
-            val book = TestData.book(id = "book-1")
+            val book = TestData.bookDetail(id = "book-1")
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             everySuspend { fixture.tagRepository.getAll() } throws Exception("Network error")
             everySuspend { fixture.tagRepository.getTagsForBook(any()) } throws Exception("Network error")
             val useCase = fixture.build()
@@ -446,12 +445,12 @@ class LoadBookForEditUseCaseTest {
         runTest {
             // Given
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     id = "book-1",
                     coverPath = "/covers/great-gatsby.jpg",
                 )
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             val useCase = fixture.build()
 
             // When
@@ -469,12 +468,12 @@ class LoadBookForEditUseCaseTest {
         runTest {
             // Given
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     id = "book-1",
                     coverPath = null,
                 )
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("book-1") } returns book
             val useCase = fixture.build()
 
             // When
@@ -496,7 +495,7 @@ class LoadBookForEditUseCaseTest {
             val author = TestData.contributor(id = "c1", name = "Brandon Sanderson", roles = listOf("Author"))
             val narrator = TestData.contributor(id = "c2", name = "Michael Kramer", roles = listOf("Narrator"))
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     id = "stormlight-1",
                     title = "The Way of Kings",
                     subtitle = "Book One of The Stormlight Archive",
@@ -527,7 +526,7 @@ class LoadBookForEditUseCaseTest {
             val bookTags = listOf(allTags[0])
 
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("stormlight-1") } returns book
+            everySuspend { fixture.bookRepository.getBookDetail("stormlight-1") } returns book
             everySuspend { fixture.genreRepository.getAll() } returns allGenres
             everySuspend { fixture.genreRepository.getGenresForBook("stormlight-1") } returns bookGenres
             everySuspend { fixture.tagRepository.getAll() } returns allTags

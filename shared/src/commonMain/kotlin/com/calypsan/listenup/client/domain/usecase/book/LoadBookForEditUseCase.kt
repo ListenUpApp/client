@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.domain.usecase.book
 
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.BookEditData
 import com.calypsan.listenup.client.domain.model.BookMetadata
 import com.calypsan.listenup.client.domain.model.ContributorRole
@@ -51,7 +51,7 @@ open class LoadBookForEditUseCase(
     open suspend operator fun invoke(bookId: String): AppResult<BookEditData> {
         logger.debug { "Loading book for edit: $bookId" }
 
-        val book = bookRepository.getBook(bookId)
+        val book = bookRepository.getBookDetail(bookId)
         if (book == null) {
             logger.warn { "Book not found: $bookId" }
             return notFoundError("Book not found")
@@ -130,7 +130,7 @@ open class LoadBookForEditUseCase(
             emptyList()
         }
 
-    private fun Book.toMetadata(): BookMetadata =
+    private fun BookDetail.toMetadata(): BookMetadata =
         BookMetadata(
             title = title,
             sortTitle = sortTitle ?: generateSortTitle(title),
@@ -145,7 +145,7 @@ open class LoadBookForEditUseCase(
             addedAt = addedAt.epochMillis,
         )
 
-    private fun Book.toEditableContributors(): List<EditableContributor> =
+    private fun BookDetail.toEditableContributors(): List<EditableContributor> =
         allContributors.map { contributor ->
             EditableContributor(
                 id = contributor.id,
@@ -157,7 +157,7 @@ open class LoadBookForEditUseCase(
             )
         }
 
-    private fun Book.toEditableSeries(): List<EditableSeries> =
+    private fun BookDetail.toEditableSeries(): List<EditableSeries> =
         series.map { s ->
             EditableSeries(
                 id = s.seriesId,

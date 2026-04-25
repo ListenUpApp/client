@@ -9,23 +9,26 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Tests for Book domain model.
+ * Tests for [BookListItem] convenience properties.
  *
  * Covers:
  * - Duration formatting
  * - Series title formatting
  * - Cover availability checks
  * - Contributor name formatting
+ *
+ * [BookDetail] exposes the same convenience properties; if their behavior diverges
+ * in the future, mirror these tests on [BookDetail].
  */
-class BookTest {
+class BookListItemTest {
     private fun createTestBook(
         duration: Long = 3600000L, // 1 hour
         coverPath: String? = null,
         authors: List<BookContributor> = emptyList(),
         narrators: List<BookContributor> = emptyList(),
         series: List<BookSeries> = emptyList(),
-    ): Book =
-        Book(
+    ): BookListItem =
+        BookListItem(
             id = BookId("book-1"),
             title = "Test Book",
             subtitle = null,

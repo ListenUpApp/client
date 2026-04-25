@@ -238,7 +238,6 @@ val bookPresentationModule =
         factory {
             com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel(
                 bookRepository = get(),
-                genreRepository = get(),
                 tagRepository = get(),
                 playbackPositionRepository = get(),
                 userRepository = get(),

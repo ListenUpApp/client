@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.presentation.library
 
 import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.domain.model.SeriesWithBooks
 import com.calypsan.listenup.client.domain.model.SyncState
@@ -38,7 +38,7 @@ sealed interface LibraryUiState {
         val ignoreTitleArticles: Boolean,
         val hideSingleBookSeries: Boolean,
         // Sorted content
-        val books: List<Book>,
+        val books: List<BookListItem>,
         val series: List<SeriesWithBooks>,
         val authors: List<ContributorWithBookCount>,
         val narrators: List<ContributorWithBookCount>,

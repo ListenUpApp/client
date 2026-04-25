@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.presentation.contributordetail
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.ContributorRole
@@ -97,23 +97,21 @@ class ContributorBooksViewModelTest {
         duration: Long = 3_600_000L,
         coverPath: String? = null,
         series: List<BookSeries> = emptyList(),
-    ): Book =
-        Book(
+    ): BookListItem =
+        BookListItem(
             id = BookId(id),
             title = title,
-            subtitle = null,
             coverPath = coverPath,
             duration = duration,
             authors = emptyList(),
             narrators = emptyList(),
-            publishYear = 2024,
             addedAt = Timestamp(1704067200000L),
             updatedAt = Timestamp(1704067200000L),
             series = series,
         )
 
     private fun createBookWithContributorRole(
-        book: Book,
+        book: BookListItem,
         creditedAs: String? = null,
     ): BookWithContributorRole =
         BookWithContributorRole(

@@ -178,7 +178,7 @@ class VoiceIntentResolver(
         if (bookIds.isEmpty()) return null
 
         // Batch-load all books in a single query (avoids N+1 problem)
-        val books = bookRepository.getBooks(bookIds)
+        val books = bookRepository.getBookListItems(bookIds)
 
         // Map books to their sequence numbers and sort
         val booksWithSequence =
@@ -243,7 +243,7 @@ class VoiceIntentResolver(
         val recentBooks = homeRepository.getContinueListening(1).getOrNull()
         val currentBook = recentBooks?.firstOrNull() ?: return null
 
-        val book = bookRepository.getBook(currentBook.bookId) ?: return null
+        val book = bookRepository.getBookListItem(currentBook.bookId) ?: return null
         val primarySeries = book.series.firstOrNull() ?: return null
 
         return SeriesContext(

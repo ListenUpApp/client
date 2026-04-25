@@ -3,12 +3,12 @@ package com.calypsan.listenup.client.presentation.bookdetail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.error.ErrorBus
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.Genre
+import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.BookRepository
-import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
@@ -23,14 +23,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -46,7 +44,6 @@ private val logger = KotlinLogging.logger {}
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookDetailViewModel(
     private val bookRepository: BookRepository,
-    private val genreRepository: GenreRepository,
     private val tagRepository: TagRepository,
     private val playbackPositionRepository: PlaybackPositionRepository,
     private val userRepository: UserRepository,
@@ -69,8 +66,8 @@ class BookDetailViewModel(
     // with the latest known values, since those collectors may have emitted while
     // state was Loading (and been no-op'd by [updateReady]).
     //
-    // Per-book observers (genre, tag-for-book) are folded into [loadBookFlow] via
-    // combine, so they are naturally scoped to one book and need no mirror.
+    // Per-book genres/tags now flow through [BookDetail] directly via
+    // [BookRepository.observeBookDetail], so no mirror is needed for them.
     private var latestIsAdmin: Boolean = false
     private var latestAllTags: List<Tag> = emptyList()
 
@@ -94,8 +91,8 @@ class BookDetailViewModel(
         }
 
         // Main load flow: bookIdFlow changes drive loadBookFlow, which emits
-        // Loading then a combine of Ready + per-book genres + per-book tags.
-        // flatMapLatest cancels the previous load (and its inner combine) on switch.
+        // Loading then maps the BookDetail flow to Ready (or Error if the row
+        // is absent). flatMapLatest cancels the previous observer on switch.
         viewModelScope.launch {
             bookIdFlow
                 .filterNotNull()
@@ -132,9 +129,9 @@ class BookDetailViewModel(
      * Switch the view model to observe [bookId].
      *
      * Pushes into [bookIdFlow]; the main-load `flatMapLatest` in init collects
-     * `loadBookFlow(id)`, which combines per-book genres + tags into the Ready
-     * state, and updates [state]. Switching books cancels the in-flight load
-     * (and its inner combine) automatically.
+     * `loadBookFlow(id)`, which subscribes to [BookRepository.observeBookDetail]
+     * and maps each emission into a [BookDetailUiState.Ready]. Switching books
+     * cancels the in-flight observer automatically.
      */
     fun loadBook(bookId: String) {
         bookIdFlow.value = bookId
@@ -143,23 +140,22 @@ class BookDetailViewModel(
     /**
      * Pure flow that drives the main book-load pipeline for [bookId].
      *
-     * Emits [BookDetailUiState.Loading] immediately, then fetches all required
-     * data and emits a [combine] of base [BookDetailUiState.Ready] with live
-     * per-book genres and tags streams (or [BookDetailUiState.Error] on failure).
+     * Emits [BookDetailUiState.Loading] immediately, performs one-shot reads
+     * for chapters and the saved playback position, then maps the
+     * [BookRepository.observeBookDetail] flow into a stream of
+     * [BookDetailUiState.Ready] emissions. Genres and tags travel inside
+     * [BookDetail] itself, so a single observer drives the whole detail
+     * surface — no per-book genre or tag-for-book combine is needed.
+     *
      * The caller ([init] block) collects into [state] via `flatMapLatest`, so
-     * switching books cancels the in-flight load and the inner combine automatically.
+     * switching books cancels the in-flight observer automatically.
      */
     private fun loadBookFlow(bookId: String): Flow<BookDetailUiState> =
         flow {
             emit(BookDetailUiState.Loading)
 
-            val book = bookRepository.getBook(bookId)
-
-            if (book == null) {
-                emit(BookDetailUiState.Error("Book not found"))
-                return@flow
-            }
-
+            // One-shot reads — these don't reactively update during a single
+            // book viewing.
             val chapters =
                 bookRepository.getChapters(bookId).map { domainChapter ->
                     ChapterUiModel(
@@ -169,79 +165,76 @@ class BookDetailViewModel(
                         imageUrl = null, // Placeholder
                     )
                 }
-
-            // Filter out subtitles that are just series name + book number
-            val displaySubtitle =
-                book.subtitle?.let { subtitle ->
-                    if (isSubtitleRedundant(subtitle, book.seriesName, book.seriesSequence)) {
-                        null
-                    } else {
-                        subtitle
-                    }
-                }
-
-            // Load progress for this book
             val position = playbackPositionRepository.get(bookId)
-            val progress =
-                if (position != null && book.duration > 0) {
-                    (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
-                } else {
-                    null
-                }
 
-            // Check if book is marked as finished (authoritative from isFinished flag)
-            val isComplete = position?.isFinished ?: false
-
-            // Calculate time remaining if there's progress (but not complete)
-            val timeRemaining =
-                if (progress != null && progress > 0f && !isComplete) {
-                    val remainingMs = book.duration - (position?.positionMs ?: 0L)
-                    formatTimeRemaining(remainingMs)
-                } else {
-                    null
-                }
-
-            // Seed with latest values from book-independent collectors (isAdmin,
-            // allTags). Their emissions may have been no-op'd by updateReady
-            // while state was Loading, so we copy the mirrored latest values
-            // into the new Ready state.
-            val baseReady =
-                BookDetailUiState.Ready(
-                    book = book,
-                    isAdmin = latestIsAdmin,
-                    allTags = latestAllTags,
-                    isComplete = isComplete,
-                    startedAtMs = position?.startedAtMs,
-                    subtitle = displaySubtitle,
-                    series = book.fullSeriesTitle,
-                    description = book.description ?: "",
-                    narrators = book.narratorNames,
-                    year = book.publishYear,
-                    rating = book.rating,
-                    chapters = chapters,
-                    progress = if (progress != null && progress > 0f && !isComplete) progress else null,
-                    timeRemainingFormatted = timeRemaining,
-                    addedAt = book.addedAt.epochMillis,
-                )
-
-            // Combine base Ready with live per-book genre and tag streams.
-            // onStart ensures the combine emits immediately with empty lists before
-            // any repository data arrives. flatMapLatest in the caller cancels this
-            // combine when the book switches, preventing cross-book contamination.
             emitAll(
-                combine(
-                    flowOf(baseReady),
-                    genreRepository.observeGenresForBook(bookId).onStart { emit(emptyList()) },
-                    tagRepository.observeTagsForBook(bookId).onStart { emit(emptyList()) },
-                ) { base, genres, tags ->
-                    base.copy(
-                        genres = genres,
-                        genresList = genres.map { it.name },
-                        tags = tags,
-                    )
+                bookRepository.observeBookDetail(bookId).map { detail ->
+                    if (detail == null) {
+                        BookDetailUiState.Error("Book not found")
+                    } else {
+                        buildReady(detail, chapters, position)
+                    }
                 },
             )
         }
+
+    /**
+     * Map a [BookDetail] emission plus the one-shot [chapters]/[position] reads
+     * into a [BookDetailUiState.Ready]. Extracted from [loadBookFlow] to keep
+     * the flow body's cognitive complexity in check.
+     */
+    private fun buildReady(
+        detail: BookDetail,
+        chapters: List<ChapterUiModel>,
+        position: PlaybackPosition?,
+    ): BookDetailUiState.Ready {
+        // Filter out subtitles that are just series name + book number
+        val displaySubtitle =
+            detail.subtitle?.let { subtitle ->
+                if (isSubtitleRedundant(subtitle, detail.seriesName, detail.seriesSequence)) null else subtitle
+            }
+
+        val progress =
+            if (position != null && detail.duration > 0) {
+                (position.positionMs.toFloat() / detail.duration).coerceIn(0f, 1f)
+            } else {
+                null
+            }
+
+        // Authoritative completion flag from the saved position
+        val isComplete = position?.isFinished ?: false
+
+        val hasMeaningfulProgress = progress != null && progress > 0f && !isComplete
+
+        val timeRemaining =
+            if (hasMeaningfulProgress) {
+                val remainingMs = detail.duration - (position?.positionMs ?: 0L)
+                formatTimeRemaining(remainingMs)
+            } else {
+                null
+            }
+
+        return BookDetailUiState.Ready(
+            book = detail,
+            isAdmin = latestIsAdmin,
+            allTags = latestAllTags,
+            isComplete = isComplete,
+            startedAtMs = position?.startedAtMs,
+            subtitle = displaySubtitle,
+            series = detail.fullSeriesTitle,
+            description = detail.description ?: "",
+            narrators = detail.narratorNames,
+            year = detail.publishYear,
+            rating = detail.rating,
+            chapters = chapters,
+            progress = if (hasMeaningfulProgress) progress else null,
+            timeRemainingFormatted = timeRemaining,
+            addedAt = detail.addedAt.epochMillis,
+            genres = detail.genres,
+            genresList = detail.genres.map { it.name },
+            tags = detail.tags,
+        )
+    }
 
     /**
      * Show the tag picker sheet.
@@ -490,7 +483,7 @@ sealed interface BookDetailUiState {
 
     /** Book loaded successfully. */
     data class Ready(
-        val book: Book,
+        val book: BookDetail,
         val isAdmin: Boolean = false,
         val isComplete: Boolean = false,
         val startedAtMs: Long? = null,

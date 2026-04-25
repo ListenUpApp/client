@@ -325,7 +325,7 @@ final class NowPlayingObserver {
 
     /// Load book metadata when currentBookId changes
     private func loadBookInfo(bookId: String) async {
-        guard let book = try? await bookRepository.getBook(id: bookId) else { return }
+        guard let book = try? await bookRepository.getBookListItem(id: bookId) else { return }
         bookTitle = book.title
         authorName = book.authorNames
         coverPath = book.coverPath

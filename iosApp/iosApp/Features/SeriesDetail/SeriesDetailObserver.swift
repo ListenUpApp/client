@@ -35,7 +35,7 @@ final class SeriesDetailObserver {
     var totalDuration: String { uiState?.formatTotalDuration() ?? "" }
 
     /// Books in the series (sorted by sequence)
-    var books: [Book] {
+    var books: [BookListItem] {
         guard let list = uiState?.books else { return [] }
         return Array(list)
     }

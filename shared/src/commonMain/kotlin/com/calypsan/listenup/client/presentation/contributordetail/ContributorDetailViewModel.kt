@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.ContributorRole
 import com.calypsan.listenup.client.domain.model.RoleWithBookCount
@@ -158,7 +158,7 @@ class ContributorDetailViewModel(
     }
 
     private data class BooksForRoleResult(
-        val books: List<Book>,
+        val books: List<BookListItem>,
         /** Maps bookId to creditedAs name (when different from contributor's name). */
         val creditedAsMap: Map<String, String>,
     )
@@ -250,7 +250,7 @@ data class RoleSection(
     val role: String,
     val displayName: String,
     val bookCount: Int,
-    val previewBooks: List<Book>,
+    val previewBooks: List<BookListItem>,
 ) {
     /** Whether to show "View All" button. */
     val showViewAll: Boolean

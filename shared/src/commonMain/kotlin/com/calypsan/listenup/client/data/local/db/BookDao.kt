@@ -108,6 +108,20 @@ interface BookDao {
     suspend fun getByIdWithContributors(id: BookId): BookWithContributors?
 
     /**
+     * Observe a single book by ID with its contributors as a reactive Flow.
+     *
+     * Emits null while the row is absent, emits the populated relation as soon
+     * as it appears. Used as one of the upstream Flows composed by
+     * [com.calypsan.listenup.client.data.repository.BookRepositoryImpl.observeBookDetail].
+     *
+     * @param id The type-safe book ID
+     * @return Flow emitting the book with contributors, or null if absent
+     */
+    @Transaction
+    @Query("SELECT * FROM books WHERE id = :id LIMIT 1")
+    fun observeByIdWithContributors(id: BookId): Flow<BookWithContributors?>
+
+    /**
      * Get multiple books by IDs with their contributors in a single batched query.
      *
      * Uses Room Relations to efficiently load books and their contributors,

@@ -186,7 +186,7 @@ class NowPlayingViewModel(
 
     private suspend fun loadBookInfo(bookId: BookId) {
         logger.debug { "loadBookInfo called for bookId=${bookId.value}" }
-        val book = bookRepository.getBook(bookId.value)
+        val book = bookRepository.getBookListItem(bookId.value)
         if (book == null) {
             logger.warn { "Book not found: $bookId" }
             return

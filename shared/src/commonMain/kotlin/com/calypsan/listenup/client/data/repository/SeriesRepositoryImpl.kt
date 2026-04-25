@@ -3,13 +3,13 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
-import com.calypsan.listenup.client.data.local.db.toDomain
+import com.calypsan.listenup.client.data.local.db.toListItem
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.repository.common.QueryUtils
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Series
 import com.calypsan.listenup.client.domain.model.SeriesSearchResponse
 import com.calypsan.listenup.client.domain.model.SeriesSearchResult
@@ -20,6 +20,7 @@ import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlin.time.measureTimedValue
@@ -36,6 +37,8 @@ private val logger = KotlinLogging.logger {}
  * - Search with "never stranded" pattern (server with local fallback)
  *
  * @property seriesDao Room DAO for series operations
+ * @property bookDao Room DAO for book queries that include contributor joins,
+ *   used to populate the [BookListItem]s carried by [SeriesWithBooks]
  * @property searchDao Room DAO for FTS search
  * @property api Server API client for series search
  * @property networkMonitor For checking online/offline status
@@ -43,6 +46,7 @@ private val logger = KotlinLogging.logger {}
  */
 class SeriesRepositoryImpl(
     private val seriesDao: SeriesDao,
+    private val bookDao: BookDao,
     private val searchDao: SearchDao,
     private val api: SeriesApiContract,
     private val networkMonitor: NetworkMonitor,
@@ -74,14 +78,33 @@ class SeriesRepositoryImpl(
 
     // ========== Library View Methods ==========
 
+    /**
+     * Compose [SeriesWithBooks] from two DAO Flows so the projected books carry
+     * real authors/narrators via the canonical [toListItem] mapper.
+     *
+     * The series-side flow supplies series + book ids + sequences; the book-side
+     * flow supplies a single batched read of `BookWithContributors` for the entire
+     * library, joined in-memory by book id. This avoids N+1 queries (one
+     * contributor query per series) at the cost of a single redundant read of
+     * all books — acceptable because the library view already loads all books
+     * elsewhere on the same screen.
+     */
     override fun observeAllWithBooks(): Flow<List<SeriesWithBooks>> =
-        seriesDao.observeAllWithBooks().map { entities ->
-            entities.map { entity ->
+        combine(
+            seriesDao.observeAllWithBooks(),
+            bookDao.observeAllWithContributors(),
+        ) { seriesEntities, allBooksWithContributors ->
+            val booksById = allBooksWithContributors.associateBy { it.book.id }
+            seriesEntities.map { entity ->
                 val books =
-                    entity.books.map { bookEntity ->
-                        // Use bookDao to get full BookWithContributors if needed
-                        // For library view, basic book info is sufficient
-                        bookEntity.toDomain(imageStorage)
+                    entity.books.mapNotNull { bookEntity ->
+                        val resolved = booksById[bookEntity.id]?.toListItem(imageStorage)
+                        if (resolved == null) {
+                            logger.debug {
+                                "Skipping orphan book ${bookEntity.id} for series ${entity.series.id}"
+                            }
+                        }
+                        resolved
                     }
                 val sequences =
                     entity.bookSequences.associate {
@@ -97,19 +120,25 @@ class SeriesRepositoryImpl(
 
     // ========== Series Detail Methods ==========
 
+    /**
+     * Compose the detail-screen [SeriesWithBooks] by combining the series
+     * relation (for sequences) with the contributor-enriched book query, so the
+     * books carry real authors/narrators for surfaces that display them
+     * (e.g. the narrow series-detail list).
+     */
     override fun observeSeriesWithBooks(seriesId: String): Flow<SeriesWithBooks?> =
-        seriesDao.observeByIdWithBooks(seriesId).map { entity ->
-            entity?.let {
-                val books =
-                    it.books.map { bookEntity ->
-                        bookEntity.toDomain(imageStorage)
-                    }
+        combine(
+            seriesDao.observeByIdWithBooks(seriesId),
+            bookDao.observeBySeriesIdWithContributors(seriesId),
+        ) { seriesRelation, booksWithContributors ->
+            seriesRelation?.let { relation ->
+                val books = booksWithContributors.map { it.toListItem(imageStorage) }
                 val sequences =
-                    it.bookSequences.associate { seq ->
+                    relation.bookSequences.associate { seq ->
                         seq.bookId.value to seq.sequence
                     }
                 SeriesWithBooks(
-                    series = it.series.toDomain(),
+                    series = relation.series.toDomain(),
                     books = books,
                     bookSequences = sequences,
                 )
@@ -225,34 +254,3 @@ private fun com.calypsan.listenup.client.data.remote.SeriesSearchResult.toDomain
         name = name,
         bookCount = bookCount,
     )
-
-/**
- * Convert BookEntity to domain Book model for series listing.
- * Simplified version without full contributor details.
- */
-private fun com.calypsan.listenup.client.data.local.db.BookEntity.toDomain(imageStorage: ImageStorage): Book {
-    val coverPath = if (imageStorage.exists(id)) imageStorage.getCoverPath(id) else null
-    return Book(
-        id = id,
-        title = title,
-        subtitle = subtitle,
-        authors = emptyList(), // Not needed for series view
-        narrators = emptyList(), // Not needed for series view
-        duration = totalDuration,
-        coverPath = coverPath,
-        coverBlurHash = coverBlurHash,
-        dominantColor = dominantColor,
-        darkMutedColor = darkMutedColor,
-        vibrantColor = vibrantColor,
-        addedAt = createdAt,
-        updatedAt = updatedAt,
-        description = description,
-        series = emptyList(), // Loaded separately
-        publishYear = publishYear,
-        publisher = publisher,
-        language = language,
-        isbn = isbn,
-        asin = asin,
-        abridged = abridged,
-    )
-}

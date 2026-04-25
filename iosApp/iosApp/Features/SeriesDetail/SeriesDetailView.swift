@@ -106,7 +106,7 @@ struct SeriesDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func bookRow(book: Book, sequence: String) -> some View {
+    private func bookRow(book: BookListItem, sequence: String) -> some View {
         NavigationLink(value: BookDestination(id: book.idString)) {
             HStack(spacing: 16) {
                 // Sequence badge

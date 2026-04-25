@@ -4,8 +4,8 @@ import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.ContributorRole
@@ -74,14 +74,14 @@ class LibraryViewModelTest {
         seriesId: String? = null,
         seriesSequence: String? = null,
         addedAt: Timestamp = Timestamp(1000L),
-    ): Book {
+    ): BookListItem {
         val seriesList =
             if (seriesId != null && seriesName != null) {
                 listOf(BookSeries(seriesId = seriesId, seriesName = seriesName, sequence = seriesSequence))
             } else {
                 emptyList()
             }
-        return Book(
+        return BookListItem(
             id = BookId(id),
             title = title,
             authors = authors,
@@ -127,14 +127,14 @@ class LibraryViewModelTest {
             bookCount = bookCount,
         )
 
-    private fun createDummyBook(id: String): Book {
+    private fun createDummyBook(id: String): BookListItem {
         val now =
             Timestamp(
                 kotlin.time.Clock.System
                     .now()
                     .toEpochMilliseconds(),
             )
-        return Book(
+        return BookListItem(
             id = BookId(id),
             title = "Book $id",
             coverPath = null,
@@ -179,7 +179,7 @@ class LibraryViewModelTest {
         val fixture = TestFixture()
 
         // Default stubs for all dependencies
-        every { fixture.bookRepository.observeBooks() } returns flowOf(emptyList())
+        every { fixture.bookRepository.observeBookListItems() } returns flowOf(emptyList<BookListItem>())
         every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(emptyList())
         every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns
             flowOf(emptyList())
@@ -493,7 +493,7 @@ class LibraryViewModelTest {
                     createTestBook(id = "3", title = "Mango"),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
@@ -513,7 +513,7 @@ class LibraryViewModelTest {
                     createTestBook(id = "3", title = "Mango"),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
@@ -539,7 +539,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             everySuspend { fixture.libraryPreferences.getIgnoreTitleArticles() } returns true
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 
@@ -571,7 +571,7 @@ class LibraryViewModelTest {
                     ),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
@@ -599,7 +599,7 @@ class LibraryViewModelTest {
                     createTestBook(id = "3", title = "Medium", duration = 5_000_000L),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
@@ -626,7 +626,7 @@ class LibraryViewModelTest {
                     createTestBook(id = "3", title = "New", publishYear = 2024),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
@@ -651,7 +651,7 @@ class LibraryViewModelTest {
                     createTestBook(id = "3", title = "Middle", addedAt = Timestamp(2000L)),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
@@ -677,7 +677,7 @@ class LibraryViewModelTest {
                     createTestBook(id = "4", title = "Book C", seriesId = "beta", seriesName = "Beta Series", seriesSequence = "1"),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
@@ -702,7 +702,7 @@ class LibraryViewModelTest {
                     createTestBook(id = "3", title = "Book 1", seriesName = "Series", seriesSequence = "1"),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
@@ -902,7 +902,7 @@ class LibraryViewModelTest {
                         ),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             every { fixture.playbackPositionRepository.observeAll() } returns flowOf(positions)
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
@@ -936,7 +936,7 @@ class LibraryViewModelTest {
                         ),
                 )
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flowOf(books)
+            every { fixture.bookRepository.observeBookListItems() } returns flowOf(books)
             every { fixture.playbackPositionRepository.observeAll() } returns flowOf(positions)
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
@@ -953,7 +953,7 @@ class LibraryViewModelTest {
         runTest {
             // Given - book repository flow throws on first collect; per-upstream .catch emits empty list
             val fixture = createFixture()
-            every { fixture.bookRepository.observeBooks() } returns flow { throw RuntimeException("transient") }
+            every { fixture.bookRepository.observeBookListItems() } returns flow { throw RuntimeException("transient") }
             val viewModel = fixture.build().also { keepStateHot(it) }
             advanceUntilIdle()
 

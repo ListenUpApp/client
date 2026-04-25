@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.util
 
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 
 /**
@@ -15,7 +15,7 @@ import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
  * @return Map of bookId to progress fraction
  */
 suspend fun PlaybackPositionRepository.calculateProgressMap(
-    books: List<Book>,
+    books: List<BookListItem>,
     excludeComplete: Boolean = true,
     excludeUnstarted: Boolean = true,
 ): Map<String, Float> =

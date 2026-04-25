@@ -14,15 +14,15 @@ import com.calypsan.listenup.client.core.Success
 
 class FakeBookRepositoryTest {
     @Test
-    fun observeBooksEmitsSeededThenUpdated() =
+    fun observeBookListItemsEmitsSeededThenUpdated() =
         runTest {
-            val first = TestData.book(id = "book-1", title = "Dune")
+            val first = TestData.bookListItem(id = "book-1", title = "Dune")
             val repo = FakeBookRepository(initialBooks = listOf(first))
 
-            repo.observeBooks().test {
+            repo.observeBookListItems().test {
                 assertEquals(listOf(first), awaitItem())
 
-                val second = TestData.book(id = "book-2", title = "Neuromancer")
+                val second = TestData.bookListItem(id = "book-2", title = "Neuromancer")
                 repo.setBooks(listOf(first, second))
 
                 assertEquals(2, awaitItem().size)
@@ -31,13 +31,13 @@ class FakeBookRepositoryTest {
         }
 
     @Test
-    fun getBookLooksUpById() =
+    fun getBookListItemLooksUpById() =
         runTest {
-            val book = TestData.book(id = "book-1", title = "Dune")
+            val book = TestData.bookListItem(id = "book-1", title = "Dune")
             val repo = FakeBookRepository(initialBooks = listOf(book))
 
-            val fetched = repo.getBook("book-1")
-            val missing = repo.getBook("nope")
+            val fetched = repo.getBookListItem("book-1")
+            val missing = repo.getBookListItem("nope")
 
             assertNotNull(fetched)
             assertEquals("Dune", fetched.title)
@@ -45,14 +45,14 @@ class FakeBookRepositoryTest {
         }
 
     @Test
-    fun getBooksReturnsOnlyMatchingIds() =
+    fun getBookListItemsReturnsOnlyMatchingIds() =
         runTest {
-            val a = TestData.book(id = "a", title = "A")
-            val b = TestData.book(id = "b", title = "B")
-            val c = TestData.book(id = "c", title = "C")
+            val a = TestData.bookListItem(id = "a", title = "A")
+            val b = TestData.bookListItem(id = "b", title = "B")
+            val c = TestData.bookListItem(id = "c", title = "C")
             val repo = FakeBookRepository(initialBooks = listOf(a, b, c))
 
-            val found = repo.getBooks(listOf("a", "c", "missing"))
+            val found = repo.getBookListItems(listOf("a", "c", "missing"))
 
             assertEquals(2, found.size)
             assertTrue(found.any { it.id == BookId("a") })
@@ -85,13 +85,13 @@ class FakeBookRepositoryTest {
     fun observeRecentlyAddedBooksOrdersByAddedAtDescending() =
         runTest {
             val older =
-                TestData.book(id = "older").copy(
+                TestData.bookListItem(id = "older").copy(
                     addedAt =
                         com.calypsan.listenup.client.core
                             .Timestamp(epochMillis = 1_000L),
                 )
             val newer =
-                TestData.book(id = "newer").copy(
+                TestData.bookListItem(id = "newer").copy(
                     addedAt =
                         com.calypsan.listenup.client.core
                             .Timestamp(epochMillis = 2_000L),

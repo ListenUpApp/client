@@ -58,7 +58,7 @@ import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.design.LocalDeviceContext
 import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailUiState
 import com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -317,7 +317,7 @@ private fun SeriesHeaderRow(
  */
 @Composable
 private fun SeriesBookCard(
-    book: Book,
+    book: BookListItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -537,7 +537,7 @@ private fun SeriesHeroSection(
  */
 @Composable
 private fun SeriesBookItem(
-    book: Book,
+    book: BookListItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

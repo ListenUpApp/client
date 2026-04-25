@@ -28,7 +28,7 @@ final class BookDetailObserver {
     var error: String? { uiState?.error }
 
     /// The book being displayed
-    var book: Book? { uiState?.book }
+    var book: BookDetail? { uiState?.book }
 
     /// Book title
     var title: String { book?.title ?? "" }

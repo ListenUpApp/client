@@ -27,7 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.MetadataSearchResult
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
@@ -80,8 +80,8 @@ fun MatchPreviewRoute(
         }
     }
 
-    val currentBook by produceState<Book?>(initialValue = null, key1 = bookId) {
-        value = bookRepository.getBook(bookId)
+    val currentBook by produceState<BookDetail?>(initialValue = null, key1 = bookId) {
+        value = bookRepository.getBookDetail(bookId)
     }
 
     val preview = state as? MetadataUiState.Preview
