@@ -68,8 +68,8 @@ import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
+import com.calypsan.listenup.client.presentation.invite.InviteRegistrationUiState
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
-import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -218,8 +218,8 @@ private fun InviteRegistrationNavigation(
 
     // Watch for successful registration to trigger completion
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(state.submissionStatus) {
-        if (state.submissionStatus is InviteSubmissionStatus.Success) {
+    LaunchedEffect(state) {
+        if (state is InviteRegistrationUiState.Submitted) {
             onComplete()
         }
     }
