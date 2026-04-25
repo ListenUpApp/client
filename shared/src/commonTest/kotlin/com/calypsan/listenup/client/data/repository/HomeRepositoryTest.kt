@@ -1,12 +1,11 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.TestData
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
-import com.calypsan.listenup.client.domain.model.Book
-import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -61,7 +60,7 @@ class HomeRepositoryTest {
         everySuspend { fixture.playbackPositionDao.get(any()) } returns null
         everySuspend { fixture.playbackPositionDao.save(any()) } returns Unit
         everySuspend { fixture.bookRepository.getBook(any()) } returns null
-        everySuspend { fixture.bookRepository.getBooks(any()) } returns emptyList()
+        everySuspend { fixture.bookRepository.getBookListItems(any()) } returns emptyList()
 
         return fixture
     }
@@ -88,17 +87,13 @@ class HomeRepositoryTest {
         duration: Long = 10_000L,
         authorNames: String = "Author Name",
         coverPath: String? = null,
-    ): Book =
-        Book(
-            id = BookId(id),
+    ): BookListItem =
+        TestData.bookListItem(
+            id = id,
             title = title,
-            subtitle = null,
-            authors = listOf(BookContributor(id = "author-1", name = authorNames)),
-            narrators = emptyList(),
+            authorName = authorNames,
             duration = duration,
             coverPath = coverPath,
-            addedAt = Timestamp(1704067200000L),
-            updatedAt = Timestamp(1704067200000L),
         )
 
     // ========== Continue Listening Tests ==========
@@ -128,7 +123,7 @@ class HomeRepositoryTest {
             val book = createBook(id = "book-1", title = "Test Book", duration = 10_000L)
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book)
             val repository = fixture.build()
 
             // When
@@ -157,7 +152,7 @@ class HomeRepositoryTest {
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position1, position2)
             // getBooks returns only book1 — book2 is absent (simulates "not found")
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book1)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book1)
             val repository = fixture.build()
 
             // When
@@ -178,7 +173,7 @@ class HomeRepositoryTest {
             val book = createBook(id = "book-1", duration = 10_000L)
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(finishedPosition)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book)
             val repository = fixture.build()
 
             // When
@@ -200,7 +195,7 @@ class HomeRepositoryTest {
             val book = createBook(id = "book-1", duration = 10_000L)
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(almostDone)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book)
             val repository = fixture.build()
 
             // When
@@ -221,7 +216,7 @@ class HomeRepositoryTest {
             val book = createBook(id = "book-1", duration = 10_000L)
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book)
             val repository = fixture.build()
 
             // When
@@ -242,7 +237,7 @@ class HomeRepositoryTest {
             val book = createBook(id = "book-1", duration = 0L) // Zero duration
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book)
             val repository = fixture.build()
 
             // When
@@ -265,7 +260,7 @@ class HomeRepositoryTest {
             val book = createBook(id = "book-1", duration = 10_000L, authorNames = "Stephen King")
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book)
             val repository = fixture.build()
 
             // When
@@ -287,7 +282,7 @@ class HomeRepositoryTest {
             val book = createBook(id = "book-1", duration = 10_000L, coverPath = "/path/to/cover.jpg")
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book)
             val repository = fixture.build()
 
             // When
@@ -309,7 +304,7 @@ class HomeRepositoryTest {
             val books = (1..20).map { createBook(id = "book-$it", duration = 10_000L) }
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(5) } returns positions.take(5)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns books.take(5)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns books.take(5)
             val repository = fixture.build()
 
             // When
@@ -343,7 +338,7 @@ class HomeRepositoryTest {
             val book = createBook(id = "book-1", duration = 10_000L)
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book)
             val repository = fixture.build()
 
             // When
@@ -382,7 +377,7 @@ class HomeRepositoryTest {
             val book = createBook(id = "book-1", duration = 10_000L)
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns listOf(book)
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns listOf(book)
             val repository = fixture.build()
 
             // When
@@ -419,14 +414,14 @@ class HomeRepositoryTest {
                 )
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(any()) } returns positions
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns books
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns books
             val repository = fixture.build()
 
             // When
             repository.getContinueListening(10)
 
             // Then: getBooks called exactly once (batched), never the per-book getBook
-            verifySuspend(VerifyMode.exactly(1)) { fixture.bookRepository.getBooks(any()) }
+            verifySuspend(VerifyMode.exactly(1)) { fixture.bookRepository.getBookListItems(any()) }
             verifySuspend(VerifyMode.exactly(0)) { fixture.bookRepository.getBook(any()) }
         }
 
@@ -449,14 +444,14 @@ class HomeRepositoryTest {
                 )
 
             every { fixture.playbackPositionDao.observeRecentPositions(any()) } returns flowOf(positions)
-            everySuspend { fixture.bookRepository.getBooks(any()) } returns books
+            everySuspend { fixture.bookRepository.getBookListItems(any()) } returns books
             val repository = fixture.build()
 
             // When: collect one emission
             repository.observeContinueListening(10).first()
 
             // Then: getBooks called exactly once (batched), never the per-book getBook
-            verifySuspend(VerifyMode.exactly(1)) { fixture.bookRepository.getBooks(any()) }
+            verifySuspend(VerifyMode.exactly(1)) { fixture.bookRepository.getBookListItems(any()) }
             verifySuspend(VerifyMode.exactly(0)) { fixture.bookRepository.getBook(any()) }
         }
 }
