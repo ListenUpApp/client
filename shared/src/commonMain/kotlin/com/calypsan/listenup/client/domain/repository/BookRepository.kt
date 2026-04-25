@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.domain.repository
 
 import com.calypsan.listenup.client.core.AppResult
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
@@ -17,30 +16,9 @@ import kotlinx.coroutines.flow.Flow
  */
 interface BookRepository {
     /**
-     * Observe all books as a reactive Flow of domain models.
-     */
-    fun observeBooks(): Flow<List<Book>>
-
-    /**
      * Trigger sync to refresh books from server.
      */
     suspend fun refreshBooks(): AppResult<Unit>
-
-    /**
-     * Get a single book by ID.
-     */
-    suspend fun getBook(id: String): Book?
-
-    /**
-     * Get multiple books by IDs in a single batched query.
-     *
-     * More efficient than calling getBook in a loop when loading
-     * multiple books (e.g., for series navigation).
-     *
-     * @param ids List of book IDs to fetch
-     * @return List of books found (may be fewer than requested if some not found)
-     */
-    suspend fun getBooks(ids: List<String>): List<Book>
 
     /**
      * Get chapters for a book.

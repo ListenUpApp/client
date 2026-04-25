@@ -59,7 +59,6 @@ class HomeRepositoryTest {
         every { fixture.playbackPositionDao.observeRecentPositions(any()) } returns flowOf(emptyList())
         everySuspend { fixture.playbackPositionDao.get(any()) } returns null
         everySuspend { fixture.playbackPositionDao.save(any()) } returns Unit
-        everySuspend { fixture.bookRepository.getBook(any()) } returns null
         everySuspend { fixture.bookRepository.getBookListItems(any()) } returns emptyList()
 
         return fixture
@@ -420,9 +419,8 @@ class HomeRepositoryTest {
             // When
             repository.getContinueListening(10)
 
-            // Then: getBooks called exactly once (batched), never the per-book getBook
+            // Then: getBookListItems called exactly once (batched)
             verifySuspend(VerifyMode.exactly(1)) { fixture.bookRepository.getBookListItems(any()) }
-            verifySuspend(VerifyMode.exactly(0)) { fixture.bookRepository.getBook(any()) }
         }
 
     @Test
@@ -450,8 +448,7 @@ class HomeRepositoryTest {
             // When: collect one emission
             repository.observeContinueListening(10).first()
 
-            // Then: getBooks called exactly once (batched), never the per-book getBook
+            // Then: getBookListItems called exactly once (batched)
             verifySuspend(VerifyMode.exactly(1)) { fixture.bookRepository.getBookListItems(any()) }
-            verifySuspend(VerifyMode.exactly(0)) { fixture.bookRepository.getBook(any()) }
         }
 }

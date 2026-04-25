@@ -3,13 +3,9 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ChapterId
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
-import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.repository.ImageStorage
@@ -19,17 +15,24 @@ import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verifySuspend
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Failure
 
+/**
+ * Mokkery-driven seam tests for [BookRepositoryImpl].
+ *
+ * Coverage here is intentionally narrow: [refreshBooks] (delegate to [SyncManagerContract])
+ * and [getChapters] (delegate to [ChapterDao] + chapter mapping). The list/detail
+ * surfaces — `observeBookListItems`, `getBookListItem`, `getBookListItems`,
+ * `observeBookDetail`, `getBookDetail` — are exercised end-to-end against an
+ * in-memory Room DB in [BookRepositoryImplTest] under jvmTest.
+ */
 class BookRepositoryTest {
     // ========== Test Fixtures ==========
 
@@ -61,48 +64,6 @@ class BookRepositoryTest {
         return fixture
     }
 
-    private fun createTestBookEntity(
-        id: String = "book-1",
-        title: String = "Test Book",
-        subtitle: String? = null,
-        coverUrl: String? = null,
-        totalDuration: Long = 3_600_000L,
-        description: String? = null,
-        publishYear: Int? = null,
-    ): BookEntity =
-        BookEntity(
-            id = BookId(id),
-            title = title,
-            subtitle = subtitle,
-            coverUrl = coverUrl,
-            totalDuration = totalDuration,
-            description = description,
-            publishYear = publishYear,
-            syncState = SyncState.SYNCED,
-            lastModified = Timestamp(0L),
-            serverVersion = Timestamp(0L),
-            createdAt = Timestamp(1000L),
-            updatedAt = Timestamp(2000L),
-        )
-
-    private fun createTestContributor(
-        id: String = "contributor-1",
-        name: String = "Test Author",
-    ): ContributorEntity =
-        ContributorEntity(
-            id =
-                com.calypsan.listenup.client.core
-                    .ContributorId(id),
-            name = name,
-            description = null,
-            imagePath = null,
-            syncState = SyncState.SYNCED,
-            lastModified = Timestamp(0L),
-            serverVersion = Timestamp(0L),
-            createdAt = Timestamp(0L),
-            updatedAt = Timestamp(0L),
-        )
-
     private fun createTestChapter(
         id: String = "chapter-1",
         bookId: String = "book-1",
@@ -120,294 +81,6 @@ class BookRepositoryTest {
             lastModified = Timestamp(0L),
             serverVersion = Timestamp(0L),
         )
-
-    // ========== observeBooks Tests ==========
-
-    @Test
-    fun `observeBooks returns empty list when no books`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            every { fixture.bookDao.observeAllWithContributors() } returns flowOf(emptyList())
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeBooks().first()
-
-            // Then
-            assertTrue(result.isEmpty())
-        }
-
-    @Test
-    fun `observeBooks transforms entities to domain models`() =
-        runTest {
-            // Given
-            val bookEntity =
-                createTestBookEntity(
-                    id = "book-1",
-                    title = "The Great Audiobook",
-                    totalDuration = 7_200_000L,
-                )
-            val bookWithContributors =
-                BookWithContributors(
-                    book = bookEntity,
-                    contributors = emptyList(),
-                    contributorRoles = emptyList(),
-                    series = emptyList(),
-                    seriesSequences = emptyList(),
-                )
-            val fixture = createFixture()
-            every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeBooks().first()
-
-            // Then
-            assertEquals(1, result.size)
-            val book = result.first()
-            assertEquals("book-1", book.id.value)
-            assertEquals("The Great Audiobook", book.title)
-            assertEquals(7_200_000L, book.duration)
-        }
-
-    @Test
-    fun `observeBooks includes cover path when image exists`() =
-        runTest {
-            // Given
-            val bookEntity = createTestBookEntity(id = "book-1")
-            val bookWithContributors =
-                BookWithContributors(
-                    book = bookEntity,
-                    contributors = emptyList(),
-                    contributorRoles = emptyList(),
-                    series = emptyList(),
-                    seriesSequences = emptyList(),
-                )
-            val fixture = createFixture()
-            every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
-            every { fixture.imageStorage.exists(BookId("book-1")) } returns true
-            every { fixture.imageStorage.getCoverPath(BookId("book-1")) } returns "/covers/book-1.jpg"
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeBooks().first()
-
-            // Then
-            assertEquals("/covers/book-1.jpg", result.first().coverPath)
-        }
-
-    @Test
-    fun `observeBooks excludes cover path when image does not exist`() =
-        runTest {
-            // Given
-            val bookEntity = createTestBookEntity(id = "book-1")
-            val bookWithContributors =
-                BookWithContributors(
-                    book = bookEntity,
-                    contributors = emptyList(),
-                    contributorRoles = emptyList(),
-                    series = emptyList(),
-                    seriesSequences = emptyList(),
-                )
-            val fixture = createFixture()
-            every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
-            every { fixture.imageStorage.exists(BookId("book-1")) } returns false
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeBooks().first()
-
-            // Then
-            assertNull(result.first().coverPath)
-        }
-
-    @Test
-    fun `observeBooks includes authors from contributors with author role`() =
-        runTest {
-            // Given
-            val bookEntity = createTestBookEntity(id = "book-1")
-            val author = createTestContributor(id = "author-1", name = "Stephen King")
-            val crossRef =
-                BookContributorCrossRef(
-                    bookId = BookId("book-1"),
-                    contributorId =
-                        com.calypsan.listenup.client.core
-                            .ContributorId("author-1"),
-                    role = "author",
-                )
-            val bookWithContributors =
-                BookWithContributors(
-                    book = bookEntity,
-                    contributors = listOf(author),
-                    contributorRoles = listOf(crossRef),
-                    series = emptyList(),
-                    seriesSequences = emptyList(),
-                )
-            val fixture = createFixture()
-            every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeBooks().first()
-
-            // Then
-            assertEquals(1, result.first().authors.size)
-            assertEquals(
-                "Stephen King",
-                result
-                    .first()
-                    .authors
-                    .first()
-                    .name,
-            )
-        }
-
-    @Test
-    fun `observeBooks includes narrators from contributors with narrator role`() =
-        runTest {
-            // Given
-            val bookEntity = createTestBookEntity(id = "book-1")
-            val narrator = createTestContributor(id = "narrator-1", name = "Morgan Freeman")
-            val crossRef =
-                BookContributorCrossRef(
-                    bookId = BookId("book-1"),
-                    contributorId =
-                        com.calypsan.listenup.client.core
-                            .ContributorId("narrator-1"),
-                    role = "narrator",
-                )
-            val bookWithContributors =
-                BookWithContributors(
-                    book = bookEntity,
-                    contributors = listOf(narrator),
-                    contributorRoles = listOf(crossRef),
-                    series = emptyList(),
-                    seriesSequences = emptyList(),
-                )
-            val fixture = createFixture()
-            every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeBooks().first()
-
-            // Then
-            assertEquals(1, result.first().narrators.size)
-            assertEquals(
-                "Morgan Freeman",
-                result
-                    .first()
-                    .narrators
-                    .first()
-                    .name,
-            )
-        }
-
-    @Test
-    fun `observeBooks handles contributor with multiple roles`() =
-        runTest {
-            // Given - same person is both author and narrator
-            val bookEntity = createTestBookEntity(id = "book-1")
-            val contributor = createTestContributor(id = "person-1", name = "Neil Gaiman")
-            val authorRole =
-                BookContributorCrossRef(
-                    bookId = BookId("book-1"),
-                    contributorId =
-                        com.calypsan.listenup.client.core
-                            .ContributorId("person-1"),
-                    role = "author",
-                )
-            val narratorRole =
-                BookContributorCrossRef(
-                    bookId = BookId("book-1"),
-                    contributorId =
-                        com.calypsan.listenup.client.core
-                            .ContributorId("person-1"),
-                    role = "narrator",
-                )
-            val bookWithContributors =
-                BookWithContributors(
-                    book = bookEntity,
-                    contributors = listOf(contributor),
-                    contributorRoles = listOf(authorRole, narratorRole),
-                    series = emptyList(),
-                    seriesSequences = emptyList(),
-                )
-            val fixture = createFixture()
-            every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeBooks().first()
-
-            // Then
-            val book = result.first()
-            assertEquals(1, book.authors.size)
-            assertEquals("Neil Gaiman", book.authors.first().name)
-            assertEquals(1, book.narrators.size)
-            assertEquals("Neil Gaiman", book.narrators.first().name)
-            // allContributors should have roles populated
-            assertEquals(1, book.allContributors.size)
-            assertTrue(
-                book.allContributors
-                    .first()
-                    .roles
-                    .containsAll(listOf("author", "narrator")),
-            )
-        }
-
-    @Test
-    fun `observeBooks includes multiple authors and narrators`() =
-        runTest {
-            // Given
-            val bookEntity = createTestBookEntity(id = "book-1")
-            val author1 = createTestContributor(id = "author-1", name = "Author One")
-            val author2 = createTestContributor(id = "author-2", name = "Author Two")
-            val narrator = createTestContributor(id = "narrator-1", name = "Narrator One")
-            val authorRole1 =
-                BookContributorCrossRef(
-                    BookId("book-1"),
-                    com.calypsan.listenup.client.core
-                        .ContributorId("author-1"),
-                    "author",
-                )
-            val authorRole2 =
-                BookContributorCrossRef(
-                    BookId("book-1"),
-                    com.calypsan.listenup.client.core
-                        .ContributorId("author-2"),
-                    "author",
-                )
-            val narratorRole =
-                BookContributorCrossRef(
-                    BookId("book-1"),
-                    com.calypsan.listenup.client.core
-                        .ContributorId("narrator-1"),
-                    "narrator",
-                )
-            val bookWithContributors =
-                BookWithContributors(
-                    book = bookEntity,
-                    contributors = listOf(author1, author2, narrator),
-                    contributorRoles = listOf(authorRole1, authorRole2, narratorRole),
-                    series = emptyList(),
-                    seriesSequences = emptyList(),
-                )
-            val fixture = createFixture()
-            every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeBooks().first()
-
-            // Then
-            val book = result.first()
-            assertEquals(2, book.authors.size)
-            assertEquals(listOf("Author One", "Author Two"), book.authors.map { it.name })
-            assertEquals(1, book.narrators.size)
-            assertEquals("Narrator One", book.narrators.first().name)
-        }
 
     // ========== refreshBooks Tests ==========
 
@@ -455,80 +128,6 @@ class BookRepositoryTest {
             // Then
             val failure = assertIs<Failure>(result)
             assertEquals("Network error", failure.message)
-        }
-
-    // ========== getBook Tests ==========
-
-    @Test
-    fun `getBook returns null when not found`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.bookDao.getByIdWithContributors(BookId("book-1")) } returns null
-            val repository = fixture.build()
-
-            // When
-            val result = repository.getBook("book-1")
-
-            // Then
-            assertNull(result)
-        }
-
-    @Test
-    fun `getBook transforms entity to domain model`() =
-        runTest {
-            // Given
-            val bookEntity =
-                createTestBookEntity(
-                    id = "book-1",
-                    title = "Found Book",
-                    description = "A great book",
-                )
-            val bookWithContributors =
-                BookWithContributors(
-                    book = bookEntity,
-                    contributors = emptyList(),
-                    contributorRoles = emptyList(),
-                    series = emptyList(),
-                    seriesSequences = emptyList(),
-                )
-            val fixture = createFixture()
-            everySuspend { fixture.bookDao.getByIdWithContributors(BookId("book-1")) } returns bookWithContributors
-            val repository = fixture.build()
-
-            // When
-            val result = repository.getBook("book-1")
-
-            // Then
-            assertEquals("book-1", result?.id?.value)
-            assertEquals("Found Book", result?.title)
-            assertEquals("A great book", result?.description)
-        }
-
-    @Test
-    fun `getBook includes cover path when image exists`() =
-        runTest {
-            // Given
-            val bookEntity = createTestBookEntity(id = "book-1")
-            val bookWithContributors =
-                BookWithContributors(
-                    book = bookEntity,
-                    contributors = emptyList(),
-                    contributorRoles = emptyList(),
-                    series = emptyList(),
-                    seriesSequences = emptyList(),
-                )
-            val fixture = createFixture()
-            everySuspend { fixture.bookDao.getByIdWithContributors(BookId("book-1")) } returns bookWithContributors
-            every { fixture.imageStorage.exists(BookId("book-1")) } returns true
-            every { fixture.imageStorage.getCoverPath(BookId("book-1")) } returns "/covers/book-1.jpg"
-            val repository = fixture.build()
-
-            // When
-            val result = repository.getBook("book-1")
-
-            // Then
-            assertEquals("/covers/book-1.jpg", result?.coverPath)
         }
 
     // ========== getChapters Tests ==========

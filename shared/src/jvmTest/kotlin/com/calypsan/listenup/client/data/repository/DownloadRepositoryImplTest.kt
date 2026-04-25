@@ -7,7 +7,6 @@ import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.BookListItem
@@ -189,13 +188,7 @@ class DownloadRepositoryImplTest {
 private class FakeBookRepository : BookRepository {
     var books: List<BookListItem> = emptyList()
 
-    override fun observeBooks(): Flow<List<Book>> = flowOf(emptyList())
-
     override suspend fun refreshBooks(): AppResult<Unit> = AppResult.Success(Unit)
-
-    override suspend fun getBook(id: String): Book? = null
-
-    override suspend fun getBooks(ids: List<String>): List<Book> = emptyList()
 
     override suspend fun getChapters(bookId: String): List<Chapter> = emptyList()
 

@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.presentation.tagdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,7 +47,7 @@ class TagDetailViewModel(
                         } else {
                             val books =
                                 bookRepository
-                                    .getBooks(bookIds)
+                                    .getBookListItems(bookIds)
                                     .sortedBy { it.title }
                             TagDetailUiState.Ready(
                                 tagId = tagId,
@@ -84,7 +84,7 @@ sealed interface TagDetailUiState {
     data class Ready(
         val tagId: String,
         val tagName: String,
-        val books: List<Book>,
+        val books: List<BookListItem>,
     ) : TagDetailUiState {
         val bookCount: Int get() = books.size
     }

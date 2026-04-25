@@ -12,7 +12,6 @@ import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.ContributorWithAliases
 import com.calypsan.listenup.client.data.local.db.SearchDao
-import com.calypsan.listenup.client.data.local.db.toDomain
 import com.calypsan.listenup.client.data.local.db.toListItem
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.ApplyContributorMetadataResult

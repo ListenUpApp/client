@@ -255,7 +255,7 @@ class DesktopPlayerViewModel(
     fun getChapters(): List<Chapter> = playbackManager.chapters.value
 
     private suspend fun loadBookInfo(bookId: BookId) {
-        val book = bookRepository.getBook(bookId.value) ?: return
+        val book = bookRepository.getBookListItem(bookId.value) ?: return
         val chapters = playbackManager.chapters.value
 
         state.update {

@@ -5,8 +5,6 @@ import com.calypsan.listenup.client.core.ContributorId
 import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.BookContributor
-import com.calypsan.listenup.client.domain.model.BookDetail
-import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.ImageStorage
@@ -21,8 +19,7 @@ import kotlin.test.assertEquals
  * Golden-output tests for the canonical mappers in [BookEntityMapper].
  *
  * These tests pin canonical mapper behavior so a future regression fails
- * immediately. Covers [BookWithContributors.toDomain] (legacy, slated for
- * deletion in W6 Phase G Task 12), [BookWithContributors.toListItem], and
+ * immediately. Covers [BookWithContributors.toListItem] and
  * [BookWithContributors.toDetail].
  */
 class BookWithContributorsMapperTest {
@@ -148,117 +145,6 @@ class BookWithContributorsMapperTest {
                 sequence = "1",
             ),
         )
-
-    @Test
-    fun `toDomain preserves all populated fields with a representative fixture`() {
-        val imageStorage: ImageStorage = mock()
-        every { imageStorage.exists(any()) } returns true
-        every { imageStorage.getCoverPath(any()) } returns "/data/covers/book-1.jpg"
-
-        val fixture =
-            BookWithContributors(
-                book = makeBook(),
-                contributors = makeContributors(),
-                contributorRoles = makeContributorRoles(),
-                series = makeSeries(),
-                seriesSequences = makeSeriesSequences(),
-            )
-
-        val result = fixture.toDomain(imageStorage, includeSeries = true)
-
-        assertEquals(bookId, result.id)
-        assertEquals("The Way of Kings", result.title)
-        assertEquals("Way of Kings, The", result.sortTitle)
-        assertEquals("The Stormlight Archive", result.subtitle)
-        assertEquals("/data/covers/book-1.jpg", result.coverPath)
-        assertEquals("L5H2EC=PM+yV", result.coverBlurHash)
-        assertEquals(0xFF2244CC.toInt(), result.dominantColor)
-        assertEquals(0xFF112233.toInt(), result.darkMutedColor)
-        assertEquals(0xFF3366FF.toInt(), result.vibrantColor)
-        assertEquals(72_000_000L, result.duration)
-        assertEquals("A fantasy epic.", result.description)
-        assertEquals(2010, result.publishYear)
-        assertEquals("Tor Books", result.publisher)
-        assertEquals("en", result.language)
-        assertEquals("978-0-7653-2637-9", result.isbn)
-        assertEquals("B003P2WO5E", result.asin)
-        assertEquals(false, result.abridged)
-        assertEquals(createdAt, result.addedAt)
-        assertEquals(updatedAt, result.updatedAt)
-        // genres and tags are always emptyList — loaded on-demand when editing
-        assertEquals(emptyList(), result.genres)
-        assertEquals(emptyList(), result.tags)
-        // allContributors is always emptyList from this mapper (see Task 13 drift row)
-        assertEquals(emptyList(), result.allContributors)
-        // rating is always null from this mapper
-        assertEquals(null, result.rating)
-        // authors
-        assertEquals(
-            listOf(BookContributor(id = authorId.value, name = "Brandon Sanderson")),
-            result.authors,
-        )
-        // narrators
-        assertEquals(
-            listOf(
-                BookContributor(id = narratorId.value, name = "Michael Kramer"),
-                BookContributor(id = narrator2Id.value, name = "Kate Reading"),
-            ),
-            result.narrators,
-        )
-        // series
-        assertEquals(
-            listOf(BookSeries(seriesId = seriesId.value, seriesName = "The Stormlight Archive", sequence = "1")),
-            result.series,
-        )
-    }
-
-    @Test
-    fun `toDomain with includeSeries=false omits series fields`() {
-        val imageStorage: ImageStorage = mock()
-        every { imageStorage.exists(any()) } returns false
-
-        val fixture =
-            BookWithContributors(
-                book = makeBook(),
-                contributors = makeContributors(),
-                contributorRoles = makeContributorRoles(),
-                series = makeSeries(),
-                seriesSequences = makeSeriesSequences(),
-            )
-
-        val result = fixture.toDomain(imageStorage, includeSeries = false)
-
-        assertEquals(emptyList(), result.series)
-        // cover is null because imageStorage.exists returns false
-        assertEquals(null, result.coverPath)
-        // non-series fields still populated
-        assertEquals("The Way of Kings", result.title)
-        assertEquals(
-            listOf(BookContributor(id = authorId.value, name = "Brandon Sanderson")),
-            result.authors,
-        )
-    }
-
-    @Test
-    fun `toDomain handles empty contributors list`() {
-        val imageStorage: ImageStorage = mock()
-        every { imageStorage.exists(any()) } returns false
-
-        val fixture =
-            BookWithContributors(
-                book = makeBook(),
-                contributors = emptyList(),
-                contributorRoles = emptyList(),
-                series = emptyList(),
-                seriesSequences = emptyList(),
-            )
-
-        val result = fixture.toDomain(imageStorage, includeSeries = true)
-
-        assertEquals(emptyList(), result.authors)
-        assertEquals(emptyList(), result.narrators)
-        assertEquals(emptyList(), result.series)
-    }
 
     @Test
     fun `toListItem returns BookListItem with authors and narrators populated, no detail-only fields`() {

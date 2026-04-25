@@ -2,7 +2,6 @@ package com.calypsan.listenup.client
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.BookListItem
@@ -19,70 +18,11 @@ import com.calypsan.listenup.client.domain.model.Tag
  *
  * Usage:
  * ```
- * val book = TestData.book(title = "Custom Title")
+ * val book = TestData.bookListItem(title = "Custom Title")
  * val contributor = TestData.contributor(name = "Jane Doe")
  * ```
  */
 object TestData {
-    /**
-     * Creates a sample Book with sensible defaults.
-     */
-    fun book(
-        id: String = "book-1",
-        title: String = "The Great Gatsby",
-        subtitle: String? = null,
-        authorName: String = "F. Scott Fitzgerald",
-        narratorName: String = "Jake Gyllenhaal",
-        allContributors: List<BookContributor>? = null, // If null, derived from author/narrator
-        duration: Long = 5_400_000L, // 1.5 hours
-        coverPath: String? = "/covers/gatsby.jpg",
-        description: String? = "A story of decadence and excess in the Jazz Age.",
-        genres: List<Genre> = emptyList(),
-        tags: List<Tag> = emptyList(),
-        seriesId: String? = null,
-        seriesName: String? = null,
-        seriesSequence: String? = null,
-        publishYear: Int? = 1925,
-        publisher: String? = null,
-        language: String? = null,
-        isbn: String? = null,
-        asin: String? = null,
-        abridged: Boolean = false,
-        rating: Double? = 4.5,
-    ): Book {
-        val seriesList =
-            if (seriesId != null && seriesName != null) {
-                listOf(BookSeries(seriesId = seriesId, seriesName = seriesName, sequence = seriesSequence))
-            } else {
-                emptyList()
-            }
-        val author = contributor(id = "author-$id", name = authorName, roles = listOf("Author"))
-        val narrator = contributor(id = "narrator-$id", name = narratorName, roles = listOf("Narrator"))
-        return Book(
-            id = BookId(id),
-            title = title,
-            subtitle = subtitle,
-            authors = listOf(author),
-            narrators = listOf(narrator),
-            allContributors = allContributors ?: listOf(author, narrator),
-            duration = duration,
-            coverPath = coverPath,
-            addedAt = Timestamp(1704067200000L),
-            updatedAt = Timestamp(1704067200000L),
-            description = description,
-            genres = genres,
-            tags = tags,
-            series = seriesList,
-            publishYear = publishYear,
-            publisher = publisher,
-            language = language,
-            isbn = isbn,
-            asin = asin,
-            abridged = abridged,
-            rating = rating,
-        )
-    }
-
     /**
      * Creates a sample [BookDetail] with sensible defaults.
      *
@@ -282,7 +222,7 @@ object TestData {
         }
 
     /**
-     * Creates a sample book with full series information.
+     * Creates a sample [BookDetail] with full series information.
      */
     fun bookInSeries(
         id: String = "book-1",
@@ -290,8 +230,8 @@ object TestData {
         seriesId: String = "series-1",
         seriesName: String = "The Lord of the Rings",
         seriesSequence: String = "1",
-    ): Book =
-        book(
+    ): BookDetail =
+        bookDetail(
             id = id,
             title = title,
             seriesId = seriesId,

@@ -5,7 +5,6 @@ import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.BookListItem
@@ -111,10 +110,10 @@ class FakeHomeRepository : HomeRepository {
  * Stores books in memory for testing book lookup scenarios.
  */
 class FakeBookRepository : BookRepository {
-    private val books = mutableMapOf<String, Book>()
+    private val books = mutableMapOf<String, BookListItem>()
     private val chapters = mutableMapOf<String, List<Chapter>>()
 
-    fun addBook(book: Book) {
+    fun addBook(book: BookListItem) {
         books[book.id.value] = book
     }
 
@@ -125,13 +124,7 @@ class FakeBookRepository : BookRepository {
         chapters[bookId] = bookChapters
     }
 
-    override fun observeBooks(): Flow<List<Book>> = flowOf(books.values.toList())
-
     override suspend fun refreshBooks(): AppResult<Unit> = Success(Unit)
-
-    override suspend fun getBook(id: String): Book? = books[id]
-
-    override suspend fun getBooks(ids: List<String>): List<Book> = ids.mapNotNull { books[it] }
 
     override suspend fun getChapters(bookId: String): List<Chapter> = chapters[bookId] ?: emptyList()
 
@@ -139,11 +132,11 @@ class FakeBookRepository : BookRepository {
 
     override fun observeRecentlyAddedBooks(limit: Int): Flow<List<DiscoveryBook>> = flowOf(emptyList())
 
-    override fun observeBookListItems(): Flow<List<BookListItem>> = flowOf(emptyList())
+    override fun observeBookListItems(): Flow<List<BookListItem>> = flowOf(books.values.toList())
 
-    override suspend fun getBookListItem(id: String): BookListItem? = null
+    override suspend fun getBookListItem(id: String): BookListItem? = books[id]
 
-    override suspend fun getBookListItems(ids: List<String>): List<BookListItem> = emptyList()
+    override suspend fun getBookListItems(ids: List<String>): List<BookListItem> = ids.mapNotNull { books[it] }
 
     override fun observeBookDetail(id: String): Flow<BookDetail?> = flowOf(null)
 
@@ -242,7 +235,7 @@ fun testBook(
     seriesSequence: String? = null,
     series: List<com.calypsan.listenup.client.domain.model.BookSeries> = emptyList(),
     duration: Long = 3_600_000, // 1 hour
-): Book {
+): BookListItem {
     // Use explicit series list if provided, otherwise build from individual params
     val bookSeries =
         series.ifEmpty {
@@ -259,7 +252,7 @@ fun testBook(
             }
         }
 
-    return Book(
+    return BookListItem(
         id = BookId(id),
         title = title,
         authors = listOf(BookContributor(id = "author-1", name = authorName, roles = listOf("author"))),

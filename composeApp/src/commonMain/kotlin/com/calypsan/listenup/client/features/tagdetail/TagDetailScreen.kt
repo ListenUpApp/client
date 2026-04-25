@@ -45,7 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.presentation.tagdetail.TagDetailUiState
 import com.calypsan.listenup.client.presentation.tagdetail.TagDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -241,7 +241,7 @@ private fun TagStatsSection(
  */
 @Composable
 private fun TagBookItem(
-    book: Book,
+    book: BookListItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
