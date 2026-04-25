@@ -6,14 +6,12 @@ import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.BookRepository
-import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
 import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
-import dev.mokkery.answering.calls
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -22,7 +20,8 @@ import dev.mokkery.mock
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -60,7 +59,6 @@ class BookDetailViewModelTest {
 
     private class TestFixture {
         val bookRepository: BookRepository = mock()
-        val genreRepository: GenreRepository = mock()
         val tagRepository: TagRepository = mock()
         val playbackPositionRepository: PlaybackPositionRepository = mock()
         val userRepository: UserRepository = mock()
@@ -71,7 +69,6 @@ class BookDetailViewModelTest {
         fun build(): BookDetailViewModel =
             BookDetailViewModel(
                 bookRepository = bookRepository,
-                genreRepository = genreRepository,
                 tagRepository = tagRepository,
                 playbackPositionRepository = playbackPositionRepository,
                 userRepository = userRepository,
@@ -85,11 +82,9 @@ class BookDetailViewModelTest {
         val fixture = TestFixture()
 
         // Default stubs for domain repositories
-        every { fixture.genreRepository.observeGenresForBook(any()) } returns flowOf(emptyList())
         everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
         every { fixture.userRepository.observeCurrentUser() } returns flowOf(null)
         every { fixture.shelfRepository.observeMyShelves(any()) } returns flowOf(emptyList())
-        every { fixture.tagRepository.observeTagsForBook(any()) } returns flowOf(emptyList())
         every { fixture.tagRepository.observeAll() } returns flowOf(emptyList())
         every { fixture.userRepository.observeIsAdmin() } returns flowOf(false)
 
@@ -149,9 +144,9 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(title = "My Book", description = "A description")
+            val book = TestData.bookDetail(title = "My Book", description = "A description")
             val chapters = listOf(TestData.chapter(id = "ch1"), TestData.chapter(id = "ch2"))
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            every { fixture.bookRepository.observeBookDetail("book-1") } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters("book-1") } returns chapters
             val viewModel = fixture.build()
 
@@ -177,7 +172,8 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("nonexistent") } returns null
+            every { fixture.bookRepository.observeBookDetail("nonexistent") } returns flowOf(null)
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
             turbineScope {
@@ -203,13 +199,13 @@ class BookDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     subtitle = "The Stormlight Archive, Book 1",
                     seriesId = "series-1",
                     seriesName = "The Stormlight Archive",
                     seriesSequence = "1",
                 )
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
@@ -234,12 +230,12 @@ class BookDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     subtitle = "A Novel of Discovery",
                     seriesName = "The Stormlight Archive",
                     seriesSequence = "1",
                 )
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
@@ -264,11 +260,11 @@ class BookDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val book =
-                TestData.book(
+                TestData.bookDetail(
                     subtitle = "Part 1",
                     seriesName = null,
                 )
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
@@ -290,20 +286,19 @@ class BookDetailViewModelTest {
     // ========== Genre Loading Tests ==========
 
     @Test
-    fun `loadBook loads genres from API`() =
+    fun `loadBook loads genres from BookDetail`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book()
             val bookGenres =
                 listOf(
                     Genre(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
                     Genre(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
                     Genre(id = "g3", name = "Adventure", slug = "adventure", path = "/fiction/adventure"),
                 )
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            val book = TestData.bookDetail(genres = bookGenres)
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            every { fixture.genreRepository.observeGenresForBook(any()) } returns flowOf(bookGenres)
             val viewModel = fixture.build()
 
             turbineScope {
@@ -326,14 +321,14 @@ class BookDetailViewModelTest {
         }
 
     @Test
-    fun `loadBook handles empty genres from API`() =
+    fun `loadBook handles empty genres from BookDetail`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book()
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            val book = TestData.bookDetail()
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            // genreDao.observeGenresForBook already returns empty list from createFixture()
+            // BookDetail genres default to empty
             val viewModel = fixture.build()
 
             turbineScope {
@@ -354,12 +349,13 @@ class BookDetailViewModelTest {
     @Test
     fun `loadBook handles genre loading failure gracefully`() =
         runTest {
-            // Given - genres come from Room, no network involved, so simulate empty flow
+            // Given - genres come bundled in BookDetail; an empty list represents
+            // both "no genres" and "loader failed but recovered" — the VM has no
+            // separate failure path since the repository is the SSoT.
             val fixture = createFixture()
-            val book = TestData.book()
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            val book = TestData.bookDetail()
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            // genreDao.observeGenresForBook already returns empty list from createFixture()
             val viewModel = fixture.build()
 
             turbineScope {
@@ -385,9 +381,9 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(duration = 3_600_000L) // 1 hour
+            val book = TestData.bookDetail(duration = 3_600_000L) // 1 hour
             val position = createPlaybackPosition(positionMs = 1_800_000L) // 30 min in
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
             val viewModel = fixture.build()
@@ -412,8 +408,8 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(duration = 3_600_000L)
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            val book = TestData.bookDetail(duration = 3_600_000L)
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
             val viewModel = fixture.build()
@@ -438,9 +434,9 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(duration = 3_600_000L) // 1 hour
+            val book = TestData.bookDetail(duration = 3_600_000L) // 1 hour
             val position = createPlaybackPosition(positionMs = 3_564_000L) // 99% complete
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
             val viewModel = fixture.build()
@@ -469,9 +465,9 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(duration = 10_800_000L) // 3 hours
+            val book = TestData.bookDetail(duration = 10_800_000L) // 3 hours
             val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
             val viewModel = fixture.build()
@@ -496,9 +492,9 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(duration = 3_600_000L) // 1 hour
+            val book = TestData.bookDetail(duration = 3_600_000L) // 1 hour
             val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
             val viewModel = fixture.build()
@@ -525,8 +521,8 @@ class BookDetailViewModelTest {
         runTest {
             // Given - must load a book so state is Ready (updateReady no-ops on Loading)
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            val book = TestData.bookDetail(id = "book-1")
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
@@ -554,8 +550,8 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            val book = TestData.bookDetail(id = "book-1")
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
@@ -583,9 +579,8 @@ class BookDetailViewModelTest {
     @Test
     fun `loadBook loads tags for book`() =
         runTest {
-            // Given - tags come from repository flows (offline-first)
+            // Given - tags come bundled with BookDetail; allTags is the picker-wide flow
             val fixture = createFixture()
-            val book = TestData.book()
             val bookTags =
                 listOf(
                     Tag(id = "tag-1", slug = "favorites", bookCount = 5),
@@ -595,9 +590,9 @@ class BookDetailViewModelTest {
                     Tag(id = "tag-1", slug = "favorites", bookCount = 5),
                     Tag(id = "tag-2", slug = "to-read", bookCount = 3),
                 )
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            val book = TestData.bookDetail(tags = bookTags)
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            every { fixture.tagRepository.observeTagsForBook(any()) } returns flowOf(bookTags)
             every { fixture.tagRepository.observeAll() } returns flowOf(allTags)
             val viewModel = fixture.build()
 
@@ -623,9 +618,9 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
+            val book = TestData.bookDetail(id = "book-1")
             val tag = TestData.tag(id = "tag-1", slug = "favorites")
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.tagRepository.addTagToBook(any(), any()) } returns tag
             val viewModel = fixture.build()
@@ -653,12 +648,11 @@ class BookDetailViewModelTest {
         runTest {
             // Given - need tags in state for removeTag to find the tag by slug
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
             val bookTags =
                 listOf(Tag(id = "tag-1", slug = "favorites", bookCount = 5))
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            val book = TestData.bookDetail(id = "book-1", tags = bookTags)
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            every { fixture.tagRepository.observeTagsForBook(any()) } returns flowOf(bookTags)
             everySuspend { fixture.tagRepository.removeTagFromBook(any(), any(), any()) } returns Unit
             val viewModel = fixture.build()
 
@@ -685,9 +679,9 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
+            val book = TestData.bookDetail(id = "book-1")
             val newTag = TestData.tag(id = "new-tag", slug = "new-tag")
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.tagRepository.addTagToBook(any(), any()) } returns newTag
             val viewModel = fixture.build()
@@ -738,12 +732,12 @@ class BookDetailViewModelTest {
     @Test
     fun `loadBook handles tag loading failure gracefully`() =
         runTest {
-            // Given - tags come from Room flows, so test empty flow scenario
+            // Given - tags come bundled with BookDetail; an empty list is the
+            // benign default when nothing has been loaded yet.
             val fixture = createFixture()
-            val book = TestData.book()
-            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            val book = TestData.bookDetail()
+            every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            // Tags come from Room via observeTagsForBook (already returns empty in createFixture)
             val viewModel = fixture.build()
 
             turbineScope {
@@ -767,18 +761,18 @@ class BookDetailViewModelTest {
     fun `rapid loadBook calls for different bookIds emit one coherent sequence with no cross-book contamination`() =
         runTest {
             val fixture = createFixture()
-            val bookX = TestData.book(id = "book-X", title = "Book X")
-            val bookY = TestData.book(id = "book-Y", title = "Book Y")
-            // Force X-load to suspend so Y can cancel it mid-flight via flatMapLatest.
-            // Without the delay, Mokkery returns synchronously and MutableStateFlow
-            // conflation means the X-load may never start — flatMapLatest cancellation
-            // is not exercised. With delay(1_000) the X-load is in-flight when
-            // loadBook("book-Y") fires; advanceUntilIdle() lets Y win and cancel X.
-            everySuspend { fixture.bookRepository.getBook("book-X") } calls {
-                delay(1_000)
-                bookX
-            }
-            everySuspend { fixture.bookRepository.getBook("book-Y") } returns bookY
+            val bookX = TestData.bookDetail(id = "book-X", title = "Book X")
+            val bookY = TestData.bookDetail(id = "book-Y", title = "Book Y")
+            // Make book-X's observer never complete — emits once then suspends in
+            // awaitCancellation. flatMapLatest cancels it when book-Y is requested,
+            // and book-Y's flowOf emits and completes immediately. The final state
+            // must be Ready for book-Y.
+            every { fixture.bookRepository.observeBookDetail("book-X") } returns
+                flow {
+                    emit(bookX)
+                    awaitCancellation()
+                }
+            every { fixture.bookRepository.observeBookDetail("book-Y") } returns flowOf(bookY)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             val viewModel = fixture.build()
 
@@ -791,10 +785,47 @@ class BookDetailViewModelTest {
                 advanceUntilIdle()
 
                 val final = states.expectMostRecentItem()
-                // flatMapLatest cancels the in-flight book-X load when book-Y is requested.
-                // Final state must be Ready for book-Y, not contaminated by book-X.
+                // flatMapLatest cancels the in-flight book-X observer when book-Y
+                // is requested. Final state must be Ready for book-Y, not
+                // contaminated by book-X.
                 assertTrue(final is BookDetailUiState.Ready)
                 assertEquals("book-Y", final.book.id.value)
+                states.cancel()
+            }
+        }
+
+    @Test
+    fun `book switch cancels prior observeBookDetail subscription`() =
+        runTest {
+            val fixture = createFixture()
+            val book1 = TestData.bookDetail(id = "book-1", title = "Book 1")
+            val book2 = TestData.bookDetail(id = "book-2", title = "Book 2")
+            every { fixture.bookRepository.observeBookDetail("book-1") } returns
+                flow {
+                    emit(book1)
+                    awaitCancellation()
+                }
+            every { fixture.bookRepository.observeBookDetail("book-2") } returns flowOf(book2)
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
+            val viewModel = fixture.build()
+
+            turbineScope {
+                val states = viewModel.state.testIn(backgroundScope)
+                states.awaitItem() // initial Loading
+
+                viewModel.loadBook("book-1")
+                advanceUntilIdle()
+                val ready1 = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals("book-1", ready1.book.id.value)
+
+                // Switching to book-2 must cancel book-1's observer (which is parked
+                // in awaitCancellation). flatMapLatest does this automatically.
+                viewModel.loadBook("book-2")
+                advanceUntilIdle()
+                val ready2 = assertIs<BookDetailUiState.Ready>(states.expectMostRecentItem())
+                assertEquals("book-2", ready2.book.id.value)
+
                 states.cancel()
             }
         }

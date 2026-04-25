@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.Genre
@@ -57,6 +58,69 @@ object TestData {
         val author = contributor(id = "author-$id", name = authorName, roles = listOf("Author"))
         val narrator = contributor(id = "narrator-$id", name = narratorName, roles = listOf("Narrator"))
         return Book(
+            id = BookId(id),
+            title = title,
+            subtitle = subtitle,
+            authors = listOf(author),
+            narrators = listOf(narrator),
+            allContributors = allContributors ?: listOf(author, narrator),
+            duration = duration,
+            coverPath = coverPath,
+            addedAt = Timestamp(1704067200000L),
+            updatedAt = Timestamp(1704067200000L),
+            description = description,
+            genres = genres,
+            tags = tags,
+            series = seriesList,
+            publishYear = publishYear,
+            publisher = publisher,
+            language = language,
+            isbn = isbn,
+            asin = asin,
+            abridged = abridged,
+            rating = rating,
+        )
+    }
+
+    /**
+     * Creates a sample [BookDetail] with sensible defaults.
+     *
+     * Mirrors [book] so existing test sites can flip from `Book` to `BookDetail`
+     * with a one-word rename. The [genres] and [tags] arguments default to
+     * empty — pass them when the test exercises detail-screen genre/tag flows.
+     */
+    fun bookDetail(
+        id: String = "book-1",
+        title: String = "The Great Gatsby",
+        subtitle: String? = null,
+        authorName: String = "F. Scott Fitzgerald",
+        narratorName: String = "Jake Gyllenhaal",
+        allContributors: List<BookContributor>? = null,
+        duration: Long = 5_400_000L,
+        coverPath: String? = "/covers/gatsby.jpg",
+        description: String? = "A story of decadence and excess in the Jazz Age.",
+        genres: List<Genre> = emptyList(),
+        tags: List<Tag> = emptyList(),
+        seriesId: String? = null,
+        seriesName: String? = null,
+        seriesSequence: String? = null,
+        publishYear: Int? = 1925,
+        publisher: String? = null,
+        language: String? = null,
+        isbn: String? = null,
+        asin: String? = null,
+        abridged: Boolean = false,
+        rating: Double? = 4.5,
+    ): BookDetail {
+        val seriesList =
+            if (seriesId != null && seriesName != null) {
+                listOf(BookSeries(seriesId = seriesId, seriesName = seriesName, sequence = seriesSequence))
+            } else {
+                emptyList()
+            }
+        val author = contributor(id = "author-$id", name = authorName, roles = listOf("Author"))
+        val narrator = contributor(id = "narrator-$id", name = narratorName, roles = listOf("Narrator"))
+        return BookDetail(
             id = BookId(id),
             title = title,
             subtitle = subtitle,
