@@ -2,6 +2,8 @@ package com.calypsan.listenup.client.domain.repository
 
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookDetail
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
 import kotlinx.coroutines.flow.Flow
 
@@ -66,6 +68,65 @@ interface BookRepository {
      * @return Flow emitting list of discovery book summaries
      */
     fun observeRecentlyAddedBooks(limit: Int = 10): Flow<List<DiscoveryBook>>
+
+    /**
+     * Observe all books as a reactive Flow of [BookListItem] projections.
+     *
+     * The list surface does not carry [BookDetail.genres]/[BookDetail.tags]/
+     * [BookDetail.allContributors] — those are detail-only. Use this for home,
+     * shelf, library, and any other list/grid consumer.
+     *
+     * Unlike [observeBookDetail], genre-only or tag-only edits to a book do
+     * NOT cause this flow to re-emit — the list projection does not depend on
+     * those edges.
+     *
+     * @return Flow emitting the current list-shaped book projection
+     */
+    fun observeBookListItems(): Flow<List<BookListItem>>
+
+    /**
+     * Get a single [BookListItem] by ID.
+     *
+     * @param id The book ID
+     * @return List-shaped projection, or null if the book doesn't exist.
+     */
+    suspend fun getBookListItem(id: String): BookListItem?
+
+    /**
+     * Get multiple [BookListItem]s by IDs in a single batched query.
+     *
+     * Uses a SQL IN clause to batch-load. Results are unordered — callers that
+     * need a specific order should re-sort on the returned list.
+     *
+     * @param ids Book IDs to fetch. Empty input returns an empty list.
+     * @return List-shaped projections for the books that exist. May be smaller
+     *   than the requested input if some IDs aren't in the local DB.
+     */
+    suspend fun getBookListItems(ids: List<String>): List<BookListItem>
+
+    /**
+     * Observe a single book's [BookDetail] reactively.
+     *
+     * Emits null if the book is absent; emits a [BookDetail] when the row
+     * exists. Composes the book Flow with the book's genres Flow and tags
+     * Flow — so genre and tag edits flow through to detail-screen consumers
+     * without any additional subscription bookkeeping.
+     *
+     * @param id The book ID
+     * @return Flow emitting the current detail shape, or null if absent.
+     */
+    fun observeBookDetail(id: String): Flow<BookDetail?>
+
+    /**
+     * Get a single book's [BookDetail] as a one-shot read.
+     *
+     * Snapshots the current book row + its genres + its tags. For reactive
+     * detail-screen consumption prefer [observeBookDetail].
+     *
+     * @param id The book ID
+     * @return Detail shape, or null if the book doesn't exist.
+     */
+    suspend fun getBookDetail(id: String): BookDetail?
 }
 
 /**

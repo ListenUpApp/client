@@ -1352,6 +1352,8 @@ val syncModule =
                 chapterDao = get(),
                 syncManager = get(),
                 imageStorage = get(),
+                genreRepository = get(),
+                tagRepository = get(),
             )
         }
 

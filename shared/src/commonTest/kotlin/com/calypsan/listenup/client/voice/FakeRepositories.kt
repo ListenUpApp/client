@@ -7,6 +7,8 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookDetail
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import com.calypsan.listenup.client.domain.model.SearchFacets
@@ -136,6 +138,16 @@ class FakeBookRepository : BookRepository {
     override fun observeRandomUnstartedBooks(limit: Int): Flow<List<DiscoveryBook>> = flowOf(emptyList())
 
     override fun observeRecentlyAddedBooks(limit: Int): Flow<List<DiscoveryBook>> = flowOf(emptyList())
+
+    override fun observeBookListItems(): Flow<List<BookListItem>> = flowOf(emptyList())
+
+    override suspend fun getBookListItem(id: String): BookListItem? = null
+
+    override suspend fun getBookListItems(ids: List<String>): List<BookListItem> = emptyList()
+
+    override fun observeBookDetail(id: String): Flow<BookDetail?> = flowOf(null)
+
+    override suspend fun getBookDetail(id: String): BookDetail? = null
 }
 
 // ========== Fake Series Repository ==========

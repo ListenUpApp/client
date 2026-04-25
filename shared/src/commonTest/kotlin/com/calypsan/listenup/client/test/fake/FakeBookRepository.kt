@@ -3,12 +3,15 @@ package com.calypsan.listenup.client.test.fake
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookDetail
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.DiscoveryBook
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import com.calypsan.listenup.client.core.Success
 
@@ -55,6 +58,16 @@ class FakeBookRepository(
         books.asStateFlow().map { list ->
             list.sortedByDescending { it.addedAt.epochMillis }.take(limit).map(::toDiscoveryBook)
         }
+
+    override fun observeBookListItems(): Flow<List<BookListItem>> = flowOf(emptyList())
+
+    override suspend fun getBookListItem(id: String): BookListItem? = null
+
+    override suspend fun getBookListItems(ids: List<String>): List<BookListItem> = emptyList()
+
+    override fun observeBookDetail(id: String): Flow<BookDetail?> = flowOf(null)
+
+    override suspend fun getBookDetail(id: String): BookDetail? = null
 
     /** Test helper: replace the book list, emitting to all observers. */
     fun setBooks(list: List<Book>) {

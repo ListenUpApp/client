@@ -7,15 +7,23 @@ import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
+import com.calypsan.listenup.client.data.local.db.toDetail
+import com.calypsan.listenup.client.data.local.db.toListItem
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookDetail
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.DiscoveryBook
+import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
+import com.calypsan.listenup.client.domain.repository.TagRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -38,12 +46,18 @@ import kotlinx.coroutines.flow.map
  * @property chapterDao Room DAO for chapter operations
  * @property syncManager Sync orchestrator for server communication
  * @property imageStorage Storage for resolving cover image paths
+ * @property genreRepository Upstream Flow source for a book's genres, composed
+ *   into [observeBookDetail] so genre edits propagate to detail-screen consumers.
+ * @property tagRepository Upstream Flow source for a book's tags, composed
+ *   into [observeBookDetail] so tag edits propagate to detail-screen consumers.
  */
 class BookRepositoryImpl(
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
     private val syncManager: SyncManagerContract,
     private val imageStorage: ImageStorage,
+    private val genreRepository: GenreRepository,
+    private val tagRepository: TagRepository,
 ) : com.calypsan.listenup.client.domain.repository.BookRepository {
     private val logger = KotlinLogging.logger {}
 
@@ -266,6 +280,40 @@ class BookRepositoryImpl(
                 entity.toDiscoveryBook(imageStorage)
             }
         }
+
+    override fun observeBookListItems(): Flow<List<BookListItem>> =
+        bookDao.observeAllWithContributors().map { rows ->
+            rows.map { it.toListItem(imageStorage) }
+        }
+
+    override suspend fun getBookListItem(id: String): BookListItem? =
+        bookDao.getByIdWithContributors(BookId(id))?.toListItem(imageStorage)
+
+    override suspend fun getBookListItems(ids: List<String>): List<BookListItem> {
+        if (ids.isEmpty()) return emptyList()
+        return bookDao
+            .getByIdsWithContributors(ids.map { BookId(it) })
+            .map { it.toListItem(imageStorage) }
+    }
+
+    override fun observeBookDetail(id: String): Flow<BookDetail?> {
+        val bookId = BookId(id)
+        return combine(
+            bookDao.observeByIdWithContributors(bookId),
+            genreRepository.observeGenresForBook(id),
+            tagRepository.observeTagsForBook(id),
+        ) { row, genres, tags ->
+            row?.toDetail(imageStorage, genres, tags)
+        }
+    }
+
+    override suspend fun getBookDetail(id: String): BookDetail? {
+        val bookId = BookId(id)
+        val row = bookDao.getByIdWithContributors(bookId) ?: return null
+        val genres = genreRepository.observeGenresForBook(id).first()
+        val tags = tagRepository.observeTagsForBook(id).first()
+        return row.toDetail(imageStorage, genres, tags)
+    }
 }
 
 /**

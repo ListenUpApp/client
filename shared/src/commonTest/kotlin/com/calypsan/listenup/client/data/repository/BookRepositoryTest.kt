@@ -38,6 +38,8 @@ class BookRepositoryTest {
         val chapterDao: ChapterDao = mock()
         val syncManager: SyncManagerContract = mock()
         val imageStorage: ImageStorage = mock()
+        val genreRepository: com.calypsan.listenup.client.domain.repository.GenreRepository = mock()
+        val tagRepository: com.calypsan.listenup.client.domain.repository.TagRepository = mock()
 
         fun build(): BookRepositoryImpl =
             BookRepositoryImpl(
@@ -45,6 +47,8 @@ class BookRepositoryTest {
                 chapterDao = chapterDao,
                 syncManager = syncManager,
                 imageStorage = imageStorage,
+                genreRepository = genreRepository,
+                tagRepository = tagRepository,
             )
     }
 
