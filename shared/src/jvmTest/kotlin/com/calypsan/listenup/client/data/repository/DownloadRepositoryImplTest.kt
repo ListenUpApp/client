@@ -170,8 +170,8 @@ class DownloadRepositoryImplTest {
         id: String,
         title: String,
         authors: List<String>,
-    ): Book =
-        Book(
+    ): BookListItem =
+        BookListItem(
             id = BookId(id),
             title = title,
             authors =
@@ -187,15 +187,15 @@ class DownloadRepositoryImplTest {
 }
 
 private class FakeBookRepository : BookRepository {
-    var books: List<Book> = emptyList()
+    var books: List<BookListItem> = emptyList()
 
-    override fun observeBooks(): Flow<List<Book>> = flowOf(books)
+    override fun observeBooks(): Flow<List<Book>> = flowOf(emptyList())
 
     override suspend fun refreshBooks(): AppResult<Unit> = AppResult.Success(Unit)
 
-    override suspend fun getBook(id: String): Book? = books.firstOrNull { it.id.value == id }
+    override suspend fun getBook(id: String): Book? = null
 
-    override suspend fun getBooks(ids: List<String>): List<Book> = books.filter { it.id.value in ids }
+    override suspend fun getBooks(ids: List<String>): List<Book> = emptyList()
 
     override suspend fun getChapters(bookId: String): List<Chapter> = emptyList()
 
@@ -203,11 +203,11 @@ private class FakeBookRepository : BookRepository {
 
     override fun observeRecentlyAddedBooks(limit: Int): Flow<List<DiscoveryBook>> = flowOf(emptyList())
 
-    override fun observeBookListItems(): Flow<List<BookListItem>> = flowOf(emptyList())
+    override fun observeBookListItems(): Flow<List<BookListItem>> = flowOf(books)
 
-    override suspend fun getBookListItem(id: String): BookListItem? = null
+    override suspend fun getBookListItem(id: String): BookListItem? = books.firstOrNull { it.id.value == id }
 
-    override suspend fun getBookListItems(ids: List<String>): List<BookListItem> = emptyList()
+    override suspend fun getBookListItems(ids: List<String>): List<BookListItem> = books.filter { it.id.value in ids }
 
     override fun observeBookDetail(id: String): Flow<BookDetail?> = flowOf(null)
 

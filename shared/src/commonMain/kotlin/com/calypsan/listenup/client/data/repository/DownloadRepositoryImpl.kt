@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.map
 /**
  * Reads downloaded-book summaries from Room, enriched with book metadata from [BookRepository].
  *
- * Uses the batched [BookRepository.getBooks] variant so the common case (N downloaded books)
- * is one DAO query + one Room relation query, not N+1 per-book lookups.
+ * Uses the batched [BookRepository.getBookListItems] variant so the common case (N downloaded
+ * books) is one DAO query + one Room relation query, not N+1 per-book lookups.
  */
 class DownloadRepositoryImpl(
     private val downloadDao: DownloadDao,
@@ -27,10 +27,10 @@ class DownloadRepositoryImpl(
 
             if (completedByBook.isEmpty()) return@map emptyList()
 
-            // Book.id is a BookId value class — associate by .value to match String keys.
+            // BookListItem.id is a BookId value class — associate by .value to match String keys.
             val books =
                 bookRepository
-                    .getBooks(completedByBook.keys.toList())
+                    .getBookListItems(completedByBook.keys.toList())
                     .associateBy { it.id.value }
 
             completedByBook
