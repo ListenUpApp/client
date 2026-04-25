@@ -44,8 +44,14 @@ struct BookCoverImage: View {
     @State private var loadedImage: UIImage?
     @State private var loadTask: Task<Void, Never>?
 
-    /// Convenience initializer from a Book object
-    init(book: Book) {
+    /// Convenience initializer from a BookListItem
+    init(book: BookListItem) {
+        self.coverPath = book.coverPath
+        self.blurHash = book.coverBlurHash
+    }
+
+    /// Convenience initializer from a BookDetail
+    init(book: BookDetail) {
         self.coverPath = book.coverPath
         self.blurHash = book.coverBlurHash
     }

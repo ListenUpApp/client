@@ -194,7 +194,7 @@ struct ContributorDetailView: View {
         }
     }
 
-    private func bookCard(book: Book, progress: Float?) -> some View {
+    private func bookCard(book: BookListItem, progress: Float?) -> some View {
         NavigationLink(value: BookDestination(id: book.idString)) {
             VStack(alignment: .leading, spacing: 8) {
                 // Cover with progress overlay — floating, no card

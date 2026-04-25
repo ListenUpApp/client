@@ -11,13 +11,13 @@ import UIKit
 /// - Title and author (single line, truncated)
 /// - Optional progress bar at bottom of cover
 struct BookCoverCard: View {
-    let book: Book
+    let book: BookListItem
     let progress: Float?
 
     /// Cached UIImage loaded from local file path.
     private let cachedImage: UIImage?
 
-    init(book: Book, progress: Float? = nil) {
+    init(book: BookListItem, progress: Float? = nil) {
         self.book = book
         self.progress = progress
 
@@ -130,7 +130,7 @@ struct BookCoverCard: View {
 #Preview("With Progress") {
     ScrollView {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 16) {
-            // Can't create real Book in preview, use placeholders
+            // Can't create real BookListItem in preview, use placeholders
             ForEach(0 ..< 6, id: \.self) { _ in
                 BookCoverCardPreview()
             }
@@ -139,7 +139,7 @@ struct BookCoverCard: View {
     }
 }
 
-/// Preview helper since we can't easily create Kotlin Book objects
+/// Preview helper since we can't easily create Kotlin BookListItem objects
 private struct BookCoverCardPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

@@ -17,7 +17,7 @@ final class LibraryObserver {
     // MARK: - Books
 
     /// List of books from uiState
-    var books: [Book] {
+    var books: [BookListItem] {
         guard let list = uiState?.books else { return [] }
         return Array(list)
     }

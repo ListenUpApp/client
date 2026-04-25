@@ -14,7 +14,7 @@ struct SeriesCard: View {
     let series: SeriesWithBooks_
 
     /// Books from the series (uses order from data source)
-    private var seriesBooks: [Book] {
+    private var seriesBooks: [BookListItem] {
         Array(series.books)
     }
 

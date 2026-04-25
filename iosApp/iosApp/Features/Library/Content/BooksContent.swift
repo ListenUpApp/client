@@ -10,7 +10,7 @@ import Shared
 /// - Pull-to-refresh
 /// - Loading, empty, and error states
 struct BooksContent: View {
-    let books: [Book]
+    let books: [BookListItem]
     let bookProgress: [String: Float]
     let sortState: SortState?
     let isLoading: Bool
@@ -137,7 +137,7 @@ struct BooksContent: View {
     }
 
     /// Groups books into alphabetically sorted sections.
-    private func buildSections(books: [Book]) -> [(letter: Character, books: [Book])] {
+    private func buildSections(books: [BookListItem]) -> [(letter: Character, books: [BookListItem])] {
         let grouped = Dictionary(grouping: books) { book -> Character in
             guard let first = book.title.first?.uppercased().first else { return "#" }
             return first.isLetter ? first : "#"
