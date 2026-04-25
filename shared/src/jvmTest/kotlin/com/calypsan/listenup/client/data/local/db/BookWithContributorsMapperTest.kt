@@ -5,7 +5,10 @@ import com.calypsan.listenup.client.core.ContributorId
 import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.BookSeries
+import com.calypsan.listenup.client.domain.model.Genre
+import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -255,5 +258,111 @@ class BookWithContributorsMapperTest {
         assertEquals(emptyList(), result.authors)
         assertEquals(emptyList(), result.narrators)
         assertEquals(emptyList(), result.series)
+    }
+
+    @Test
+    fun `toListItem returns BookListItem with authors and narrators populated, no detail-only fields`() {
+        val imageStorage = mock<ImageStorage>()
+        every { imageStorage.exists(any()) } returns false
+
+        val bookWithContributors =
+            BookWithContributors(
+                book = makeBook(),
+                contributors = makeContributors(),
+                contributorRoles = makeContributorRoles(),
+                series = makeSeries(),
+                seriesSequences = makeSeriesSequences(),
+            )
+
+        val result = bookWithContributors.toListItem(imageStorage)
+
+        assertEquals(bookId, result.id)
+        assertEquals("The Way of Kings", result.title)
+        // Authors + narrators total = the count of distinct contributors with those roles.
+        // Fixture: 1 author (authorId) + 2 narrators (narratorId, narrator2Id) = 3.
+        assertEquals(3, result.authors.size + result.narrators.size)
+        // Series populated from junction.
+        assertEquals(1, result.series.size)
+        assertEquals("The Stormlight Archive", result.series.first().seriesName)
+    }
+
+    @Test
+    fun `toDetail computes allContributors via dedup-and-role-aggregation, genres+tags forwarded as-is`() {
+        val imageStorage = mock<ImageStorage>()
+        every { imageStorage.exists(any()) } returns false
+
+        val genres = listOf(Genre(id = "genre-1", name = "Fantasy", slug = "fantasy", path = "/fantasy"))
+        val tags = listOf(Tag(id = "tag-1", slug = "epic"))
+
+        val bookWithContributors =
+            BookWithContributors(
+                book = makeBook(),
+                contributors = makeContributors(),
+                contributorRoles = makeContributorRoles(),
+                series = makeSeries(),
+                seriesSequences = makeSeriesSequences(),
+            )
+
+        val result = bookWithContributors.toDetail(imageStorage, genres, tags)
+
+        // allContributors: every distinct contributor with all roles grouped.
+        // The fixture has authorId (role: author), narratorId (role: narrator), narrator2Id (role: narrator) — 3 distinct contributors.
+        assertEquals(3, result.allContributors.size)
+        val sandersonRoles = result.allContributors.first { it.id == "contrib-author" }.roles
+        assertEquals(listOf("author"), sandersonRoles)
+        val kramerRoles = result.allContributors.first { it.id == "contrib-narrator" }.roles
+        assertEquals(listOf("narrator"), kramerRoles)
+
+        // Genres + tags forwarded verbatim.
+        assertEquals(genres, result.genres)
+        assertEquals(tags, result.tags)
+    }
+
+    @Test
+    fun `toDetail allContributors handles same person in multiple roles by grouping`() {
+        val imageStorage = mock<ImageStorage>()
+        every { imageStorage.exists(any()) } returns false
+
+        // Sanderson is BOTH author and narrator on this book.
+        val authorAndNarratorRoles =
+            listOf(
+                BookContributorCrossRef(bookId, authorId, role = "author", creditedAs = null),
+                BookContributorCrossRef(bookId, authorId, role = "narrator", creditedAs = null),
+            )
+        val singleContributor = makeContributors().first { it.id == authorId }
+
+        val bookWithContributors =
+            BookWithContributors(
+                book = makeBook(),
+                contributors = listOf(singleContributor),
+                contributorRoles = authorAndNarratorRoles,
+                series = emptyList(),
+                seriesSequences = emptyList(),
+            )
+
+        val result = bookWithContributors.toDetail(imageStorage, emptyList(), emptyList())
+
+        assertEquals(1, result.allContributors.size, "Same contributor across roles must dedupe to a single entry")
+        assertEquals(listOf("author", "narrator"), result.allContributors.first().roles)
+    }
+
+    @Test
+    fun `toDetail then toListItem equals toListItem for same input`() {
+        val imageStorage = mock<ImageStorage>()
+        every { imageStorage.exists(any()) } returns false
+
+        val bookWithContributors =
+            BookWithContributors(
+                book = makeBook(),
+                contributors = makeContributors(),
+                contributorRoles = makeContributorRoles(),
+                series = makeSeries(),
+                seriesSequences = makeSeriesSequences(),
+            )
+
+        val viaDetail = bookWithContributors.toDetail(imageStorage, emptyList(), emptyList()).toListItem()
+        val direct = bookWithContributors.toListItem(imageStorage)
+
+        assertEquals(direct, viaDetail, "BookDetail.toListItem() must match canonical toListItem mapper")
     }
 }
