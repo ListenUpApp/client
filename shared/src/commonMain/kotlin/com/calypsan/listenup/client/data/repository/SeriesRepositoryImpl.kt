@@ -98,7 +98,13 @@ class SeriesRepositoryImpl(
             seriesEntities.map { entity ->
                 val books =
                     entity.books.mapNotNull { bookEntity ->
-                        booksById[bookEntity.id]?.toListItem(imageStorage)
+                        val resolved = booksById[bookEntity.id]?.toListItem(imageStorage)
+                        if (resolved == null) {
+                            logger.debug {
+                                "Skipping orphan book ${bookEntity.id} for series ${entity.series.id}"
+                            }
+                        }
+                        resolved
                     }
                 val sequences =
                     entity.bookSequences.associate {

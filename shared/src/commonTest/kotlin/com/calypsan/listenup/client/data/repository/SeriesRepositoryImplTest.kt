@@ -1,7 +1,12 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.BookEntity
+import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
+import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
@@ -9,10 +14,12 @@ import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
+import com.calypsan.listenup.client.data.local.db.SeriesWithBooks as SeriesWithBooksRelation
 import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
+import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verify
 import dev.mokkery.verifySuspend
@@ -656,5 +663,190 @@ class SeriesRepositoryImplTest {
             // Then
             assertEquals(1, result.size)
             assertEquals("only-book", result[0])
+        }
+
+    // ========== observeAllWithBooks Tests (drift #16 closure) ==========
+
+    private fun createRepositoryWithBookDao(
+        seriesDao: SeriesDao,
+        bookDao: BookDao,
+    ): SeriesRepositoryImpl {
+        val imageStorage = mock<ImageStorage>(MockMode.autoUnit)
+        every { imageStorage.exists(any()) } returns false
+        return SeriesRepositoryImpl(
+            seriesDao = seriesDao,
+            bookDao = bookDao,
+            searchDao = mock<SearchDao>(MockMode.autoUnit),
+            api = mock<SeriesApiContract>(),
+            networkMonitor = mock<NetworkMonitor>(),
+            imageStorage = imageStorage,
+        )
+    }
+
+    private fun makeBookEntity(
+        id: String,
+        title: String,
+    ): BookEntity =
+        BookEntity(
+            id = BookId(id),
+            title = title,
+            sortTitle = title,
+            subtitle = null,
+            coverUrl = null,
+            coverBlurHash = null,
+            dominantColor = null,
+            darkMutedColor = null,
+            vibrantColor = null,
+            totalDuration = 1_000L,
+            description = null,
+            publishYear = null,
+            publisher = null,
+            language = null,
+            isbn = null,
+            asin = null,
+            abridged = false,
+            syncState = SyncState.SYNCED,
+            lastModified = Timestamp(1_000L),
+            serverVersion = Timestamp(1_000L),
+            createdAt = Timestamp(1_000L),
+            updatedAt = Timestamp(1_000L),
+        )
+
+    private fun makeBookWithContributors(book: BookEntity): BookWithContributors =
+        BookWithContributors(
+            book = book,
+            contributors = emptyList(),
+            contributorRoles = emptyList(),
+            series = emptyList(),
+            seriesSequences = emptyList(),
+        )
+
+    @Test
+    fun `observeAllWithBooks returns empty list when no series exist`() =
+        runTest {
+            val seriesDao = createMockDao()
+            val bookDao = mock<BookDao>(MockMode.autoUnit)
+            every { seriesDao.observeAllWithBooks() } returns flowOf(emptyList())
+            every { bookDao.observeAllWithContributors() } returns flowOf(emptyList())
+            val repository = createRepositoryWithBookDao(seriesDao, bookDao)
+
+            val result = repository.observeAllWithBooks().first()
+
+            assertTrue(result.isEmpty())
+        }
+
+    @Test
+    fun `observeAllWithBooks joins series with books from book dao by id`() =
+        runTest {
+            val seriesEntity = createTestSeriesEntity(id = "series-1", name = "Stormlight")
+            val book1 = makeBookEntity("book-1", "Way of Kings")
+            val book2 = makeBookEntity("book-2", "Words of Radiance")
+            val seriesRelation =
+                SeriesWithBooksRelation(
+                    series = seriesEntity,
+                    books = listOf(book1, book2),
+                    bookSequences =
+                        listOf(
+                            BookSeriesCrossRef(BookId("book-1"), SeriesId("series-1"), "1"),
+                            BookSeriesCrossRef(BookId("book-2"), SeriesId("series-1"), "2"),
+                        ),
+                )
+
+            val seriesDao = createMockDao()
+            val bookDao = mock<BookDao>(MockMode.autoUnit)
+            every { seriesDao.observeAllWithBooks() } returns flowOf(listOf(seriesRelation))
+            every { bookDao.observeAllWithContributors() } returns
+                flowOf(listOf(makeBookWithContributors(book1), makeBookWithContributors(book2)))
+            val repository = createRepositoryWithBookDao(seriesDao, bookDao)
+
+            val result = repository.observeAllWithBooks().first()
+
+            assertEquals(1, result.size)
+            assertEquals("series-1", result[0].series.id.value)
+            assertEquals(2, result[0].books.size)
+            assertEquals("book-1", result[0].books[0].id.value)
+            assertEquals("Way of Kings", result[0].books[0].title)
+            assertEquals("1", result[0].bookSequences["book-1"])
+            assertEquals("2", result[0].bookSequences["book-2"])
+        }
+
+    @Test
+    fun `observeAllWithBooks silently skips orphan book ids missing from book dao`() =
+        runTest {
+            // Series references two books, but bookDao only knows about one.
+            val seriesEntity = createTestSeriesEntity(id = "series-1", name = "Series")
+            val book1 = makeBookEntity("book-1", "Known Book")
+            val orphanBook = makeBookEntity("book-orphan", "Stale Reference")
+            val seriesRelation =
+                SeriesWithBooksRelation(
+                    series = seriesEntity,
+                    books = listOf(book1, orphanBook),
+                    bookSequences = emptyList(),
+                )
+
+            val seriesDao = createMockDao()
+            val bookDao = mock<BookDao>(MockMode.autoUnit)
+            every { seriesDao.observeAllWithBooks() } returns flowOf(listOf(seriesRelation))
+            // Only book-1 is in bookDao's flow; book-orphan is missing.
+            every { bookDao.observeAllWithContributors() } returns
+                flowOf(listOf(makeBookWithContributors(book1)))
+            val repository = createRepositoryWithBookDao(seriesDao, bookDao)
+
+            val result = repository.observeAllWithBooks().first()
+
+            assertEquals(1, result.size)
+            assertEquals(1, result[0].books.size, "Orphan book should be silently dropped")
+            assertEquals("book-1", result[0].books[0].id.value)
+        }
+
+    // ========== observeSeriesWithBooks Tests (drift #16 closure) ==========
+
+    @Test
+    fun `observeSeriesWithBooks returns null when series relation is null`() =
+        runTest {
+            val seriesDao = createMockDao()
+            val bookDao = mock<BookDao>(MockMode.autoUnit)
+            every { seriesDao.observeByIdWithBooks("missing") } returns flowOf(null)
+            every { bookDao.observeBySeriesIdWithContributors("missing") } returns flowOf(emptyList())
+            val repository = createRepositoryWithBookDao(seriesDao, bookDao)
+
+            val result = repository.observeSeriesWithBooks("missing").first()
+
+            assertNull(result)
+        }
+
+    @Test
+    fun `observeSeriesWithBooks combines series relation with contributor-enriched books`() =
+        runTest {
+            val seriesEntity = createTestSeriesEntity(id = "series-1", name = "Cosmere")
+            val book1 = makeBookEntity("book-1", "Book One")
+            val book2 = makeBookEntity("book-2", "Book Two")
+            val seriesRelation =
+                SeriesWithBooksRelation(
+                    series = seriesEntity,
+                    books = listOf(book1, book2),
+                    bookSequences =
+                        listOf(
+                            BookSeriesCrossRef(BookId("book-1"), SeriesId("series-1"), "1"),
+                            BookSeriesCrossRef(BookId("book-2"), SeriesId("series-1"), "2"),
+                        ),
+                )
+
+            val seriesDao = createMockDao()
+            val bookDao = mock<BookDao>(MockMode.autoUnit)
+            every { seriesDao.observeByIdWithBooks("series-1") } returns flowOf(seriesRelation)
+            every { bookDao.observeBySeriesIdWithContributors("series-1") } returns
+                flowOf(listOf(makeBookWithContributors(book1), makeBookWithContributors(book2)))
+            val repository = createRepositoryWithBookDao(seriesDao, bookDao)
+
+            val result = repository.observeSeriesWithBooks("series-1").first()
+
+            assertNotNull(result)
+            assertEquals("series-1", result.series.id.value)
+            assertEquals(2, result.books.size)
+            assertEquals("book-1", result.books[0].id.value)
+            assertEquals("book-2", result.books[1].id.value)
+            assertEquals("1", result.bookSequences["book-1"])
+            assertEquals("2", result.bookSequences["book-2"])
         }
 }
