@@ -2,8 +2,8 @@ package com.calypsan.listenup.client.presentation.seriesdetail
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Series
 import com.calypsan.listenup.client.domain.model.SeriesWithBooks
@@ -78,8 +78,8 @@ class SeriesDetailViewModelTest {
         seriesSequence: String? = "1",
         seriesId: String = "series-1",
         seriesName: String = "Test Series",
-    ): Book =
-        Book(
+    ): BookListItem =
+        BookListItem(
             id = BookId(id),
             title = title,
             subtitle = null,
@@ -94,7 +94,7 @@ class SeriesDetailViewModelTest {
 
     private fun createSeriesWithBooks(
         series: Series,
-        books: List<Book>,
+        books: List<BookListItem>,
         bookSequences: Map<String, String?> = emptyMap(),
     ): SeriesWithBooks =
         SeriesWithBooks(

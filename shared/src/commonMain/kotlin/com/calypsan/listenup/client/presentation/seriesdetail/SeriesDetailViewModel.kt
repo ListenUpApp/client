@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.presentation.seriesdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -75,7 +75,7 @@ class SeriesDetailViewModel(
 
     private fun resolveCoverPath(
         seriesId: String,
-        books: List<Book>,
+        books: List<BookListItem>,
     ): String? {
         if (imageRepository.seriesCoverExists(seriesId)) {
             return imageRepository.getSeriesCoverPath(seriesId)
@@ -102,7 +102,7 @@ sealed interface SeriesDetailUiState {
         val coverPath: String?,
         val featuredBookId: String?,
         val totalDuration: Duration,
-        val books: List<Book>,
+        val books: List<BookListItem>,
     ) : SeriesDetailUiState {
         fun formatTotalDuration(): String {
             val totalHours = totalDuration.inWholeHours

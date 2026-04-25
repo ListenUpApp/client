@@ -1566,6 +1566,7 @@ val syncModule =
         single<com.calypsan.listenup.client.domain.repository.SeriesRepository> {
             com.calypsan.listenup.client.data.repository.SeriesRepositoryImpl(
                 seriesDao = get(),
+                bookDao = get(),
                 searchDao = get(),
                 api = get(),
                 networkMonitor = get(),

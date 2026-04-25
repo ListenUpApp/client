@@ -5,10 +5,12 @@ package com.calypsan.listenup.client.domain.model
  *
  * Used for library series views and series detail pages.
  * Includes sequence information for proper ordering.
+ *
+ * Books are projected as [BookListItem] — list-shaped, no detail-only fields.
  */
 data class SeriesWithBooks(
     val series: Series,
-    val books: List<Book>,
+    val books: List<BookListItem>,
     /** Maps bookId to sequence string (e.g., "1", "1.5") */
     val bookSequences: Map<String, String?>,
 ) {
@@ -20,7 +22,7 @@ data class SeriesWithBooks(
     /**
      * Get books sorted by their sequence in this series.
      */
-    fun booksSortedBySequence(): List<Book> =
+    fun booksSortedBySequence(): List<BookListItem> =
         books.sortedBy { book ->
             bookSequences[book.id.value]?.toFloatOrNull() ?: Float.MAX_VALUE
         }

@@ -4,7 +4,6 @@ import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.BookSeries
@@ -128,14 +127,14 @@ class LibraryViewModelTest {
             bookCount = bookCount,
         )
 
-    private fun createDummyBook(id: String): Book {
+    private fun createDummyBook(id: String): BookListItem {
         val now =
             Timestamp(
                 kotlin.time.Clock.System
                     .now()
                     .toEpochMilliseconds(),
             )
-        return Book(
+        return BookListItem(
             id = BookId(id),
             title = "Book $id",
             coverPath = null,
