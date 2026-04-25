@@ -17,7 +17,6 @@ data class BookDetail(
     val subtitle: String? = null,
     val authors: List<BookContributor>,
     val narrators: List<BookContributor>,
-    val allContributors: List<BookContributor> = emptyList(),
     val duration: Long,
     val coverPath: String?,
     val coverBlurHash: String? = null,
@@ -27,8 +26,6 @@ data class BookDetail(
     val addedAt: Timestamp,
     val updatedAt: Timestamp,
     val description: String? = null,
-    val genres: List<Genre> = emptyList(),
-    val tags: List<Tag> = emptyList(),
     val series: List<BookSeries> = emptyList(),
     val publishYear: Int? = null,
     val publisher: String? = null,
@@ -37,6 +34,9 @@ data class BookDetail(
     val asin: String? = null,
     val abridged: Boolean = false,
     val rating: Double? = null,
+    val allContributors: List<BookContributor> = emptyList(),
+    val genres: List<Genre> = emptyList(),
+    val tags: List<Tag> = emptyList(),
 ) {
     val seriesId: String? get() = series.firstOrNull()?.seriesId
     val seriesName: String? get() = series.firstOrNull()?.seriesName
