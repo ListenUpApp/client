@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.presentation.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.ContributorRole
 import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
@@ -52,7 +52,7 @@ private data class LibraryIntent(
 
 /** Snapshot of raw repository content before sorting / filtering. */
 private data class RawContent(
-    val books: List<Book>,
+    val books: List<BookListItem>,
     val series: List<SeriesWithBooks>,
     val authors: List<ContributorWithBookCount>,
     val narrators: List<ContributorWithBookCount>,
@@ -109,10 +109,10 @@ class LibraryViewModel(
     private val rawContent: SharedFlow<RawContent> =
         combine(
             bookRepository
-                .observeBooks()
+                .observeBookListItems()
                 .catch { e ->
                     if (e is kotlin.coroutines.cancellation.CancellationException) throw e
-                    logger.error(e) { "observeBooks failed; emitting empty list" }
+                    logger.error(e) { "observeBookListItems failed; emitting empty list" }
                     emit(emptyList())
                 },
             seriesRepository
@@ -409,7 +409,7 @@ class LibraryViewModel(
     }
 
     private fun computeProgress(
-        books: List<Book>,
+        books: List<BookListItem>,
         positions: Map<String, PlaybackPosition>,
     ): ProgressSnapshot {
         val bookDurations = books.associate { it.id.value to it.duration }
@@ -440,10 +440,10 @@ class LibraryViewModel(
 
     @Suppress("CyclomaticComplexMethod")
     private fun sortBooks(
-        books: List<Book>,
+        books: List<BookListItem>,
         state: SortState,
         ignoreArticles: Boolean,
-    ): List<Book> {
+    ): List<BookListItem> {
         val isAsc = state.direction == SortDirection.ASCENDING
 
         return when (state.category) {
@@ -458,12 +458,12 @@ class LibraryViewModel(
             SortCategory.AUTHOR -> {
                 if (isAsc) {
                     books.sortedWith(
-                        compareBy<Book> { it.authorNames.lowercase() }
+                        compareBy<BookListItem> { it.authorNames.lowercase() }
                             .thenBy { it.title.lowercase() },
                     )
                 } else {
                     books.sortedWith(
-                        compareByDescending<Book> { it.authorNames.lowercase() }
+                        compareByDescending<BookListItem> { it.authorNames.lowercase() }
                             .thenBy { it.title.lowercase() },
                     )
                 }
@@ -480,12 +480,12 @@ class LibraryViewModel(
             SortCategory.YEAR -> {
                 if (isAsc) {
                     books.sortedWith(
-                        compareBy<Book> { it.publishYear ?: Int.MAX_VALUE }
+                        compareBy<BookListItem> { it.publishYear ?: Int.MAX_VALUE }
                             .thenBy { it.title.lowercase() },
                     )
                 } else {
                     books.sortedWith(
-                        compareByDescending<Book> { it.publishYear ?: 0 }
+                        compareByDescending<BookListItem> { it.publishYear ?: 0 }
                             .thenBy { it.title.lowercase() },
                     )
                 }
@@ -502,13 +502,13 @@ class LibraryViewModel(
             SortCategory.SERIES -> {
                 if (isAsc) {
                     books.sortedWith(
-                        compareBy<Book> { it.seriesName?.lowercase() ?: "\uFFFF" }
+                        compareBy<BookListItem> { it.seriesName?.lowercase() ?: "\uFFFF" }
                             .thenBy { it.seriesSequence?.toFloatOrNull() ?: Float.MAX_VALUE }
                             .thenBy { it.title.lowercase() },
                     )
                 } else {
                     books.sortedWith(
-                        compareByDescending<Book> { it.seriesName?.lowercase() ?: "" }
+                        compareByDescending<BookListItem> { it.seriesName?.lowercase() ?: "" }
                             .thenByDescending { it.seriesSequence?.toFloatOrNull() ?: 0f }
                             .thenBy { it.title.lowercase() },
                     )

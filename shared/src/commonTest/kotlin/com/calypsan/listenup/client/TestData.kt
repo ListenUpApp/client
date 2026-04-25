@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookDetail
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.Genre
@@ -134,6 +135,63 @@ object TestData {
             description = description,
             genres = genres,
             tags = tags,
+            series = seriesList,
+            publishYear = publishYear,
+            publisher = publisher,
+            language = language,
+            isbn = isbn,
+            asin = asin,
+            abridged = abridged,
+            rating = rating,
+        )
+    }
+
+    /**
+     * Creates a sample [BookListItem] with sensible defaults.
+     *
+     * Mirrors [book] and [bookDetail] so test sites can use the appropriate type
+     * for list/shelf surfaces without carrying detail-only fields (genres, tags,
+     * allContributors).
+     */
+    fun bookListItem(
+        id: String = "book-1",
+        title: String = "The Great Gatsby",
+        subtitle: String? = null,
+        authorName: String = "F. Scott Fitzgerald",
+        narratorName: String = "Jake Gyllenhaal",
+        duration: Long = 5_400_000L,
+        coverPath: String? = "/covers/gatsby.jpg",
+        description: String? = "A story of decadence and excess in the Jazz Age.",
+        seriesId: String? = null,
+        seriesName: String? = null,
+        seriesSequence: String? = null,
+        publishYear: Int? = 1925,
+        publisher: String? = null,
+        language: String? = null,
+        isbn: String? = null,
+        asin: String? = null,
+        abridged: Boolean = false,
+        rating: Double? = 4.5,
+    ): BookListItem {
+        val seriesList =
+            if (seriesId != null && seriesName != null) {
+                listOf(BookSeries(seriesId = seriesId, seriesName = seriesName, sequence = seriesSequence))
+            } else {
+                emptyList()
+            }
+        val author = contributor(id = "author-$id", name = authorName, roles = listOf("Author"))
+        val narrator = contributor(id = "narrator-$id", name = narratorName, roles = listOf("Narrator"))
+        return BookListItem(
+            id = BookId(id),
+            title = title,
+            subtitle = subtitle,
+            authors = listOf(author),
+            narrators = listOf(narrator),
+            duration = duration,
+            coverPath = coverPath,
+            addedAt = Timestamp(1704067200000L),
+            updatedAt = Timestamp(1704067200000L),
+            description = description,
             series = seriesList,
             publishYear = publishYear,
             publisher = publisher,

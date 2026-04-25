@@ -48,7 +48,7 @@ import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.SortSplitButton
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.features.library.BookCard
 import com.calypsan.listenup.client.presentation.library.SortCategory
@@ -77,7 +77,7 @@ private sealed class BookGridItem {
     ) : BookGridItem()
 
     data class BookItem(
-        val book: Book,
+        val book: BookListItem,
     ) : BookGridItem()
 }
 
@@ -90,7 +90,7 @@ private sealed class BookGridItem {
  *                       each book groups under.
  */
 private fun groupBooksWithHeaders(
-    books: List<Book>,
+    books: List<BookListItem>,
     sortState: SortState,
     ignoreArticles: Boolean,
 ): List<BookGridItem> {
@@ -219,7 +219,7 @@ private fun ArticleToggleChip(
 @Suppress("LongParameterList")
 @Composable
 fun BooksContent(
-    books: List<Book>,
+    books: List<BookListItem>,
     hasLoadedBooks: Boolean,
     syncState: SyncState,
     isServerScanning: Boolean,
@@ -301,7 +301,7 @@ fun BooksContent(
 @Suppress("LongMethod", "CognitiveComplexMethod", "LongParameterList")
 @Composable
 private fun BookGrid(
-    books: List<Book>,
+    books: List<BookListItem>,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
