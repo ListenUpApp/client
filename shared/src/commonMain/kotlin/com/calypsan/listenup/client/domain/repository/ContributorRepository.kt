@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.domain.repository
 
 import com.calypsan.listenup.client.core.AppResult
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.ContributorMetadataResult
 import com.calypsan.listenup.client.domain.model.ContributorSearchResponse
@@ -184,7 +184,7 @@ interface ContributorRepository {
  * where the creditedAs name might differ from the contributor's actual name.
  */
 data class BookWithContributorRole(
-    val book: Book,
+    val book: BookListItem,
     /** The name credited on this book for this role, if different from contributor's name */
     val creditedAs: String?,
 )

@@ -43,7 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.features.contributoredit.components.ContributorColorScheme
 import com.calypsan.listenup.client.features.contributoredit.components.rememberContributorColorScheme
 import com.calypsan.listenup.client.features.library.BookCard
@@ -402,7 +402,7 @@ private fun SeriesCarouselSection(
 
 @Composable
 private fun StandaloneBooksGrid(
-    books: List<Book>,
+    books: List<BookListItem>,
     bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit,
 ) {
