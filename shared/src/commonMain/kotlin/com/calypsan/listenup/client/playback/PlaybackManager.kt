@@ -382,9 +382,7 @@ class PlaybackManager(
         player.load(segments)
 
         // Set speed before seeking/playing
-        if (resumeSpeed != 1.0f) {
-            player.setSpeed(resumeSpeed)
-        }
+        player.setSpeed(resumeSpeed)
         playbackSpeed.value = resumeSpeed
 
         // Resume from saved position
@@ -458,17 +456,17 @@ class PlaybackManager(
     }
 
     /**
-     * Called when user explicitly changes playback speed.
-     * Updates state and marks the book as having a custom speed.
+     * Called when user explicitly changes playback speed for the current book.
+     *
+     * Writes per-book only via [progressTracker.onSpeedChanged], which sets
+     * `hasCustomSpeed = true`. The global default is changed only via
+     * Settings → Default Speed; per-book changes do NOT mutate the global default.
      */
     fun onSpeedChanged(speed: Float) {
         val bookId = currentBookId.value ?: return
         val positionMs = currentPositionMs.value
         playbackSpeed.value = speed
         progressTracker.onSpeedChanged(bookId, positionMs, speed)
-
-        // Persist as the universal default so it survives app restarts
-        scope.launch { playbackPreferences.setDefaultPlaybackSpeed(speed) }
     }
 
     /**
