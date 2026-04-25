@@ -18,12 +18,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Golden-output tests for the canonical [BookWithContributors.toDomain] mapper.
+ * Golden-output tests for the canonical mappers in [BookEntityMapper].
  *
- * These tests pin the canonical mapper's current behavior so a future regression
- * fails immediately. They assert what the mapper DOES produce, not what a caller
- * might wish it produced (e.g., allContributors is always emptyList here — that
- * is the canonical mapper's contract; see Task 13 drift row for future consolidation).
+ * These tests pin canonical mapper behavior so a future regression fails
+ * immediately. Covers [BookWithContributors.toDomain] (legacy, slated for
+ * deletion in W6 Phase G Task 12), [BookWithContributors.toListItem], and
+ * [BookWithContributors.toDetail].
  */
 class BookWithContributorsMapperTest {
     private val bookId = BookId("book-1")
@@ -278,9 +278,19 @@ class BookWithContributorsMapperTest {
 
         assertEquals(bookId, result.id)
         assertEquals("The Way of Kings", result.title)
-        // Authors + narrators total = the count of distinct contributors with those roles.
-        // Fixture: 1 author (authorId) + 2 narrators (narratorId, narrator2Id) = 3.
-        assertEquals(3, result.authors.size + result.narrators.size)
+        // Authors
+        assertEquals(
+            listOf(BookContributor(id = "contrib-author", name = "Brandon Sanderson")),
+            result.authors,
+        )
+        // Narrators
+        assertEquals(
+            listOf(
+                BookContributor(id = "contrib-narrator", name = "Michael Kramer"),
+                BookContributor(id = "contrib-narrator2", name = "Kate Reading"),
+            ),
+            result.narrators,
+        )
         // Series populated from junction.
         assertEquals(1, result.series.size)
         assertEquals("The Stormlight Archive", result.series.first().seriesName)
@@ -312,6 +322,8 @@ class BookWithContributorsMapperTest {
         assertEquals(listOf("author"), sandersonRoles)
         val kramerRoles = result.allContributors.first { it.id == "contrib-narrator" }.roles
         assertEquals(listOf("narrator"), kramerRoles)
+        val readingRoles = result.allContributors.first { it.id == "contrib-narrator2" }.roles
+        assertEquals(listOf("narrator"), readingRoles)
 
         // Genres + tags forwarded verbatim.
         assertEquals(genres, result.genres)
@@ -344,6 +356,75 @@ class BookWithContributorsMapperTest {
 
         assertEquals(1, result.allContributors.size, "Same contributor across roles must dedupe to a single entry")
         assertEquals(listOf("author", "narrator"), result.allContributors.first().roles)
+    }
+
+    @Test
+    fun `toDetail allContributors prefers creditedAs over canonical contributor name when creditedAs is non-null`() {
+        val imageStorage = mock<ImageStorage>()
+        every { imageStorage.exists(any()) } returns false
+
+        // Same Sanderson contributor, but the cross-ref carries a different attribution
+        // (e.g., the book was originally credited to the author's pen-name before merging).
+        val rolesWithCreditedAs =
+            listOf(
+                BookContributorCrossRef(
+                    bookId = bookId,
+                    contributorId = authorId,
+                    role = "author",
+                    creditedAs = "B. Sanderson (originally credited)",
+                ),
+            )
+
+        val bookWithContributors =
+            BookWithContributors(
+                book = makeBook(),
+                contributors = listOf(makeContributors().first { it.id == authorId }),
+                contributorRoles = rolesWithCreditedAs,
+                series = emptyList(),
+                seriesSequences = emptyList(),
+            )
+
+        val result = bookWithContributors.toDetail(imageStorage, emptyList(), emptyList())
+
+        assertEquals(1, result.allContributors.size)
+        assertEquals(
+            "B. Sanderson (originally credited)",
+            result.allContributors.first().name,
+            "creditedAs must win over canonical contributor name when non-null",
+        )
+    }
+
+    @Test
+    fun `toDetail allContributors falls back to canonical contributor name when creditedAs is null`() {
+        val imageStorage = mock<ImageStorage>()
+        every { imageStorage.exists(any()) } returns false
+
+        val rolesWithoutCreditedAs =
+            listOf(
+                BookContributorCrossRef(
+                    bookId = bookId,
+                    contributorId = authorId,
+                    role = "author",
+                    creditedAs = null,
+                ),
+            )
+
+        val bookWithContributors =
+            BookWithContributors(
+                book = makeBook(),
+                contributors = listOf(makeContributors().first { it.id == authorId }),
+                contributorRoles = rolesWithoutCreditedAs,
+                series = emptyList(),
+                seriesSequences = emptyList(),
+            )
+
+        val result = bookWithContributors.toDetail(imageStorage, emptyList(), emptyList())
+
+        assertEquals(
+            "Brandon Sanderson",
+            result.allContributors.first().name,
+            "Fallback to canonical contributor name when creditedAs is null",
+        )
     }
 
     @Test

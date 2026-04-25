@@ -6,6 +6,8 @@ import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.BookSeries
+import com.calypsan.listenup.client.domain.model.Genre
+import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 
 private const val ROLE_AUTHOR = "author"
@@ -208,8 +210,8 @@ fun BookWithContributors.toListItem(imageStorage: ImageStorage): BookListItem {
  */
 fun BookWithContributors.toDetail(
     imageStorage: ImageStorage,
-    genres: List<com.calypsan.listenup.client.domain.model.Genre>,
-    tags: List<com.calypsan.listenup.client.domain.model.Tag>,
+    genres: List<Genre>,
+    tags: List<Tag>,
 ): BookDetail {
     val contributorsById = contributors.associateBy { it.id }
 
