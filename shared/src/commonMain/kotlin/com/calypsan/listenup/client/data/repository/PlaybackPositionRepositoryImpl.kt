@@ -1,5 +1,3 @@
-@file:Suppress("TooManyFunctions")
-
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.AppResult
