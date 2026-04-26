@@ -1175,6 +1175,44 @@ class PlaybackPositionRepositoryImplTest {
             verifySuspend(VerifyMode.not) { dao.save(any()) }
         }
 
+    // ========== markComplete — public-facade delegation (Task 7) ==========
+
+    @Test
+    fun `markComplete delegates to savePlaybackState with MarkComplete variant`() =
+        runTest {
+            val dao = createMockDao()
+            val pendingOps = mock<PendingOperationRepositoryContract>(MockMode.autoUnit)
+            val bookId = "book-mc-facade"
+            val startedAt = 1700000000000L
+            val finishedAt = 1800000000000L
+            val existing =
+                createPlaybackPositionEntity(bookId = bookId, positionMs = 5000L).copy(startedAt = startedAt)
+            everySuspend { dao.get(BookId(bookId)) } returns existing
+            val captured = mutableListOf<PlaybackPositionEntity>()
+            everySuspend { dao.save(any()) } calls { args ->
+                captured.add(args.arg(0) as PlaybackPositionEntity)
+                Unit
+            }
+            val repository = createRepo(dao = dao, pendingOps = pendingOps)
+
+            val result = repository.markComplete(bookId, startedAt, finishedAt)
+
+            assertIs<AppResult.Success<Unit>>(result)
+            val saved = captured.single()
+            assertTrue(saved.isFinished)
+            assertEquals(finishedAt, saved.finishedAt)
+            assertEquals(startedAt, saved.startedAt)
+            verifySuspend(VerifyMode.exactly(1)) {
+                pendingOps.queue<MarkCompletePayload>(
+                    type = OperationType.MARK_COMPLETE,
+                    entityType = EntityType.BOOK,
+                    entityId = bookId,
+                    payload = any(),
+                    handler = any(),
+                )
+            }
+        }
+
     // ========== savePlaybackState — failure path (Task 2) ==========
 
     @Test
