@@ -521,8 +521,14 @@ class ProgressTracker(
             // Clear any DELETED download records so future playback will auto-download again
             // This means that the next time a user wants to listen to the same book. We assume
             // They want the default behavior again (stream + download)
-            downloadRepository.deleteForBook(bookId.value)
-            logger.debug { "Cleared download records for finished book: ${bookId.value}" }
+            try {
+                downloadRepository.deleteForBook(bookId.value)
+                logger.debug { "Cleared download records for finished book: ${bookId.value}" }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.warn { "Failed to delete download records for ${bookId.value} (non-fatal): ${e.message}" }
+            }
 
             // Mark book as complete (Issue #206)
             val finishedAt = Clock.System.now().toEpochMilliseconds()

@@ -132,6 +132,11 @@ class DownloadRepositoryImplTest {
     @Test
     fun `deleteForBook removes all download rows for that book`() =
         runTest {
+            bookRepository.books =
+                listOf(
+                    fakeBook(id = "b1", title = "Deleted", authors = listOf("Author A")),
+                    fakeBook(id = "b2", title = "Remaining", authors = listOf("Author B")),
+                )
             downloadDao.insertAll(
                 listOf(
                     makeDownload(id = "f1", bookId = "b1", state = DownloadState.COMPLETED, bytes = 100_000L),
@@ -143,8 +148,6 @@ class DownloadRepositoryImplTest {
             sut.deleteForBook("b1")
 
             // b1 rows are gone; b2 row is untouched
-            bookRepository.books =
-                listOf(fakeBook(id = "b2", title = "Remaining", authors = listOf("Author B")))
             sut.observeDownloadedBooks().test {
                 val items = awaitItem()
                 assertEquals(1, items.size)
