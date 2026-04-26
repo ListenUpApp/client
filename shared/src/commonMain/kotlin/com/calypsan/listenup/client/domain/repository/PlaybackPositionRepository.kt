@@ -1,8 +1,9 @@
 package com.calypsan.listenup.client.domain.repository
 
+import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import kotlinx.coroutines.flow.Flow
-import com.calypsan.listenup.client.core.AppResult
 
 /**
  * Repository contract for playback position operations.
@@ -120,4 +121,24 @@ interface PlaybackPositionRepository {
      * @return Result with Unit on success, or Failure on error
      */
     suspend fun restartBook(bookId: String): com.calypsan.listenup.client.core.AppResult<Unit>
+
+    /**
+     * Single canonical entry point for every mutation of `playback_positions`.
+     *
+     * The repository owns the per-book Mutex + transaction discipline; callers
+     * just specify intent via the [PlaybackUpdate] variant. Concurrent writes
+     * for the same book serialize via a per-book Mutex; different books proceed
+     * in parallel. Every variant handler runs inside `TransactionRunner.atomically`
+     * so partial-write states are impossible.
+     *
+     * @param bookId The book whose playback state is being mutated.
+     * @param update The intent describing the mutation.
+     * @return [AppResult.Success] if the transaction committed; [AppResult.Failure]
+     *   if the underlying DAO write threw or the transaction rolled back.
+     *   `CancellationException` is rethrown.
+     */
+    suspend fun savePlaybackState(
+        bookId: BookId,
+        update: PlaybackUpdate,
+    ): AppResult<Unit>
 }

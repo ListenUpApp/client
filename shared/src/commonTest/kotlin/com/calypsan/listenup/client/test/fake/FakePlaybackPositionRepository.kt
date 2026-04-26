@@ -1,13 +1,15 @@
 package com.calypsan.listenup.client.test.fake
 
 import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
-import com.calypsan.listenup.client.core.Success
 
 /**
  * In-memory fake of [PlaybackPositionRepository] backed by a [MutableStateFlow] of
@@ -114,4 +116,153 @@ class FakePlaybackPositionRepository(
         )
         return Success(Unit)
     }
+
+    /**
+     * Minimal in-memory variant dispatch. Mirrors the production repository's
+     * behavior closely enough to back seam-level tests but does not exercise
+     * Mutex/transaction semantics (the fake is single-threaded).
+     */
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    override suspend fun savePlaybackState(
+        bookId: BookId,
+        update: PlaybackUpdate,
+    ): AppResult<Unit> {
+        val key = bookId.value
+        val now = nowMs()
+        val existing = state.value[key]
+        val merged: PlaybackPosition? =
+            when (update) {
+                is PlaybackUpdate.Position -> {
+                    (existing ?: blankPosition(key, now)).copy(
+                        positionMs = update.positionMs,
+                        updatedAtMs = now,
+                        lastPlayedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+
+                is PlaybackUpdate.Speed -> {
+                    (existing ?: blankPosition(key, now)).copy(
+                        positionMs = update.positionMs,
+                        playbackSpeed = update.speed,
+                        hasCustomSpeed = update.custom,
+                        updatedAtMs = now,
+                        lastPlayedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+
+                is PlaybackUpdate.SpeedReset -> {
+                    (existing ?: blankPosition(key, now)).copy(
+                        positionMs = update.positionMs,
+                        playbackSpeed = update.defaultSpeed,
+                        hasCustomSpeed = false,
+                        updatedAtMs = now,
+                        lastPlayedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+
+                is PlaybackUpdate.PlaybackStarted -> {
+                    (existing ?: blankPosition(key, now)).copy(
+                        positionMs = update.positionMs,
+                        playbackSpeed = update.speed,
+                        startedAtMs = existing?.startedAtMs ?: now,
+                        updatedAtMs = now,
+                        lastPlayedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+
+                is PlaybackUpdate.PlaybackPaused -> {
+                    (existing ?: blankPosition(key, now)).copy(
+                        positionMs = update.positionMs,
+                        updatedAtMs = now,
+                        lastPlayedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+
+                is PlaybackUpdate.PeriodicUpdate -> {
+                    (existing ?: blankPosition(key, now)).copy(
+                        positionMs = update.positionMs,
+                        updatedAtMs = now,
+                        lastPlayedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+
+                is PlaybackUpdate.BookFinished -> {
+                    (existing ?: blankPosition(key, now)).copy(
+                        positionMs = update.finalPositionMs,
+                        isFinished = true,
+                        finishedAtMs = existing?.finishedAtMs ?: now,
+                        startedAtMs = existing?.startedAtMs ?: now,
+                        updatedAtMs = now,
+                        lastPlayedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+
+                is PlaybackUpdate.CrossDeviceSync -> {
+                    // Fake doesn't reconcile SSE timestamps — defers to whatever
+                    // existing row is present.
+                    existing
+                }
+
+                is PlaybackUpdate.MarkComplete -> {
+                    (existing ?: blankPosition(key, now)).copy(
+                        isFinished = true,
+                        finishedAtMs = update.finishedAt ?: now,
+                        startedAtMs = update.startedAt ?: existing?.startedAtMs ?: now,
+                        updatedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+
+                PlaybackUpdate.DiscardProgress -> {
+                    existing?.copy(
+                        positionMs = 0L,
+                        isFinished = false,
+                        finishedAtMs = null,
+                        updatedAtMs = now,
+                        lastPlayedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+
+                PlaybackUpdate.Restart -> {
+                    existing?.copy(
+                        positionMs = 0L,
+                        isFinished = false,
+                        finishedAtMs = null,
+                        startedAtMs = now,
+                        updatedAtMs = now,
+                        lastPlayedAtMs = now,
+                        syncedAtMs = null,
+                    )
+                }
+            }
+        if (merged != null) {
+            state.value = state.value + (key to merged)
+        }
+        return Success(Unit)
+    }
+
+    private fun blankPosition(
+        bookId: String,
+        now: Long,
+    ): PlaybackPosition =
+        PlaybackPosition(
+            bookId = bookId,
+            positionMs = 0L,
+            playbackSpeed = 1.0f,
+            hasCustomSpeed = false,
+            updatedAtMs = now,
+            syncedAtMs = null,
+            lastPlayedAtMs = now,
+            isFinished = false,
+            finishedAtMs = null,
+            startedAtMs = null,
+        )
 }
