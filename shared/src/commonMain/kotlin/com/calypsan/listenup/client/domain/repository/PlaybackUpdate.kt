@@ -76,6 +76,6 @@ sealed interface PlaybackUpdate {
     /** User command: discard progress (reset to 0 + isFinished=false). */
     data object DiscardProgress : PlaybackUpdate
 
-    /** User command: restart book (position=0, isFinished=false; preserves startedAt). */
+    /** User command: restart book (position=0, isFinished=false; resets startedAt to now — new reading session). */
     data object Restart : PlaybackUpdate
 }

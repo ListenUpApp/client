@@ -620,6 +620,6 @@ private fun epochMillisToIso8601(millis: Long): String = Instant.fromEpochMillis
 private fun parseIsoOrNull(iso: String): Long? =
     try {
         Instant.parse(iso).toEpochMilliseconds()
-    } catch (_: IllegalArgumentException) {
+    } catch (_: Exception) {
         null
     }
