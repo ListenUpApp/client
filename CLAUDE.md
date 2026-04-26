@@ -211,13 +211,13 @@ Before `git push`, from the repo root:
 |---|---|
 | `Unit Tests` | `./gradlew :shared:jvmTest --no-daemon` |
 | `Lint & Static Analysis` | `./gradlew spotlessCheck detekt --no-daemon` |
-| `Build APK` | **Expected red until W7.** See `../docs/architecture/restoration-roadmap.md` → "Known Baseline Breakage." Do not gate pushes on it. Re-check once W7 lands and remove this exception. |
+| `Build APK` | `./gradlew :androidApp:assembleDebug --no-daemon` — **must pass** (restored to green by W7 Phase A on 2026-04-25; previously red on `AudiobookNotificationProvider` Media3 drift since the 2026-04-21 dependency bump). |
 
 Rules:
 
 - Every command above must pass before `git push`.
 - `spotlessApply` is the automatic fixer for formatting failures — run it, review the diff, commit as a `🎨` cleanup.
-- If a *different* failure mode appears in `Build APK` remotely (i.e. not the `AudiobookNotificationProvider` baseline), treat it as a regression and fix it before continuing.
+- If `Build APK` fails remotely after going green in W7 Phase A, treat it as a regression and fix it before continuing.
 - When the act action-resolution bug is fixed (pin `gradle/actions/setup-gradle` to a commit SHA, or upstream fixes the subpath issue), promote this policy back to a literal `act -W .github/workflows/ci.yml` gate.
 
 ---

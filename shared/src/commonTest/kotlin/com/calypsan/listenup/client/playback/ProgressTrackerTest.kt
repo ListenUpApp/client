@@ -1,19 +1,16 @@
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.DownloadDao
-import com.calypsan.listenup.client.data.local.db.ListeningEventDao
-import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
-import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
-import com.calypsan.listenup.client.data.sync.push.OperationHandler
-import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
+import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
@@ -49,25 +46,20 @@ class ProgressTrackerTest {
         val testScope = TestScope(testDispatcher)
 
         val positionDao: PlaybackPositionDao = mock()
-        val downloadDao: DownloadDao = mock()
-        val listeningEventDao: ListeningEventDao = mock()
+        val downloadRepository: DownloadRepository = mock()
+        val listeningEventRepository: ListeningEventRepository = mock()
         val syncApi: SyncApiContract = mock()
-        val pendingOperationRepository: PendingOperationRepositoryContract = mock()
-        val listeningEventHandler: OperationHandler<ListeningEventPayload> = mock()
         val pushSyncOrchestrator: PushSyncOrchestratorContract = mock()
         val positionRepository: PlaybackPositionRepository = mock()
 
         fun build(): ProgressTracker =
             ProgressTracker(
                 positionDao = positionDao,
-                downloadDao = downloadDao,
-                listeningEventDao = listeningEventDao,
+                downloadRepository = downloadRepository,
+                listeningEventRepository = listeningEventRepository,
                 syncApi = syncApi,
-                pendingOperationRepository = pendingOperationRepository,
-                listeningEventHandler = listeningEventHandler,
                 pushSyncOrchestrator = pushSyncOrchestrator,
                 positionRepository = positionRepository,
-                deviceId = "test-device-123",
                 scope = testScope,
             )
     }
@@ -82,8 +74,9 @@ class ProgressTrackerTest {
         // to fall through to positionDao.save(). Override in individual tests if needed.
         everySuspend { fixture.positionDao.updatePositionOnly(any(), any(), any(), any()) } returns 0
         everySuspend { fixture.syncApi.getProgress(any()) } returns Success(null)
-        everySuspend { fixture.pendingOperationRepository.queue<Any>(any(), any(), any(), any(), any()) } returns Unit
+        everySuspend { fixture.listeningEventRepository.queueListeningEvent(any(), any(), any(), any(), any(), any()) } returns AppResult.Success(Unit)
         everySuspend { fixture.pushSyncOrchestrator.flush() } returns Unit
+        everySuspend { fixture.downloadRepository.deleteForBook(any()) } returns Unit
 
         return fixture
     }
@@ -413,6 +406,25 @@ class ProgressTrackerTest {
 
             // Then - verify save was called (position captured)
             verifySuspend { fixture.positionDao.save(any()) }
+        }
+
+    // ========== onBookFinished Tests ==========
+
+    @Test
+    fun `onBookFinished routes download-delete through downloadRepository not downloadDao`() =
+        runTest {
+            // Verifies drift #10: DAO writes in /playback/ routed through repository.
+            // downloadRepository.deleteForBook is the correct domain-layer entry point.
+            val fixture = createFixture()
+            val bookId = BookId("book-finished")
+            everySuspend { fixture.positionRepository.markComplete(any(), any(), any()) } returns AppResult.Success(Unit)
+
+            val tracker = fixture.build()
+
+            tracker.onBookFinished(bookId = bookId, finalPositionMs = 100_000L)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend { fixture.downloadRepository.deleteForBook(bookId.value) }
         }
 
     // ========== clearProgress Tests ==========

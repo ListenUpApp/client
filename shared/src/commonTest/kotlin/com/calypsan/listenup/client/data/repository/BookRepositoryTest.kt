@@ -3,10 +3,12 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ChapterId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import dev.mokkery.answering.returns
@@ -39,6 +41,8 @@ class BookRepositoryTest {
     private class TestFixture {
         val bookDao: BookDao = mock()
         val chapterDao: ChapterDao = mock()
+        val audioFileDao: AudioFileDao = mock()
+        val transactionRunner: TransactionRunner = mock()
         val syncManager: SyncManagerContract = mock()
         val imageStorage: ImageStorage = mock()
         val genreRepository: com.calypsan.listenup.client.domain.repository.GenreRepository = mock()
@@ -48,6 +52,8 @@ class BookRepositoryTest {
             BookRepositoryImpl(
                 bookDao = bookDao,
                 chapterDao = chapterDao,
+                audioFileDao = audioFileDao,
+                transactionRunner = transactionRunner,
                 syncManager = syncManager,
                 imageStorage = imageStorage,
                 genreRepository = genreRepository,

@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.data.remote.PlaybackApi
-import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
 import com.calypsan.listenup.client.features.bookdetail.BookDetailPlatformActions
 import com.calypsan.listenup.client.features.bookdetail.DesktopBookDetailPlatformActions
 import com.calypsan.listenup.client.download.DownloadFileManager
@@ -93,14 +92,11 @@ val platformModule: Module =
         single {
             ProgressTracker(
                 positionDao = get(),
-                downloadDao = get(),
-                listeningEventDao = get(),
+                downloadRepository = get(),
+                listeningEventRepository = get(),
                 syncApi = get(),
-                pendingOperationRepository = get(),
-                listeningEventHandler = get<ListeningEventHandler>(),
                 pushSyncOrchestrator = get(),
                 positionRepository = get(),
-                deviceId = get(qualifier = named("deviceId")),
                 scope = get(qualifier = named("playbackScope")),
             )
         }
@@ -115,7 +111,6 @@ val platformModule: Module =
         // Playback manager (with codec negotiation enabled)
         single {
             PlaybackManager(
-                transactionRunner = get(),
                 serverConfig = get(),
                 playbackPreferences = get(),
                 bookDao = get(),
@@ -130,6 +125,7 @@ val platformModule: Module =
                 syncApi = get(),
                 deviceContext = get(),
                 scope = get(qualifier = named("playbackScope")),
+                bookRepository = get(),
             )
         }
 

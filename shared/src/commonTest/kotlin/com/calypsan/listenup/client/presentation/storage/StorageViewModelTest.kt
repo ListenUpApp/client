@@ -38,6 +38,8 @@ class StorageViewModelTest {
         val downloads = MutableStateFlow(initial)
 
         override fun observeDownloadedBooks(): Flow<List<DownloadedBookSummary>> = downloads
+
+        override suspend fun deleteForBook(bookId: String) = Unit
     }
 
     @BeforeTest

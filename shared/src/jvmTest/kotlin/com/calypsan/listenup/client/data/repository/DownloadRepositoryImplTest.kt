@@ -4,6 +4,8 @@ import app.cash.turbine.test
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
+import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
@@ -128,6 +130,33 @@ class DownloadRepositoryImplTest {
         }
 
     @Test
+    fun `deleteForBook removes all download rows for that book`() =
+        runTest {
+            bookRepository.books =
+                listOf(
+                    fakeBook(id = "b1", title = "Deleted", authors = listOf("Author A")),
+                    fakeBook(id = "b2", title = "Remaining", authors = listOf("Author B")),
+                )
+            downloadDao.insertAll(
+                listOf(
+                    makeDownload(id = "f1", bookId = "b1", state = DownloadState.COMPLETED, bytes = 100_000L),
+                    makeDownload(id = "f2", bookId = "b1", state = DownloadState.QUEUED, bytes = 200_000L),
+                    makeDownload(id = "f3", bookId = "b2", state = DownloadState.COMPLETED, bytes = 300_000L),
+                ),
+            )
+
+            sut.deleteForBook("b1")
+
+            // b1 rows are gone; b2 row is untouched
+            sut.observeDownloadedBooks().test {
+                val items = awaitItem()
+                assertEquals(1, items.size)
+                assertEquals("b2", items.first().bookId)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
     fun `downloads whose book is missing from repository are silently dropped`() =
         runTest {
             bookRepository.books = emptyList()
@@ -205,4 +234,9 @@ private class FakeBookRepository : BookRepository {
     override fun observeBookDetail(id: String): Flow<BookDetail?> = flowOf(null)
 
     override suspend fun getBookDetail(id: String): BookDetail? = null
+
+    override suspend fun upsertWithAudioFiles(
+        book: BookEntity,
+        audioFiles: List<AudioFileEntity>,
+    ): AppResult<Unit> = AppResult.Success(Unit)
 }

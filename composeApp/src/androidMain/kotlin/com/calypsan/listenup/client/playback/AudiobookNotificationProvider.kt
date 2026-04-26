@@ -108,7 +108,7 @@ class AudiobookNotificationProvider(
                 .setDeleteIntent(
                     actionFactory.createMediaActionPendingIntent(
                         mediaSession,
-                        Player.COMMAND_STOP.toLong(),
+                        Player.COMMAND_STOP,
                     ),
                 )
 
@@ -216,6 +216,12 @@ class AudiobookNotificationProvider(
 
         return MediaNotification(NOTIFICATION_ID, builder.build())
     }
+
+    override fun getNotificationChannelInfo(): MediaNotification.Provider.NotificationChannelInfo =
+        MediaNotification.Provider.NotificationChannelInfo(
+            CHANNEL_ID,
+            "Playback",
+        )
 
     override fun handleCustomCommand(
         session: MediaSession,

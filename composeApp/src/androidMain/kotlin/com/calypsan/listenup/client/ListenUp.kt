@@ -10,7 +10,6 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.calypsan.listenup.client.core.ImageLoaderFactory
 import com.calypsan.listenup.client.data.remote.PlaybackApi
-import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
 import com.calypsan.listenup.client.di.sharedModules
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadManager
@@ -47,6 +46,7 @@ import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 /**
@@ -77,7 +77,7 @@ val androidModule =
 val playbackModule =
     module {
         // Device ID for listening events (stable across app reinstalls on Android 8+)
-        single {
+        single(qualifier = named("deviceId")) {
             val context: Context = get()
             Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
                 ?: "unknown-device"
@@ -102,19 +102,14 @@ val playbackModule =
         single { get<AudioTokenProvider>() as AndroidAudioTokenProvider }
 
         // Progress tracker for position persistence and event recording
-        // Note: get<ListeningEventHandler>() is required because the parameter type is
-        // OperationHandler<ListeningEventPayload> but Koin can't resolve generic types.
         single {
             ProgressTracker(
                 positionDao = get(),
-                downloadDao = get(),
-                listeningEventDao = get(),
+                downloadRepository = get(),
+                listeningEventRepository = get(),
                 syncApi = get(),
-                pendingOperationRepository = get(),
-                listeningEventHandler = get<ListeningEventHandler>(),
                 pushSyncOrchestrator = get(),
                 positionRepository = get(),
-                deviceId = get(),
                 scope = get(),
             )
         }
@@ -136,7 +131,6 @@ val playbackModule =
         // Playback manager - orchestrates playback startup
         single {
             PlaybackManager(
-                transactionRunner = get(),
                 serverConfig = get(),
                 playbackPreferences = get(),
                 bookDao = get(),
@@ -151,6 +145,7 @@ val playbackModule =
                 capabilityDetector = get(),
                 syncApi = get(),
                 scope = get(),
+                bookRepository = get(),
             )
         }
 

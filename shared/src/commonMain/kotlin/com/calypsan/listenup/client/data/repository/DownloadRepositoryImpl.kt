@@ -18,6 +18,10 @@ class DownloadRepositoryImpl(
     private val downloadDao: DownloadDao,
     private val bookRepository: BookRepository,
 ) : DownloadRepository {
+    override suspend fun deleteForBook(bookId: String) {
+        downloadDao.deleteForBook(bookId)
+    }
+
     override fun observeDownloadedBooks(): Flow<List<DownloadedBookSummary>> =
         downloadDao.observeAll().map { downloads ->
             val completedByBook =

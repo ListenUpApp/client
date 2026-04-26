@@ -416,9 +416,7 @@ class PlaybackService : MediaLibraryService() {
      * Extracted to keep onAddMediaItems and onPlaybackResumption within complexity limits.
      */
     private fun applyResumeSpeed(speed: Float) {
-        if (speed != 1.0f) {
-            player?.setPlaybackSpeed(speed)
-        }
+        player?.setPlaybackSpeed(speed)
     }
 
     /**

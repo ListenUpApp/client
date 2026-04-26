@@ -17,4 +17,12 @@ interface DownloadRepository {
      * Observe all fully-downloaded books as domain summaries, sorted largest first.
      */
     fun observeDownloadedBooks(): Flow<List<DownloadedBookSummary>>
+
+    /**
+     * Delete all download records for the given book.
+     *
+     * Called when a book finishes playing so the next playback session
+     * auto-downloads again (the user's default behaviour).
+     */
+    suspend fun deleteForBook(bookId: String)
 }

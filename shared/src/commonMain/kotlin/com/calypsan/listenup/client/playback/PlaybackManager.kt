@@ -8,6 +8,7 @@
 
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
@@ -15,7 +16,6 @@ import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
-import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
@@ -27,6 +27,7 @@ import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.ContributorRole
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import com.calypsan.listenup.client.domain.playback.StreamPrepareResult
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
@@ -56,7 +57,6 @@ private val logger = KotlinLogging.logger {}
  * - Negotiate audio format with server for transcoding support
  */
 class PlaybackManager(
-    private val transactionRunner: TransactionRunner,
     private val serverConfig: ServerConfig,
     private val playbackPreferences: PlaybackPreferences,
     private val bookDao: BookDao,
@@ -71,6 +71,7 @@ class PlaybackManager(
     private val capabilityDetector: AudioCapabilityDetector?,
     private val syncApi: SyncApiContract?,
     private val scope: CoroutineScope,
+    private val bookRepository: BookRepository,
 ) : PlaybackStateProvider {
     private val _currentBookId = MutableStateFlow<BookId?>(null)
     override val currentBookId: StateFlow<BookId?> = _currentBookId
@@ -382,9 +383,7 @@ class PlaybackManager(
         player.load(segments)
 
         // Set speed before seeking/playing
-        if (resumeSpeed != 1.0f) {
-            player.setSpeed(resumeSpeed)
-        }
+        player.setSpeed(resumeSpeed)
         playbackSpeed.value = resumeSpeed
 
         // Resume from saved position
@@ -458,17 +457,17 @@ class PlaybackManager(
     }
 
     /**
-     * Called when user explicitly changes playback speed.
-     * Updates state and marks the book as having a custom speed.
+     * Called when user explicitly changes playback speed for the current book.
+     *
+     * Writes per-book only via [progressTracker.onSpeedChanged], which sets
+     * `hasCustomSpeed = true`. The global default is changed only via
+     * Settings → Default Speed; per-book changes do NOT mutate the global default.
      */
     fun onSpeedChanged(speed: Float) {
         val bookId = currentBookId.value ?: return
         val positionMs = currentPositionMs.value
         playbackSpeed.value = speed
         progressTracker.onSpeedChanged(bookId, positionMs, speed)
-
-        // Persist as the universal default so it survives app restarts
-        scope.launch { playbackPreferences.setDefaultPlaybackSpeed(speed) }
     }
 
     /**
@@ -690,16 +689,17 @@ class PlaybackManager(
                         )
                     }
 
-                transactionRunner.atomically {
-                    bookDao.upsert(entity)
-                    audioFileDao.deleteForBook(bookId.value)
-                    if (audioFileRows.isNotEmpty()) {
-                        audioFileDao.upsertAll(audioFileRows)
+                when (val writeResult = bookRepository.upsertWithAudioFiles(entity, audioFileRows)) {
+                    is AppResult.Success -> {
+                        logger.debug { "Saved fetched book + ${audioFileRows.size} audio files to local database" }
+                        true
+                    }
+
+                    is AppResult.Failure -> {
+                        logger.error { "Failed to persist fetched book ${bookId.value}: ${writeResult.error.message}" }
+                        false
                     }
                 }
-
-                logger.debug { "Saved fetched book + ${audioFileRows.size} audio files to local database" }
-                true
             }
 
             is Failure -> {
