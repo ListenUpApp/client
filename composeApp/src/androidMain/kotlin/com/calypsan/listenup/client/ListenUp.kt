@@ -47,6 +47,7 @@ import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 /**
@@ -77,7 +78,7 @@ val androidModule =
 val playbackModule =
     module {
         // Device ID for listening events (stable across app reinstalls on Android 8+)
-        single {
+        single(qualifier = named("deviceId")) {
             val context: Context = get()
             Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
                 ?: "unknown-device"
@@ -114,7 +115,7 @@ val playbackModule =
                 listeningEventHandler = get<ListeningEventHandler>(),
                 pushSyncOrchestrator = get(),
                 positionRepository = get(),
-                deviceId = get(),
+                deviceId = get(qualifier = named("deviceId")),
                 scope = get(),
             )
         }
