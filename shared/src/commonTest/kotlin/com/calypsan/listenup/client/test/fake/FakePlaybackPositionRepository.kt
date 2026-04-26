@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.test.fake
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
@@ -32,6 +33,11 @@ class FakePlaybackPositionRepository(
     private val state = MutableStateFlow(initialPositions)
 
     override suspend fun get(bookId: String): PlaybackPosition? = state.value[bookId]
+
+    // The fake is backed by domain-model PlaybackPosition, not entities. This method
+    // always returns Success(null); callers (Task 7's mergePositions) that need entity
+    // read-back must use the real impl or inject a purpose-built fake.
+    override suspend fun getEntity(bookId: BookId): AppResult<PlaybackPositionEntity?> = Success(null)
 
     override fun observe(bookId: String): Flow<PlaybackPosition?> = state.asStateFlow().map { it[bookId] }
 

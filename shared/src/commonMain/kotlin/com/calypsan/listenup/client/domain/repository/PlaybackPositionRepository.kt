@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.domain.repository
 
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import kotlinx.coroutines.flow.Flow
 
@@ -121,6 +122,16 @@ interface PlaybackPositionRepository {
      * @return Result with Unit on success, or Failure on error
      */
     suspend fun restartBook(bookId: String): com.calypsan.listenup.client.core.AppResult<Unit>
+
+    /**
+     * Read the persisted playback position entity for [bookId]. Returns null if the book
+     * has never been played. Read-only DAO delegation; no transaction needed.
+     *
+     * @param bookId The book to read the position for.
+     * @return [AppResult.Success] wrapping the entity (or null if no row exists);
+     *   [AppResult.Failure] if the DAO threw.
+     */
+    suspend fun getEntity(bookId: BookId): AppResult<PlaybackPositionEntity?>
 
     /**
      * Single canonical entry point for every mutation of `playback_positions`.

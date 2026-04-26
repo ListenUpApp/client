@@ -764,6 +764,45 @@ class PlaybackPositionRepositoryImplTest {
             assertEquals(2000L, result["book-1"]?.positionMs)
         }
 
+    // ========== getEntity() Tests (Task 3) ==========
+
+    @Test
+    fun `getEntity returns entity when row exists`() =
+        runTest {
+            val dao = createMockDao()
+            val entity = createPlaybackPositionEntity(bookId = "book-1")
+            everySuspend { dao.get(any()) } returns entity
+            val repository = createRepo(dao = dao)
+
+            val result = repository.getEntity(BookId("book-1"))
+
+            assertEquals(AppResult.Success(entity), result)
+        }
+
+    @Test
+    fun `getEntity returns null when no row exists`() =
+        runTest {
+            val dao = createMockDao()
+            everySuspend { dao.get(any()) } returns null
+            val repository = createRepo(dao = dao)
+
+            val result = repository.getEntity(BookId("book-1"))
+
+            assertEquals(AppResult.Success(null), result)
+        }
+
+    @Test
+    fun `getEntity returns Failure when dao throws`() =
+        runTest {
+            val dao = createMockDao()
+            everySuspend { dao.get(any()) } throws RuntimeException("dao boom")
+            val repository = createRepo(dao = dao)
+
+            val result = repository.getEntity(BookId("book-1"))
+
+            assertIs<AppResult.Failure>(result)
+        }
+
     // ========== savePlaybackState — per-variant tests (Task 2) ==========
 
     @Test
