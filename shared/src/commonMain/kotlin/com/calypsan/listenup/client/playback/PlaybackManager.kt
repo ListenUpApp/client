@@ -8,6 +8,7 @@
 
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
@@ -688,10 +689,17 @@ class PlaybackManager(
                         )
                     }
 
-                bookRepository.upsertWithAudioFiles(entity, audioFileRows)
+                when (val writeResult = bookRepository.upsertWithAudioFiles(entity, audioFileRows)) {
+                    is AppResult.Success -> {
+                        logger.debug { "Saved fetched book + ${audioFileRows.size} audio files to local database" }
+                        true
+                    }
 
-                logger.debug { "Saved fetched book + ${audioFileRows.size} audio files to local database" }
-                true
+                    is AppResult.Failure -> {
+                        logger.error { "Failed to persist fetched book ${bookId.value}: ${writeResult.error.message}" }
+                        false
+                    }
+                }
             }
 
             is Failure -> {

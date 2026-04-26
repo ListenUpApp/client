@@ -6,10 +6,10 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
+import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
-import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.SyncState
@@ -20,11 +20,10 @@ import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
+import com.calypsan.listenup.client.test.db.passThroughTransactionRunner
 import dev.mokkery.MockMode
-import dev.mokkery.answering.calls
 import dev.mokkery.answering.returns
 import dev.mokkery.every
-import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verify.VerifyMode
@@ -69,14 +68,7 @@ class BookRepositoryImplTest {
     // Real audioFileDao + a pass-through TransactionRunner for the real-DB tests.
     // The upsertWithAudioFiles atomicity tests use mocks and live in a separate class below.
     private val audioFileDao = db.audioFileDao()
-    private val transactionRunner: TransactionRunner =
-        mock<TransactionRunner> {
-            everySuspend { atomically(any<suspend () -> Any>()) } calls { args ->
-                @Suppress("UNCHECKED_CAST")
-                val block = args.arg(0) as suspend () -> Any
-                block()
-            }
-        }
+    private val transactionRunner: TransactionRunner = passThroughTransactionRunner()
 
     private val repository =
         BookRepositoryImpl(
@@ -312,14 +304,7 @@ class BookRepositoryImplTest {
 class BookRepositoryImplUpsertWithAudioFilesTest {
     private val bookDao: BookDao = mock(MockMode.autoUnit)
     private val audioFileDao: AudioFileDao = mock(MockMode.autoUnit)
-    private val transactionRunner: TransactionRunner =
-        mock<TransactionRunner> {
-            everySuspend { atomically(any<suspend () -> Any>()) } calls { args ->
-                @Suppress("UNCHECKED_CAST")
-                val block = args.arg(0) as suspend () -> Any
-                block()
-            }
-        }
+    private val transactionRunner: TransactionRunner = passThroughTransactionRunner()
 
     private val imageStorage: ImageStorage =
         mock {

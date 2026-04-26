@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.test.db.passThroughTransactionRunner
 import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.ProgressPayload
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
@@ -83,19 +84,6 @@ class PlaybackPositionRepositoryImplTest {
     private fun createMockSyncApi(): SyncApiContract = mock<SyncApiContract>(MockMode.autoUnit)
 
     /**
-     * Pass-through [TransactionRunner] mock — invokes the supplied block directly.
-     * Mirrors the seam-level pattern used in `ProgressPullerDeltaSyncTest`.
-     */
-    private fun passthroughTxRunner(): TransactionRunner =
-        mock<TransactionRunner> {
-            everySuspend { atomically(any<suspend () -> Any>()) } calls { args ->
-                @Suppress("UNCHECKED_CAST")
-                val block = args.arg(0) as suspend () -> Any
-                block()
-            }
-        }
-
-    /**
      * Constructs a repository with sensible default mocks. Tests that need a
      * specific mock (e.g., a non-passthrough TransactionRunner for contention
      * tests) supply that arg explicitly.
@@ -105,7 +93,7 @@ class PlaybackPositionRepositoryImplTest {
         syncApi: SyncApiContract = createMockSyncApi(),
         pendingOps: PendingOperationRepositoryContract = mock<PendingOperationRepositoryContract>(MockMode.autoUnit),
         markCompleteHandler: MarkCompleteHandler = MarkCompleteHandler(createMockSyncApi()),
-        transactionRunner: TransactionRunner = passthroughTxRunner(),
+        transactionRunner: TransactionRunner = passThroughTransactionRunner(),
     ): PlaybackPositionRepositoryImpl =
         PlaybackPositionRepositoryImpl(
             dao = dao,
@@ -782,7 +770,7 @@ class PlaybackPositionRepositoryImplTest {
     fun `savePlaybackState Position calls updatePositionOnly inside atomically`() =
         runTest {
             val dao = createMockDao()
-            val txRunner = passthroughTxRunner()
+            val txRunner = passThroughTransactionRunner()
             val bookId = BookId("book-1")
             everySuspend { dao.updatePositionOnly(any(), any(), any(), any()) } returns 1
             val repository = createRepo(dao = dao, transactionRunner = txRunner)
@@ -926,7 +914,7 @@ class PlaybackPositionRepositoryImplTest {
     fun `savePlaybackState PlaybackPaused calls updatePositionOnly`() =
         runTest {
             val dao = createMockDao()
-            val txRunner = passthroughTxRunner()
+            val txRunner = passThroughTransactionRunner()
             val bookId = BookId("book-1")
             everySuspend { dao.updatePositionOnly(any(), any(), any(), any()) } returns 1
             val repository = createRepo(dao = dao, transactionRunner = txRunner)
@@ -1193,7 +1181,7 @@ class PlaybackPositionRepositoryImplTest {
     fun `savePlaybackState returns Failure when dao throws`() =
         runTest {
             val dao = createMockDao()
-            val txRunner = passthroughTxRunner()
+            val txRunner = passThroughTransactionRunner()
             val bookId = BookId("book-1")
             everySuspend { dao.updatePositionOnly(any(), any(), any(), any()) } throws RuntimeException("dao boom")
             val repository = createRepo(dao = dao, transactionRunner = txRunner)

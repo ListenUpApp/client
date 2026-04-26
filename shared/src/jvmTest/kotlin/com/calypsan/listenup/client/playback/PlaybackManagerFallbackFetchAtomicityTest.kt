@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.playback
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.failureOf
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.DownloadDao
@@ -32,6 +33,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -119,6 +121,74 @@ class PlaybackManagerFallbackFetchAtomicityTest {
             val result = playbackManager.fetchBookFromServer(BookId("book-rollback"))
 
             assertTrue(result, "fetchBookFromServer should return true on success")
+            verifySuspend(VerifyMode.exactly(1)) {
+                bookRepository.upsertWithAudioFiles(any<BookEntity>(), any<List<AudioFileEntity>>())
+            }
+        }
+
+    @Test
+    fun `fetchBookFromServer returns false when upsertWithAudioFiles returns Failure`() =
+        runTest {
+            val syncApi: SyncApiContract = mock()
+            val bookRepository: BookRepository = mock()
+
+            everySuspend { bookRepository.upsertWithAudioFiles(any(), any()) } returns
+                failureOf("persistence error")
+
+            everySuspend { syncApi.getBook(any()) } returns
+                Success(
+                    bookResponseWithAudioFiles(
+                        id = "book-fail",
+                        audioFiles =
+                            listOf(
+                                AudioFileResponse(
+                                    id = "af-1",
+                                    filename = "chapter01.m4b",
+                                    format = "m4b",
+                                    codec = "aac",
+                                    duration = 1_800_000L,
+                                    size = 45_000_000L,
+                                ),
+                            ),
+                    ),
+                )
+
+            val progressTracker =
+                ProgressTracker(
+                    positionDao = mock<PlaybackPositionDao>(),
+                    downloadDao = mock<DownloadDao>(),
+                    listeningEventDao = mock<ListeningEventDao>(),
+                    syncApi = mock<SyncApiContract>(),
+                    pendingOperationRepository = mock<PendingOperationRepositoryContract>(),
+                    listeningEventHandler = mock<OperationHandler<ListeningEventPayload>>(),
+                    pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
+                    positionRepository = mock<PlaybackPositionRepository>(),
+                    deviceId = "test-device",
+                    scope = CoroutineScope(Job()),
+                )
+
+            val playbackManager =
+                PlaybackManager(
+                    serverConfig = mock(),
+                    playbackPreferences = mock(),
+                    bookDao = db.bookDao(),
+                    audioFileDao = db.audioFileDao(),
+                    chapterDao = db.chapterDao(),
+                    imageStorage = mock(),
+                    progressTracker = progressTracker,
+                    tokenProvider = mock(),
+                    deviceContext = DeviceContext(type = DeviceType.Phone),
+                    downloadService = mock(),
+                    playbackApi = null,
+                    capabilityDetector = null,
+                    syncApi = syncApi,
+                    scope = CoroutineScope(Job()),
+                    bookRepository = bookRepository,
+                )
+
+            val result = playbackManager.fetchBookFromServer(BookId("book-fail"))
+
+            assertFalse(result, "fetchBookFromServer should return false when persistence fails")
             verifySuspend(VerifyMode.exactly(1)) {
                 bookRepository.upsertWithAudioFiles(any<BookEntity>(), any<List<AudioFileEntity>>())
             }
