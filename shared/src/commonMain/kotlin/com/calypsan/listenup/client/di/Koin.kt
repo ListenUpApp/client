@@ -227,6 +227,7 @@ import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
 import com.calypsan.listenup.client.playback.PlaybackManager
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
 import com.calypsan.listenup.client.data.repository.ContributorEditRepository as ContributorEditRepositoryImpl
@@ -1397,12 +1398,7 @@ val syncModule =
                 pendingOperationRepository = get(),
                 listeningEventHandler = get(),
                 transactionRunner = get(),
-                deviceId =
-                    get(
-                        qualifier =
-                            org.koin.core.qualifier
-                                .named("deviceId"),
-                    ),
+                deviceId = get(qualifier = named("deviceId")),
             )
         }
 
