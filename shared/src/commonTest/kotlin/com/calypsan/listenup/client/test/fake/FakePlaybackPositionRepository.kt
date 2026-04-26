@@ -34,10 +34,12 @@ class FakePlaybackPositionRepository(
 
     override suspend fun get(bookId: String): PlaybackPosition? = state.value[bookId]
 
-    // The fake is backed by domain-model PlaybackPosition, not entities. This method
-    // always returns Success(null); callers (Task 7's mergePositions) that need entity
-    // read-back must use the real impl or inject a purpose-built fake.
-    override suspend fun getEntity(bookId: BookId): AppResult<PlaybackPositionEntity?> = Success(null)
+    /** This fake does not back entity-level reads. Calling getEntity throws — inject a purpose-built fake or use the real impl. */
+    override suspend fun getEntity(bookId: BookId): AppResult<PlaybackPositionEntity?> =
+        error(
+            "FakePlaybackPositionRepository does not implement getEntity (no entity store backs the fake). " +
+                "Inject a purpose-built fake or use the real PlaybackPositionRepositoryImpl with an in-memory DAO.",
+        )
 
     override fun observe(bookId: String): Flow<PlaybackPosition?> = state.asStateFlow().map { it[bookId] }
 

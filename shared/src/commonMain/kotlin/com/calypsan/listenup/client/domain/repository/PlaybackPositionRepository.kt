@@ -124,10 +124,18 @@ interface PlaybackPositionRepository {
     suspend fun restartBook(bookId: String): com.calypsan.listenup.client.core.AppResult<Unit>
 
     /**
-     * Read the persisted playback position entity for [bookId]. Returns null if the book
-     * has never been played. Read-only DAO delegation; no transaction needed.
+     * Read the persisted entity row for [bookId]. Returns null if the book has
+     * never been played. Read-only DAO delegation; no transaction needed.
      *
-     * @param bookId The book to read the position for.
+     * Use this when you need the persisted row including columns the domain model
+     * doesn't expose (e.g., raw timestamps, sync metadata). For domain-model reads,
+     * prefer the older `get(bookId: String): PlaybackPosition?` (which predates
+     * the project's `AppResult` convention).
+     *
+     * Primary call site: read-back path for `savePlaybackState(... CrossDeviceSync(...))`
+     * in `ProgressTracker.mergePositions`.
+     *
+     * @param bookId The book to read the entity row for.
      * @return [AppResult.Success] wrapping the entity (or null if no row exists);
      *   [AppResult.Failure] if the DAO threw.
      */
