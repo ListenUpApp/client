@@ -136,7 +136,6 @@ val playbackModule =
         // Playback manager - orchestrates playback startup
         single {
             PlaybackManager(
-                transactionRunner = get(),
                 serverConfig = get(),
                 playbackPreferences = get(),
                 bookDao = get(),
@@ -151,6 +150,7 @@ val playbackModule =
                 capabilityDetector = get(),
                 syncApi = get(),
                 scope = get(),
+                bookRepository = get(),
             )
         }
 

@@ -1,10 +1,15 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.suspendRunCatching
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.local.db.toDetail
 import com.calypsan.listenup.client.data.local.db.toListItem
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
@@ -39,6 +44,8 @@ import kotlinx.coroutines.flow.map
  *
  * @property bookDao Room DAO for book operations
  * @property chapterDao Room DAO for chapter operations
+ * @property audioFileDao Room DAO for audio-file operations
+ * @property transactionRunner Runs multi-table writes atomically
  * @property syncManager Sync orchestrator for server communication
  * @property imageStorage Storage for resolving cover image paths
  * @property genreRepository Upstream Flow source for a book's genres, composed
@@ -49,6 +56,8 @@ import kotlinx.coroutines.flow.map
 class BookRepositoryImpl(
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
+    private val audioFileDao: AudioFileDao,
+    private val transactionRunner: TransactionRunner,
     private val syncManager: SyncManagerContract,
     private val imageStorage: ImageStorage,
     private val genreRepository: GenreRepository,
@@ -149,6 +158,20 @@ class BookRepositoryImpl(
         val tags = tagRepository.observeTagsForBook(id).first()
         return row.toDetail(imageStorage, genres, tags)
     }
+
+    override suspend fun upsertWithAudioFiles(
+        book: BookEntity,
+        audioFiles: List<AudioFileEntity>,
+    ): AppResult<Unit> =
+        suspendRunCatching {
+            transactionRunner.atomically {
+                bookDao.upsert(book)
+                audioFileDao.deleteForBook(book.id.value)
+                if (audioFiles.isNotEmpty()) {
+                    audioFileDao.upsertAll(audioFiles)
+                }
+            }
+        }
 }
 
 /**

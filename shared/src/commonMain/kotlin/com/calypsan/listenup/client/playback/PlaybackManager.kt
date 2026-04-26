@@ -15,7 +15,6 @@ import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
-import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
@@ -27,6 +26,7 @@ import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.ContributorRole
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import com.calypsan.listenup.client.domain.playback.StreamPrepareResult
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
@@ -56,7 +56,6 @@ private val logger = KotlinLogging.logger {}
  * - Negotiate audio format with server for transcoding support
  */
 class PlaybackManager(
-    private val transactionRunner: TransactionRunner,
     private val serverConfig: ServerConfig,
     private val playbackPreferences: PlaybackPreferences,
     private val bookDao: BookDao,
@@ -71,6 +70,7 @@ class PlaybackManager(
     private val capabilityDetector: AudioCapabilityDetector?,
     private val syncApi: SyncApiContract?,
     private val scope: CoroutineScope,
+    private val bookRepository: BookRepository,
 ) : PlaybackStateProvider {
     private val _currentBookId = MutableStateFlow<BookId?>(null)
     override val currentBookId: StateFlow<BookId?> = _currentBookId
@@ -688,13 +688,7 @@ class PlaybackManager(
                         )
                     }
 
-                transactionRunner.atomically {
-                    bookDao.upsert(entity)
-                    audioFileDao.deleteForBook(bookId.value)
-                    if (audioFileRows.isNotEmpty()) {
-                        audioFileDao.upsertAll(audioFileRows)
-                    }
-                }
+                bookRepository.upsertWithAudioFiles(entity, audioFileRows)
 
                 logger.debug { "Saved fetched book + ${audioFileRows.size} audio files to local database" }
                 true

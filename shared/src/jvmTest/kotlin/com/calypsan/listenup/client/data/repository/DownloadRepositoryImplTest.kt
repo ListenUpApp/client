@@ -4,6 +4,8 @@ import app.cash.turbine.test
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
+import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
@@ -205,4 +207,9 @@ private class FakeBookRepository : BookRepository {
     override fun observeBookDetail(id: String): Flow<BookDetail?> = flowOf(null)
 
     override suspend fun getBookDetail(id: String): BookDetail? = null
+
+    override suspend fun upsertWithAudioFiles(
+        book: BookEntity,
+        audioFiles: List<AudioFileEntity>,
+    ): AppResult<Unit> = AppResult.Success(Unit)
 }

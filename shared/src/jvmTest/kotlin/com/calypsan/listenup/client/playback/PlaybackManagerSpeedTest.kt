@@ -9,7 +9,6 @@ import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.db.RoomTransactionRunner
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
@@ -18,6 +17,7 @@ import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryCon
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.device.DeviceType
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
@@ -261,7 +261,6 @@ class PlaybackManagerSpeedTest {
         everySuspend { downloadService.downloadBook(any()) } returns DownloadResult.AlreadyDownloaded
 
         return PlaybackManager(
-            transactionRunner = RoomTransactionRunner(db),
             serverConfig = serverConfig,
             playbackPreferences = playbackPreferences,
             bookDao = db.bookDao(),
@@ -276,6 +275,7 @@ class PlaybackManagerSpeedTest {
             capabilityDetector = null,
             syncApi = null,
             scope = scope,
+            bookRepository = mock<BookRepository>(),
         )
     }
 

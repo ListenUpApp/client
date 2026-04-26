@@ -14,12 +14,14 @@ import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
+import com.calypsan.listenup.client.data.repository.BookRepositoryImpl
 import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
 import com.calypsan.listenup.client.data.sync.push.OperationHandler
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.device.DeviceType
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
@@ -193,8 +195,23 @@ class PlaybackManagerFallbackFetchTest {
                 scope = CoroutineScope(Job()),
             )
 
+        // Real BookRepositoryImpl backed by the same in-memory DB so that
+        // fetchBookFromServer's call to upsertWithAudioFiles actually writes
+        // to the DB and the junction assertion passes.
+        val txRunner = RoomTransactionRunner(db)
+        val bookRepository: BookRepository =
+            BookRepositoryImpl(
+                bookDao = db.bookDao(),
+                chapterDao = db.chapterDao(),
+                audioFileDao = db.audioFileDao(),
+                transactionRunner = txRunner,
+                syncManager = mock(),
+                imageStorage = imageStorage,
+                genreRepository = mock(),
+                tagRepository = mock(),
+            )
+
         return PlaybackManager(
-            transactionRunner = RoomTransactionRunner(db),
             serverConfig = serverConfig,
             playbackPreferences = playbackPreferences,
             bookDao = db.bookDao(),
@@ -209,6 +226,7 @@ class PlaybackManagerFallbackFetchTest {
             capabilityDetector = null,
             syncApi = syncApi,
             scope = CoroutineScope(Job()),
+            bookRepository = bookRepository,
         )
     }
 }

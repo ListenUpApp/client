@@ -115,7 +115,6 @@ val platformModule: Module =
         // Playback manager (with codec negotiation enabled)
         single {
             PlaybackManager(
-                transactionRunner = get(),
                 serverConfig = get(),
                 playbackPreferences = get(),
                 bookDao = get(),
@@ -130,6 +129,7 @@ val platformModule: Module =
                 syncApi = get(),
                 deviceContext = get(),
                 scope = get(qualifier = named("playbackScope")),
+                bookRepository = get(),
             )
         }
 

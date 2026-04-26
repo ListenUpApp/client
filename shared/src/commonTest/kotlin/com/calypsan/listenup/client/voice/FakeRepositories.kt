@@ -1,10 +1,12 @@
 package com.calypsan.listenup.client.voice
 
-import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
+import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookDetail
 import com.calypsan.listenup.client.domain.model.BookListItem
@@ -141,6 +143,11 @@ class FakeBookRepository : BookRepository {
     override fun observeBookDetail(id: String): Flow<BookDetail?> = flowOf(null)
 
     override suspend fun getBookDetail(id: String): BookDetail? = null
+
+    override suspend fun upsertWithAudioFiles(
+        book: BookEntity,
+        audioFiles: List<AudioFileEntity>,
+    ): AppResult<Unit> = AppResult.Success(Unit)
 }
 
 // ========== Fake Series Repository ==========

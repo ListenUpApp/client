@@ -1,24 +1,34 @@
 package com.calypsan.listenup.client.data.repository
 
 import app.cash.turbine.turbineScope
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookGenreCrossRef
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
+import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagEntity
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
+import dev.mokkery.MockMode
+import dev.mokkery.answering.calls
 import dev.mokkery.answering.returns
 import dev.mokkery.every
+import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
+import dev.mokkery.verify.VerifyMode
+import dev.mokkery.verifySuspend
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -56,10 +66,24 @@ class BookRepositoryImplTest {
     private val genreRepository = GenreRepositoryImpl(genreDao, genreApi)
     private val tagRepository = TagRepositoryImpl(tagDao, tagApi)
 
+    // Real audioFileDao + a pass-through TransactionRunner for the real-DB tests.
+    // The upsertWithAudioFiles atomicity tests use mocks and live in a separate class below.
+    private val audioFileDao = db.audioFileDao()
+    private val transactionRunner: TransactionRunner =
+        mock<TransactionRunner> {
+            everySuspend { atomically(any<suspend () -> Any>()) } calls { args ->
+                @Suppress("UNCHECKED_CAST")
+                val block = args.arg(0) as suspend () -> Any
+                block()
+            }
+        }
+
     private val repository =
         BookRepositoryImpl(
             bookDao = bookDao,
             chapterDao = chapterDao,
+            audioFileDao = audioFileDao,
+            transactionRunner = transactionRunner,
             syncManager = syncManager,
             imageStorage = imageStorage,
             genreRepository = genreRepository,
@@ -276,5 +300,117 @@ class BookRepositoryImplTest {
             assertEquals("Warbreaker", result.title)
             assertEquals(listOf("Fantasy"), result.genres.map { it.name })
             assertEquals(listOf("magic-system"), result.tags.map { it.slug })
+        }
+}
+
+/**
+ * Mock-based tests for [BookRepositoryImpl.upsertWithAudioFiles].
+ *
+ * Uses mocked DAOs and [TransactionRunner] so each interaction can be
+ * verified independently from Room and from the real-DB tests above.
+ */
+class BookRepositoryImplUpsertWithAudioFilesTest {
+    private val bookDao: BookDao = mock(MockMode.autoUnit)
+    private val audioFileDao: AudioFileDao = mock(MockMode.autoUnit)
+    private val transactionRunner: TransactionRunner =
+        mock<TransactionRunner> {
+            everySuspend { atomically(any<suspend () -> Any>()) } calls { args ->
+                @Suppress("UNCHECKED_CAST")
+                val block = args.arg(0) as suspend () -> Any
+                block()
+            }
+        }
+
+    private val imageStorage: ImageStorage =
+        mock {
+            every { exists(any()) } returns false
+            every { getCoverPath(any()) } returns ""
+        }
+
+    private val repo =
+        BookRepositoryImpl(
+            bookDao = bookDao,
+            chapterDao = mock(MockMode.autoUnit),
+            audioFileDao = audioFileDao,
+            transactionRunner = transactionRunner,
+            syncManager = mock(MockMode.autoUnit),
+            imageStorage = imageStorage,
+            genreRepository = mock(MockMode.autoUnit),
+            tagRepository = mock(MockMode.autoUnit),
+        )
+
+    private fun makeBookEntity(
+        id: String,
+        title: String = "Book $id",
+    ): BookEntity {
+        val ts = Timestamp(1_700_000_000_000L)
+        return BookEntity(
+            id = BookId(id),
+            title = title,
+            sortTitle = title,
+            subtitle = null,
+            coverUrl = null,
+            coverBlurHash = null,
+            dominantColor = null,
+            darkMutedColor = null,
+            vibrantColor = null,
+            totalDuration = 0L,
+            description = null,
+            publishYear = null,
+            publisher = null,
+            language = null,
+            isbn = null,
+            asin = null,
+            abridged = false,
+            syncState = SyncState.SYNCED,
+            lastModified = ts,
+            serverVersion = ts,
+            createdAt = ts,
+            updatedAt = ts,
+        )
+    }
+
+    private fun makeAudioFileEntity(
+        id: String,
+        bookId: String,
+    ): AudioFileEntity =
+        AudioFileEntity(
+            bookId = BookId(bookId),
+            index = 0,
+            id = id,
+            filename = "chapter.m4b",
+            format = "m4b",
+            codec = "aac",
+            duration = 1_800_000L,
+            size = 45_000_000L,
+        )
+
+    @Test
+    fun `upsertWithAudioFiles writes book delete-and-upsert audio files inside one transaction`() =
+        runTest {
+            val book = makeBookEntity("book-1", "Title")
+            val audioFiles = listOf(makeAudioFileEntity("file-1", "book-1"))
+
+            val result = repo.upsertWithAudioFiles(book, audioFiles)
+
+            assertEquals(AppResult.Success(Unit), result)
+            verifySuspend(VerifyMode.exactly(1)) { transactionRunner.atomically(any<suspend () -> Any>()) }
+            verifySuspend(VerifyMode.exactly(1)) { bookDao.upsert(book) }
+            verifySuspend(VerifyMode.exactly(1)) { audioFileDao.deleteForBook("book-1") }
+            verifySuspend(VerifyMode.exactly(1)) { audioFileDao.upsertAll(audioFiles) }
+        }
+
+    @Test
+    fun `upsertWithAudioFiles with empty audio file list skips upsertAll`() =
+        runTest {
+            val book = makeBookEntity("book-2", "Empty Files")
+
+            val result = repo.upsertWithAudioFiles(book, emptyList())
+
+            assertEquals(AppResult.Success(Unit), result)
+            verifySuspend(VerifyMode.exactly(1)) { transactionRunner.atomically(any<suspend () -> Any>()) }
+            verifySuspend(VerifyMode.exactly(1)) { bookDao.upsert(book) }
+            verifySuspend(VerifyMode.exactly(1)) { audioFileDao.deleteForBook("book-2") }
+            verifySuspend(VerifyMode.exactly(0)) { audioFileDao.upsertAll(any()) }
         }
 }

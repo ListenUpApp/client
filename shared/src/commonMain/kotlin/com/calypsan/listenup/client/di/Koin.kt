@@ -1350,6 +1350,8 @@ val syncModule =
             BookRepositoryImpl(
                 bookDao = get(),
                 chapterDao = get(),
+                audioFileDao = get(),
+                transactionRunner = get(),
                 syncManager = get(),
                 imageStorage = get(),
                 genreRepository = get(),

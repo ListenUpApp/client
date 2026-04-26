@@ -100,7 +100,6 @@ val macosPlaybackModule: Module =
         // Playback manager
         single {
             PlaybackManager(
-                transactionRunner = get(),
                 serverConfig = get(),
                 playbackPreferences = get(),
                 bookDao = get(),
@@ -115,6 +114,7 @@ val macosPlaybackModule: Module =
                 syncApi = get(),
                 deviceContext = get(),
                 scope = get(qualifier = named("playbackScope")),
+                bookRepository = get(),
             )
         }
 
