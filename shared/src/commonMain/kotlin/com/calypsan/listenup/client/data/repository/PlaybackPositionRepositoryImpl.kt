@@ -345,6 +345,7 @@ class PlaybackPositionRepositoryImpl(
     ) {
         val existing = dao.get(bookId)
         val now = currentEpochMilliseconds()
+        // Preserve original finishedAt on re-finish — first-completion timestamp is sticky.
         val finishedAt = existing?.finishedAt ?: now
         val startedAt = existing?.startedAt ?: now
         val merged =
