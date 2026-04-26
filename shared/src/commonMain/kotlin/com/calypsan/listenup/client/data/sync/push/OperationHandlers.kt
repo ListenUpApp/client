@@ -704,6 +704,38 @@ class MarkCompleteHandler(
 }
 
 /**
+ * Handler for END_PLAYBACK_SESSION operations.
+ * Coalesces by book - latest duration wins for the same book.
+ */
+class EndPlaybackSessionHandler(
+    private val api: SyncApiContract,
+) : OperationHandler<EndPlaybackSessionPayload> {
+    override val operationType = OperationType.END_PLAYBACK_SESSION
+
+    override fun parsePayload(json: String): EndPlaybackSessionPayload = appJson.decodeFromString(json)
+
+    override fun serializePayload(payload: EndPlaybackSessionPayload): String = appJson.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: EndPlaybackSessionPayload,
+        newPayload: EndPlaybackSessionPayload,
+    ): EndPlaybackSessionPayload? {
+        if (existing.operationType != OperationType.END_PLAYBACK_SESSION) return null
+        return if (existingPayload.bookId == newPayload.bookId) newPayload else null
+    }
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: EndPlaybackSessionPayload,
+    ): AppResult<Unit> =
+        when (val result = api.endPlaybackSession(payload.bookId, payload.durationMs)) {
+            is Success -> Success(Unit)
+            is Failure -> result
+        }
+}
+
+/**
  * Handler for CREATE_SHELF operations.
  * Never coalesces — each create is a discrete intent.
  */

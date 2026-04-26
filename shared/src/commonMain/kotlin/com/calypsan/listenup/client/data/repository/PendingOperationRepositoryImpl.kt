@@ -59,28 +59,11 @@ private fun PendingOperationEntity.toDomain(): PendingOperation =
 
 /**
  * Convert OperationType to PendingOperationType domain enum.
+ *
+ * Both enums share identical entry names by convention, so name-based
+ * mapping avoids the exhaustive-when complexity ceiling as new types are added.
  */
-private fun OperationType.toDomain(): PendingOperationType =
-    when (this) {
-        OperationType.BOOK_UPDATE -> PendingOperationType.BOOK_UPDATE
-        OperationType.CONTRIBUTOR_UPDATE -> PendingOperationType.CONTRIBUTOR_UPDATE
-        OperationType.SERIES_UPDATE -> PendingOperationType.SERIES_UPDATE
-        OperationType.SET_BOOK_CONTRIBUTORS -> PendingOperationType.SET_BOOK_CONTRIBUTORS
-        OperationType.SET_BOOK_SERIES -> PendingOperationType.SET_BOOK_SERIES
-        OperationType.MERGE_CONTRIBUTOR -> PendingOperationType.MERGE_CONTRIBUTOR
-        OperationType.UNMERGE_CONTRIBUTOR -> PendingOperationType.UNMERGE_CONTRIBUTOR
-        OperationType.LISTENING_EVENT -> PendingOperationType.LISTENING_EVENT
-        OperationType.PLAYBACK_POSITION -> PendingOperationType.PLAYBACK_POSITION
-        OperationType.USER_PREFERENCES -> PendingOperationType.USER_PREFERENCES
-        OperationType.PROFILE_UPDATE -> PendingOperationType.PROFILE_UPDATE
-        OperationType.PROFILE_AVATAR -> PendingOperationType.PROFILE_AVATAR
-        OperationType.MARK_COMPLETE -> PendingOperationType.MARK_COMPLETE
-        OperationType.CREATE_SHELF -> PendingOperationType.CREATE_SHELF
-        OperationType.UPDATE_SHELF -> PendingOperationType.UPDATE_SHELF
-        OperationType.DELETE_SHELF -> PendingOperationType.DELETE_SHELF
-        OperationType.ADD_BOOKS_TO_SHELF -> PendingOperationType.ADD_BOOKS_TO_SHELF
-        OperationType.REMOVE_BOOK_FROM_SHELF -> PendingOperationType.REMOVE_BOOK_FROM_SHELF
-    }
+private fun OperationType.toDomain(): PendingOperationType = PendingOperationType.valueOf(this.name)
 
 /**
  * Convert OperationStatus to PendingOperationStatus domain enum.

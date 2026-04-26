@@ -203,12 +203,20 @@ class SyncIndicatorViewModel(
 }
 
 private fun PendingOperationType.describe(entityName: String): String =
+    describeEntityOp(entityName) ?: describeGlobalOp()
+
+private fun PendingOperationType.describeEntityOp(entityName: String): String? =
     when (this) {
         PendingOperationType.BOOK_UPDATE -> "Updating book $entityName"
         PendingOperationType.CONTRIBUTOR_UPDATE -> "Updating contributor $entityName"
         PendingOperationType.SERIES_UPDATE -> "Updating series $entityName"
         PendingOperationType.SET_BOOK_CONTRIBUTORS -> "Setting contributors for book $entityName"
         PendingOperationType.SET_BOOK_SERIES -> "Setting series for book $entityName"
+        else -> null
+    }
+
+private fun PendingOperationType.describeGlobalOp(): String =
+    when (this) {
         PendingOperationType.MERGE_CONTRIBUTOR -> "Merging contributors"
         PendingOperationType.UNMERGE_CONTRIBUTOR -> "Unmerging contributor"
         PendingOperationType.LISTENING_EVENT -> "Syncing listening data"
@@ -217,9 +225,11 @@ private fun PendingOperationType.describe(entityName: String): String =
         PendingOperationType.PROFILE_UPDATE -> "Updating profile"
         PendingOperationType.PROFILE_AVATAR -> "Uploading avatar"
         PendingOperationType.MARK_COMPLETE -> "Marking book complete"
+        PendingOperationType.END_PLAYBACK_SESSION -> "Syncing playback session"
         PendingOperationType.CREATE_SHELF -> "Creating shelf"
         PendingOperationType.UPDATE_SHELF -> "Updating shelf"
         PendingOperationType.DELETE_SHELF -> "Deleting shelf"
         PendingOperationType.ADD_BOOKS_TO_SHELF -> "Adding books to shelf"
         PendingOperationType.REMOVE_BOOK_FROM_SHELF -> "Removing book from shelf"
+        else -> "Syncing"
     }
