@@ -3,22 +3,16 @@
 
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.data.local.db.ListeningEventDao
-import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
-import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
-import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
-import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
-import com.calypsan.listenup.client.data.sync.push.OperationHandler
-import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
+import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
-import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -43,13 +37,10 @@ private val logger = KotlinLogging.logger {}
 class ProgressTracker(
     private val positionDao: PlaybackPositionDao,
     private val downloadRepository: DownloadRepository,
-    private val listeningEventDao: ListeningEventDao,
+    private val listeningEventRepository: ListeningEventRepository,
     private val syncApi: SyncApiContract,
-    private val pendingOperationRepository: PendingOperationRepositoryContract,
-    private val listeningEventHandler: OperationHandler<ListeningEventPayload>,
     private val pushSyncOrchestrator: PushSyncOrchestratorContract,
     private val positionRepository: PlaybackPositionRepository,
-    private val deviceId: String,
     private val scope: CoroutineScope,
 ) {
     private var currentSession: ListeningSession? = null
@@ -582,10 +573,11 @@ class ProgressTracker(
     )
 
     /**
-     * Save a listening event to Room and queue for server sync.
+     * Validate and delegate a listening event to [ListeningEventRepository].
      *
-     * Offline-first: Event is saved locally first, then queued for sync.
-     * This ensures stats are immediately available even when offline.
+     * Position validation is applied here (not in the repository) because ProgressTracker
+     * owns the "what counts as a valid event" decision at the playback layer. The repository
+     * owns atomicity of the write, not event semantics.
      */
     private suspend fun queueListeningEvent(
         bookId: BookId,
@@ -595,8 +587,8 @@ class ProgressTracker(
         endedAt: Long,
         playbackSpeed: Float,
     ) {
-        // Validate positions to prevent corrupted events
-        // Max reasonable audiobook position: 7 days worth of audio (168 hours)
+        // Validate positions to prevent corrupted events.
+        // Max reasonable audiobook position: 7 days worth of audio (168 hours).
         val maxReasonablePositionMs = 7L * 24 * 60 * 60 * 1000 // ~604,800,000ms
         if (endPositionMs < 0 || endPositionMs > maxReasonablePositionMs) {
             logger.error {
@@ -613,63 +605,28 @@ class ProgressTracker(
             return
         }
 
-        val eventId = NanoId.generate("evt")
-        val now = Clock.System.now().toEpochMilliseconds()
-        logger.info {
-            "🎧 CREATING EVENT: id=$eventId, book=${bookId.value}, start=$startPositionMs, end=$endPositionMs"
-        }
+        when (
+            val result =
+                listeningEventRepository.queueListeningEvent(
+                    bookId = bookId,
+                    startPositionMs = startPositionMs,
+                    endPositionMs = endPositionMs,
+                    startedAt = startedAt,
+                    endedAt = endedAt,
+                    playbackSpeed = playbackSpeed,
+                )
+        ) {
+            is AppResult.Success -> {
+                logger.info {
+                    "🎧 EVENT QUEUED: book=${bookId.value}, start=$startPositionMs, end=$endPositionMs"
+                }
+            }
 
-        // 1. Save to Room first (offline-first)
-        val entity =
-            ListeningEventEntity(
-                id = eventId,
-                bookId = bookId.value,
-                startPositionMs = startPositionMs,
-                endPositionMs = endPositionMs,
-                startedAt = startedAt,
-                endedAt = endedAt,
-                playbackSpeed = playbackSpeed,
-                deviceId = deviceId,
-                syncState = SyncState.NOT_SYNCED,
-                createdAt = now,
-            )
-
-        try {
-            listeningEventDao.upsert(entity)
-            logger.info { "🎧 EVENT SAVED TO ROOM: id=$eventId" }
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            logger.error(e) { "🎧 FAILED TO SAVE EVENT TO ROOM: id=$eventId" }
-            // Continue to queue for sync anyway - worst case it syncs without local storage
-        }
-
-        // 2. Queue for server sync
-        val payload =
-            ListeningEventPayload(
-                id = eventId,
-                bookId = bookId.value,
-                startPositionMs = startPositionMs,
-                endPositionMs = endPositionMs,
-                startedAt = startedAt,
-                endedAt = endedAt,
-                playbackSpeed = playbackSpeed,
-                deviceId = deviceId,
-            )
-
-        try {
-            pendingOperationRepository.queue(
-                type = OperationType.LISTENING_EVENT,
-                entityType = null, // Events don't target a specific entity type
-                entityId = null, // Events batch together, not by entity
-                payload = payload,
-                handler = listeningEventHandler,
-            )
-            logger.info { "🎧 EVENT QUEUED FOR SYNC: id=$eventId" }
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            logger.error(e) { "🎧 FAILED TO QUEUE EVENT FOR SYNC: id=$eventId" }
+            is AppResult.Failure -> {
+                logger.warn {
+                    "🎧 FAILED TO QUEUE EVENT: book=${bookId.value}: ${result.error.message}"
+                }
+            }
         }
     }
 

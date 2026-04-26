@@ -7,19 +7,16 @@ import com.calypsan.listenup.client.core.failureOf
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
-import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
-import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
-import com.calypsan.listenup.client.data.sync.push.OperationHandler
-import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.device.DeviceType
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
+import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
 import dev.mokkery.answering.returns
@@ -89,13 +86,10 @@ class PlaybackManagerFallbackFetchAtomicityTest {
                 ProgressTracker(
                     positionDao = mock<PlaybackPositionDao>(),
                     downloadRepository = mock<DownloadRepository>(),
-                    listeningEventDao = mock<ListeningEventDao>(),
+                    listeningEventRepository = mock<ListeningEventRepository>(),
                     syncApi = mock<SyncApiContract>(),
-                    pendingOperationRepository = mock<PendingOperationRepositoryContract>(),
-                    listeningEventHandler = mock<OperationHandler<ListeningEventPayload>>(),
                     pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
                     positionRepository = mock<PlaybackPositionRepository>(),
-                    deviceId = "test-device",
                     scope = CoroutineScope(Job()),
                 )
 
@@ -157,13 +151,10 @@ class PlaybackManagerFallbackFetchAtomicityTest {
                 ProgressTracker(
                     positionDao = mock<PlaybackPositionDao>(),
                     downloadRepository = mock<DownloadRepository>(),
-                    listeningEventDao = mock<ListeningEventDao>(),
+                    listeningEventRepository = mock<ListeningEventRepository>(),
                     syncApi = mock<SyncApiContract>(),
-                    pendingOperationRepository = mock<PendingOperationRepositoryContract>(),
-                    listeningEventHandler = mock<OperationHandler<ListeningEventPayload>>(),
                     pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
                     positionRepository = mock<PlaybackPositionRepository>(),
-                    deviceId = "test-device",
                     scope = CoroutineScope(Job()),
                 )
 
