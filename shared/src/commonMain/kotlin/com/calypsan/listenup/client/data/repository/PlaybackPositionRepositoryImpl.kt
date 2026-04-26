@@ -33,12 +33,13 @@ private val logger = KotlinLogging.logger {}
  * Wraps PlaybackPositionDao and converts entities to domain models.
  * Position operations are instant and local-first.
  *
- * The mark/discard/restart operations use optimistic updates:
- * 1. Update local database immediately for instant UI response
- * 2. Sync to server in background
- * 3. Rollback local changes if server sync fails
+ * [markComplete] is a thin facade over [savePlaybackState] and uses the outbox
+ * pattern: local save + unconditional MARK_COMPLETE pending-op queue (the sync
+ * engine processes it asynchronously). [discardProgress] and [restartBook] retain
+ * their own implementations with optimistic local update + immediate server sync +
+ * rollback on failure — no pending-op infrastructure exists for those operations yet.
  *
- * The newer [savePlaybackState] entry point owns per-book Mutex serialization
+ * The [savePlaybackState] entry point owns per-book Mutex serialization
  * plus per-call transactional dispatch over the 11-variant [PlaybackUpdate]
  * sealed hierarchy. Every variant handler runs inside [TransactionRunner.atomically]
  * so each fetch-then-save pair is rollback-safe. Concurrent writes for the same
@@ -86,7 +87,7 @@ class PlaybackPositionRepositoryImpl(
     override suspend fun getRecentPositions(limit: Int): List<PlaybackPosition> =
         dao.getRecentPositions(limit).map { it.toDomain() }
 
-    // ----- Existing write paths (untouched in Task 2; will become facades in Task 7) --------
+    // ----- Write paths -----------------------------------------------------------------------
 
     override suspend fun save(
         bookId: String,
@@ -121,68 +122,7 @@ class PlaybackPositionRepositoryImpl(
         bookId: String,
         startedAt: Long?,
         finishedAt: Long?,
-    ): AppResult<Unit> {
-        logger.debug { "markComplete: $bookId" }
-        val existing = dao.get(BookId(bookId))
-        val now = currentEpochMilliseconds()
-        val effectiveFinishedAt = finishedAt ?: now
-        val effectiveStartedAt = startedAt ?: existing?.startedAt ?: now
-
-        // Optimistic local update
-        val updated =
-            existing?.copy(
-                isFinished = true,
-                finishedAt = effectiveFinishedAt,
-                startedAt = effectiveStartedAt,
-                updatedAt = now,
-            ) ?: PlaybackPositionEntity(
-                bookId = BookId(bookId),
-                positionMs = 0,
-                playbackSpeed = 1.0f,
-                hasCustomSpeed = false,
-                updatedAt = now,
-                lastPlayedAt = now,
-                isFinished = true,
-                finishedAt = effectiveFinishedAt,
-                startedAt = effectiveStartedAt,
-            )
-        dao.save(updated)
-
-        // Convert to ISO 8601 for API
-        val startedAtIso = epochMillisToIso8601(effectiveStartedAt)
-        val finishedAtIso = epochMillisToIso8601(effectiveFinishedAt)
-
-        // Sync to server
-        return when (val result = syncApi.markComplete(bookId, startedAt = startedAtIso, finishedAt = finishedAtIso)) {
-            is Success -> {
-                logger.info { "markComplete: synced $bookId to server" }
-                Success(Unit)
-            }
-
-            is Failure -> {
-                logger.warn {
-                    "markComplete: server sync failed for $bookId, enqueueing for retry"
-                }
-                // Do NOT rollback. Optimistic local update is correct.
-                // Enqueue for retry so PushSyncOrchestrator will keep trying,
-                // preventing ProgressPuller from overwriting local isFinished=true.
-                pendingOps.queue(
-                    type = OperationType.MARK_COMPLETE,
-                    entityType = EntityType.BOOK,
-                    entityId = bookId,
-                    payload =
-                        MarkCompletePayload(
-                            bookId = bookId,
-                            startedAt = startedAtIso,
-                            finishedAt = finishedAtIso,
-                        ),
-                    handler = markCompleteHandler,
-                )
-                // Return success since local state is correct and retry is enqueued
-                Success(Unit)
-            }
-        }
-    }
+    ): AppResult<Unit> = savePlaybackState(BookId(bookId), PlaybackUpdate.MarkComplete(startedAt, finishedAt))
 
     override suspend fun discardProgress(bookId: String): AppResult<Unit> {
         logger.debug { "discardProgress: $bookId" }
