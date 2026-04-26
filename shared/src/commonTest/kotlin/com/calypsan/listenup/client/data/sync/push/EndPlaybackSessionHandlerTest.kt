@@ -57,7 +57,8 @@ class EndPlaybackSessionHandlerTest {
 
             val result = handler.execute(pendingOp(), EndPlaybackSessionPayload(bookId = "book-1", durationMs = 60_000L))
 
-            assertIs<Failure>(result)
+            val failure = assertIs<Failure>(result)
+            assertIs<NetworkError>(failure.error)
         }
 
     @Test

@@ -202,10 +202,10 @@ class SyncIndicatorViewModel(
     }
 }
 
-private fun PendingOperationType.describe(entityName: String): String =
+internal fun PendingOperationType.describe(entityName: String): String =
     describeEntityOp(entityName) ?: describeGlobalOp()
 
-private fun PendingOperationType.describeEntityOp(entityName: String): String? =
+internal fun PendingOperationType.describeEntityOp(entityName: String): String? =
     when (this) {
         PendingOperationType.BOOK_UPDATE -> "Updating book $entityName"
         PendingOperationType.CONTRIBUTOR_UPDATE -> "Updating contributor $entityName"
@@ -215,7 +215,7 @@ private fun PendingOperationType.describeEntityOp(entityName: String): String? =
         else -> null
     }
 
-private fun PendingOperationType.describeGlobalOp(): String =
+internal fun PendingOperationType.describeGlobalOp(): String =
     when (this) {
         PendingOperationType.MERGE_CONTRIBUTOR -> "Merging contributors"
         PendingOperationType.UNMERGE_CONTRIBUTOR -> "Unmerging contributor"
