@@ -66,6 +66,7 @@ import com.calypsan.listenup.client.data.repository.EventStreamRepositoryImpl
 import com.calypsan.listenup.client.data.repository.GenreRepositoryImpl
 import com.calypsan.listenup.client.data.repository.HomeRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ImageRepositoryImpl
+import com.calypsan.listenup.client.data.repository.ListeningEventRepositoryImpl
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ShelfRepositoryImpl
@@ -160,6 +161,7 @@ import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.LibraryPreferences
 import com.calypsan.listenup.client.domain.repository.LibrarySync
 import com.calypsan.listenup.client.domain.repository.LocalPreferences
+import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ProfileRepository
@@ -1385,6 +1387,22 @@ val syncModule =
                 userStatsDao = get(),
                 userDao = get(),
                 leaderboardApi = get(),
+            )
+        }
+
+        // ListeningEventRepository — transactional write (upsert + pending-op) + DAO read surface
+        single<ListeningEventRepository> {
+            ListeningEventRepositoryImpl(
+                listeningEventDao = get(),
+                pendingOperationRepository = get(),
+                listeningEventHandler = get(),
+                transactionRunner = get(),
+                deviceId =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("deviceId"),
+                    ),
             )
         }
 
