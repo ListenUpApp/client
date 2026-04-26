@@ -5,7 +5,6 @@ import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -18,6 +17,7 @@ import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.device.DeviceType
 import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
@@ -153,7 +153,7 @@ class PlaybackManagerPrepareTest {
         val progressTracker =
             ProgressTracker(
                 positionDao = positionDao,
-                downloadDao = mock<DownloadDao>(),
+                downloadRepository = mock<DownloadRepository>(),
                 listeningEventDao = mock<ListeningEventDao>(),
                 syncApi = mock<SyncApiContract>(),
                 pendingOperationRepository = mock<PendingOperationRepositoryContract>(),

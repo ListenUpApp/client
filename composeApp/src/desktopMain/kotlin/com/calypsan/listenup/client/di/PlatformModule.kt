@@ -93,7 +93,7 @@ val platformModule: Module =
         single {
             ProgressTracker(
                 positionDao = get(),
-                downloadDao = get(),
+                downloadRepository = get(),
                 listeningEventDao = get(),
                 syncApi = get(),
                 pendingOperationRepository = get(),

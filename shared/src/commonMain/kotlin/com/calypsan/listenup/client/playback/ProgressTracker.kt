@@ -4,7 +4,6 @@
 package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.OperationType
@@ -17,6 +16,7 @@ import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
 import com.calypsan.listenup.client.data.sync.push.OperationHandler
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -42,7 +42,7 @@ private val logger = KotlinLogging.logger {}
  */
 class ProgressTracker(
     private val positionDao: PlaybackPositionDao,
-    private val downloadDao: DownloadDao,
+    private val downloadRepository: DownloadRepository,
     private val listeningEventDao: ListeningEventDao,
     private val syncApi: SyncApiContract,
     private val pendingOperationRepository: PendingOperationRepositoryContract,
@@ -521,7 +521,7 @@ class ProgressTracker(
             // Clear any DELETED download records so future playback will auto-download again
             // This means that the next time a user wants to listen to the same book. We assume
             // They want the default behavior again (stream + download)
-            downloadDao.deleteForBook(bookId.value)
+            downloadRepository.deleteForBook(bookId.value)
             logger.debug { "Cleared download records for finished book: ${bookId.value}" }
 
             // Mark book as complete (Issue #206)
