@@ -120,4 +120,34 @@ class FakePlaybackPositionRepositoryTest {
             assertEquals("newest", recent[0].bookId, "most-recently-played first")
             assertEquals("oldest", recent[1].bookId)
         }
+
+    @Test
+    fun getLastPlayedBookReturnsMostRecentlyPlayed() =
+        runTest {
+            var clock = 1_000L
+            val repo = FakePlaybackPositionRepository(nowMs = { clock })
+            repo.save("oldest", positionMs = 100L, playbackSpeed = 1.0f, hasCustomSpeed = false)
+            clock = 2_000L
+            repo.save("newest", positionMs = 5_000L, playbackSpeed = 1.5f, hasCustomSpeed = true)
+
+            val result = repo.getLastPlayedBook()
+
+            assertTrue(result is Success)
+            val info = result.data
+            assertNotNull(info)
+            assertEquals("newest", info.bookId.value)
+            assertEquals(5_000L, info.positionMs)
+            assertEquals(1.5f, info.playbackSpeed)
+        }
+
+    @Test
+    fun getLastPlayedBookReturnsNullWhenEmpty() =
+        runTest {
+            val repo = FakePlaybackPositionRepository()
+
+            val result = repo.getLastPlayedBook()
+
+            assertTrue(result is Success)
+            assertNull(result.data)
+        }
 }

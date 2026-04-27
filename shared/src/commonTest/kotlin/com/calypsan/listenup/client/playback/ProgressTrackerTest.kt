@@ -7,7 +7,6 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.error.DataError
 import com.calypsan.listenup.client.data.local.db.EntityType
 import com.calypsan.listenup.client.data.local.db.OperationType
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
@@ -57,7 +56,6 @@ class ProgressTrackerTest {
         val testDispatcher = StandardTestDispatcher()
         val testScope = TestScope(testDispatcher)
 
-        val positionDao: PlaybackPositionDao = mock()
         val downloadRepository: DownloadRepository = mock()
         val listeningEventRepository: ListeningEventRepository = mock()
         val syncApi: SyncApiContract = mock()
@@ -70,7 +68,6 @@ class ProgressTrackerTest {
 
         fun build(): ProgressTracker =
             ProgressTracker(
-                positionDao = positionDao,
                 downloadRepository = downloadRepository,
                 listeningEventRepository = listeningEventRepository,
                 syncApi = syncApi,
@@ -86,11 +83,6 @@ class ProgressTrackerTest {
         val fixture = TestFixture()
 
         // Default stubs
-        everySuspend { fixture.positionDao.get(any()) } returns null
-        everySuspend { fixture.positionDao.save(any()) } returns Unit
-        // updatePositionOnly returns 0 by default (no existing record), causing savePosition
-        // to fall through to positionDao.save(). Override in individual tests if needed.
-        everySuspend { fixture.positionDao.updatePositionOnly(any(), any(), any(), any()) } returns 0
         everySuspend { fixture.syncApi.getProgress(any()) } returns Success(null)
         everySuspend { fixture.listeningEventRepository.queueListeningEvent(any(), any(), any(), any(), any(), any()) } returns AppResult.Success(Unit)
         everySuspend { fixture.pushSyncOrchestrator.flush() } returns Unit

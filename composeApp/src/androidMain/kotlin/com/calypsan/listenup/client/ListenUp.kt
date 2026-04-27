@@ -104,7 +104,6 @@ val playbackModule =
         // Progress tracker for position persistence and event recording
         single {
             ProgressTracker(
-                positionDao = get(),
                 downloadRepository = get(),
                 listeningEventRepository = get(),
                 syncApi = get(),

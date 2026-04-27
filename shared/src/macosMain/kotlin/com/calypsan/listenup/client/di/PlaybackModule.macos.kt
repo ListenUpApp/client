@@ -76,7 +76,6 @@ val macosPlaybackModule: Module =
         // Progress tracker
         single {
             ProgressTracker(
-                positionDao = get(),
                 downloadRepository = get(),
                 listeningEventRepository = get(),
                 syncApi = get(),

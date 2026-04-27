@@ -7,6 +7,16 @@ import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import kotlinx.coroutines.flow.Flow
 
 /**
+ * Information about the last played book for resumption from system UI.
+ * (Android Auto, Wear OS, system notifications, etc.)
+ */
+data class LastPlayedInfo(
+    val bookId: BookId,
+    val positionMs: Long,
+    val playbackSpeed: Float,
+)
+
+/**
  * Repository contract for playback position operations.
  *
  * Provides access to saved playback positions for books.
@@ -160,4 +170,15 @@ interface PlaybackPositionRepository {
         bookId: BookId,
         update: PlaybackUpdate,
     ): AppResult<Unit>
+
+    /**
+     * Read the most recently played book (highest `lastPlayedAt`) or null if no
+     * books have been played. Used by the system UI resumption surface
+     * (Android Auto, Wear OS, system notifications after reboot).
+     *
+     * @return [AppResult.Success] wrapping [LastPlayedInfo] for the most recently
+     *   played book, or null if no books have been played;
+     *   [AppResult.Failure] if the DAO threw.
+     */
+    suspend fun getLastPlayedBook(): AppResult<LastPlayedInfo?>
 }

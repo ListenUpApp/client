@@ -7,7 +7,6 @@ import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.EntityType
 import com.calypsan.listenup.client.data.local.db.OperationType
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
@@ -26,6 +25,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -47,7 +47,6 @@ private val logger = KotlinLogging.logger {}
  * Events are queued locally via the unified push sync system.
  */
 class ProgressTracker(
-    private val positionDao: PlaybackPositionDao,
     private val downloadRepository: DownloadRepository,
     private val listeningEventRepository: ListeningEventRepository,
     private val syncApi: SyncApiContract,
@@ -369,6 +368,17 @@ class ProgressTracker(
      * 3. Compare timestamps - use whichever is newer
      * 4. If server is newer, update local cache
      *
+     * **HTTP exception (drift #19):** This method retains a synchronous
+     * `syncApi.getProgress(bookId)` call (via [fetchServerProgress]) — the
+     * one remaining direct HTTP read in [ProgressTracker] after W7 Phase C.
+     * Cross-device merge has no SSE coverage today, and resume must reflect
+     * a sibling device's progress at the moment playback starts. The call
+     * is bounded by `withTimeoutOrNull(3_000L)` so a slow or unreachable
+     * server cannot block ExoPlayer startup. Future work (W8 Phase D):
+     * either an SSE-driven cross-device merge that obviates the synchronous
+     * read, or a `PlaybackPositionRepository.fetchAndMerge(bookId)` that
+     * internalises the HTTP call behind the seam.
+     *
      * @param bookId Book to get resume position for
      * @return Position to resume from, or null if never played
      */
@@ -529,8 +539,7 @@ class ProgressTracker(
         bookId: BookId,
         finalPositionMs: Long,
     ) {
-        val priorState = _sessionState.value
-        _sessionState.value = SessionState.Idle
+        val priorState = _sessionState.getAndUpdate { _ -> SessionState.Idle }
 
         scope.launch {
             logger.info { "Book finished: ${bookId.value}, finalPosition=$finalPositionMs" }
@@ -609,32 +618,6 @@ class ProgressTracker(
             is SessionState.Paused -> s.speed
             SessionState.Idle -> 1.0f
         }
-
-    /**
-     * Get the most recently played book.
-     * Used for playback resumption from system UI (Android Auto, Wear OS, etc).
-     *
-     * @return The book ID and position of the most recently played book, or null if never played
-     */
-    suspend fun getLastPlayedBook(): LastPlayedInfo? {
-        val positions = positionDao.getRecentPositions(1)
-        val position = positions.firstOrNull() ?: return null
-
-        return LastPlayedInfo(
-            bookId = position.bookId,
-            positionMs = position.positionMs,
-            playbackSpeed = position.playbackSpeed,
-        )
-    }
-
-    /**
-     * Information about the last played book for resumption.
-     */
-    data class LastPlayedInfo(
-        val bookId: BookId,
-        val positionMs: Long,
-        val playbackSpeed: Float,
-    )
 
     /**
      * Validate and delegate a listening event to [ListeningEventRepository].

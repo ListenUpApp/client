@@ -30,9 +30,11 @@ import com.calypsan.listenup.client.composeapp.R
 import com.calypsan.listenup.client.automotive.BrowseTree
 import com.calypsan.listenup.client.automotive.BrowseTreeProvider
 import com.calypsan.listenup.client.automotive.CustomActions
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.getOrNull
 import com.calypsan.listenup.client.domain.repository.HomeRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.voice.MediaFocus
 import com.calypsan.listenup.client.voice.PlaybackIntent
 import com.calypsan.listenup.client.voice.VoiceHints
@@ -85,6 +87,7 @@ class PlaybackService : MediaLibraryService() {
     // Inject dependencies
     private val playbackManager: PlaybackManager by inject()
     private val progressTracker: ProgressTracker by inject()
+    private val positionRepository: PlaybackPositionRepository by inject()
     private val errorHandler: PlaybackErrorHandler by inject()
     private val tokenProvider: AndroidAudioTokenProvider by inject()
     private val sleepTimerManager: SleepTimerManager by inject()
@@ -991,8 +994,18 @@ class PlaybackService : MediaLibraryService() {
             return CallbackToFutureAdapter.getFuture { completer ->
                 serviceScope.launch {
                     try {
-                        // Get the last played book from ProgressTracker
-                        val lastPlayed = progressTracker.getLastPlayedBook()
+                        // Get the last played book from the repository
+                        val lastPlayed =
+                            when (val r = positionRepository.getLastPlayedBook()) {
+                                is AppResult.Success -> {
+                                    r.data
+                                }
+
+                                is AppResult.Failure -> {
+                                    logger.warn { "Failed to read last played book: ${r.error.message}" }
+                                    null
+                                }
+                            }
 
                         if (lastPlayed == null) {
                             logger.warn { "No last played book found for resumption" }
