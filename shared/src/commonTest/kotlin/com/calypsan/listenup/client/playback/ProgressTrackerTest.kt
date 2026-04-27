@@ -19,6 +19,7 @@ import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.matcher.matches
 import dev.mokkery.mock
+import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -456,5 +457,67 @@ class ProgressTrackerTest {
             tracker.clearProgress(bookId)
 
             verifySuspend { fixture.positionRepository.delete(bookId.value) }
+        }
+
+    // ========== write-path migration (Task 5) ==========
+
+    @Test
+    fun `onSpeedChanged routes through savePlaybackState with Speed variant`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onSpeedChanged(bookId = bookId, positionMs = 1500L, newSpeed = 1.5f)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "Speed(positionMs=1500, speed=1.5, custom=true)" }) {
+                        it is PlaybackUpdate.Speed && it.positionMs == 1500L && it.speed == 1.5f && it.custom == true
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `onSpeedReset routes through savePlaybackState with SpeedReset variant`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onSpeedReset(bookId = bookId, positionMs = 1500L, defaultSpeed = 1.0f)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "SpeedReset(positionMs=1500, defaultSpeed=1.0)" }) {
+                        it is PlaybackUpdate.SpeedReset && it.positionMs == 1500L && it.defaultSpeed == 1.0f
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `onPositionUpdate routes through savePlaybackState with PeriodicUpdate variant`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onPositionUpdate(bookId = bookId, positionMs = 5000L, speed = 1.0f)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "PeriodicUpdate(positionMs=5000, speed=1.0)" }) {
+                        it is PlaybackUpdate.PeriodicUpdate && it.positionMs == 5000L && it.speed == 1.0f
+                    },
+                )
+            }
         }
 }
