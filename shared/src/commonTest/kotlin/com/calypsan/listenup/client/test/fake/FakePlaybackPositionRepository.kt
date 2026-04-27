@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.test.fake
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
@@ -32,6 +33,13 @@ class FakePlaybackPositionRepository(
     private val state = MutableStateFlow(initialPositions)
 
     override suspend fun get(bookId: String): PlaybackPosition? = state.value[bookId]
+
+    /** This fake does not back entity-level reads. Calling getEntity throws — inject a purpose-built fake or use the real impl. */
+    override suspend fun getEntity(bookId: BookId): AppResult<PlaybackPositionEntity?> =
+        error(
+            "FakePlaybackPositionRepository does not implement getEntity (no entity store backs the fake). " +
+                "Inject a purpose-built fake or use the real PlaybackPositionRepositoryImpl with an in-memory DAO.",
+        )
 
     override fun observe(bookId: String): Flow<PlaybackPosition?> = state.asStateFlow().map { it[bookId] }
 

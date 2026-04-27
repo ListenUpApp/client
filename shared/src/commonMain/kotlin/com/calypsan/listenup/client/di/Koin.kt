@@ -126,6 +126,7 @@ import com.calypsan.listenup.client.data.sync.push.OperationExecutor
 import com.calypsan.listenup.client.data.sync.push.OperationExecutorContract
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepository
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.PlaybackPositionHandler
 import com.calypsan.listenup.client.data.sync.push.PreferencesSyncObserver
@@ -1209,6 +1210,7 @@ val syncModule =
         single { ProfileUpdateHandler(transactionRunner = get(), api = get(), userDao = get()) }
         single { ProfileAvatarHandler(api = get(), userDao = get(), imageDownloader = get()) }
         single { MarkCompleteHandler(api = get()) }
+        single { EndPlaybackSessionHandler(api = get()) }
         single { CreateShelfHandler(api = get()) }
         single { UpdateShelfHandler(api = get()) }
         single { DeleteShelfHandler(api = get()) }
@@ -1251,6 +1253,7 @@ val syncModule =
                 profileUpdateHandler = get(),
                 profileAvatarHandler = get(),
                 markCompleteHandler = get(),
+                endPlaybackSessionHandler = get(),
                 createShelfHandler = get(),
                 updateShelfHandler = get(),
                 deleteShelfHandler = get(),

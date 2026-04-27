@@ -196,3 +196,15 @@ data class MarkCompletePayload(
     @SerialName("finished_at")
     val finishedAt: String? = null,
 )
+
+/**
+ * Payload for END_PLAYBACK_SESSION operations.
+ * Coalesces by book - latest duration wins for the same book.
+ */
+@Serializable
+data class EndPlaybackSessionPayload(
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("duration_ms")
+    val durationMs: Long,
+)

@@ -7,17 +7,12 @@ import com.calypsan.listenup.client.core.failureOf
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
-import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.device.DeviceType
 import com.calypsan.listenup.client.domain.repository.BookRepository
-import com.calypsan.listenup.client.domain.repository.DownloadRepository
-import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
-import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
@@ -78,21 +73,7 @@ class PlaybackManagerFallbackFetchAtomicityTest {
                     ),
                 )
 
-            // ProgressTracker is a final class so Mokkery can't synthesise a mock —
-            // construct a real instance whose dependencies are all interface mocks.
-            // fetchBookFromServer doesn't touch progressTracker, so we just need
-            // something instantiable.
-            val progressTracker =
-                ProgressTracker(
-                    positionDao = mock<PlaybackPositionDao>(),
-                    downloadRepository = mock<DownloadRepository>(),
-                    listeningEventRepository = mock<ListeningEventRepository>(),
-                    syncApi = mock<SyncApiContract>(),
-                    pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
-                    positionRepository = mock<PlaybackPositionRepository>(),
-                    scope = CoroutineScope(Job()),
-                )
-
+            // ProgressTracker is a final class — use the shared helper from PlaybackManagerTestSupport.
             val playbackManager =
                 PlaybackManager(
                     serverConfig = mock(),
@@ -101,7 +82,7 @@ class PlaybackManagerFallbackFetchAtomicityTest {
                     audioFileDao = db.audioFileDao(),
                     chapterDao = db.chapterDao(),
                     imageStorage = mock(),
-                    progressTracker = progressTracker,
+                    progressTracker = buildProgressTracker(),
                     tokenProvider = mock(),
                     deviceContext = DeviceContext(type = DeviceType.Phone),
                     downloadService = mock(),
@@ -147,17 +128,7 @@ class PlaybackManagerFallbackFetchAtomicityTest {
                     ),
                 )
 
-            val progressTracker =
-                ProgressTracker(
-                    positionDao = mock<PlaybackPositionDao>(),
-                    downloadRepository = mock<DownloadRepository>(),
-                    listeningEventRepository = mock<ListeningEventRepository>(),
-                    syncApi = mock<SyncApiContract>(),
-                    pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
-                    positionRepository = mock<PlaybackPositionRepository>(),
-                    scope = CoroutineScope(Job()),
-                )
-
+            // ProgressTracker is a final class — use the shared helper from PlaybackManagerTestSupport.
             val playbackManager =
                 PlaybackManager(
                     serverConfig = mock(),
@@ -166,7 +137,7 @@ class PlaybackManagerFallbackFetchAtomicityTest {
                     audioFileDao = db.audioFileDao(),
                     chapterDao = db.chapterDao(),
                     imageStorage = mock(),
-                    progressTracker = progressTracker,
+                    progressTracker = buildProgressTracker(),
                     tokenProvider = mock(),
                     deviceContext = DeviceContext(type = DeviceType.Phone),
                     downloadService = mock(),

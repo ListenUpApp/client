@@ -4,19 +4,29 @@ import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.DataError
+import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionPayload
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
+import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
+import dev.mokkery.matcher.matches
 import dev.mokkery.mock
+import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -24,6 +34,8 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
@@ -51,6 +63,10 @@ class ProgressTrackerTest {
         val syncApi: SyncApiContract = mock()
         val pushSyncOrchestrator: PushSyncOrchestratorContract = mock()
         val positionRepository: PlaybackPositionRepository = mock()
+        val pendingOperationRepository: PendingOperationRepositoryContract =
+            mock(MockMode.autoUnit)
+        val endPlaybackSessionHandler: EndPlaybackSessionHandler =
+            EndPlaybackSessionHandler(syncApi)
 
         fun build(): ProgressTracker =
             ProgressTracker(
@@ -60,6 +76,8 @@ class ProgressTrackerTest {
                 syncApi = syncApi,
                 pushSyncOrchestrator = pushSyncOrchestrator,
                 positionRepository = positionRepository,
+                pendingOperationRepository = pendingOperationRepository,
+                endPlaybackSessionHandler = endPlaybackSessionHandler,
                 scope = testScope,
             )
     }
@@ -77,6 +95,8 @@ class ProgressTrackerTest {
         everySuspend { fixture.listeningEventRepository.queueListeningEvent(any(), any(), any(), any(), any(), any()) } returns AppResult.Success(Unit)
         everySuspend { fixture.pushSyncOrchestrator.flush() } returns Unit
         everySuspend { fixture.downloadRepository.deleteForBook(any()) } returns Unit
+        everySuspend { fixture.positionRepository.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
+        everySuspend { fixture.positionRepository.getEntity(any<BookId>()) } returns AppResult.Success(null)
 
         return fixture
     }
@@ -122,7 +142,7 @@ class ProgressTrackerTest {
             val fixture = createFixture()
             val bookId = BookId("book-1")
 
-            everySuspend { fixture.positionDao.get(bookId) } returns null
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(null)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(null)
 
             val tracker = fixture.build()
@@ -141,20 +161,28 @@ class ProgressTrackerTest {
             val fixture = createFixture()
             val bookId = BookId("book-1")
             val serverProgress = createServerProgress(positionMs = 3_600_000L)
+            val cachedEntity = createLocalPosition(positionMs = 3_600_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns null
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(null)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+            // After the CrossDeviceSync write, the read-back returns the cached entity
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(cachedEntity)
 
             val tracker = fixture.build()
 
             // When
             val result = tracker.getResumePosition(bookId)
 
-            // Then
+            // Then — server position returned via read-back
             assertEquals(3_600_000L, result?.positionMs)
 
-            // Verify server position was cached locally
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Verify server position was written via CrossDeviceSync
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
         }
 
     @Test
@@ -165,7 +193,7 @@ class ProgressTrackerTest {
             val bookId = BookId("book-1")
             val localPosition = createLocalPosition(positionMs = 1_800_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(null)
 
             val tracker = fixture.build()
@@ -198,8 +226,12 @@ class ProgressTrackerTest {
                     lastPlayedAt = "2023-12-18T14:00:00Z",
                 )
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            val mergedEntity = createLocalPosition(positionMs = 3_600_000L)
+
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+            // After the CrossDeviceSync write, the read-back returns the merged entity
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(mergedEntity)
 
             val tracker = fixture.build()
 
@@ -209,8 +241,13 @@ class ProgressTrackerTest {
             // Then - Should use server position (1 hour)
             assertEquals(3_600_000L, result?.positionMs)
 
-            // Verify server position was cached locally
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Verify server position was written via CrossDeviceSync
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
         }
 
     @Test
@@ -234,7 +271,7 @@ class ProgressTrackerTest {
                     lastPlayedAt = "2023-12-18T14:00:00Z",
                 )
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
 
             val tracker = fixture.build()
@@ -254,7 +291,7 @@ class ProgressTrackerTest {
             val bookId = BookId("book-1")
             val localPosition = createLocalPosition(positionMs = 1_800_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns
                 Failure(RuntimeException("Network error"))
 
@@ -275,7 +312,7 @@ class ProgressTrackerTest {
             val bookId = BookId("book-1")
             val localPosition = createLocalPosition(positionMs = 1_800_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } throws
                 RuntimeException("Unexpected error")
 
@@ -295,7 +332,7 @@ class ProgressTrackerTest {
             val fixture = createFixture()
             val bookId = BookId("book-1")
 
-            everySuspend { fixture.positionDao.get(bookId) } returns null
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(null)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns
                 Failure(RuntimeException("Network error"))
 
@@ -309,26 +346,28 @@ class ProgressTrackerTest {
         }
 
     @Test
-    fun `getResumePosition caches server position with correct syncedAt timestamp`() =
+    fun `getResumePosition caches server position via CrossDeviceSync`() =
         runTest {
             // Given
             val fixture = createFixture()
             val bookId = BookId("book-1")
             val serverProgress = createServerProgress(positionMs = 3_600_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns null
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(null)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
-
-            var savedEntity: PlaybackPositionEntity? = null
-            everySuspend { fixture.positionDao.save(any()) } returns Unit
 
             val tracker = fixture.build()
 
             // When
             tracker.getResumePosition(bookId)
 
-            // Then - Verify save was called (syncedAt should be set)
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Then - Verify save was called via CrossDeviceSync (syncedAt is set by handler)
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
         }
 
     @Test
@@ -345,7 +384,7 @@ class ProgressTrackerTest {
                     lastPlayedAt = "invalid-timestamp",
                 )
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
 
             val tracker = fixture.build()
@@ -355,6 +394,101 @@ class ProgressTrackerTest {
 
             // Then - Server timestamp parses to 0, so local wins
             assertEquals(1_800_000L, result?.positionMs)
+        }
+
+    // ========== mergePositions CrossDeviceSync Tests ==========
+
+    @Test
+    fun `mergePositions writes via CrossDeviceSync when server is only progress`() =
+        runTest {
+            // Given - local null, server has progress (fresh install cross-device scenario)
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val serverProgress = createServerProgress(positionMs = 3_600_000L)
+            val cachedEntity = createLocalPosition(positionMs = 3_600_000L)
+
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(cachedEntity)
+            everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+
+            val tracker = fixture.build()
+
+            // When
+            tracker.getResumePosition(bookId)
+
+            // Then - CrossDeviceSync write must happen
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
+            // And a read-back via getEntity must happen
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.getEntity(bookId)
+            }
+        }
+
+    @Test
+    fun `mergePositions writes via CrossDeviceSync when server is newer`() =
+        runTest {
+            // Given - local exists at 12:00, server is newer at 14:00
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val localPosition =
+                createLocalPosition(
+                    positionMs = 1_800_000L,
+                    updatedAt = 1702900800000L, // 2023-12-18T12:00:00Z
+                )
+            val serverProgress =
+                createServerProgress(
+                    positionMs = 3_600_000L,
+                    lastPlayedAt = "2023-12-18T14:00:00Z",
+                )
+            val mergedEntity = createLocalPosition(positionMs = 3_600_000L)
+
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
+            everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(mergedEntity)
+
+            val tracker = fixture.build()
+
+            // When
+            tracker.getResumePosition(bookId)
+
+            // Then - CrossDeviceSync write must happen
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
+            // And a read-back via getEntity must happen after the write
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.getEntity(bookId)
+            }
+        }
+
+    @Test
+    fun `mergePositions returns synthesized entity when read-back fails after CrossDeviceSync save`() =
+        runTest {
+            // Given - local null, server has progress; save succeeds but read-back returns Failure
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val serverProgress = createServerProgress(positionMs = 3_600_000L)
+
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns
+                AppResult.Failure(DataError("read-back failure"))
+            everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+            everySuspend { fixture.positionRepository.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
+
+            val tracker = fixture.build()
+
+            // When - local is null (getEntity fails), server provides position → server-only-branch
+            val result = tracker.getResumePosition(bookId)
+
+            // Then - fallback synthesizes a non-null result from server.toEntity()
+            assertNotNull(result)
+            assertEquals(3_600_000L, result.positionMs)
         }
 
     // ========== Playback Start Position Saving Tests ==========
@@ -380,8 +514,16 @@ class ProgressTrackerTest {
             // Advance to let the coroutine run
             fixture.testScope.testScheduler.advanceUntilIdle()
 
-            // Then - position should be saved immediately
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Then - position should be saved immediately via repository seam (PlaybackStarted
+            // so the handler can insert a new row when none exists)
+            verifySuspend {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "PlaybackStarted(positionMs=0, speed=1.0)" }) {
+                        it is PlaybackUpdate.PlaybackStarted && it.positionMs == 0L && it.speed == 1.0f
+                    },
+                )
+            }
         }
 
     @Test
@@ -390,10 +532,6 @@ class ProgressTrackerTest {
             // Given
             val fixture = createFixture()
             val bookId = BookId("book-new")
-
-            var savedPosition: PlaybackPositionEntity? = null
-            everySuspend { fixture.positionDao.save(any()) } returns Unit
-
             val tracker = fixture.build()
 
             // When
@@ -404,8 +542,15 @@ class ProgressTrackerTest {
             )
             fixture.testScope.testScheduler.advanceUntilIdle()
 
-            // Then - verify save was called (position captured)
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Then - verify save was called via repository seam with correct args
+            verifySuspend {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "PlaybackStarted(positionMs=5000, speed=1.5)" }) {
+                        it is PlaybackUpdate.PlaybackStarted && it.positionMs == 5000L && it.speed == 1.5f
+                    },
+                )
+            }
         }
 
     // ========== onBookFinished Tests ==========
@@ -443,5 +588,310 @@ class ProgressTrackerTest {
             tracker.clearProgress(bookId)
 
             verifySuspend { fixture.positionRepository.delete(bookId.value) }
+        }
+
+    // ========== write-path migration (Task 5) ==========
+
+    @Test
+    fun `onSpeedChanged routes through savePlaybackState with Speed variant`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onSpeedChanged(bookId = bookId, positionMs = 1500L, newSpeed = 1.5f)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "Speed(positionMs=1500, speed=1.5, custom=true)" }) {
+                        it is PlaybackUpdate.Speed && it.positionMs == 1500L && it.speed == 1.5f && it.custom == true
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `onSpeedReset routes through savePlaybackState with SpeedReset variant`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onSpeedReset(bookId = bookId, positionMs = 1500L, defaultSpeed = 1.0f)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "SpeedReset(positionMs=1500, defaultSpeed=1.0)" }) {
+                        it is PlaybackUpdate.SpeedReset && it.positionMs == 1500L && it.defaultSpeed == 1.0f
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `onPositionUpdate routes through savePlaybackState with PeriodicUpdate variant`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onPositionUpdate(bookId = bookId, positionMs = 5000L, speed = 1.0f)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "PeriodicUpdate(positionMs=5000, speed=1.0)" }) {
+                        it is PlaybackUpdate.PeriodicUpdate && it.positionMs == 5000L && it.speed == 1.0f
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `onPlaybackStarted routes through savePlaybackState with PlaybackStarted variant`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onPlaybackStarted(bookId, positionMs = 1000L, speed = 1.0f)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "PlaybackStarted(positionMs=1000, speed=1.0)" }) {
+                        it is PlaybackUpdate.PlaybackStarted && it.positionMs == 1000L && it.speed == 1.0f
+                    },
+                )
+            }
+        }
+
+    // ========== END_PLAYBACK_SESSION outbox routing (Task 8) ==========
+
+    @Test
+    fun `onPlaybackPaused queues END_PLAYBACK_SESSION when totalDuration is at least 30s`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onPlaybackStarted(bookId, positionMs = 1_000L, speed = 1.0f)
+            tracker.onPlaybackPaused(bookId, positionMs = 35_000L, speed = 1.0f) // 34s after start
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.exactly(1)) {
+                fixture.pendingOperationRepository.queue<EndPlaybackSessionPayload>(
+                    matches({ "END_PLAYBACK_SESSION" }) { it == OperationType.END_PLAYBACK_SESSION },
+                    matches({ "EntityType.BOOK" }) { it == EntityType.BOOK },
+                    matches({ "book-1" }) { it == "book-1" },
+                    matches({ "payload(bookId=book-1, durationMs=34000)" }) {
+                        it.bookId == "book-1" && it.durationMs == 34_000L
+                    },
+                    any(),
+                )
+            }
+        }
+
+    @Test
+    fun `onBookFinished queues END_PLAYBACK_SESSION when totalDuration is at least 30s`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            everySuspend { fixture.positionRepository.markComplete(any(), any(), any()) } returns AppResult.Success(Unit)
+            val tracker = fixture.build()
+
+            tracker.onPlaybackStarted(bookId, positionMs = 0L, speed = 1.0f)
+            tracker.onBookFinished(bookId, finalPositionMs = 35_000L) // 35s after start
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.exactly(1)) {
+                fixture.pendingOperationRepository.queue<EndPlaybackSessionPayload>(
+                    matches({ "END_PLAYBACK_SESSION" }) { it == OperationType.END_PLAYBACK_SESSION },
+                    matches({ "EntityType.BOOK" }) { it == EntityType.BOOK },
+                    matches({ "book-1" }) { it == "book-1" },
+                    matches({ "payload(bookId=book-1, durationMs=35000)" }) {
+                        it.bookId == "book-1" && it.durationMs == 35_000L
+                    },
+                    any(),
+                )
+            }
+        }
+
+    @Test
+    fun `onPlaybackPaused does not queue END_PLAYBACK_SESSION when totalDuration is below 30s`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onPlaybackStarted(bookId, positionMs = 1_000L, speed = 1.0f)
+            tracker.onPlaybackPaused(bookId, positionMs = 10_000L, speed = 1.0f) // 9s after start
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.exactly(0)) {
+                fixture.pendingOperationRepository.queue<EndPlaybackSessionPayload>(
+                    matches({ "END_PLAYBACK_SESSION" }) { it == OperationType.END_PLAYBACK_SESSION },
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                )
+            }
+        }
+
+    // ========== SessionState transition tests (Task 9) ==========
+
+    @Test
+    fun `onPlaybackStarted from Idle transitions to Active`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+
+            assertIs<SessionState.Active>(tracker.sessionState.value)
+            val active = tracker.sessionState.value as SessionState.Active
+            assertEquals(BookId("book-1"), active.bookId)
+            assertEquals(1000L, active.chunkStartPositionMs)
+            assertEquals(1000L, active.playbackStartPositionMs)
+            assertEquals(1.0f, active.speed)
+        }
+
+    @Test
+    fun `onPlaybackPaused from Active transitions to Paused preserving timestamps`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            val activeState = tracker.sessionState.value as SessionState.Active
+
+            tracker.onPlaybackPaused(BookId("book-1"), positionMs = 6000L, speed = 1.0f)
+
+            val pausedState = tracker.sessionState.value as SessionState.Paused
+            assertEquals(activeState.chunkStartPositionMs, pausedState.chunkStartPositionMs)
+            assertEquals(activeState.chunkStartedAt, pausedState.chunkStartedAt)
+            assertEquals(activeState.playbackStartPositionMs, pausedState.playbackStartPositionMs)
+            assertEquals(activeState.playbackStartedAt, pausedState.playbackStartedAt)
+            assertEquals(activeState.speed, pausedState.speed)
+            assertEquals(BookId("book-1"), pausedState.bookId)
+        }
+
+    @Test
+    fun `onPlaybackPaused from Idle is a no-op`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackPaused(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            assertEquals(SessionState.Idle, tracker.sessionState.value)
+        }
+
+    @Test
+    fun `onPlaybackPaused with mismatched bookId is a no-op`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onPlaybackPaused(BookId("book-2"), positionMs = 2000L, speed = 1.0f)
+            assertIs<SessionState.Active>(tracker.sessionState.value) // still Active for book-1
+        }
+
+    @Test
+    fun `onSpeedChanged updates Active speed when bookId matches`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onSpeedChanged(BookId("book-1"), positionMs = 1500L, newSpeed = 1.5f)
+            assertEquals(1.5f, (tracker.sessionState.value as SessionState.Active).speed)
+        }
+
+    @Test
+    fun `onSpeedChanged in Idle does not change SessionState`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onSpeedChanged(BookId("book-1"), positionMs = 1500L, newSpeed = 1.5f)
+            assertEquals(SessionState.Idle, tracker.sessionState.value)
+        }
+
+    @Test
+    fun `onSpeedChanged with mismatched bookId does not change SessionState`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onSpeedChanged(BookId("book-2"), positionMs = 1500L, newSpeed = 1.5f)
+            assertEquals(1.0f, (tracker.sessionState.value as SessionState.Active).speed) // unchanged
+        }
+
+    @Test
+    fun `onSpeedChanged updates Paused speed when bookId matches`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onPlaybackPaused(BookId("book-1"), positionMs = 2000L, speed = 1.0f)
+            tracker.onSpeedChanged(BookId("book-1"), positionMs = 2000L, newSpeed = 1.5f)
+            assertEquals(1.5f, (tracker.sessionState.value as SessionState.Paused).speed)
+        }
+
+    @Test
+    fun `onBookFinished transitions to Idle`() =
+        runTest {
+            val fixture = createFixture()
+            everySuspend { fixture.positionRepository.markComplete(any(), any(), any()) } returns AppResult.Success(Unit)
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onBookFinished(BookId("book-1"), finalPositionMs = 30000L)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+            assertEquals(SessionState.Idle, tracker.sessionState.value)
+        }
+
+    @Test
+    fun `getCurrentSpeed returns 1_0 when Idle`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            assertEquals(1.0f, tracker.getCurrentSpeed())
+        }
+
+    @Test
+    fun `getCurrentSpeed returns Active speed`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.5f)
+            assertEquals(1.5f, tracker.getCurrentSpeed())
+        }
+
+    @Test
+    fun `getCurrentSpeed returns Paused speed`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.5f)
+            tracker.onPlaybackPaused(BookId("book-1"), positionMs = 2000L, speed = 1.5f)
+            assertEquals(1.5f, tracker.getCurrentSpeed())
+        }
+
+    @Test
+    fun `onPositionUpdate advances chunk window when chunk duration above 10s`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            val activeBefore = tracker.sessionState.value as SessionState.Active
+
+            tracker.onPositionUpdate(BookId("book-1"), positionMs = 12_000L, speed = 1.0f) // 11s of chunk
+            fixture.testScope.testScheduler.advanceUntilIdle() // let scope.launch complete
+
+            val activeAfter = tracker.sessionState.value as SessionState.Active
+            assertEquals(12_000L, activeAfter.chunkStartPositionMs) // chunk advanced
+            assertEquals(activeBefore.playbackStartPositionMs, activeAfter.playbackStartPositionMs) // playback-start preserved
         }
 }

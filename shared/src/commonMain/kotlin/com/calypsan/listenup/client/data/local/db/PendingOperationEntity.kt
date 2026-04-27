@@ -78,6 +78,9 @@ enum class OperationType {
     // Mark book as complete (retry on failure)
     MARK_COMPLETE,
 
+    // End a playback session and record total duration (coalesce by book)
+    END_PLAYBACK_SESSION,
+
     // Shelf mutations (never coalesce - each is a discrete intent)
     CREATE_SHELF,
     UPDATE_SHELF,

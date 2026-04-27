@@ -97,6 +97,8 @@ val platformModule: Module =
                 syncApi = get(),
                 pushSyncOrchestrator = get(),
                 positionRepository = get(),
+                pendingOperationRepository = get(),
+                endPlaybackSessionHandler = get(),
                 scope = get(qualifier = named("playbackScope")),
             )
         }

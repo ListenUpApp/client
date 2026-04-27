@@ -5,16 +5,28 @@ package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
+import com.calypsan.listenup.client.data.sync.ProgressPayload
+import com.calypsan.listenup.client.data.sync.SSEEvent
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionPayload
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
@@ -41,34 +53,12 @@ class ProgressTracker(
     private val syncApi: SyncApiContract,
     private val pushSyncOrchestrator: PushSyncOrchestratorContract,
     private val positionRepository: PlaybackPositionRepository,
+    private val pendingOperationRepository: PendingOperationRepositoryContract,
+    private val endPlaybackSessionHandler: EndPlaybackSessionHandler,
     private val scope: CoroutineScope,
 ) {
-    private var currentSession: ListeningSession? = null
-
-    // Track the full playback session for activity feed (not reset every 30 seconds)
-    private var playbackSessionStart: PlaybackSessionStart? = null
-
-    /**
-     * Represents an active listening session.
-     * Created when playback starts, closed when playback pauses.
-     * Reset every 30 seconds for listening event chunking.
-     */
-    data class ListeningSession(
-        val bookId: BookId,
-        val startPositionMs: Long,
-        val startedAt: Long,
-        val playbackSpeed: Float,
-    )
-
-    /**
-     * Tracks when the user pressed play for activity feed purposes.
-     * NOT reset every 30 seconds - tracks the full play session.
-     */
-    data class PlaybackSessionStart(
-        val bookId: BookId,
-        val startPositionMs: Long,
-        val startedAt: Long,
-    )
+    private val _sessionState = MutableStateFlow<SessionState>(SessionState.Idle)
+    val sessionState: StateFlow<SessionState> = _sessionState.asStateFlow()
 
     /**
      * Called when playback starts/resumes.
@@ -79,26 +69,39 @@ class ProgressTracker(
         speed: Float,
     ) {
         val now = Clock.System.now().toEpochMilliseconds()
-        currentSession =
-            ListeningSession(
+        _sessionState.value =
+            SessionState.Active(
                 bookId = bookId,
-                startPositionMs = positionMs,
-                startedAt = now,
-                playbackSpeed = speed,
-            )
-        // Also track the full playback session for activity feed
-        playbackSessionStart =
-            PlaybackSessionStart(
-                bookId = bookId,
-                startPositionMs = positionMs,
-                startedAt = now,
+                chunkStartPositionMs = positionMs,
+                chunkStartedAt = now,
+                playbackStartPositionMs = positionMs,
+                playbackStartedAt = now,
+                speed = speed,
             )
         logger.info { "🎧 LISTENING SESSION STARTED: book=${bookId.value}, position=$positionMs, speed=$speed" }
 
         // Save position immediately so the book appears in Continue Listening right away
-        // This ensures even brief playback sessions are tracked
+        // This ensures even brief playback sessions are tracked.
+        // Uses PlaybackStarted (not PeriodicUpdate) so the handler can insert a new row
+        // when none exists (never-played book first-play).
         scope.launch {
-            savePosition(bookId, positionMs, speed)
+            when (
+                val r =
+                    positionRepository.savePlaybackState(
+                        bookId = bookId,
+                        update = PlaybackUpdate.PlaybackStarted(positionMs = positionMs, speed = speed),
+                    )
+            ) {
+                is AppResult.Success -> {
+                    logger.debug { "Initial position recorded: book=${bookId.value}" }
+                }
+
+                is AppResult.Failure -> {
+                    logger.warn {
+                        "Failed to record initial position for ${bookId.value}: ${r.error.message}"
+                    }
+                }
+            }
         }
     }
 
@@ -111,74 +114,93 @@ class ProgressTracker(
         positionMs: Long,
         speed: Float,
     ) {
-        // Capture playback session start before launching coroutine (to avoid race)
-        val playbackStart = playbackSessionStart
+        val now = Clock.System.now().toEpochMilliseconds()
 
-        logger.info {
-            "🎧 PLAYBACK PAUSED: book=${bookId.value}, position=$positionMs, " +
-                "hasSession=${currentSession != null}, hasPlaybackStart=${playbackStart != null}"
+        // Atomic transition: Active(matching bookId) -> Paused; else no-op
+        val priorState = _sessionState.value // capture for side effects below
+        _sessionState.update { current ->
+            if (current is SessionState.Active && current.bookId == bookId) {
+                SessionState.Paused(
+                    bookId = current.bookId,
+                    chunkStartPositionMs = current.chunkStartPositionMs,
+                    chunkStartedAt = current.chunkStartedAt,
+                    playbackStartPositionMs = current.playbackStartPositionMs,
+                    playbackStartedAt = current.playbackStartedAt,
+                    pausedAt = now,
+                    speed = current.speed,
+                )
+            } else {
+                current
+            }
         }
 
+        logPausedTransition(bookId, positionMs, priorState)
+
         scope.launch {
-            // CONCERN 1: Save position immediately (local, fast)
+            // CONCERN 1: Save position immediately
             savePosition(bookId, positionMs, speed)
 
             // CONCERN 2: Queue listening event (if meaningful session)
-            val session = currentSession
-            if (session == null) {
-                logger.warn { "🎧 NO ACTIVE SESSION - cannot record listening event" }
-            } else if (session.bookId != bookId) {
-                logger.warn { "🎧 SESSION BOOK MISMATCH: session=${session.bookId.value}, paused=${bookId.value}" }
-            } else {
-                val chunkDurationMs = positionMs - session.startPositionMs
-                logger.info { "🎧 CHUNK DURATION: ${chunkDurationMs}ms (need >=10000ms to record)" }
-
-                // Only record if listened for at least 10 seconds
+            if (priorState is SessionState.Active && priorState.bookId == bookId) {
+                val chunkDurationMs = positionMs - priorState.chunkStartPositionMs
                 if (chunkDurationMs >= 10_000) {
                     queueListeningEvent(
                         bookId = bookId,
-                        startPositionMs = session.startPositionMs,
+                        startPositionMs = priorState.chunkStartPositionMs,
                         endPositionMs = positionMs,
-                        startedAt = session.startedAt,
-                        endedAt = Clock.System.now().toEpochMilliseconds(),
-                        playbackSpeed = session.playbackSpeed,
+                        startedAt = priorState.chunkStartedAt,
+                        endedAt = now,
+                        playbackSpeed = priorState.speed,
                     )
-                    logger.info { "🎧 LISTENING EVENT QUEUED: duration=${chunkDurationMs}ms, triggering sync..." }
-
-                    // Fire-and-forget sync attempt
                     trySyncEvents()
-                } else {
-                    logger.info { "🎧 CHUNK TOO SHORT: ${chunkDurationMs}ms < 10000ms - not recording" }
                 }
             }
 
-            // CONCERN 3: Record activity for the activity feed (fire-and-forget)
-            // Uses the FULL playback session duration, not just the last chunk
-            if (playbackStart != null && playbackStart.bookId == bookId) {
-                val totalDurationMs = positionMs - playbackStart.startPositionMs
-                logger.info {
-                    "🎧 FULL PLAYBACK SESSION: startPos=${playbackStart.startPositionMs}, " +
-                        "endPos=$positionMs, totalDuration=${totalDurationMs}ms"
-                }
-
-                // Only record if listened for at least 30 seconds (matches server threshold)
+            // CONCERN 3: Activity feed — full playback session
+            if (priorState is SessionState.Active && priorState.bookId == bookId) {
+                val totalDurationMs = positionMs - priorState.playbackStartPositionMs
                 if (totalDurationMs >= 30_000) {
                     try {
-                        syncApi.endPlaybackSession(bookId.value, totalDurationMs)
-                        logger.info {
-                            "🎧 ACTIVITY RECORDED: listened to ${totalDurationMs / 1000}s of ${bookId.value}"
-                        }
+                        pendingOperationRepository.queue(
+                            type = OperationType.END_PLAYBACK_SESSION,
+                            entityType = EntityType.BOOK,
+                            entityId = bookId.value,
+                            payload = EndPlaybackSessionPayload(bookId = bookId.value, durationMs = totalDurationMs),
+                            handler = endPlaybackSessionHandler,
+                        )
+                        logger.info { "🎧 ACTIVITY QUEUED: ${totalDurationMs / 1000}s of ${bookId.value}" }
                     } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        logger.warn { "🎧 Failed to record activity: ${e.message}" }
+                        logger.warn { "🎧 Failed to queue END_PLAYBACK_SESSION for ${bookId.value}: ${e.message}" }
                     }
-                } else {
-                    logger.info { "🎧 PLAYBACK TOO SHORT FOR ACTIVITY: ${totalDurationMs}ms < 30000ms" }
                 }
-            } else {
-                logger.debug { "🎧 No playback session to record activity for" }
             }
+        }
+    }
+
+    private fun logPausedTransition(
+        bookId: BookId,
+        positionMs: Long,
+        priorState: SessionState,
+    ) {
+        when (priorState) {
+            is SessionState.Active -> {
+                if (priorState.bookId != bookId) {
+                    logger.warn { "🎧 PAUSE BOOK MISMATCH: state=${priorState.bookId.value}, paused=${bookId.value}" }
+                }
+            }
+
+            is SessionState.Paused -> {
+                logger.warn { "🎧 PAUSE FROM PAUSED — no-op" }
+            }
+
+            SessionState.Idle -> {
+                logger.warn { "🎧 PAUSE FROM IDLE — no-op" }
+            }
+        }
+        logger.info {
+            "🎧 PLAYBACK PAUSED: book=${bookId.value}, position=$positionMs, prior=${priorState::class.simpleName}"
         }
     }
 
@@ -196,35 +218,33 @@ class ProgressTracker(
             // Save position locally
             savePosition(bookId, positionMs, speed)
 
-            // Flush current session as a listening event and start a new one
-            val session = currentSession
-            if (session != null && session.bookId == bookId) {
-                val durationMs = positionMs - session.startPositionMs
-                logger.debug { "🎧 PERIODIC UPDATE: ${durationMs}ms listened since session start" }
-
-                // Only record if listened for at least 10 seconds
-                if (durationMs >= 10_000) {
+            val state = _sessionState.value
+            if (state is SessionState.Active && state.bookId == bookId) {
+                val chunkDurationMs = positionMs - state.chunkStartPositionMs
+                if (chunkDurationMs >= 10_000) {
                     val now = Clock.System.now().toEpochMilliseconds()
                     queueListeningEvent(
                         bookId = bookId,
-                        startPositionMs = session.startPositionMs,
+                        startPositionMs = state.chunkStartPositionMs,
                         endPositionMs = positionMs,
-                        startedAt = session.startedAt,
+                        startedAt = state.chunkStartedAt,
                         endedAt = now,
-                        playbackSpeed = session.playbackSpeed,
+                        playbackSpeed = state.speed,
                     )
-                    logger.info { "🎧 PERIODIC EVENT QUEUED: duration=${durationMs}ms, triggering sync..." }
-
-                    // Start a new session from the current position
-                    currentSession =
-                        ListeningSession(
-                            bookId = bookId,
-                            startPositionMs = positionMs,
-                            startedAt = now,
-                            playbackSpeed = speed,
-                        )
-
-                    // Fire-and-forget sync attempt
+                    // Atomic chunk-window advance: only update if state is still Active for the same book.
+                    // If a concurrent onPlaybackPaused / onBookFinished / onPlaybackStarted has changed
+                    // state, leave the new state in place — the chunk has already been recorded.
+                    _sessionState.update { current ->
+                        if (current is SessionState.Active && current.bookId == bookId) {
+                            current.copy(
+                                chunkStartPositionMs = positionMs,
+                                chunkStartedAt = now,
+                                speed = speed,
+                            )
+                        } else {
+                            current
+                        }
+                    }
                     trySyncEvents()
                 }
             }
@@ -232,8 +252,8 @@ class ProgressTracker(
     }
 
     /**
-     * Save position to local database immediately.
-     * Preserves the existing hasCustomSpeed flag.
+     * Save position via the repository seam.
+     * Routes through [PlaybackPositionRepository.savePlaybackState] with [PlaybackUpdate.PeriodicUpdate].
      *
      * @param bookId The book to save position for
      * @param positionMs Current position in milliseconds
@@ -244,41 +264,15 @@ class ProgressTracker(
         positionMs: Long,
         speed: Float,
     ) {
-        try {
-            val now = Clock.System.now().toEpochMilliseconds()
-
-            // Try a position-only update first. This avoids a read-modify-write race with
-            // onSpeedChanged: both run concurrently on Dispatchers.IO and a full-entity
-            // save here could clobber a hasCustomSpeed=true written by onSpeedChanged.
-            val rowsUpdated =
-                positionDao.updatePositionOnly(
+        when (
+            val r =
+                positionRepository.savePlaybackState(
                     bookId = bookId,
-                    positionMs = positionMs,
-                    updatedAt = now,
-                    lastPlayedAt = now,
+                    update = PlaybackUpdate.PeriodicUpdate(positionMs = positionMs, speed = speed),
                 )
-
-            if (rowsUpdated == 0) {
-                // No existing record — first play for this book. Insert with sensible defaults.
-                positionDao.save(
-                    PlaybackPositionEntity(
-                        bookId = bookId,
-                        positionMs = positionMs,
-                        playbackSpeed = speed,
-                        hasCustomSpeed = false,
-                        updatedAt = now,
-                        syncedAt = null,
-                        lastPlayedAt = now,
-                        isFinished = false,
-                    ),
-                )
-            }
-
-            logger.info { "Position saved: book=${bookId.value}, position=$positionMs, lastPlayedAt=$now" }
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to save position: book=${bookId.value}, position=$positionMs" }
+        ) {
+            is AppResult.Success -> logger.info { "Position saved: book=${bookId.value}, position=$positionMs" }
+            is AppResult.Failure -> logger.warn { "Failed to save position for ${bookId.value}: ${r.error.message}" }
         }
     }
 
@@ -291,22 +285,26 @@ class ProgressTracker(
         positionMs: Long,
         newSpeed: Float,
     ) {
+        // Update session speed atomically if active/paused for this book
+        _sessionState.update { current ->
+            when {
+                current is SessionState.Active && current.bookId == bookId -> current.copy(speed = newSpeed)
+                current is SessionState.Paused && current.bookId == bookId -> current.copy(speed = newSpeed)
+                else -> current
+            }
+        }
+
         scope.launch {
-            val existing = positionDao.get(bookId)
-            val now = Clock.System.now().toEpochMilliseconds()
-            positionDao.save(
-                PlaybackPositionEntity(
-                    bookId = bookId,
-                    positionMs = positionMs,
-                    playbackSpeed = newSpeed,
-                    hasCustomSpeed = true, // User explicitly set this speed
-                    updatedAt = now,
-                    syncedAt = null,
-                    lastPlayedAt = now, // Track actual play time
-                    isFinished = existing?.isFinished ?: false,
-                ),
-            )
-            logger.debug { "Speed changed: book=${bookId.value}, speed=$newSpeed, hasCustomSpeed=true" }
+            when (
+                val r =
+                    positionRepository.savePlaybackState(
+                        bookId = bookId,
+                        update = PlaybackUpdate.Speed(positionMs = positionMs, speed = newSpeed, custom = true),
+                    )
+            ) {
+                is AppResult.Success -> logger.debug { "Speed changed: book=${bookId.value}, speed=$newSpeed" }
+                is AppResult.Failure -> logger.warn { "Failed to change speed for ${bookId.value}: ${r.error.message}" }
+            }
         }
     }
 
@@ -319,22 +317,26 @@ class ProgressTracker(
         positionMs: Long,
         defaultSpeed: Float,
     ) {
+        // Update session speed atomically if active/paused for this book
+        _sessionState.update { current ->
+            when {
+                current is SessionState.Active && current.bookId == bookId -> current.copy(speed = defaultSpeed)
+                current is SessionState.Paused && current.bookId == bookId -> current.copy(speed = defaultSpeed)
+                else -> current
+            }
+        }
+
         scope.launch {
-            val existing = positionDao.get(bookId)
-            val now = Clock.System.now().toEpochMilliseconds()
-            positionDao.save(
-                PlaybackPositionEntity(
-                    bookId = bookId,
-                    positionMs = positionMs,
-                    playbackSpeed = defaultSpeed,
-                    hasCustomSpeed = false, // Now using universal default
-                    updatedAt = now,
-                    syncedAt = null,
-                    lastPlayedAt = now, // Track actual play time
-                    isFinished = existing?.isFinished ?: false,
-                ),
-            )
-            logger.debug { "Speed reset to default: book=${bookId.value}, speed=$defaultSpeed, hasCustomSpeed=false" }
+            when (
+                val r =
+                    positionRepository.savePlaybackState(
+                        bookId = bookId,
+                        update = PlaybackUpdate.SpeedReset(positionMs = positionMs, defaultSpeed = defaultSpeed),
+                    )
+            ) {
+                is AppResult.Success -> logger.debug { "Speed reset: book=${bookId.value}, speed=$defaultSpeed" }
+                is AppResult.Failure -> logger.warn { "Failed to reset speed for ${bookId.value}: ${r.error.message}" }
+            }
         }
     }
 
@@ -346,7 +348,12 @@ class ProgressTracker(
         bookId: BookId,
         positionMs: Long,
     ) {
-        val speed = currentSession?.playbackSpeed ?: 1.0f
+        val speed =
+            when (val s = _sessionState.value) {
+                is SessionState.Active -> s.speed
+                is SessionState.Paused -> s.speed
+                SessionState.Idle -> 1.0f
+            }
         savePosition(bookId, positionMs, speed)
     }
 
@@ -366,8 +373,9 @@ class ProgressTracker(
      * @return Position to resume from, or null if never played
      */
     suspend fun getResumePosition(bookId: BookId): PlaybackPositionEntity? {
-        // 1. Get local position (instant, offline-first)
-        val local = positionDao.get(bookId)
+        // 1. Get local position via repository seam (instant, offline-first)
+        val localResult = positionRepository.getEntity(bookId)
+        val local = if (localResult is AppResult.Success) localResult.data else null
 
         // 2. Try to get server position within a short deadline.
         //    A slow or unreachable server used to block this call indefinitely,
@@ -406,9 +414,9 @@ class ProgressTracker(
 
     /**
      * Merge local and server positions, returning the more recent one.
-     * If server is newer, updates local cache for offline access.
+     * When server is newer, writes via [PlaybackUpdate.CrossDeviceSync] (which preserves
+     * local speed/hasCustomSpeed in the handler) and reads back via [PlaybackPositionRepository.getEntity].
      */
-    @Suppress("UnusedParameter") // bookId reserved for future logging/debugging
     private suspend fun mergePositions(
         bookId: BookId,
         local: PlaybackPositionEntity?,
@@ -420,11 +428,24 @@ class ProgressTracker(
             }
 
             local == null && server != null -> {
-                // Only server has progress - cache it locally
-                val entity = server.toEntity()
-                positionDao.save(entity)
+                // Only server has progress — write via CrossDeviceSync, read back
+                when (
+                    val r =
+                        positionRepository.savePlaybackState(
+                            bookId = bookId,
+                            update = PlaybackUpdate.CrossDeviceSync(server.toSseProgressUpdated()),
+                        )
+                ) {
+                    is AppResult.Success -> {}
+
+                    is AppResult.Failure -> {
+                        logger.warn { "CrossDeviceSync save failed for ${bookId.value}: ${r.error.message}" }
+                        return null
+                    }
+                }
                 logger.info { "Using server position: ${server.currentPositionMs}ms (first sync)" }
-                entity
+                (positionRepository.getEntity(bookId) as? AppResult.Success)?.data
+                    ?: server.toEntity()  // pre-Phase-C parity: a successful CrossDeviceSync save guarantees a non-null return
             }
 
             server == null -> {
@@ -432,33 +453,70 @@ class ProgressTracker(
             }
 
             else -> {
-                // Both exist - compare timestamps
-                // Compare using lastPlayedAt consistently. Previously this compared
-                // server.lastPlayedAt against local.updatedAt, but caching server
-                // positions set updatedAt to Clock.System.now(), inflating it beyond
-                // the server timestamp and causing stale local positions to win.
+                // Both exist — compare timestamps using lastPlayedAt consistently.
+                // Previously this compared server.lastPlayedAt against local.updatedAt,
+                // but caching server positions set updatedAt to Clock.System.now(),
+                // inflating it beyond the server timestamp and causing stale local
+                // positions to win.
                 val serverTimestamp = server.lastPlayedAtMillis()
                 val localTimestamp = local!!.lastPlayedAt ?: local.updatedAt
                 if (serverTimestamp > localTimestamp) {
-                    // Server is newer (listened on another device)
-                    // Preserve local speed settings — server doesn't track per-position speed
-                    val entity =
-                        server.toEntity().copy(
-                            playbackSpeed = local.playbackSpeed,
-                            hasCustomSpeed = local.hasCustomSpeed,
-                        )
-                    positionDao.save(entity)
+                    // Server is newer (listened on another device).
+                    // CrossDeviceSync handler preserves local speed/hasCustomSpeed via .copy().
+                    when (
+                        val r =
+                            positionRepository.savePlaybackState(
+                                bookId = bookId,
+                                update = PlaybackUpdate.CrossDeviceSync(server.toSseProgressUpdated()),
+                            )
+                    ) {
+                        is AppResult.Success -> {}
+
+                        is AppResult.Failure -> {
+                            logger.warn { "CrossDeviceSync save failed for ${bookId.value}: ${r.error.message}" }
+                            return local
+                        }
+                    }
                     logger.info {
                         "Using server position: ${server.currentPositionMs}ms " +
                             "(was ${local.positionMs}ms locally, server is ${(serverTimestamp - localTimestamp) / 1000}s newer)"
                     }
-                    entity
+                    (positionRepository.getEntity(bookId) as? AppResult.Success)?.data
+                        ?: server.toEntity().copy(
+                            playbackSpeed = local.playbackSpeed,
+                            hasCustomSpeed = local.hasCustomSpeed,
+                        )  // pre-Phase-C parity: preserve local speed/hasCustomSpeed across server merge
                 } else {
                     // Local is newer or same
                     local
                 }
             }
         }
+
+    /**
+     * Build a synthetic [SSEEvent.ProgressUpdated] from a REST progress response.
+     * Used by [mergePositions] to route cross-device saves through the canonical
+     * [PlaybackUpdate.CrossDeviceSync] write path.
+     *
+     * Field mapping mirrors [PlaybackProgressResponse.toEntity] for consistency.
+     * [PlaybackProgressResponse.startedAt] is non-nullable on the REST model but
+     * nullable on [ProgressPayload]; passed through directly.
+     */
+    private fun PlaybackProgressResponse.toSseProgressUpdated(): SSEEvent.ProgressUpdated =
+        SSEEvent.ProgressUpdated(
+            timestamp = lastPlayedAt,
+            data =
+                ProgressPayload(
+                    bookId = bookId,
+                    currentPositionMs = currentPositionMs,
+                    progress = progress,
+                    totalListenTimeMs = totalListenTimeMs,
+                    isFinished = isFinished,
+                    lastPlayedAt = lastPlayedAt,
+                    startedAt = startedAt,
+                    finishedAt = null, // REST progress response has no finishedAt field
+                ),
+        )
 
     /**
      * Mark a book as finished.
@@ -471,40 +529,41 @@ class ProgressTracker(
         bookId: BookId,
         finalPositionMs: Long,
     ) {
-        // Capture and clear atomically before launching coroutine
-        val session = currentSession
-        val playbackStart = playbackSessionStart
-        currentSession = null
-        playbackSessionStart = null
+        val priorState = _sessionState.value
+        _sessionState.value = SessionState.Idle
 
         scope.launch {
             logger.info { "Book finished: ${bookId.value}, finalPosition=$finalPositionMs" }
 
-            // Record completion event
-            session?.let {
-                if (it.bookId == bookId) {
-                    queueListeningEvent(
-                        bookId = bookId,
-                        startPositionMs = it.startPositionMs,
-                        endPositionMs = finalPositionMs,
-                        startedAt = it.startedAt,
-                        endedAt = Clock.System.now().toEpochMilliseconds(),
-                        playbackSpeed = it.playbackSpeed,
-                    )
-                }
+            // Record listening-event chunk if Active for this book
+            if (priorState is SessionState.Active && priorState.bookId == bookId) {
+                queueListeningEvent(
+                    bookId = bookId,
+                    startPositionMs = priorState.chunkStartPositionMs,
+                    endPositionMs = finalPositionMs,
+                    startedAt = priorState.chunkStartedAt,
+                    endedAt = Clock.System.now().toEpochMilliseconds(),
+                    playbackSpeed = priorState.speed,
+                )
             }
 
-            // Record activity for the activity feed
-            if (playbackStart != null && playbackStart.bookId == bookId) {
-                val totalDurationMs = finalPositionMs - playbackStart.startPositionMs
+            // Activity feed — full playback session (book finished)
+            if (priorState is SessionState.Active && priorState.bookId == bookId) {
+                val totalDurationMs = finalPositionMs - priorState.playbackStartPositionMs
                 if (totalDurationMs >= 30_000) {
                     try {
-                        syncApi.endPlaybackSession(bookId.value, totalDurationMs)
-                        logger.info { "🎧 ACTIVITY RECORDED (book finished): listened to ${totalDurationMs / 1000}s" }
+                        pendingOperationRepository.queue(
+                            type = OperationType.END_PLAYBACK_SESSION,
+                            entityType = EntityType.BOOK,
+                            entityId = bookId.value,
+                            payload = EndPlaybackSessionPayload(bookId = bookId.value, durationMs = totalDurationMs),
+                            handler = endPlaybackSessionHandler,
+                        )
+                        logger.info { "🎧 ACTIVITY QUEUED (book finished): ${totalDurationMs / 1000}s of ${bookId.value}" }
                     } catch (e: kotlin.coroutines.cancellation.CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        logger.warn { "🎧 Failed to record activity: ${e.message}" }
+                        logger.warn { "🎧 Failed to queue END_PLAYBACK_SESSION for ${bookId.value}: ${e.message}" }
                     }
                 }
             }
@@ -544,7 +603,12 @@ class ProgressTracker(
      * Get the current session's playback speed.
      * Returns 1.0 if no active session.
      */
-    fun getCurrentSpeed(): Float = currentSession?.playbackSpeed ?: 1.0f
+    fun getCurrentSpeed(): Float =
+        when (val s = _sessionState.value) {
+            is SessionState.Active -> s.speed
+            is SessionState.Paused -> s.speed
+            SessionState.Idle -> 1.0f
+        }
 
     /**
      * Get the most recently played book.
