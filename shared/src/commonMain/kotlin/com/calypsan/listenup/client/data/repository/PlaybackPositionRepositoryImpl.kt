@@ -16,6 +16,7 @@ import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompletePayload
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
+import com.calypsan.listenup.client.domain.repository.LastPlayedInfo
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -91,6 +92,18 @@ class PlaybackPositionRepositoryImpl(
 
     override suspend fun getRecentPositions(limit: Int): List<PlaybackPosition> =
         dao.getRecentPositions(limit).map { it.toDomain() }
+
+    override suspend fun getLastPlayedBook(): AppResult<LastPlayedInfo?> =
+        suspendRunCatching {
+            val positions = dao.getRecentPositions(1)
+            positions.firstOrNull()?.let { position ->
+                LastPlayedInfo(
+                    bookId = position.bookId,
+                    positionMs = position.positionMs,
+                    playbackSpeed = position.playbackSpeed,
+                )
+            }
+        }
 
     // ----- Write paths -----------------------------------------------------------------------
 

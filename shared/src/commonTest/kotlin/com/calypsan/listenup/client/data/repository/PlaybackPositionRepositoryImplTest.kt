@@ -14,6 +14,7 @@ import com.calypsan.listenup.client.data.sync.ProgressPayload
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompletePayload
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.domain.repository.LastPlayedInfo
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import dev.mokkery.MockMode
 import dev.mokkery.answering.calls
@@ -799,6 +800,51 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             val result = repository.getEntity(BookId("book-1"))
+
+            assertIs<AppResult.Failure>(result)
+        }
+
+    // ========== getLastPlayedBook() Tests (Task 12) ==========
+
+    @Test
+    fun `getLastPlayedBook returns LastPlayedInfo when row exists`() =
+        runTest {
+            val dao = createMockDao()
+            val entity =
+                createPlaybackPositionEntity(bookId = "book-1", positionMs = 45000L, playbackSpeed = 1.5f)
+            everySuspend { dao.getRecentPositions(1) } returns listOf(entity)
+            val repository = createRepo(dao = dao)
+
+            val result = repository.getLastPlayedBook()
+
+            assertIs<AppResult.Success<LastPlayedInfo?>>(result)
+            val info = result.data
+            assertNotNull(info)
+            assertEquals(BookId("book-1"), info.bookId)
+            assertEquals(45000L, info.positionMs)
+            assertEquals(1.5f, info.playbackSpeed)
+        }
+
+    @Test
+    fun `getLastPlayedBook returns null when no rows`() =
+        runTest {
+            val dao = createMockDao()
+            everySuspend { dao.getRecentPositions(1) } returns emptyList()
+            val repository = createRepo(dao = dao)
+
+            val result = repository.getLastPlayedBook()
+
+            assertEquals(AppResult.Success(null), result)
+        }
+
+    @Test
+    fun `getLastPlayedBook returns Failure when dao throws`() =
+        runTest {
+            val dao = createMockDao()
+            everySuspend { dao.getRecentPositions(any()) } throws RuntimeException("dao boom")
+            val repository = createRepo(dao = dao)
+
+            val result = repository.getLastPlayedBook()
 
             assertIs<AppResult.Failure>(result)
         }

@@ -6,7 +6,6 @@ import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.device.DeviceType
@@ -70,15 +69,10 @@ class PlaybackManagerSpeedTest {
     @Test
     fun `onSpeedChanged with 1_0f propagates progressTracker write`() =
         runTest {
-            val positionDao: PlaybackPositionDao = mock()
-            everySuspend { positionDao.get(any()) } returns null
-            everySuspend { positionDao.save(any()) } returns Unit
-
             val positionRepository = defaultPositionRepository()
 
             val (manager, _) =
                 createPlaybackManagerWithScope(
-                    positionDao = positionDao,
                     positionRepository = positionRepository,
                 )
 
@@ -110,13 +104,9 @@ class PlaybackManagerSpeedTest {
             val playbackPreferences: PlaybackPreferences = mock()
             everySuspend { playbackPreferences.getDefaultPlaybackSpeed() } returns 1.0f
 
-            val positionDao: PlaybackPositionDao = mock()
-            everySuspend { positionDao.get(any()) } returns null
-
             val manager =
                 createPlaybackManager(
                     playbackPreferences = playbackPreferences,
-                    positionDao = positionDao,
                     // Use a detached scope so the positionMs.collect launch does not
                     // keep the TestScope alive and block runTest completion.
                     scope = CoroutineScope(Job()),
@@ -153,16 +143,11 @@ class PlaybackManagerSpeedTest {
             everySuspend { playbackPreferences.getDefaultPlaybackSpeed() } returns 1.0f
             everySuspend { playbackPreferences.setDefaultPlaybackSpeed(any()) } returns Unit
 
-            val positionDao: PlaybackPositionDao = mock()
-            everySuspend { positionDao.get(any()) } returns null
-            everySuspend { positionDao.save(any()) } returns Unit
-
             val positionRepository = defaultPositionRepository()
 
             val (manager, _) =
                 createPlaybackManagerWithScope(
                     playbackPreferences = playbackPreferences,
-                    positionDao = positionDao,
                     positionRepository = positionRepository,
                 )
 
@@ -198,15 +183,13 @@ class PlaybackManagerSpeedTest {
      */
     private fun TestScope.createPlaybackManagerWithScope(
         playbackPreferences: PlaybackPreferences = defaultPlaybackPreferences(),
-        positionDao: PlaybackPositionDao = defaultPositionDao(),
         positionRepository: PlaybackPositionRepository = defaultPositionRepository(),
-    ): Pair<PlaybackManager, PlaybackPositionDao> {
+    ): Pair<PlaybackManager, PlaybackPositionRepository> {
         val progressTrackerScope = CoroutineScope(coroutineContext)
         val managerScope = CoroutineScope(coroutineContext)
 
         val progressTracker =
             buildProgressTracker(
-                positionDao = positionDao,
                 scope = progressTrackerScope,
                 positionRepository = positionRepository,
             )
@@ -214,12 +197,11 @@ class PlaybackManagerSpeedTest {
         val manager =
             createPlaybackManager(
                 playbackPreferences = playbackPreferences,
-                positionDao = positionDao,
                 progressTracker = progressTracker,
                 scope = managerScope,
             )
 
-        return manager to positionDao
+        return manager to positionRepository
     }
 
     private fun defaultPlaybackPreferences(): PlaybackPreferences {
@@ -231,12 +213,7 @@ class PlaybackManagerSpeedTest {
 
     private fun createPlaybackManager(
         playbackPreferences: PlaybackPreferences = defaultPlaybackPreferences(),
-        positionDao: PlaybackPositionDao = defaultPositionDao(),
-        progressTracker: ProgressTracker =
-            buildProgressTracker(
-                positionDao = positionDao,
-                scope = CoroutineScope(Job()),
-            ),
+        progressTracker: ProgressTracker = buildProgressTracker(scope = CoroutineScope(Job())),
         scope: CoroutineScope = CoroutineScope(Job()),
     ): PlaybackManager {
         val tokenProvider: AudioTokenProvider = mock()

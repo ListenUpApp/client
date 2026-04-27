@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
+import com.calypsan.listenup.client.domain.repository.LastPlayedInfo
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import kotlinx.coroutines.flow.Flow
@@ -40,6 +41,17 @@ class FakePlaybackPositionRepository(
             "FakePlaybackPositionRepository does not implement getEntity (no entity store backs the fake). " +
                 "Inject a purpose-built fake or use the real PlaybackPositionRepositoryImpl with an in-memory DAO.",
         )
+
+    override suspend fun getLastPlayedBook(): AppResult<LastPlayedInfo?> {
+        val most = state.value.values.maxByOrNull { it.effectiveLastPlayedAtMs } ?: return Success(null)
+        return Success(
+            LastPlayedInfo(
+                bookId = BookId(most.bookId),
+                positionMs = most.positionMs,
+                playbackSpeed = most.playbackSpeed,
+            ),
+        )
+    }
 
     override fun observe(bookId: String): Flow<PlaybackPosition?> = state.asStateFlow().map { it[bookId] }
 

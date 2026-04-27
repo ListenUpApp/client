@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
@@ -26,13 +25,11 @@ import kotlinx.coroutines.Job
 
 /** Constructs a [ProgressTracker] whose dependencies are all interface mocks. */
 fun buildProgressTracker(
-    positionDao: PlaybackPositionDao = defaultPositionDao(),
     scope: CoroutineScope = CoroutineScope(Job()),
     positionRepository: PlaybackPositionRepository = defaultPositionRepository(),
 ): ProgressTracker {
     val stubSyncApi = mock<SyncApiContract>()
     return ProgressTracker(
-        positionDao = positionDao,
         downloadRepository = mock<DownloadRepository>(),
         listeningEventRepository = mock<ListeningEventRepository>(),
         syncApi = stubSyncApi,
@@ -50,12 +47,4 @@ fun defaultPositionRepository(): PlaybackPositionRepository {
     everySuspend { repo.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
     everySuspend { repo.getEntity(any<BookId>()) } returns AppResult.Success(null)
     return repo
-}
-
-/** Returns a [PlaybackPositionDao] stub that returns null for all reads and Unit for writes. */
-fun defaultPositionDao(): PlaybackPositionDao {
-    val dao: PlaybackPositionDao = mock()
-    everySuspend { dao.get(any()) } returns null
-    everySuspend { dao.save(any()) } returns Unit
-    return dao
 }
