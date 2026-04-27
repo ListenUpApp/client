@@ -684,13 +684,38 @@ class ProgressTrackerTest {
             tracker.onPlaybackPaused(bookId, positionMs = 35_000L, speed = 1.0f) // 34s after start
             fixture.testScope.testScheduler.advanceUntilIdle()
 
-            verifySuspend(VerifyMode.atLeast(1)) {
+            verifySuspend(VerifyMode.exactly(1)) {
                 fixture.pendingOperationRepository.queue<EndPlaybackSessionPayload>(
                     matches({ "END_PLAYBACK_SESSION" }) { it == OperationType.END_PLAYBACK_SESSION },
                     matches({ "EntityType.BOOK" }) { it == EntityType.BOOK },
                     matches({ "book-1" }) { it == "book-1" },
                     matches({ "payload(bookId=book-1, durationMs=34000)" }) {
                         it.bookId == "book-1" && it.durationMs == 34_000L
+                    },
+                    any(),
+                )
+            }
+        }
+
+    @Test
+    fun `onBookFinished queues END_PLAYBACK_SESSION when totalDuration is at least 30s`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            everySuspend { fixture.positionRepository.markComplete(any(), any(), any()) } returns AppResult.Success(Unit)
+            val tracker = fixture.build()
+
+            tracker.onPlaybackStarted(bookId, positionMs = 0L, speed = 1.0f)
+            tracker.onBookFinished(bookId, finalPositionMs = 35_000L) // 35s after start
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.exactly(1)) {
+                fixture.pendingOperationRepository.queue<EndPlaybackSessionPayload>(
+                    matches({ "END_PLAYBACK_SESSION" }) { it == OperationType.END_PLAYBACK_SESSION },
+                    matches({ "EntityType.BOOK" }) { it == EntityType.BOOK },
+                    matches({ "book-1" }) { it == "book-1" },
+                    matches({ "payload(bookId=book-1, durationMs=35000)" }) {
+                        it.bookId == "book-1" && it.durationMs == 35_000L
                     },
                     any(),
                 )

@@ -160,14 +160,20 @@ class ProgressTracker(
             if (priorState is SessionState.Active && priorState.bookId == bookId) {
                 val totalDurationMs = positionMs - priorState.playbackStartPositionMs
                 if (totalDurationMs >= 30_000) {
-                    pendingOperationRepository.queue(
-                        type = OperationType.END_PLAYBACK_SESSION,
-                        entityType = EntityType.BOOK,
-                        entityId = bookId.value,
-                        payload = EndPlaybackSessionPayload(bookId = bookId.value, durationMs = totalDurationMs),
-                        handler = endPlaybackSessionHandler,
-                    )
-                    logger.info { "🎧 ACTIVITY QUEUED: ${totalDurationMs / 1000}s of ${bookId.value}" }
+                    try {
+                        pendingOperationRepository.queue(
+                            type = OperationType.END_PLAYBACK_SESSION,
+                            entityType = EntityType.BOOK,
+                            entityId = bookId.value,
+                            payload = EndPlaybackSessionPayload(bookId = bookId.value, durationMs = totalDurationMs),
+                            handler = endPlaybackSessionHandler,
+                        )
+                        logger.info { "🎧 ACTIVITY QUEUED: ${totalDurationMs / 1000}s of ${bookId.value}" }
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.warn { "🎧 Failed to queue END_PLAYBACK_SESSION for ${bookId.value}: ${e.message}" }
+                    }
                 }
             }
         }
@@ -545,14 +551,20 @@ class ProgressTracker(
             if (priorState is SessionState.Active && priorState.bookId == bookId) {
                 val totalDurationMs = finalPositionMs - priorState.playbackStartPositionMs
                 if (totalDurationMs >= 30_000) {
-                    pendingOperationRepository.queue(
-                        type = OperationType.END_PLAYBACK_SESSION,
-                        entityType = EntityType.BOOK,
-                        entityId = bookId.value,
-                        payload = EndPlaybackSessionPayload(bookId = bookId.value, durationMs = totalDurationMs),
-                        handler = endPlaybackSessionHandler,
-                    )
-                    logger.info { "🎧 ACTIVITY QUEUED (book finished): ${totalDurationMs / 1000}s of ${bookId.value}" }
+                    try {
+                        pendingOperationRepository.queue(
+                            type = OperationType.END_PLAYBACK_SESSION,
+                            entityType = EntityType.BOOK,
+                            entityId = bookId.value,
+                            payload = EndPlaybackSessionPayload(bookId = bookId.value, durationMs = totalDurationMs),
+                            handler = endPlaybackSessionHandler,
+                        )
+                        logger.info { "🎧 ACTIVITY QUEUED (book finished): ${totalDurationMs / 1000}s of ${bookId.value}" }
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.warn { "🎧 Failed to queue END_PLAYBACK_SESSION for ${bookId.value}: ${e.message}" }
+                    }
                 }
             }
 
