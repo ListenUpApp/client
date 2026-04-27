@@ -25,6 +25,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -538,8 +539,7 @@ class ProgressTracker(
         bookId: BookId,
         finalPositionMs: Long,
     ) {
-        val priorState = _sessionState.value
-        _sessionState.update { _ -> SessionState.Idle }
+        val priorState = _sessionState.getAndUpdate { _ -> SessionState.Idle }
 
         scope.launch {
             logger.info { "Book finished: ${bookId.value}, finalPosition=$finalPositionMs" }

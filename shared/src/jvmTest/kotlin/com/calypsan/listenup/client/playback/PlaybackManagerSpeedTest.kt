@@ -178,8 +178,8 @@ class PlaybackManagerSpeedTest {
      * [TestScope] from [runTest]. Use this for tests that need [advanceUntilIdle]
      * to drain coroutines launched inside [PlaybackManager] or [ProgressTracker].
      *
-     * Returns both the manager and the [positionDao] mock so tests can assert
-     * on it.
+     * Returns both the manager and the [PlaybackPositionRepository] mock so tests
+     * can assert on it.
      */
     private fun TestScope.createPlaybackManagerWithScope(
         playbackPreferences: PlaybackPreferences = defaultPlaybackPreferences(),
