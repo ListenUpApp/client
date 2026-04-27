@@ -5,12 +5,17 @@ package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.data.sync.ProgressPayload
 import com.calypsan.listenup.client.data.sync.SSEEvent
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionPayload
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
@@ -48,6 +53,8 @@ class ProgressTracker(
     private val syncApi: SyncApiContract,
     private val pushSyncOrchestrator: PushSyncOrchestratorContract,
     private val positionRepository: PlaybackPositionRepository,
+    private val pendingOperationRepository: PendingOperationRepositoryContract,
+    private val endPlaybackSessionHandler: EndPlaybackSessionHandler,
     private val scope: CoroutineScope,
 ) {
     private val _sessionState = MutableStateFlow<SessionState>(SessionState.Idle)
@@ -153,16 +160,14 @@ class ProgressTracker(
             if (priorState is SessionState.Active && priorState.bookId == bookId) {
                 val totalDurationMs = positionMs - priorState.playbackStartPositionMs
                 if (totalDurationMs >= 30_000) {
-                    try {
-                        syncApi.endPlaybackSession(bookId.value, totalDurationMs)
-                        logger.info {
-                            "🎧 ACTIVITY RECORDED: listened to ${totalDurationMs / 1000}s of ${bookId.value}"
-                        }
-                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        logger.warn { "🎧 Failed to record activity: ${e.message}" }
-                    }
+                    pendingOperationRepository.queue(
+                        type = OperationType.END_PLAYBACK_SESSION,
+                        entityType = EntityType.BOOK,
+                        entityId = bookId.value,
+                        payload = EndPlaybackSessionPayload(bookId = bookId.value, durationMs = totalDurationMs),
+                        handler = endPlaybackSessionHandler,
+                    )
+                    logger.info { "🎧 ACTIVITY QUEUED: ${totalDurationMs / 1000}s of ${bookId.value}" }
                 }
             }
         }
@@ -536,18 +541,18 @@ class ProgressTracker(
                 )
             }
 
-            // Activity-feed (still direct syncApi until Task 8)
+            // Activity feed — full playback session (book finished)
             if (priorState is SessionState.Active && priorState.bookId == bookId) {
                 val totalDurationMs = finalPositionMs - priorState.playbackStartPositionMs
                 if (totalDurationMs >= 30_000) {
-                    try {
-                        syncApi.endPlaybackSession(bookId.value, totalDurationMs)
-                        logger.info { "🎧 ACTIVITY RECORDED (book finished): listened to ${totalDurationMs / 1000}s" }
-                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        logger.warn { "🎧 Failed to record activity: ${e.message}" }
-                    }
+                    pendingOperationRepository.queue(
+                        type = OperationType.END_PLAYBACK_SESSION,
+                        entityType = EntityType.BOOK,
+                        entityId = bookId.value,
+                        payload = EndPlaybackSessionPayload(bookId = bookId.value, durationMs = totalDurationMs),
+                        handler = endPlaybackSessionHandler,
+                    )
+                    logger.info { "🎧 ACTIVITY QUEUED (book finished): ${totalDurationMs / 1000}s of ${bookId.value}" }
                 }
             }
 

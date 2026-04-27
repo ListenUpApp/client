@@ -4,15 +4,22 @@ import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.DataError
+import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionPayload
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
+import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
@@ -25,7 +32,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
-import com.calypsan.listenup.client.core.error.DataError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -56,6 +62,10 @@ class ProgressTrackerTest {
         val syncApi: SyncApiContract = mock()
         val pushSyncOrchestrator: PushSyncOrchestratorContract = mock()
         val positionRepository: PlaybackPositionRepository = mock()
+        val pendingOperationRepository: PendingOperationRepositoryContract =
+            mock(MockMode.autoUnit)
+        val endPlaybackSessionHandler: EndPlaybackSessionHandler =
+            EndPlaybackSessionHandler(syncApi)
 
         fun build(): ProgressTracker =
             ProgressTracker(
@@ -65,6 +75,8 @@ class ProgressTrackerTest {
                 syncApi = syncApi,
                 pushSyncOrchestrator = pushSyncOrchestrator,
                 positionRepository = positionRepository,
+                pendingOperationRepository = pendingOperationRepository,
+                endPlaybackSessionHandler = endPlaybackSessionHandler,
                 scope = testScope,
             )
     }
@@ -655,6 +667,54 @@ class ProgressTrackerTest {
                     matches<PlaybackUpdate>({ "PlaybackStarted(positionMs=1000, speed=1.0)" }) {
                         it is PlaybackUpdate.PlaybackStarted && it.positionMs == 1000L && it.speed == 1.0f
                     },
+                )
+            }
+        }
+
+    // ========== END_PLAYBACK_SESSION outbox routing (Task 8) ==========
+
+    @Test
+    fun `onPlaybackPaused queues END_PLAYBACK_SESSION when totalDuration is at least 30s`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onPlaybackStarted(bookId, positionMs = 1_000L, speed = 1.0f)
+            tracker.onPlaybackPaused(bookId, positionMs = 35_000L, speed = 1.0f) // 34s after start
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.pendingOperationRepository.queue<EndPlaybackSessionPayload>(
+                    matches({ "END_PLAYBACK_SESSION" }) { it == OperationType.END_PLAYBACK_SESSION },
+                    matches({ "EntityType.BOOK" }) { it == EntityType.BOOK },
+                    matches({ "book-1" }) { it == "book-1" },
+                    matches({ "payload(bookId=book-1, durationMs=34000)" }) {
+                        it.bookId == "book-1" && it.durationMs == 34_000L
+                    },
+                    any(),
+                )
+            }
+        }
+
+    @Test
+    fun `onPlaybackPaused does not queue END_PLAYBACK_SESSION when totalDuration is below 30s`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onPlaybackStarted(bookId, positionMs = 1_000L, speed = 1.0f)
+            tracker.onPlaybackPaused(bookId, positionMs = 10_000L, speed = 1.0f) // 9s after start
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.exactly(0)) {
+                fixture.pendingOperationRepository.queue<EndPlaybackSessionPayload>(
+                    matches({ "END_PLAYBACK_SESSION" }) { it == OperationType.END_PLAYBACK_SESSION },
+                    any(),
+                    any(),
+                    any(),
+                    any(),
                 )
             }
         }

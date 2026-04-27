@@ -10,7 +10,10 @@ import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
+import dev.mokkery.MockMode
 import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.device.DeviceType
 import com.calypsan.listenup.client.domain.repository.BookRepository
@@ -151,14 +154,17 @@ class PlaybackManagerPrepareTest {
         val positionRepository: PlaybackPositionRepository = mock()
         everySuspend { positionRepository.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
         everySuspend { positionRepository.getEntity(any<BookId>()) } returns AppResult.Success(null)
+        val stubSyncApi = mock<SyncApiContract>()
         val progressTracker =
             ProgressTracker(
                 positionDao = positionDao,
                 downloadRepository = mock<DownloadRepository>(),
                 listeningEventRepository = mock<ListeningEventRepository>(),
-                syncApi = mock<SyncApiContract>(),
+                syncApi = stubSyncApi,
                 pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
                 positionRepository = positionRepository,
+                pendingOperationRepository = mock<PendingOperationRepositoryContract>(MockMode.autoUnit),
+                endPlaybackSessionHandler = EndPlaybackSessionHandler(stubSyncApi),
                 scope = CoroutineScope(Job()),
             )
 

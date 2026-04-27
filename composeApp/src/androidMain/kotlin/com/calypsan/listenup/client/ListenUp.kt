@@ -110,6 +110,8 @@ val playbackModule =
                 syncApi = get(),
                 pushSyncOrchestrator = get(),
                 positionRepository = get(),
+                pendingOperationRepository = get(),
+                endPlaybackSessionHandler = get(),
                 scope = get(),
             )
         }
