@@ -12,10 +12,12 @@ import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
+import dev.mokkery.matcher.matches
 import dev.mokkery.mock
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -77,6 +79,7 @@ class ProgressTrackerTest {
         everySuspend { fixture.listeningEventRepository.queueListeningEvent(any(), any(), any(), any(), any(), any()) } returns AppResult.Success(Unit)
         everySuspend { fixture.pushSyncOrchestrator.flush() } returns Unit
         everySuspend { fixture.downloadRepository.deleteForBook(any()) } returns Unit
+        everySuspend { fixture.positionRepository.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
 
         return fixture
     }
@@ -380,8 +383,15 @@ class ProgressTrackerTest {
             // Advance to let the coroutine run
             fixture.testScope.testScheduler.advanceUntilIdle()
 
-            // Then - position should be saved immediately
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Then - position should be saved immediately via repository seam
+            verifySuspend {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "PeriodicUpdate(positionMs=0, speed=1.0)" }) {
+                        it is PlaybackUpdate.PeriodicUpdate && it.positionMs == 0L && it.speed == 1.0f
+                    },
+                )
+            }
         }
 
     @Test
@@ -390,10 +400,6 @@ class ProgressTrackerTest {
             // Given
             val fixture = createFixture()
             val bookId = BookId("book-new")
-
-            var savedPosition: PlaybackPositionEntity? = null
-            everySuspend { fixture.positionDao.save(any()) } returns Unit
-
             val tracker = fixture.build()
 
             // When
@@ -404,8 +410,15 @@ class ProgressTrackerTest {
             )
             fixture.testScope.testScheduler.advanceUntilIdle()
 
-            // Then - verify save was called (position captured)
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Then - verify save was called via repository seam with correct args
+            verifySuspend {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "PeriodicUpdate(positionMs=5000, speed=1.5)" }) {
+                        it is PlaybackUpdate.PeriodicUpdate && it.positionMs == 5000L && it.speed == 1.5f
+                    },
+                )
+            }
         }
 
     // ========== onBookFinished Tests ==========

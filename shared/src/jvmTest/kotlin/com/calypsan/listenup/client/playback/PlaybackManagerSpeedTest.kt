@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Timestamp
@@ -17,6 +18,7 @@ import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.download.DownloadService
@@ -25,6 +27,7 @@ import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
+import dev.mokkery.matcher.matches
 import dev.mokkery.mock
 import dev.mokkery.verify
 import dev.mokkery.verify.VerifyMode
@@ -75,9 +78,12 @@ class PlaybackManagerSpeedTest {
             everySuspend { positionDao.get(any()) } returns null
             everySuspend { positionDao.save(any()) } returns Unit
 
+            val positionRepository = defaultPositionRepository()
+
             val (manager, _) =
                 createPlaybackManagerWithScope(
                     positionDao = positionDao,
+                    positionRepository = positionRepository,
                 )
 
             manager.activateBook(BookId("book-1"))
@@ -86,7 +92,14 @@ class PlaybackManagerSpeedTest {
             // Drain the scope.launch inside ProgressTracker.onSpeedChanged
             advanceUntilIdle()
 
-            verifySuspend(VerifyMode.exactly(1)) { positionDao.save(any()) }
+            verifySuspend(VerifyMode.exactly(1)) {
+                positionRepository.savePlaybackState(
+                    any(),
+                    matches<PlaybackUpdate>({ "Speed(speed=1.0, custom=true)" }) {
+                        it is PlaybackUpdate.Speed && it.speed == 1.0f && it.custom
+                    },
+                )
+            }
         }
 
     // -------------------------------------------------------------------------
@@ -148,10 +161,13 @@ class PlaybackManagerSpeedTest {
             everySuspend { positionDao.get(any()) } returns null
             everySuspend { positionDao.save(any()) } returns Unit
 
+            val positionRepository = defaultPositionRepository()
+
             val (manager, _) =
                 createPlaybackManagerWithScope(
                     playbackPreferences = playbackPreferences,
                     positionDao = positionDao,
+                    positionRepository = positionRepository,
                 )
 
             manager.activateBook(BookId("book-1"))
@@ -161,7 +177,14 @@ class PlaybackManagerSpeedTest {
             // has had a chance to run before we assert it didn't.
             advanceUntilIdle()
 
-            verifySuspend(VerifyMode.exactly(1)) { positionDao.save(any()) }
+            verifySuspend(VerifyMode.exactly(1)) {
+                positionRepository.savePlaybackState(
+                    any(),
+                    matches<PlaybackUpdate>({ "Speed(speed=2.0, custom=true)" }) {
+                        it is PlaybackUpdate.Speed && it.speed == 2.0f && it.custom
+                    },
+                )
+            }
             verifySuspend(VerifyMode.exactly(0)) { playbackPreferences.setDefaultPlaybackSpeed(any()) }
         }
 
@@ -180,6 +203,7 @@ class PlaybackManagerSpeedTest {
     private fun TestScope.createPlaybackManagerWithScope(
         playbackPreferences: PlaybackPreferences = defaultPlaybackPreferences(),
         positionDao: PlaybackPositionDao = defaultPositionDao(),
+        positionRepository: PlaybackPositionRepository = defaultPositionRepository(),
     ): Pair<PlaybackManager, PlaybackPositionDao> {
         val progressTrackerScope = CoroutineScope(coroutineContext)
         val managerScope = CoroutineScope(coroutineContext)
@@ -188,6 +212,7 @@ class PlaybackManagerSpeedTest {
             buildProgressTracker(
                 positionDao = positionDao,
                 scope = progressTrackerScope,
+                positionRepository = positionRepository,
             )
 
         val manager =
@@ -218,6 +243,7 @@ class PlaybackManagerSpeedTest {
     private fun buildProgressTracker(
         positionDao: PlaybackPositionDao,
         scope: CoroutineScope,
+        positionRepository: PlaybackPositionRepository = defaultPositionRepository(),
     ): ProgressTracker =
         ProgressTracker(
             positionDao = positionDao,
@@ -225,9 +251,15 @@ class PlaybackManagerSpeedTest {
             listeningEventRepository = mock<com.calypsan.listenup.client.domain.repository.ListeningEventRepository>(),
             syncApi = mock<SyncApiContract>(),
             pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
-            positionRepository = mock<PlaybackPositionRepository>(),
+            positionRepository = positionRepository,
             scope = scope,
         )
+
+    private fun defaultPositionRepository(): PlaybackPositionRepository {
+        val repo: PlaybackPositionRepository = mock()
+        everySuspend { repo.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
+        return repo
+    }
 
     private fun createPlaybackManager(
         playbackPreferences: PlaybackPreferences = defaultPlaybackPreferences(),
