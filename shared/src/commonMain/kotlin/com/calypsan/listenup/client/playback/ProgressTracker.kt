@@ -367,6 +367,17 @@ class ProgressTracker(
      * 3. Compare timestamps - use whichever is newer
      * 4. If server is newer, update local cache
      *
+     * **HTTP exception (drift #19):** This method retains a synchronous
+     * `syncApi.getProgress(bookId)` call (via [fetchServerProgress]) — the
+     * one remaining direct HTTP read in [ProgressTracker] after W7 Phase C.
+     * Cross-device merge has no SSE coverage today, and resume must reflect
+     * a sibling device's progress at the moment playback starts. The call
+     * is bounded by `withTimeoutOrNull(3_000L)` so a slow or unreachable
+     * server cannot block ExoPlayer startup. Future work (W8 Phase D):
+     * either an SSE-driven cross-device merge that obviates the synchronous
+     * read, or a `PlaybackPositionRepository.fetchAndMerge(bookId)` that
+     * internalises the HTTP call behind the seam.
+     *
      * @param bookId Book to get resume position for
      * @return Position to resume from, or null if never played
      */
