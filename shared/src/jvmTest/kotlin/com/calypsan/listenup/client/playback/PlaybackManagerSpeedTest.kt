@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.playback
 
-import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Timestamp
@@ -9,15 +8,9 @@ import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.remote.SyncApiContract
-import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
-import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
-import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
-import dev.mokkery.MockMode
 import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.device.DeviceType
 import com.calypsan.listenup.client.domain.repository.BookRepository
-import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
@@ -234,39 +227,6 @@ class PlaybackManagerSpeedTest {
         everySuspend { prefs.getDefaultPlaybackSpeed() } returns 1.0f
         everySuspend { prefs.setDefaultPlaybackSpeed(any()) } returns Unit
         return prefs
-    }
-
-    private fun defaultPositionDao(): PlaybackPositionDao {
-        val dao: PlaybackPositionDao = mock()
-        everySuspend { dao.get(any()) } returns null
-        everySuspend { dao.save(any()) } returns Unit
-        return dao
-    }
-
-    private fun buildProgressTracker(
-        positionDao: PlaybackPositionDao,
-        scope: CoroutineScope,
-        positionRepository: PlaybackPositionRepository = defaultPositionRepository(),
-    ): ProgressTracker {
-        val stubSyncApi = mock<SyncApiContract>()
-        return ProgressTracker(
-            positionDao = positionDao,
-            downloadRepository = mock<DownloadRepository>(),
-            listeningEventRepository = mock<com.calypsan.listenup.client.domain.repository.ListeningEventRepository>(),
-            syncApi = stubSyncApi,
-            pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
-            positionRepository = positionRepository,
-            pendingOperationRepository = mock<PendingOperationRepositoryContract>(MockMode.autoUnit),
-            endPlaybackSessionHandler = EndPlaybackSessionHandler(stubSyncApi),
-            scope = scope,
-        )
-    }
-
-    private fun defaultPositionRepository(): PlaybackPositionRepository {
-        val repo: PlaybackPositionRepository = mock()
-        everySuspend { repo.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
-        everySuspend { repo.getEntity(any<BookId>()) } returns AppResult.Success(null)
-        return repo
     }
 
     private fun createPlaybackManager(

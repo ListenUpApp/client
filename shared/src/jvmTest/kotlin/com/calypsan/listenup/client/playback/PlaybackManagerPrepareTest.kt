@@ -1,26 +1,16 @@
 package com.calypsan.listenup.client.playback
 
-import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.remote.SyncApiContract
-import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
-import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
-import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
-import dev.mokkery.MockMode
 import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.device.DeviceType
 import com.calypsan.listenup.client.domain.repository.BookRepository
-import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
-import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
-import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.download.DownloadResult
@@ -144,29 +134,10 @@ class PlaybackManagerPrepareTest {
         val playbackPreferences: PlaybackPreferences = mock()
         everySuspend { playbackPreferences.getDefaultPlaybackSpeed() } returns 1.0f
 
-        // ProgressTracker is a final class so Mokkery can't synthesise a mock —
-        // construct a real instance whose dependencies are all interface mocks.
-        // prepareForPlayback calls progressTracker.getResumePosition, which reads
-        // from positionDao and syncApi. Stub both to return "no saved position" so
-        // the test exercises the fresh-playback path.
-        val positionDao: PlaybackPositionDao = mock()
-        everySuspend { positionDao.get(any()) } returns null
-        val positionRepository: PlaybackPositionRepository = mock()
-        everySuspend { positionRepository.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
-        everySuspend { positionRepository.getEntity(any<BookId>()) } returns AppResult.Success(null)
-        val stubSyncApi = mock<SyncApiContract>()
-        val progressTracker =
-            ProgressTracker(
-                positionDao = positionDao,
-                downloadRepository = mock<DownloadRepository>(),
-                listeningEventRepository = mock<ListeningEventRepository>(),
-                syncApi = stubSyncApi,
-                pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
-                positionRepository = positionRepository,
-                pendingOperationRepository = mock<PendingOperationRepositoryContract>(MockMode.autoUnit),
-                endPlaybackSessionHandler = EndPlaybackSessionHandler(stubSyncApi),
-                scope = CoroutineScope(Job()),
-            )
+        // ProgressTracker is a final class — use the shared helper from PlaybackManagerTestSupport.
+        // prepareForPlayback reads positionRepository; defaultPositionRepository() stubs it to
+        // return null (no saved position), exercising the fresh-playback path.
+        val progressTracker = buildProgressTracker()
 
         return PlaybackManager(
             serverConfig = serverConfig,
