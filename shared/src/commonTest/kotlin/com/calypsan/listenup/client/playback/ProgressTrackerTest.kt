@@ -34,6 +34,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -742,5 +743,155 @@ class ProgressTrackerTest {
                     any(),
                 )
             }
+        }
+
+    // ========== SessionState transition tests (Task 9) ==========
+
+    @Test
+    fun `onPlaybackStarted from Idle transitions to Active`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+
+            assertIs<SessionState.Active>(tracker.sessionState.value)
+            val active = tracker.sessionState.value as SessionState.Active
+            assertEquals(BookId("book-1"), active.bookId)
+            assertEquals(1000L, active.chunkStartPositionMs)
+            assertEquals(1000L, active.playbackStartPositionMs)
+            assertEquals(1.0f, active.speed)
+        }
+
+    @Test
+    fun `onPlaybackPaused from Active transitions to Paused preserving timestamps`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            val activeState = tracker.sessionState.value as SessionState.Active
+
+            tracker.onPlaybackPaused(BookId("book-1"), positionMs = 6000L, speed = 1.0f)
+
+            val pausedState = tracker.sessionState.value as SessionState.Paused
+            assertEquals(activeState.chunkStartPositionMs, pausedState.chunkStartPositionMs)
+            assertEquals(activeState.chunkStartedAt, pausedState.chunkStartedAt)
+            assertEquals(activeState.playbackStartPositionMs, pausedState.playbackStartPositionMs)
+            assertEquals(activeState.playbackStartedAt, pausedState.playbackStartedAt)
+            assertEquals(activeState.speed, pausedState.speed)
+            assertEquals(BookId("book-1"), pausedState.bookId)
+        }
+
+    @Test
+    fun `onPlaybackPaused from Idle is a no-op`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackPaused(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            assertEquals(SessionState.Idle, tracker.sessionState.value)
+        }
+
+    @Test
+    fun `onPlaybackPaused with mismatched bookId is a no-op`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onPlaybackPaused(BookId("book-2"), positionMs = 2000L, speed = 1.0f)
+            assertIs<SessionState.Active>(tracker.sessionState.value) // still Active for book-1
+        }
+
+    @Test
+    fun `onSpeedChanged updates Active speed when bookId matches`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onSpeedChanged(BookId("book-1"), positionMs = 1500L, newSpeed = 1.5f)
+            assertEquals(1.5f, (tracker.sessionState.value as SessionState.Active).speed)
+        }
+
+    @Test
+    fun `onSpeedChanged in Idle does not change SessionState`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onSpeedChanged(BookId("book-1"), positionMs = 1500L, newSpeed = 1.5f)
+            assertEquals(SessionState.Idle, tracker.sessionState.value)
+        }
+
+    @Test
+    fun `onSpeedChanged with mismatched bookId does not change SessionState`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onSpeedChanged(BookId("book-2"), positionMs = 1500L, newSpeed = 1.5f)
+            assertEquals(1.0f, (tracker.sessionState.value as SessionState.Active).speed) // unchanged
+        }
+
+    @Test
+    fun `onSpeedChanged updates Paused speed when bookId matches`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onPlaybackPaused(BookId("book-1"), positionMs = 2000L, speed = 1.0f)
+            tracker.onSpeedChanged(BookId("book-1"), positionMs = 2000L, newSpeed = 1.5f)
+            assertEquals(1.5f, (tracker.sessionState.value as SessionState.Paused).speed)
+        }
+
+    @Test
+    fun `onBookFinished transitions to Idle`() =
+        runTest {
+            val fixture = createFixture()
+            everySuspend { fixture.positionRepository.markComplete(any(), any(), any()) } returns AppResult.Success(Unit)
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            tracker.onBookFinished(BookId("book-1"), finalPositionMs = 30000L)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+            assertEquals(SessionState.Idle, tracker.sessionState.value)
+        }
+
+    @Test
+    fun `getCurrentSpeed returns 1_0 when Idle`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            assertEquals(1.0f, tracker.getCurrentSpeed())
+        }
+
+    @Test
+    fun `getCurrentSpeed returns Active speed`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.5f)
+            assertEquals(1.5f, tracker.getCurrentSpeed())
+        }
+
+    @Test
+    fun `getCurrentSpeed returns Paused speed`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.5f)
+            tracker.onPlaybackPaused(BookId("book-1"), positionMs = 2000L, speed = 1.5f)
+            assertEquals(1.5f, tracker.getCurrentSpeed())
+        }
+
+    @Test
+    fun `onPositionUpdate advances chunk window when chunk duration above 10s`() =
+        runTest {
+            val fixture = createFixture()
+            val tracker = fixture.build()
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 1000L, speed = 1.0f)
+            val activeBefore = tracker.sessionState.value as SessionState.Active
+
+            tracker.onPositionUpdate(BookId("book-1"), positionMs = 12_000L, speed = 1.0f) // 11s of chunk
+            fixture.testScope.testScheduler.advanceUntilIdle() // let scope.launch complete
+
+            val activeAfter = tracker.sessionState.value as SessionState.Active
+            assertEquals(12_000L, activeAfter.chunkStartPositionMs) // chunk advanced
+            assertEquals(activeBefore.playbackStartPositionMs, activeAfter.playbackStartPositionMs) // playback-start preserved
         }
 }
