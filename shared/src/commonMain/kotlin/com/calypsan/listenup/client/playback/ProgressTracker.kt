@@ -539,7 +539,7 @@ class ProgressTracker(
         finalPositionMs: Long,
     ) {
         val priorState = _sessionState.value
-        _sessionState.value = SessionState.Idle
+        _sessionState.update { _ -> SessionState.Idle }
 
         scope.launch {
             logger.info { "Book finished: ${bookId.value}, finalPosition=$finalPositionMs" }
