@@ -25,8 +25,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import com.calypsan.listenup.client.core.error.DataError
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
@@ -451,6 +453,29 @@ class ProgressTrackerTest {
             verifySuspend(VerifyMode.atLeast(1)) {
                 fixture.positionRepository.getEntity(bookId)
             }
+        }
+
+    @Test
+    fun `mergePositions returns synthesized entity when read-back fails after CrossDeviceSync save`() =
+        runTest {
+            // Given - local null, server has progress; save succeeds but read-back returns Failure
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val serverProgress = createServerProgress(positionMs = 3_600_000L)
+
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns
+                AppResult.Failure(DataError("read-back failure"))
+            everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+            everySuspend { fixture.positionRepository.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
+
+            val tracker = fixture.build()
+
+            // When - local is null (getEntity fails), server provides position → server-only-branch
+            val result = tracker.getResumePosition(bookId)
+
+            // Then - fallback synthesizes a non-null result from server.toEntity()
+            assertNotNull(result)
+            assertEquals(3_600_000L, result.positionMs)
         }
 
     // ========== Playback Start Position Saving Tests ==========

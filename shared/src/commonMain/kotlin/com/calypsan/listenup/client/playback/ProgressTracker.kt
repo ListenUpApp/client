@@ -406,7 +406,6 @@ class ProgressTracker(
      * When server is newer, writes via [PlaybackUpdate.CrossDeviceSync] (which preserves
      * local speed/hasCustomSpeed in the handler) and reads back via [PlaybackPositionRepository.getEntity].
      */
-    @Suppress("UnusedParameter") // bookId reserved for future logging/debugging
     private suspend fun mergePositions(
         bookId: BookId,
         local: PlaybackPositionEntity?,
@@ -435,6 +434,7 @@ class ProgressTracker(
                 }
                 logger.info { "Using server position: ${server.currentPositionMs}ms (first sync)" }
                 (positionRepository.getEntity(bookId) as? AppResult.Success)?.data
+                    ?: server.toEntity()  // pre-Phase-C parity: a successful CrossDeviceSync save guarantees a non-null return
             }
 
             server == null -> {
@@ -470,7 +470,11 @@ class ProgressTracker(
                         "Using server position: ${server.currentPositionMs}ms " +
                             "(was ${local.positionMs}ms locally, server is ${(serverTimestamp - localTimestamp) / 1000}s newer)"
                     }
-                    (positionRepository.getEntity(bookId) as? AppResult.Success)?.data ?: local
+                    (positionRepository.getEntity(bookId) as? AppResult.Success)?.data
+                        ?: server.toEntity().copy(
+                            playbackSpeed = local.playbackSpeed,
+                            hasCustomSpeed = local.hasCustomSpeed,
+                        )  // pre-Phase-C parity: preserve local speed/hasCustomSpeed across server merge
                 } else {
                     // Local is newer or same
                     local
