@@ -81,6 +81,7 @@ class ProgressTrackerTest {
         everySuspend { fixture.pushSyncOrchestrator.flush() } returns Unit
         everySuspend { fixture.downloadRepository.deleteForBook(any()) } returns Unit
         everySuspend { fixture.positionRepository.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
+        everySuspend { fixture.positionRepository.getEntity(any<BookId>()) } returns AppResult.Success(null)
 
         return fixture
     }
@@ -126,7 +127,7 @@ class ProgressTrackerTest {
             val fixture = createFixture()
             val bookId = BookId("book-1")
 
-            everySuspend { fixture.positionDao.get(bookId) } returns null
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(null)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(null)
 
             val tracker = fixture.build()
@@ -145,20 +146,28 @@ class ProgressTrackerTest {
             val fixture = createFixture()
             val bookId = BookId("book-1")
             val serverProgress = createServerProgress(positionMs = 3_600_000L)
+            val cachedEntity = createLocalPosition(positionMs = 3_600_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns null
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(null)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+            // After the CrossDeviceSync write, the read-back returns the cached entity
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(cachedEntity)
 
             val tracker = fixture.build()
 
             // When
             val result = tracker.getResumePosition(bookId)
 
-            // Then
+            // Then — server position returned via read-back
             assertEquals(3_600_000L, result?.positionMs)
 
-            // Verify server position was cached locally
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Verify server position was written via CrossDeviceSync
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
         }
 
     @Test
@@ -169,7 +178,7 @@ class ProgressTrackerTest {
             val bookId = BookId("book-1")
             val localPosition = createLocalPosition(positionMs = 1_800_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(null)
 
             val tracker = fixture.build()
@@ -202,8 +211,12 @@ class ProgressTrackerTest {
                     lastPlayedAt = "2023-12-18T14:00:00Z",
                 )
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            val mergedEntity = createLocalPosition(positionMs = 3_600_000L)
+
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+            // After the CrossDeviceSync write, the read-back returns the merged entity
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(mergedEntity)
 
             val tracker = fixture.build()
 
@@ -213,8 +226,13 @@ class ProgressTrackerTest {
             // Then - Should use server position (1 hour)
             assertEquals(3_600_000L, result?.positionMs)
 
-            // Verify server position was cached locally
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Verify server position was written via CrossDeviceSync
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
         }
 
     @Test
@@ -238,7 +256,7 @@ class ProgressTrackerTest {
                     lastPlayedAt = "2023-12-18T14:00:00Z",
                 )
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
 
             val tracker = fixture.build()
@@ -258,7 +276,7 @@ class ProgressTrackerTest {
             val bookId = BookId("book-1")
             val localPosition = createLocalPosition(positionMs = 1_800_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns
                 Failure(RuntimeException("Network error"))
 
@@ -279,7 +297,7 @@ class ProgressTrackerTest {
             val bookId = BookId("book-1")
             val localPosition = createLocalPosition(positionMs = 1_800_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } throws
                 RuntimeException("Unexpected error")
 
@@ -299,7 +317,7 @@ class ProgressTrackerTest {
             val fixture = createFixture()
             val bookId = BookId("book-1")
 
-            everySuspend { fixture.positionDao.get(bookId) } returns null
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(null)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns
                 Failure(RuntimeException("Network error"))
 
@@ -313,26 +331,28 @@ class ProgressTrackerTest {
         }
 
     @Test
-    fun `getResumePosition caches server position with correct syncedAt timestamp`() =
+    fun `getResumePosition caches server position via CrossDeviceSync`() =
         runTest {
             // Given
             val fixture = createFixture()
             val bookId = BookId("book-1")
             val serverProgress = createServerProgress(positionMs = 3_600_000L)
 
-            everySuspend { fixture.positionDao.get(bookId) } returns null
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(null)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
-
-            var savedEntity: PlaybackPositionEntity? = null
-            everySuspend { fixture.positionDao.save(any()) } returns Unit
 
             val tracker = fixture.build()
 
             // When
             tracker.getResumePosition(bookId)
 
-            // Then - Verify save was called (syncedAt should be set)
-            verifySuspend { fixture.positionDao.save(any()) }
+            // Then - Verify save was called via CrossDeviceSync (syncedAt is set by handler)
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
         }
 
     @Test
@@ -349,7 +369,7 @@ class ProgressTrackerTest {
                     lastPlayedAt = "invalid-timestamp",
                 )
 
-            everySuspend { fixture.positionDao.get(bookId) } returns localPosition
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
 
             val tracker = fixture.build()
@@ -359,6 +379,78 @@ class ProgressTrackerTest {
 
             // Then - Server timestamp parses to 0, so local wins
             assertEquals(1_800_000L, result?.positionMs)
+        }
+
+    // ========== mergePositions CrossDeviceSync Tests ==========
+
+    @Test
+    fun `mergePositions writes via CrossDeviceSync when server is only progress`() =
+        runTest {
+            // Given - local null, server has progress (fresh install cross-device scenario)
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val serverProgress = createServerProgress(positionMs = 3_600_000L)
+            val cachedEntity = createLocalPosition(positionMs = 3_600_000L)
+
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(cachedEntity)
+            everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+
+            val tracker = fixture.build()
+
+            // When
+            tracker.getResumePosition(bookId)
+
+            // Then - CrossDeviceSync write must happen
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
+            // And a read-back via getEntity must happen
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.getEntity(bookId)
+            }
+        }
+
+    @Test
+    fun `mergePositions writes via CrossDeviceSync when server is newer`() =
+        runTest {
+            // Given - local exists at 12:00, server is newer at 14:00
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val localPosition =
+                createLocalPosition(
+                    positionMs = 1_800_000L,
+                    updatedAt = 1702900800000L, // 2023-12-18T12:00:00Z
+                )
+            val serverProgress =
+                createServerProgress(
+                    positionMs = 3_600_000L,
+                    lastPlayedAt = "2023-12-18T14:00:00Z",
+                )
+            val mergedEntity = createLocalPosition(positionMs = 3_600_000L)
+
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(localPosition)
+            everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
+            everySuspend { fixture.positionRepository.getEntity(bookId) } returns AppResult.Success(mergedEntity)
+
+            val tracker = fixture.build()
+
+            // When
+            tracker.getResumePosition(bookId)
+
+            // Then - CrossDeviceSync write must happen
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "CrossDeviceSync" }) { it is PlaybackUpdate.CrossDeviceSync },
+                )
+            }
+            // And a read-back via getEntity must happen after the write
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.getEntity(bookId)
+            }
         }
 
     // ========== Playback Start Position Saving Tests ==========

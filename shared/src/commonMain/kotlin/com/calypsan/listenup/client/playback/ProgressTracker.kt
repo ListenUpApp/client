@@ -9,6 +9,8 @@ import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
+import com.calypsan.listenup.client.data.sync.ProgressPayload
+import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
@@ -360,8 +362,9 @@ class ProgressTracker(
      * @return Position to resume from, or null if never played
      */
     suspend fun getResumePosition(bookId: BookId): PlaybackPositionEntity? {
-        // 1. Get local position (instant, offline-first)
-        val local = positionDao.get(bookId)
+        // 1. Get local position via repository seam (instant, offline-first)
+        val localResult = positionRepository.getEntity(bookId)
+        val local = if (localResult is AppResult.Success) localResult.data else null
 
         // 2. Try to get server position within a short deadline.
         //    A slow or unreachable server used to block this call indefinitely,
@@ -400,7 +403,8 @@ class ProgressTracker(
 
     /**
      * Merge local and server positions, returning the more recent one.
-     * If server is newer, updates local cache for offline access.
+     * When server is newer, writes via [PlaybackUpdate.CrossDeviceSync] (which preserves
+     * local speed/hasCustomSpeed in the handler) and reads back via [PlaybackPositionRepository.getEntity].
      */
     @Suppress("UnusedParameter") // bookId reserved for future logging/debugging
     private suspend fun mergePositions(
@@ -414,11 +418,23 @@ class ProgressTracker(
             }
 
             local == null && server != null -> {
-                // Only server has progress - cache it locally
-                val entity = server.toEntity()
-                positionDao.save(entity)
+                // Only server has progress — write via CrossDeviceSync, read back
+                when (
+                    val r =
+                        positionRepository.savePlaybackState(
+                            bookId = bookId,
+                            update = PlaybackUpdate.CrossDeviceSync(server.toSseProgressUpdated()),
+                        )
+                ) {
+                    is AppResult.Success -> {}
+
+                    is AppResult.Failure -> {
+                        logger.warn { "CrossDeviceSync save failed for ${bookId.value}: ${r.error.message}" }
+                        return null
+                    }
+                }
                 logger.info { "Using server position: ${server.currentPositionMs}ms (first sync)" }
-                entity
+                (positionRepository.getEntity(bookId) as? AppResult.Success)?.data
             }
 
             server == null -> {
@@ -426,33 +442,66 @@ class ProgressTracker(
             }
 
             else -> {
-                // Both exist - compare timestamps
-                // Compare using lastPlayedAt consistently. Previously this compared
-                // server.lastPlayedAt against local.updatedAt, but caching server
-                // positions set updatedAt to Clock.System.now(), inflating it beyond
-                // the server timestamp and causing stale local positions to win.
+                // Both exist — compare timestamps using lastPlayedAt consistently.
+                // Previously this compared server.lastPlayedAt against local.updatedAt,
+                // but caching server positions set updatedAt to Clock.System.now(),
+                // inflating it beyond the server timestamp and causing stale local
+                // positions to win.
                 val serverTimestamp = server.lastPlayedAtMillis()
                 val localTimestamp = local!!.lastPlayedAt ?: local.updatedAt
                 if (serverTimestamp > localTimestamp) {
-                    // Server is newer (listened on another device)
-                    // Preserve local speed settings — server doesn't track per-position speed
-                    val entity =
-                        server.toEntity().copy(
-                            playbackSpeed = local.playbackSpeed,
-                            hasCustomSpeed = local.hasCustomSpeed,
-                        )
-                    positionDao.save(entity)
+                    // Server is newer (listened on another device).
+                    // CrossDeviceSync handler preserves local speed/hasCustomSpeed via .copy().
+                    when (
+                        val r =
+                            positionRepository.savePlaybackState(
+                                bookId = bookId,
+                                update = PlaybackUpdate.CrossDeviceSync(server.toSseProgressUpdated()),
+                            )
+                    ) {
+                        is AppResult.Success -> {}
+
+                        is AppResult.Failure -> {
+                            logger.warn { "CrossDeviceSync save failed for ${bookId.value}: ${r.error.message}" }
+                            return local
+                        }
+                    }
                     logger.info {
                         "Using server position: ${server.currentPositionMs}ms " +
                             "(was ${local.positionMs}ms locally, server is ${(serverTimestamp - localTimestamp) / 1000}s newer)"
                     }
-                    entity
+                    (positionRepository.getEntity(bookId) as? AppResult.Success)?.data ?: local
                 } else {
                     // Local is newer or same
                     local
                 }
             }
         }
+
+    /**
+     * Build a synthetic [SSEEvent.ProgressUpdated] from a REST progress response.
+     * Used by [mergePositions] to route cross-device saves through the canonical
+     * [PlaybackUpdate.CrossDeviceSync] write path.
+     *
+     * Field mapping mirrors [PlaybackProgressResponse.toEntity] for consistency.
+     * [PlaybackProgressResponse.startedAt] is non-nullable on the REST model but
+     * nullable on [ProgressPayload]; passed through directly.
+     */
+    private fun PlaybackProgressResponse.toSseProgressUpdated(): SSEEvent.ProgressUpdated =
+        SSEEvent.ProgressUpdated(
+            timestamp = lastPlayedAt,
+            data =
+                ProgressPayload(
+                    bookId = bookId,
+                    currentPositionMs = currentPositionMs,
+                    progress = progress,
+                    totalListenTimeMs = totalListenTimeMs,
+                    isFinished = isFinished,
+                    lastPlayedAt = lastPlayedAt,
+                    startedAt = startedAt,
+                    finishedAt = null, // REST progress response has no finishedAt field
+                ),
+        )
 
     /**
      * Mark a book as finished.

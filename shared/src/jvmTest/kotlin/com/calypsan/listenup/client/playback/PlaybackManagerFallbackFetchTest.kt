@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
@@ -175,9 +176,12 @@ class PlaybackManagerFallbackFetchTest {
         // ProgressTracker is a final class so Mokkery can't synthesise a mock —
         // construct a real instance whose dependencies are all interface mocks.
         // prepareForPlayback calls progressTracker.getResumePosition, which reads
-        // from positionDao — stub to return null (no saved position).
+        // from positionRepository — stub to return null (no saved position).
         val positionDao: PlaybackPositionDao = mock()
         everySuspend { positionDao.get(any()) } returns null
+        val positionRepository: PlaybackPositionRepository = mock()
+        everySuspend { positionRepository.savePlaybackState(any(), any()) } returns AppResult.Success(Unit)
+        everySuspend { positionRepository.getEntity(any<BookId>()) } returns AppResult.Success(null)
         val progressTracker =
             ProgressTracker(
                 positionDao = positionDao,
@@ -185,7 +189,7 @@ class PlaybackManagerFallbackFetchTest {
                 listeningEventRepository = mock<ListeningEventRepository>(),
                 syncApi = mock<SyncApiContract>(),
                 pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
-                positionRepository = mock<PlaybackPositionRepository>(),
+                positionRepository = positionRepository,
                 scope = CoroutineScope(Job()),
             )
 
