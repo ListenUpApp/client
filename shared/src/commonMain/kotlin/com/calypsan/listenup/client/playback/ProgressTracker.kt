@@ -72,9 +72,27 @@ class ProgressTracker(
         logger.info { "🎧 LISTENING SESSION STARTED: book=${bookId.value}, position=$positionMs, speed=$speed" }
 
         // Save position immediately so the book appears in Continue Listening right away
-        // This ensures even brief playback sessions are tracked
+        // This ensures even brief playback sessions are tracked.
+        // Uses PlaybackStarted (not PeriodicUpdate) so the handler can insert a new row
+        // when none exists (never-played book first-play).
         scope.launch {
-            savePosition(bookId, positionMs, speed)
+            when (
+                val r =
+                    positionRepository.savePlaybackState(
+                        bookId = bookId,
+                        update = PlaybackUpdate.PlaybackStarted(positionMs = positionMs, speed = speed),
+                    )
+            ) {
+                is AppResult.Success -> {
+                    logger.debug { "Initial position recorded: book=${bookId.value}" }
+                }
+
+                is AppResult.Failure -> {
+                    logger.warn {
+                        "Failed to record initial position for ${bookId.value}: ${r.error.message}"
+                    }
+                }
+            }
         }
     }
 

@@ -384,12 +384,13 @@ class ProgressTrackerTest {
             // Advance to let the coroutine run
             fixture.testScope.testScheduler.advanceUntilIdle()
 
-            // Then - position should be saved immediately via repository seam
+            // Then - position should be saved immediately via repository seam (PlaybackStarted
+            // so the handler can insert a new row when none exists)
             verifySuspend {
                 fixture.positionRepository.savePlaybackState(
                     bookId,
-                    matches<PlaybackUpdate>({ "PeriodicUpdate(positionMs=0, speed=1.0)" }) {
-                        it is PlaybackUpdate.PeriodicUpdate && it.positionMs == 0L && it.speed == 1.0f
+                    matches<PlaybackUpdate>({ "PlaybackStarted(positionMs=0, speed=1.0)" }) {
+                        it is PlaybackUpdate.PlaybackStarted && it.positionMs == 0L && it.speed == 1.0f
                     },
                 )
             }
@@ -415,8 +416,8 @@ class ProgressTrackerTest {
             verifySuspend {
                 fixture.positionRepository.savePlaybackState(
                     bookId,
-                    matches<PlaybackUpdate>({ "PeriodicUpdate(positionMs=5000, speed=1.5)" }) {
-                        it is PlaybackUpdate.PeriodicUpdate && it.positionMs == 5000L && it.speed == 1.5f
+                    matches<PlaybackUpdate>({ "PlaybackStarted(positionMs=5000, speed=1.5)" }) {
+                        it is PlaybackUpdate.PlaybackStarted && it.positionMs == 5000L && it.speed == 1.5f
                     },
                 )
             }
@@ -516,6 +517,26 @@ class ProgressTrackerTest {
                     bookId,
                     matches<PlaybackUpdate>({ "PeriodicUpdate(positionMs=5000, speed=1.0)" }) {
                         it is PlaybackUpdate.PeriodicUpdate && it.positionMs == 5000L && it.speed == 1.0f
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `onPlaybackStarted routes through savePlaybackState with PlaybackStarted variant`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            val tracker = fixture.build()
+
+            tracker.onPlaybackStarted(bookId, positionMs = 1000L, speed = 1.0f)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            verifySuspend(VerifyMode.atLeast(1)) {
+                fixture.positionRepository.savePlaybackState(
+                    bookId,
+                    matches<PlaybackUpdate>({ "PlaybackStarted(positionMs=1000, speed=1.0)" }) {
+                        it is PlaybackUpdate.PlaybackStarted && it.positionMs == 1000L && it.speed == 1.0f
                     },
                 )
             }
