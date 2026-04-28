@@ -2,15 +2,11 @@
 
 package com.calypsan.listenup.client.playback
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import androidx.media3.common.PlaybackException
-import androidx.media3.session.MediaController
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
@@ -28,15 +24,27 @@ private val logger = KotlinLogging.logger {}
  * ViewModel for playback UI.
  *
  * Responsibilities:
- * - Uses shared MediaControllerHolder for player connection
+ * - Uses PlaybackController seam for player commands
  * - Exposes playback state as flows for Compose
  * - Handles position updates using book-relative timeline
  * - Provides control actions
+ *
+ * Note: [Player.Listener] registration and direct [MediaController] position polling
+ * ([updatePosition]) are retained via [mediaControllerHolder] because the events
+ * observed (onPlaybackStateChanged buffering/ended, onPlayerError with Media3-specific
+ * error codes, currentMediaItemIndex/currentPosition polling) are NOT surfaced by
+ * [PlaybackManager] or [PlaybackController]. Removing them would require extending
+ * PlaybackManager with isBuffering, error, and per-item position flows — a separate
+ * task deferred beyond Task 6.
  */
 class PlayerViewModel(
     private val playbackManager: PlaybackManager,
-    private val mediaControllerHolder: MediaControllerHolder,
+    private val playbackController: PlaybackController,
     private val networkMonitor: NetworkMonitor,
+    // TODO(Task-6-followup): mediaControllerHolder retained solely for Player.Listener
+    //  registration and updatePosition() polling. Remove once PlaybackManager exposes
+    //  isBuffering, playback errors, and per-mediaItem position flows.
+    private val mediaControllerHolder: MediaControllerHolder,
 ) : ViewModel() {
     private var positionUpdateJob: Job? = null
     private var playerListener: Player.Listener? = null
@@ -48,10 +56,10 @@ class PlayerViewModel(
 
     init {
         // Acquire reference to shared controller
-        mediaControllerHolder.acquire()
+        playbackController.acquire()
     }
 
-    private val mediaController: MediaController?
+    private val mediaController: androidx.media3.session.MediaController?
         get() = mediaControllerHolder.controller
 
     /**
@@ -123,103 +131,70 @@ class PlayerViewModel(
         }
     }
 
-    private fun connectAndPlay(prepareResult: PlaybackManager.PrepareResult) {
-        // Use shared controller - wait for it to be available
-        mediaControllerHolder.withController { controller ->
-            try {
-                // Remove old listener if any
+    private suspend fun connectAndPlay(prepareResult: PlaybackManager.PrepareResult) {
+        try {
+            // Remove old listener if any, then register fresh one.
+            // TODO(Task-6-followup): listener registration uses mediaControllerHolder
+            //  directly because Player.Listener surfaces events (isBuffering, error codes,
+            //  playback state) not yet exposed through PlaybackController or PlaybackManager.
+            mediaControllerHolder.withController { controller ->
                 playerListener?.let { controller.removeListener(it) }
-
-                // Add our listener
                 val listener = PlayerListener()
                 playerListener = listener
                 controller.addListener(listener)
-
-                // Build media items from timeline
-                logger.debug { "Building ${prepareResult.timeline.files.size} media items" }
-                val mediaItems =
-                    prepareResult.timeline.files.mapIndexed { index, file ->
-                        logger.debug {
-                            "MediaItem[$index]: id=${file.audioFileId}, " +
-                                "duration=${file.durationMs}ms, " +
-                                "uri=${file.playbackUri.takeLast(40)} (local=${file.isDownloaded})"
-                        }
-                        MediaItem
-                            .Builder()
-                            .setMediaId(file.audioFileId)
-                            .setUri(file.playbackUri)
-                            .setMediaMetadata(
-                                MediaMetadata
-                                    .Builder()
-                                    .setTitle(prepareResult.bookTitle)
-                                    .setArtist(prepareResult.bookAuthor)
-                                    .setAlbumTitle(prepareResult.seriesName)
-                                    .setArtworkUri(prepareResult.coverPath?.let { Uri.parse("file://$it") })
-                                    .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
-                                    .build(),
-                            ).build()
-                    }
-
-                // Set items with initial resume position
-                val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
-                logger.debug {
-                    "Starting playback: resumePos=${prepareResult.resumePositionMs}ms -> " +
-                        "mediaItem=${startPosition.mediaItemIndex}, " +
-                        "posInFile=${startPosition.positionInFileMs}ms"
-                }
-
-                // Validate start position before passing to ExoPlayer
-                if (startPosition.mediaItemIndex < 0 || startPosition.mediaItemIndex >= mediaItems.size) {
-                    logger.error {
-                        "INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}"
-                    }
-                    state.value = state.value.copy(isLoading = false, error = "Invalid start position")
-                    return@withController
-                }
-                if (startPosition.positionInFileMs < 0) {
-                    logger.error { "INVALID startPosition.positionInFileMs: ${startPosition.positionInFileMs}" }
-                    state.value = state.value.copy(isLoading = false, error = "Invalid start position")
-                    return@withController
-                }
-
-                // setMediaItems with startIndex and startPosition to seek atomically
-                controller.setMediaItems(mediaItems, startPosition.mediaItemIndex, startPosition.positionInFileMs)
-                controller.playbackParameters = PlaybackParameters(prepareResult.resumeSpeed)
-                logger.debug { "Calling controller.prepare()..." }
-                controller.prepare()
-                logger.debug { "Calling controller.play()..." }
-                controller.play()
-
-                playbackManager.setPlaying(true)
-
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        isPlaying = true,
-                    )
-
-                startPositionUpdates()
-                logger.info { "Playback started for: ${prepareResult.bookTitle}" }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to start playback" }
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        error = "Failed to start playback",
-                    )
             }
+
+            // Build queue from timeline and hand off to PlaybackController.
+            logger.debug { "Building ${prepareResult.timeline.files.size} media items" }
+            val items = buildPlaybackMediaItems(prepareResult)
+            playbackController.setMediaQueue(items, prepareResult.resumePositionMs)
+            playbackController.setPlaybackSpeed(prepareResult.resumeSpeed)
+            logger.debug { "Calling playbackController.play()..." }
+            playbackController.play()
+
+            playbackManager.setPlaying(true)
+
+            state.value =
+                state.value.copy(
+                    isLoading = false,
+                    isPlaying = true,
+                )
+
+            startPositionUpdates()
+            logger.info { "Playback started for: ${prepareResult.bookTitle}" }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to start playback" }
+            state.value =
+                state.value.copy(
+                    isLoading = false,
+                    error = "Failed to start playback",
+                )
         }
     }
+
+    private fun buildPlaybackMediaItems(prepareResult: PlaybackManager.PrepareResult): List<PlaybackMediaItem> =
+        prepareResult.timeline.files.map { file ->
+            PlaybackMediaItem(
+                mediaId = file.audioFileId,
+                uri = file.playbackUri,
+                localPath = file.localPath,
+                durationMs = file.durationMs,
+                offsetMs = file.startOffsetMs,
+                title = prepareResult.bookTitle,
+                artist = prepareResult.bookAuthor,
+                albumTitle = prepareResult.seriesName,
+                artworkUri = prepareResult.coverPath?.let { "file://$it" },
+            )
+        }
 
     /**
      * Toggle play/pause.
      */
     fun togglePlayPause() {
-        val controller = mediaController ?: return
-        if (controller.isPlaying) {
-            controller.pause()
+        if (state.value.isPlaying) {
+            playbackController.pause()
         } else {
-            controller.play()
+            playbackController.play()
         }
     }
 
@@ -227,11 +202,7 @@ class PlayerViewModel(
      * Seek to a position in the book timeline.
      */
     fun seekTo(bookPositionMs: Long) {
-        val controller = mediaController ?: return
-        val timeline = currentTimeline ?: return
-
-        val position = timeline.resolve(bookPositionMs)
-        controller.seekTo(position.mediaItemIndex, position.positionInFileMs)
+        playbackController.seekTo(bookPositionMs)
         state.value = state.value.copy(currentPositionMs = bookPositionMs)
 
         // Notify PlaybackManager so NowPlayingViewModel updates immediately (even when paused)
@@ -261,8 +232,7 @@ class PlayerViewModel(
      * Marks the book as having a custom speed (hasCustomSpeed=true).
      */
     fun setSpeed(speed: Float) {
-        val controller = mediaController ?: return
-        controller.playbackParameters = PlaybackParameters(speed)
+        playbackController.setPlaybackSpeed(speed)
         state.value = state.value.copy(playbackSpeed = speed)
         // Notify PlaybackManager that user explicitly changed speed
         playbackManager.onSpeedChanged(speed)
@@ -275,8 +245,7 @@ class PlayerViewModel(
      * @param defaultSpeed The universal default speed from settings
      */
     fun resetSpeedToDefault(defaultSpeed: Float) {
-        val controller = mediaController ?: return
-        controller.playbackParameters = PlaybackParameters(defaultSpeed)
+        playbackController.setPlaybackSpeed(defaultSpeed)
         state.value = state.value.copy(playbackSpeed = defaultSpeed)
         // Notify PlaybackManager that user reset to default
         playbackManager.onSpeedReset(defaultSpeed)
@@ -297,7 +266,7 @@ class PlayerViewModel(
      * Stop playback and release resources.
      */
     fun stop() {
-        mediaController?.stop()
+        playbackController.stop()
         playbackManager.setPlaying(false)
         playbackManager.clearPlayback()
         state.value = PlayerUiState()
@@ -320,6 +289,9 @@ class PlayerViewModel(
     }
 
     private fun updatePosition() {
+        // TODO(Task-6-followup): position polling reads directly from mediaControllerHolder
+        //  because PlaybackController is command-only and PlaybackManager does not expose
+        //  per-mediaItem index + position as flows on Android. Migrate once those flows exist.
         val controller = mediaController ?: return
         val timeline = currentTimeline ?: return
 
@@ -438,7 +410,7 @@ class PlayerViewModel(
         playerListener = null
 
         // Release our reference to the shared controller
-        mediaControllerHolder.release()
+        playbackController.release()
     }
 }
 

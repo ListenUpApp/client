@@ -181,12 +181,13 @@ val playbackModule =
             AndroidPlaybackController(get<MediaControllerHolder>().asControllerHolder())
         }
 
-        // Player ViewModel - connects UI to MediaController
+        // Player ViewModel - connects UI to PlaybackController seam
         viewModel {
             PlayerViewModel(
                 playbackManager = get(),
-                mediaControllerHolder = get(),
+                playbackController = get(),
                 networkMonitor = get(),
+                mediaControllerHolder = get(),
             )
         }
 
