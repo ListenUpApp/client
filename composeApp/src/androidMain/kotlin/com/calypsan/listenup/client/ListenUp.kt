@@ -23,8 +23,11 @@ import com.calypsan.listenup.client.playback.AndroidAudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AndroidAudioTokenProvider
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AudioTokenProvider
+import com.calypsan.listenup.client.playback.AndroidPlaybackController
 import com.calypsan.listenup.client.playback.MediaControllerHolder
+import com.calypsan.listenup.client.playback.asControllerHolder
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
+import com.calypsan.listenup.client.playback.PlaybackController
 import com.calypsan.listenup.client.playback.PlaybackErrorHandler
 import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.PlayerViewModel
@@ -173,6 +176,11 @@ val playbackModule =
             MediaControllerHolder(context = get())
         }
 
+        // PlaybackController seam backed by the shared MediaControllerHolder
+        single<PlaybackController> {
+            AndroidPlaybackController(get<MediaControllerHolder>().asControllerHolder())
+        }
+
         // Player ViewModel - connects UI to MediaController
         viewModel {
             PlayerViewModel(
@@ -188,7 +196,7 @@ val playbackModule =
                 playbackManager = get(),
                 bookRepository = get(),
                 sleepTimerManager = get(),
-                mediaControllerHolder = get(),
+                playbackController = get(),
                 playbackPreferences = get(),
             )
         }
