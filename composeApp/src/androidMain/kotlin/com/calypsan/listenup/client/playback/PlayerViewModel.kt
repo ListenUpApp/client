@@ -162,6 +162,8 @@ class PlayerViewModel(
 
             startPositionUpdates()
             logger.info { "Playback started for: ${prepareResult.bookTitle}" }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Failed to start playback" }
             state.value =
