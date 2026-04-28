@@ -589,12 +589,16 @@ class ProgressTracker(
 
             // Mark book as complete (Issue #206)
             val finishedAt = Clock.System.now().toEpochMilliseconds()
-            positionRepository.markComplete(
+            when (val r = positionRepository.markComplete(
                 bookId = bookId.value,
                 startedAt = null,
                 finishedAt = finishedAt,
-            )
-            logger.info { "Book marked complete: ${bookId.value}" }
+            )) {
+                is AppResult.Success -> logger.info { "Book marked complete: ${bookId.value}" }
+                is AppResult.Failure -> logger.warn {
+                    "Failed to mark book ${bookId.value} complete: ${r.error.message}"
+                }
+            }
         }
     }
 
