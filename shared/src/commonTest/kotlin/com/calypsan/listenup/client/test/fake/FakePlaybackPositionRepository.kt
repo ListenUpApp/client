@@ -33,7 +33,8 @@ class FakePlaybackPositionRepository(
 ) : PlaybackPositionRepository {
     private val state = MutableStateFlow(initialPositions)
 
-    override suspend fun get(bookId: String): PlaybackPosition? = state.value[bookId]
+    override suspend fun get(bookId: BookId): AppResult<PlaybackPosition?> =
+        AppResult.Success(state.value[bookId.value])
 
     /** This fake does not back entity-level reads. Calling getEntity throws — inject a purpose-built fake or use the real impl. */
     override suspend fun getEntity(bookId: BookId): AppResult<PlaybackPositionEntity?> =

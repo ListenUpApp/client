@@ -76,7 +76,10 @@ class PlaybackPositionRepositoryImpl(
 
     // ----- Read paths -----------------------------------------------------------------------
 
-    override suspend fun get(bookId: String): PlaybackPosition? = dao.get(BookId(bookId))?.toDomain()
+    override suspend fun get(bookId: BookId): AppResult<PlaybackPosition?> =
+        suspendRunCatching {
+            dao.get(bookId)?.toDomain()
+        }
 
     override suspend fun getEntity(bookId: BookId): AppResult<PlaybackPositionEntity?> =
         suspendRunCatching {

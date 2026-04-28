@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.contributordetail
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.BookListItem
@@ -69,7 +70,7 @@ class ContributorDetailViewModelTest {
         every { fixture.contributorRepository.observeById(any()) } returns fixture.contributorFlow
         every { fixture.contributorRepository.observeRolesWithCountForContributor(any()) } returns fixture.rolesFlow
         every { fixture.contributorRepository.observeBooksForContributorRole(any(), any()) } returns flowOf(emptyList())
-        everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
+        everySuspend { fixture.playbackPositionRepository.get(any<BookId>()) } returns AppResult.Success(null)
 
         return fixture
     }
@@ -285,8 +286,8 @@ class ContributorDetailViewModelTest {
             every {
                 fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
             } returns flowOf(listOf(createBookWithContributorRole(book)))
-            everySuspend { fixture.playbackPositionRepository.get("book-1") } returns
-                createPlaybackPosition("book-1", 5_000L)
+            everySuspend { fixture.playbackPositionRepository.get(BookId("book-1")) } returns
+                AppResult.Success(createPlaybackPosition("book-1", 5_000L))
             val viewModel = fixture.build()
             keepStateHot(viewModel)
 
@@ -310,8 +311,8 @@ class ContributorDetailViewModelTest {
             every {
                 fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
             } returns flowOf(listOf(createBookWithContributorRole(book)))
-            everySuspend { fixture.playbackPositionRepository.get("book-1") } returns
-                createPlaybackPosition("book-1", 9_999L)
+            everySuspend { fixture.playbackPositionRepository.get(BookId("book-1")) } returns
+                AppResult.Success(createPlaybackPosition("book-1", 9_999L))
             val viewModel = fixture.build()
             keepStateHot(viewModel)
 
@@ -335,7 +336,7 @@ class ContributorDetailViewModelTest {
             every {
                 fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue)
             } returns flowOf(listOf(createBookWithContributorRole(book)))
-            everySuspend { fixture.playbackPositionRepository.get("book-1") } returns createPlaybackPosition("book-1", 0L)
+            everySuspend { fixture.playbackPositionRepository.get(BookId("book-1")) } returns AppResult.Success(createPlaybackPosition("book-1", 0L))
             val viewModel = fixture.build()
             keepStateHot(viewModel)
 

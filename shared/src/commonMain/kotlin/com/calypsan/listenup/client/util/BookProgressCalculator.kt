@@ -1,7 +1,11 @@
 package com.calypsan.listenup.client.util
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Calculate playback progress for a list of books.
@@ -21,7 +25,17 @@ suspend fun PlaybackPositionRepository.calculateProgressMap(
 ): Map<String, Float> =
     books
         .mapNotNull { book ->
-            val position = get(book.id.value)
+            val position =
+                when (val r = get(book.id)) {
+                    is AppResult.Success -> {
+                        r.data
+                    }
+
+                    is AppResult.Failure -> {
+                        logger.warn { "calculateProgressMap: get(${book.id.value}) failed: ${r.error.message}" }
+                        null
+                    }
+                }
             if (position != null && book.duration > 0) {
                 val progress = (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
                 val isInProgress =

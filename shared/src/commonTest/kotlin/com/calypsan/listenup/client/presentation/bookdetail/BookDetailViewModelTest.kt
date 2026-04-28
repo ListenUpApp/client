@@ -2,6 +2,8 @@ package com.calypsan.listenup.client.presentation.bookdetail
 
 import app.cash.turbine.turbineScope
 import com.calypsan.listenup.client.TestData
+import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.model.Tag
@@ -82,7 +84,7 @@ class BookDetailViewModelTest {
         val fixture = TestFixture()
 
         // Default stubs for domain repositories
-        everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
+        everySuspend { fixture.playbackPositionRepository.get(any<BookId>()) } returns AppResult.Success(null)
         every { fixture.userRepository.observeCurrentUser() } returns flowOf(null)
         every { fixture.shelfRepository.observeMyShelves(any()) } returns flowOf(emptyList())
         every { fixture.tagRepository.observeAll() } returns flowOf(emptyList())
@@ -385,7 +387,7 @@ class BookDetailViewModelTest {
             val position = createPlaybackPosition(positionMs = 1_800_000L) // 30 min in
             every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
+            everySuspend { fixture.playbackPositionRepository.get(any<BookId>()) } returns AppResult.Success(position)
             val viewModel = fixture.build()
 
             turbineScope {
@@ -411,7 +413,7 @@ class BookDetailViewModelTest {
             val book = TestData.bookDetail(duration = 3_600_000L)
             every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
+            everySuspend { fixture.playbackPositionRepository.get(any<BookId>()) } returns AppResult.Success(null)
             val viewModel = fixture.build()
 
             turbineScope {
@@ -438,7 +440,7 @@ class BookDetailViewModelTest {
             val position = createPlaybackPosition(positionMs = 3_564_000L) // 99% complete
             every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
+            everySuspend { fixture.playbackPositionRepository.get(any<BookId>()) } returns AppResult.Success(position)
             val viewModel = fixture.build()
 
             turbineScope {
@@ -469,7 +471,7 @@ class BookDetailViewModelTest {
             val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
             every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
+            everySuspend { fixture.playbackPositionRepository.get(any<BookId>()) } returns AppResult.Success(position)
             val viewModel = fixture.build()
 
             turbineScope {
@@ -496,7 +498,7 @@ class BookDetailViewModelTest {
             val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
             every { fixture.bookRepository.observeBookDetail(any()) } returns flowOf(book)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.playbackPositionRepository.get(any()) } returns position
+            everySuspend { fixture.playbackPositionRepository.get(any<BookId>()) } returns AppResult.Success(position)
             val viewModel = fixture.build()
 
             turbineScope {
@@ -807,7 +809,7 @@ class BookDetailViewModelTest {
                 }
             every { fixture.bookRepository.observeBookDetail("book-2") } returns flowOf(book2)
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
+            everySuspend { fixture.playbackPositionRepository.get(any<BookId>()) } returns AppResult.Success(null)
             val viewModel = fixture.build()
 
             turbineScope {
