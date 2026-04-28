@@ -28,6 +28,7 @@ private val logger = KotlinLogging.logger {}
  */
 class DesktopPlayerViewModel(
     private val playbackManager: PlaybackManager,
+    private val playbackController: PlaybackController,
     private val audioPlayer: AudioPlayer,
     private val progressTracker: ProgressTracker,
     private val bookRepository: BookRepository,
@@ -166,14 +167,14 @@ class DesktopPlayerViewModel(
     fun playPause() {
         val currentState = audioPlayer.state.value
         if (currentState == PlaybackState.Playing) {
-            audioPlayer.pause()
+            playbackController.pause()
             // Notify progress tracker of pause
             val bookId = playbackManager.currentBookId.value ?: return
             val positionMs = playbackManager.currentPositionMs.value
             val speed = playbackManager.playbackSpeed.value
             progressTracker.onPlaybackPaused(bookId, positionMs, speed)
         } else {
-            audioPlayer.play()
+            playbackController.play()
             // Notify progress tracker of resume
             val bookId = playbackManager.currentBookId.value ?: return
             val positionMs = playbackManager.currentPositionMs.value
@@ -185,38 +186,38 @@ class DesktopPlayerViewModel(
     fun skipBack(seconds: Int = 10) {
         val currentPos = playbackManager.currentPositionMs.value
         val newPos = (currentPos - (seconds * state.value.playbackSpeed * 1000).toLong()).coerceAtLeast(0)
-        audioPlayer.seekTo(newPos)
+        playbackController.seekTo(newPos)
     }
 
     fun skipForward(seconds: Int = 30) {
         val currentPos = playbackManager.currentPositionMs.value
         val totalDuration = playbackManager.totalDurationMs.value
         val newPos = (currentPos + (seconds * state.value.playbackSpeed * 1000).toLong()).coerceAtMost(totalDuration)
-        audioPlayer.seekTo(newPos)
+        playbackController.seekTo(newPos)
     }
 
     fun seekToChapter(index: Int) {
         val chapters = playbackManager.chapters.value
         val chapter = chapters.getOrNull(index) ?: return
-        audioPlayer.seekTo(chapter.startTime)
+        playbackController.seekTo(chapter.startTime)
     }
 
     fun seekWithinChapter(progress: Float) {
         val chapters = playbackManager.chapters.value
         val currentChapter = chapters.getOrNull(state.value.chapterIndex) ?: return
         val targetPosition = currentChapter.startTime + (currentChapter.duration * progress).toLong()
-        audioPlayer.seekTo(targetPosition)
+        playbackController.seekTo(targetPosition)
     }
 
     fun setSpeed(speed: Float) {
-        audioPlayer.setSpeed(speed)
+        playbackController.setPlaybackSpeed(speed)
         playbackManager.onSpeedChanged(speed)
     }
 
     fun resetSpeedToDefault() {
         viewModelScope.launch {
             val defaultSpeed = playbackPreferences.getDefaultPlaybackSpeed()
-            audioPlayer.setSpeed(defaultSpeed)
+            playbackController.setPlaybackSpeed(defaultSpeed)
             playbackManager.onSpeedReset(defaultSpeed)
         }
     }
@@ -241,7 +242,7 @@ class DesktopPlayerViewModel(
     }
 
     fun closeBook() {
-        audioPlayer.pause()
+        playbackController.pause()
         val bookId = playbackManager.currentBookId.value
         if (bookId != null) {
             val positionMs = playbackManager.currentPositionMs.value

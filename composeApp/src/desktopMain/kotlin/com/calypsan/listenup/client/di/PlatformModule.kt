@@ -12,7 +12,9 @@ import com.calypsan.listenup.client.platform.StubDownloadService
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AudioPlayer
 import com.calypsan.listenup.client.playback.AudioTokenProvider
+import com.calypsan.listenup.client.playback.DesktopPlaybackController
 import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.client.playback.PlaybackController
 import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
@@ -82,6 +84,9 @@ val platformModule: Module =
             )
         }
 
+        // Playback controller seam (delegates to AudioPlayer for command-side operations)
+        single<PlaybackController> { DesktopPlaybackController(audioPlayer = get()) }
+
         // Download service (stub)
         single<DownloadService> { StubDownloadService() }
 
@@ -134,6 +139,7 @@ val platformModule: Module =
         single {
             DesktopPlayerViewModel(
                 playbackManager = get(),
+                playbackController = get(),
                 audioPlayer = get(),
                 progressTracker = get(),
                 bookRepository = get(),
