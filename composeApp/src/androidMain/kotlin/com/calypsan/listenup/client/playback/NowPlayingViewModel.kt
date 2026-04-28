@@ -4,8 +4,6 @@ package com.calypsan.listenup.client.playback
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.PlaybackParameters
-import androidx.media3.session.MediaController
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.BookRepository
@@ -24,13 +22,13 @@ private val logger = KotlinLogging.logger {}
  *
  * Observes PlaybackManager state and transforms it into UI state.
  * Handles chapter-level position calculations.
- * Uses shared MediaControllerHolder for playback control.
+ * Uses [PlaybackController] for all command-side operations.
  */
 class NowPlayingViewModel(
     private val playbackManager: PlaybackManager,
     private val bookRepository: BookRepository,
     private val sleepTimerManager: SleepTimerManager,
-    private val mediaControllerHolder: MediaControllerHolder,
+    private val playbackController: PlaybackController,
     private val playbackPreferences: PlaybackPreferences,
 ) : ViewModel() {
     val state: StateFlow<NowPlayingState>
@@ -44,12 +42,9 @@ class NowPlayingViewModel(
         private const val FADE_DURATION_MS = 3000L
     }
 
-    private val mediaController: MediaController?
-        get() = mediaControllerHolder.controller
-
     init {
         // Acquire reference to shared controller
-        mediaControllerHolder.acquire()
+        playbackController.acquire()
         observePlayback()
         observeSleepTimer()
         loadDefaultPlaybackSpeed()
@@ -152,13 +147,6 @@ class NowPlayingViewModel(
      * Called when sleep timer fires.
      */
     private suspend fun fadeOutAndPause() {
-        val controller = mediaController
-        if (controller == null) {
-            logger.warn { "Cannot fade out: no MediaController" }
-            sleepTimerManager.onFadeCompleted()
-            return
-        }
-
         logger.info { "Starting volume fade out" }
 
         val steps = 30
@@ -169,16 +157,16 @@ class NowPlayingViewModel(
 
         repeat(steps) {
             currentVolume = (currentVolume - volumeStep).coerceAtLeast(0f)
-            controller.volume = currentVolume
+            playbackController.setVolume(currentVolume)
             delay(stepDelay)
         }
 
         // Pause playback
-        controller.pause()
+        playbackController.pause()
 
         // Brief delay then restore volume for next play
         delay(100)
-        controller.volume = 1f
+        playbackController.setVolume(1f)
 
         logger.info { "Fade complete, playback paused" }
         sleepTimerManager.onFadeCompleted()
@@ -336,7 +324,7 @@ class NowPlayingViewModel(
      * Close the book entirely - stops playback and clears state.
      */
     fun closeBook() {
-        mediaController?.stop()
+        playbackController.stop()
         playbackManager.clearPlayback()
         sleepTimerManager.cancelTimer()
         collapse()
@@ -345,21 +333,15 @@ class NowPlayingViewModel(
     // Playback Actions
 
     fun playPause() {
-        val controller = mediaController ?: return
-        if (controller.isPlaying) {
-            controller.pause()
+        if (state.value.isPlaying) {
+            playbackController.pause()
         } else {
-            controller.play()
+            playbackController.play()
         }
     }
 
     fun skipBack(seconds: Int = 10) {
         logger.debug { "skipBack called: seconds=$seconds" }
-        val controller = mediaController
-        if (controller == null) {
-            logger.warn { "skipBack: mediaController is null" }
-            return
-        }
         val timeline = playbackManager.currentTimeline.value
         if (timeline == null) {
             logger.warn { "skipBack: timeline is null" }
@@ -370,24 +352,13 @@ class NowPlayingViewModel(
         val newBookPos = (currentBookPos - (seconds * state.value.playbackSpeed * 1000).toLong()).coerceAtLeast(0)
         logger.debug { "skipBack: currentPos=$currentBookPos, newPos=$newBookPos" }
 
-        val position = timeline.resolve(newBookPos)
-        logger.debug {
-            "skipBack: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}"
-        }
-
-        if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "skipBack")) {
-            // Update PlaybackManager so UI updates immediately (even when paused)
-            playbackManager.updatePosition(newBookPos)
-        }
+        playbackController.seekTo(newBookPos)
+        // Update PlaybackManager so UI updates immediately (even when paused)
+        playbackManager.updatePosition(newBookPos)
     }
 
     fun skipForward(seconds: Int = 30) {
         logger.debug { "skipForward called: seconds=$seconds" }
-        val controller = mediaController
-        if (controller == null) {
-            logger.warn { "skipForward: mediaController is null" }
-            return
-        }
         val timeline = playbackManager.currentTimeline.value
         if (timeline == null) {
             logger.warn { "skipForward: timeline is null" }
@@ -402,60 +373,9 @@ class NowPlayingViewModel(
             )
         logger.debug { "skipForward: currentPos=$currentBookPos, newPos=$newBookPos, totalDuration=$totalDuration" }
 
-        val position = timeline.resolve(newBookPos)
-        logger.debug {
-            "skipForward: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}"
-        }
-
-        if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "skipForward")) {
-            // Update PlaybackManager so UI updates immediately (even when paused)
-            playbackManager.updatePosition(newBookPos)
-        }
-    }
-
-    /**
-     * Safe wrapper around MediaController.seekTo that validates parameters
-     * before calling to prevent native crashes from invalid values.
-     *
-     * @return true if seek was attempted, false if validation failed
-     */
-    private fun safeSeekTo(
-        controller: androidx.media3.session.MediaController,
-        mediaItemIndex: Int,
-        positionMs: Long,
-        caller: String,
-    ): Boolean {
-        // Validate mediaItemIndex
-        val mediaItemCount = controller.mediaItemCount
-        if (mediaItemIndex < 0) {
-            logger.error { "$caller: INVALID mediaItemIndex=$mediaItemIndex (negative!)" }
-            return false
-        }
-        if (mediaItemIndex >= mediaItemCount) {
-            logger.error { "$caller: INVALID mediaItemIndex=$mediaItemIndex >= mediaItemCount=$mediaItemCount" }
-            return false
-        }
-
-        // Validate position
-        if (positionMs < 0) {
-            logger.error { "$caller: INVALID positionMs=$positionMs (negative!)" }
-            return false
-        }
-
-        logger.debug {
-            "$caller: safeSeekTo - mediaItemCount=$mediaItemCount, " +
-                "currentMediaItemIndex=${controller.currentMediaItemIndex}, " +
-                "playbackState=${controller.playbackState}"
-        }
-
-        return try {
-            controller.seekTo(mediaItemIndex, positionMs)
-            logger.debug { "$caller: seekTo completed successfully" }
-            true
-        } catch (e: Exception) {
-            logger.error(e) { "$caller: seekTo threw exception" }
-            false
-        }
+        playbackController.seekTo(newBookPos)
+        // Update PlaybackManager so UI updates immediately (even when paused)
+        playbackManager.updatePosition(newBookPos)
     }
 
     fun previousChapter() {
@@ -479,27 +399,11 @@ class NowPlayingViewModel(
             logger.warn { "seekToChapter: chapter at index $index not found" }
             return
         }
-        val controller = mediaController
-        if (controller == null) {
-            logger.warn { "seekToChapter: mediaController is null" }
-            return
-        }
-        val timeline = playbackManager.currentTimeline.value
-        if (timeline == null) {
-            logger.warn { "seekToChapter: timeline is null" }
-            return
-        }
 
         logger.debug { "seekToChapter: chapter='${chapter.title}', startTime=${chapter.startTime}" }
-        val position = timeline.resolve(chapter.startTime)
-        logger.debug {
-            "seekToChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}"
-        }
-
-        if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "seekToChapter")) {
-            // Update PlaybackManager so UI updates immediately (even when paused)
-            playbackManager.updatePosition(chapter.startTime)
-        }
+        playbackController.seekTo(chapter.startTime)
+        // Update PlaybackManager so UI updates immediately (even when paused)
+        playbackManager.updatePosition(chapter.startTime)
         hideChapterPicker()
     }
 
@@ -511,29 +415,13 @@ class NowPlayingViewModel(
             logger.warn { "seekWithinChapter: no current chapter" }
             return
         }
-        val controller = mediaController
-        if (controller == null) {
-            logger.warn { "seekWithinChapter: mediaController is null" }
-            return
-        }
-        val timeline = playbackManager.currentTimeline.value
-        if (timeline == null) {
-            logger.warn { "seekWithinChapter: timeline is null" }
-            return
-        }
 
         val targetPosition = currentChapter.startTime + (currentChapter.duration * progress).toLong()
         logger.debug { "seekWithinChapter: chapter='${currentChapter.title}', targetPosition=$targetPosition" }
 
-        val position = timeline.resolve(targetPosition)
-        logger.debug {
-            "seekWithinChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}"
-        }
-
-        if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "seekWithinChapter")) {
-            // Update PlaybackManager so UI updates immediately (even when paused)
-            playbackManager.updatePosition(targetPosition)
-        }
+        playbackController.seekTo(targetPosition)
+        // Update PlaybackManager so UI updates immediately (even when paused)
+        playbackManager.updatePosition(targetPosition)
     }
 
     /**
@@ -541,7 +429,7 @@ class NowPlayingViewModel(
      * Marks the book as having a custom speed (hasCustomSpeed=true).
      */
     fun setSpeed(speed: Float) {
-        mediaController?.playbackParameters = PlaybackParameters(speed)
+        playbackController.setPlaybackSpeed(speed)
         // Notify PlaybackManager that user explicitly changed speed
         playbackManager.onSpeedChanged(speed)
     }
@@ -553,7 +441,7 @@ class NowPlayingViewModel(
     fun resetSpeedToDefault() {
         viewModelScope.launch {
             val defaultSpeed = playbackPreferences.getDefaultPlaybackSpeed()
-            mediaController?.playbackParameters = PlaybackParameters(defaultSpeed)
+            playbackController.setPlaybackSpeed(defaultSpeed)
             // Notify PlaybackManager that user reset to default
             playbackManager.onSpeedReset(defaultSpeed)
         }
@@ -577,6 +465,6 @@ class NowPlayingViewModel(
     override fun onCleared() {
         super.onCleared()
         // Release our reference to the shared controller
-        mediaControllerHolder.release()
+        playbackController.release()
     }
 }

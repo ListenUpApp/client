@@ -6,10 +6,12 @@ import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.AppleDownloadService
+import com.calypsan.listenup.client.playback.ApplePlaybackController
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 import com.calypsan.listenup.client.playback.AppleAudioTokenProvider
 import com.calypsan.listenup.client.playback.AudioPlayer
 import com.calypsan.listenup.client.playback.AvFoundationAudioPlayer
+import com.calypsan.listenup.client.playback.PlaybackController
 import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
@@ -122,6 +124,9 @@ val macosPlaybackModule: Module =
                 scope = get(qualifier = named("playbackScope")),
             )
         }
+
+        // Playback controller seam (delegates to AudioPlayer for command-side operations)
+        single<PlaybackController> { ApplePlaybackController(audioPlayer = get()) }
 
         // Background sync scheduler (stub for now)
         single<BackgroundSyncScheduler> { MacosBackgroundSyncScheduler() }
