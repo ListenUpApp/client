@@ -1,11 +1,8 @@
 package com.calypsan.listenup.client.playback
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * Apple implementation of [PlaybackController]. Wraps the shared [AudioPlayer]
