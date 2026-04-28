@@ -93,9 +93,6 @@ class PlaybackPositionRepositoryImpl(
             positions.associate { it.bookId.value to it.toDomain() }
         }
 
-    override suspend fun getRecentPositions(limit: Int): List<PlaybackPosition> =
-        dao.getRecentPositions(limit).map { it.toDomain() }
-
     override suspend fun getLastPlayedBook(): AppResult<LastPlayedInfo?> =
         suspendRunCatching {
             val positions = dao.getRecentPositions(1)

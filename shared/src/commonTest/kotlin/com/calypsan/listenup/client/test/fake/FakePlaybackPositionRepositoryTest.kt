@@ -121,22 +121,6 @@ class FakePlaybackPositionRepositoryTest {
         }
 
     @Test
-    fun getRecentPositionsOrdersByLastPlayedAt() =
-        runTest {
-            var clock = 1_000L
-            val repo = FakePlaybackPositionRepository(nowMs = { clock })
-            repo.save("oldest", 100L, 1.0f, false)
-            clock = 2_000L
-            repo.save("newest", 200L, 1.0f, false)
-
-            val recent = repo.getRecentPositions(limit = 10)
-
-            assertEquals(2, recent.size)
-            assertEquals("newest", recent[0].bookId, "most-recently-played first")
-            assertEquals("oldest", recent[1].bookId)
-        }
-
-    @Test
     fun getLastPlayedBookReturnsMostRecentlyPlayed() =
         runTest {
             var clock = 1_000L

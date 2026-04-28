@@ -58,11 +58,6 @@ class FakePlaybackPositionRepository(
 
     override fun observeAll(): Flow<Map<String, PlaybackPosition>> = state.asStateFlow()
 
-    override suspend fun getRecentPositions(limit: Int): List<PlaybackPosition> =
-        state.value.values
-            .sortedByDescending { it.effectiveLastPlayedAtMs }
-            .take(limit)
-
     override suspend fun save(
         bookId: String,
         positionMs: Long,

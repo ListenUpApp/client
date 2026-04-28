@@ -57,16 +57,6 @@ interface PlaybackPositionRepository {
     fun observeAll(): Flow<Map<String, PlaybackPosition>>
 
     /**
-     * Get recently played books for "Continue Listening" section.
-     *
-     * Returns positions ordered by most recently played time.
-     *
-     * @param limit Maximum number of positions to return
-     * @return List of positions, most recent first
-     */
-    suspend fun getRecentPositions(limit: Int): List<PlaybackPosition>
-
-    /**
      * Save a playback position.
      *
      * Instant local operation - syncs eventually.
