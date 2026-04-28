@@ -28,7 +28,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import com.calypsan.listenup.client.core.Success
@@ -368,16 +367,16 @@ class ProgressTracker(
      * 3. Compare timestamps - use whichever is newer
      * 4. If server is newer, update local cache
      *
-     * **HTTP exception (drift #19):** This method retains a synchronous
-     * `syncApi.getProgress(bookId)` call (via [fetchServerProgress]) — the
-     * one remaining direct HTTP read in [ProgressTracker] after W7 Phase C.
-     * Cross-device merge has no SSE coverage today, and resume must reflect
-     * a sibling device's progress at the moment playback starts. The call
-     * is bounded by `withTimeoutOrNull(3_000L)` so a slow or unreachable
-     * server cannot block ExoPlayer startup. Future work (W8 Phase D):
-     * either an SSE-driven cross-device merge that obviates the synchronous
-     * read, or a `PlaybackPositionRepository.fetchAndMerge(bookId)` that
-     * internalises the HTTP call behind the seam.
+     * This method retains a synchronous `syncApi.getProgress(bookId)` call (via
+     * [fetchServerProgress]) — the one remaining direct HTTP read in [ProgressTracker].
+     * Cross-device merge has no SSE coverage today, and resume must reflect a sibling
+     * device's progress at the moment playback starts. The 3 s deadline is enforced at
+     * the HTTP layer via a per-request `timeout { requestTimeoutMillis = 3_000 }` in
+     * [com.calypsan.listenup.client.data.remote.SyncApi.getProgress], so a slow or
+     * unreachable server cannot block ExoPlayer startup. Future work (W8 Phase D):
+     * either an SSE-driven cross-device merge that obviates the synchronous read, or a
+     * `PlaybackPositionRepository.fetchAndMerge(bookId)` that internalises the HTTP
+     * call behind the seam.
      *
      * @param bookId Book to get resume position for
      * @return Position to resume from, or null if never played
@@ -387,13 +386,12 @@ class ProgressTracker(
         val localResult = positionRepository.getEntity(bookId)
         val local = if (localResult is AppResult.Success) localResult.data else null
 
-        // 2. Try to get server position within a short deadline.
-        //    A slow or unreachable server used to block this call indefinitely,
-        //    delaying ExoPlayer startup by 30–60 seconds. We cap at 3 seconds —
-        //    if the server doesn't respond in time, local position is good enough.
-        val server = withTimeoutOrNull(3_000L) { fetchServerProgress(bookId) }
+        // 2. Try to get server position — best-effort, may return null if offline.
+        //    The 3 s deadline is enforced at the HTTP layer (SyncApi.getProgress
+        //    per-request timeout), so a slow server cannot block ExoPlayer startup.
+        val server = fetchServerProgress(bookId)
         if (server == null) {
-            logger.debug { "Server progress fetch timed out or was null — using local position" }
+            logger.debug { "Server progress unavailable — using local position" }
         }
 
         // 3. Merge: latest timestamp wins
