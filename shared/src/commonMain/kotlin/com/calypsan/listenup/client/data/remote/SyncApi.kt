@@ -19,6 +19,7 @@ import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
 import com.calypsan.listenup.client.data.remote.model.SyncSeriesResponse
 import com.calypsan.listenup.client.core.error.AppException
 import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -32,6 +33,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Failure
+
+private const val RESUME_PROGRESS_REQUEST_TIMEOUT_MS = 3_000L
 
 /**
  * API client for sync endpoints.
@@ -271,7 +274,12 @@ class SyncApi(
     override suspend fun getProgress(bookId: String): AppResult<PlaybackProgressResponse?> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            val httpResponse: HttpResponse = client.get("/api/v1/books/$bookId/progress")
+            val httpResponse: HttpResponse =
+                client.get("/api/v1/books/$bookId/progress") {
+                    // Bound to 3 s: resume must not block ExoPlayer prepare while the
+                    // server is slow or unreachable (global client default is 30 s).
+                    timeout { requestTimeoutMillis = RESUME_PROGRESS_REQUEST_TIMEOUT_MS }
+                }
 
             // Handle 404 as null (no progress yet)
             if (httpResponse.status == HttpStatusCode.NotFound) {

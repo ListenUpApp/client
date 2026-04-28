@@ -14,6 +14,7 @@ import com.calypsan.listenup.client.data.sync.ProgressPayload
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompletePayload
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.LastPlayedInfo
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import dev.mokkery.MockMode
@@ -107,51 +108,43 @@ class PlaybackPositionRepositoryImplTest {
     // ========== get() Tests ==========
 
     @Test
-    fun `get returns position when it exists`() =
+    fun `get returns domain model when row exists`() =
         runTest {
-            // Given
             val dao = createMockDao()
-            val entity = createPlaybackPositionEntity(bookId = "book-123", positionMs = 45000L)
-            everySuspend { dao.get(BookId("book-123")) } returns entity
+            val entity = createPlaybackPositionEntity(bookId = "book-1", positionMs = 5000L)
+            everySuspend { dao.get(any<BookId>()) } returns entity
             val repository = createRepo(dao = dao)
 
-            // When
-            val result = repository.get("book-123")
+            val result = repository.get(BookId("book-1"))
 
-            // Then
-            assertNotNull(result)
-            assertEquals("book-123", result.bookId)
-            assertEquals(45000L, result.positionMs)
+            val success = assertIs<AppResult.Success<*>>(result)
+            val position = assertNotNull(success.data as? PlaybackPosition)
+            assertEquals("book-1", position.bookId)
+            assertEquals(5000L, position.positionMs)
         }
 
     @Test
-    fun `get returns null when position does not exist`() =
+    fun `get returns null when no row exists`() =
         runTest {
-            // Given
             val dao = createMockDao()
-            everySuspend { dao.get(any()) } returns null
+            everySuspend { dao.get(any<BookId>()) } returns null
             val repository = createRepo(dao = dao)
 
-            // When
-            val result = repository.get("nonexistent-book")
+            val result = repository.get(BookId("book-1"))
 
-            // Then
-            assertNull(result)
+            assertEquals(AppResult.Success(null), result)
         }
 
     @Test
-    fun `get calls dao with correct BookId wrapper`() =
+    fun `get returns Failure when dao throws`() =
         runTest {
-            // Given
             val dao = createMockDao()
-            everySuspend { dao.get(any()) } returns null
+            everySuspend { dao.get(any<BookId>()) } throws RuntimeException("dao boom")
             val repository = createRepo(dao = dao)
 
-            // When
-            repository.get("test-book-id")
+            val result = repository.get(BookId("book-1"))
 
-            // Then
-            verifySuspend { dao.get(BookId("test-book-id")) }
+            assertIs<AppResult.Failure>(result)
         }
 
     // ========== observe() Tests ==========
@@ -292,93 +285,6 @@ class PlaybackPositionRepositoryImplTest {
             assertFalse(result.containsKey("wrong-key"))
         }
 
-    // ========== getRecentPositions() Tests ==========
-
-    @Test
-    fun `getRecentPositions returns list of positions`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            val entities =
-                listOf(
-                    createPlaybackPositionEntity(bookId = "book-1", positionMs = 1000L),
-                    createPlaybackPositionEntity(bookId = "book-2", positionMs = 2000L),
-                )
-            everySuspend { dao.getRecentPositions(10) } returns entities
-            val repository = createRepo(dao = dao)
-
-            // When
-            val result = repository.getRecentPositions(10)
-
-            // Then
-            assertEquals(2, result.size)
-            assertEquals("book-1", result[0].bookId)
-            assertEquals("book-2", result[1].bookId)
-        }
-
-    @Test
-    fun `getRecentPositions respects limit parameter`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            everySuspend { dao.getRecentPositions(5) } returns emptyList()
-            val repository = createRepo(dao = dao)
-
-            // When
-            repository.getRecentPositions(5)
-
-            // Then
-            verifySuspend { dao.getRecentPositions(5) }
-        }
-
-    @Test
-    fun `getRecentPositions returns empty list when no positions exist`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            everySuspend { dao.getRecentPositions(any()) } returns emptyList()
-            val repository = createRepo(dao = dao)
-
-            // When
-            val result = repository.getRecentPositions(10)
-
-            // Then
-            assertTrue(result.isEmpty())
-        }
-
-    @Test
-    fun `getRecentPositions converts all entities to domain models`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            val entities =
-                listOf(
-                    createPlaybackPositionEntity(
-                        bookId = "book-1",
-                        positionMs = 1000L,
-                        playbackSpeed = 1.5f,
-                        hasCustomSpeed = true,
-                    ),
-                    createPlaybackPositionEntity(
-                        bookId = "book-2",
-                        positionMs = 2000L,
-                        playbackSpeed = 2.0f,
-                        hasCustomSpeed = false,
-                    ),
-                )
-            everySuspend { dao.getRecentPositions(10) } returns entities
-            val repository = createRepo(dao = dao)
-
-            // When
-            val result = repository.getRecentPositions(10)
-
-            // Then
-            assertEquals(1.5f, result[0].playbackSpeed)
-            assertTrue(result[0].hasCustomSpeed)
-            assertEquals(2.0f, result[1].playbackSpeed)
-            assertFalse(result[1].hasCustomSpeed)
-        }
-
     // ========== save() Tests ==========
 
     @Test
@@ -516,10 +422,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("unique-book-123")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("unique-book-123"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertEquals("unique-book-123", result.bookId)
         }
 
@@ -533,10 +438,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertEquals(123456789L, result.positionMs)
         }
 
@@ -550,10 +454,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertEquals(2.5f, result.playbackSpeed)
         }
 
@@ -567,10 +470,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertTrue(result.hasCustomSpeed)
         }
 
@@ -584,10 +486,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertFalse(result.hasCustomSpeed)
         }
 
@@ -601,10 +502,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertEquals(1704110400000L, result.updatedAtMs)
         }
 
@@ -618,10 +518,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertEquals(1704200000000L, result.syncedAtMs)
         }
 
@@ -635,10 +534,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertNull(result.syncedAtMs)
         }
 
@@ -652,10 +550,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertEquals(1704300000000L, result.lastPlayedAtMs)
         }
 
@@ -669,10 +566,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertNull(result.lastPlayedAtMs)
         }
 
@@ -695,10 +591,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("complete-book-123")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("complete-book-123"))).data as PlaybackPosition
 
             // Then - verify all fields are correctly mapped
-            assertNotNull(result)
             assertEquals("complete-book-123", result.bookId)
             assertEquals(987654321L, result.positionMs)
             assertEquals(1.75f, result.playbackSpeed)
@@ -720,10 +615,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertEquals(0L, result.positionMs)
         }
 
@@ -737,10 +631,9 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            val result = repository.get("book-1")
+            val result = assertIs<AppResult.Success<*>>(repository.get(BookId("book-1"))).data as PlaybackPosition
 
             // Then
-            assertNotNull(result)
             assertEquals(1.0f, result.playbackSpeed)
         }
 

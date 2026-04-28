@@ -15,6 +15,8 @@ import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
 import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
+import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -165,7 +167,17 @@ class BookDetailViewModel(
                         imageUrl = null, // Placeholder
                     )
                 }
-            val position = playbackPositionRepository.get(bookId)
+            val position =
+                when (val r = playbackPositionRepository.get(BookId(bookId))) {
+                    is AppResult.Success -> {
+                        r.data
+                    }
+
+                    is AppResult.Failure -> {
+                        logger.warn { "BookDetailViewModel: get($bookId) failed: ${r.error.message}" }
+                        null
+                    }
+                }
 
             emitAll(
                 bookRepository.observeBookDetail(bookId).map { detail ->

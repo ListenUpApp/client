@@ -845,6 +845,25 @@ class ProgressTrackerTest {
         }
 
     @Test
+    fun `onBookFinished consumes markComplete Failure without throwing`() =
+        runTest {
+            val fixture = createFixture()
+            everySuspend {
+                fixture.positionRepository.markComplete(any(), any(), any())
+            } returns AppResult.Failure(DataError("write failure"))
+            val tracker = fixture.build()
+
+            tracker.onPlaybackStarted(BookId("book-1"), positionMs = 0L, speed = 1.0f)
+            tracker.onBookFinished(BookId("book-1"), finalPositionMs = 35_000L)
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            // No exception thrown. The Failure was logged and consumed.
+            verifySuspend(VerifyMode.exactly(1)) {
+                fixture.positionRepository.markComplete("book-1", null, any())
+            }
+        }
+
+    @Test
     fun `getCurrentSpeed returns 1_0 when Idle`() =
         runTest {
             val fixture = createFixture()

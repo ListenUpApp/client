@@ -26,12 +26,14 @@ data class LastPlayedInfo(
  */
 interface PlaybackPositionRepository {
     /**
-     * Get the saved position for a specific book.
+     * Read the persisted playback position for [bookId] as a domain model. Returns
+     * null inside [AppResult.Success] if the book has never been played; returns
+     * [AppResult.Failure] if the DAO read fails.
      *
-     * @param bookId The book to get position for
-     * @return PlaybackPosition if exists, null if never played
+     * Companion to [getEntity] (which returns the full entity row); use this when
+     * you only need the domain projection (positionMs, speed, isFinished, etc.).
      */
-    suspend fun get(bookId: String): PlaybackPosition?
+    suspend fun get(bookId: BookId): AppResult<PlaybackPosition?>
 
     /**
      * Observe position changes for a specific book reactively.
@@ -53,16 +55,6 @@ interface PlaybackPositionRepository {
      * @return Flow emitting map of bookId to PlaybackPosition
      */
     fun observeAll(): Flow<Map<String, PlaybackPosition>>
-
-    /**
-     * Get recently played books for "Continue Listening" section.
-     *
-     * Returns positions ordered by most recently played time.
-     *
-     * @param limit Maximum number of positions to return
-     * @return List of positions, most recent first
-     */
-    suspend fun getRecentPositions(limit: Int): List<PlaybackPosition>
 
     /**
      * Save a playback position.
@@ -139,8 +131,7 @@ interface PlaybackPositionRepository {
      *
      * Use this when you need the persisted row including columns the domain model
      * doesn't expose (e.g., raw timestamps, sync metadata). For domain-model reads,
-     * prefer the older `get(bookId: String): PlaybackPosition?` (which predates
-     * the project's `AppResult` convention).
+     * prefer [get] which returns the domain projection via [AppResult].
      *
      * Primary call site: read-back path for `savePlaybackState(... CrossDeviceSync(...))`
      * in `ProgressTracker.mergePositions`.
