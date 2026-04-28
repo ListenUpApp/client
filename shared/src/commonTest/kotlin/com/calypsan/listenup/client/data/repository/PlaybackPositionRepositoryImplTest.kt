@@ -285,8 +285,6 @@ class PlaybackPositionRepositoryImplTest {
             assertFalse(result.containsKey("wrong-key"))
         }
 
-    // ========== getRecentPositions() Tests ==========
-
     // ========== save() Tests ==========
 
     @Test
