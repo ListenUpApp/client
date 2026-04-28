@@ -206,4 +206,28 @@ class DesktopPlaybackControllerTest {
             assertEquals(1, player.calls.size)
             assertTrue(player.calls[0] is Call.Load)
         }
+
+    // ---------------------------------------------------------------------------
+    // stop / setVolume
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun `stop pauses and seeks to zero`() {
+        val player = FakeAudioPlayer()
+        val sut = DesktopPlaybackController(player)
+
+        sut.stop()
+
+        assertEquals(listOf(Call.Pause, Call.SeekTo(0L)), player.calls)
+    }
+
+    @Test
+    fun `setVolume is a no-op`() {
+        val player = FakeAudioPlayer()
+        val sut = DesktopPlaybackController(player)
+
+        sut.setVolume(0.5f)
+
+        assertTrue(player.calls.isEmpty())
+    }
 }

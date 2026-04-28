@@ -24,12 +24,17 @@ class FakePlaybackController(
         private set
     var pauseCount: Int = 0
         private set
+    var stopCount: Int = 0
+        private set
 
     private val _seekCalls: MutableList<Long> = mutableListOf()
     val seekCalls: List<Long> get() = _seekCalls.toList()
 
     private val _speedCalls: MutableList<Float> = mutableListOf()
     val speedCalls: List<Float> get() = _speedCalls.toList()
+
+    private val _volumeCalls: MutableList<Float> = mutableListOf()
+    val volumeCalls: List<Float> get() = _volumeCalls.toList()
 
     private val _setMediaQueueCalls: MutableList<Pair<List<PlaybackMediaItem>, Long>> = mutableListOf()
     val setMediaQueueCalls: List<Pair<List<PlaybackMediaItem>, Long>> get() = _setMediaQueueCalls.toList()
@@ -48,6 +53,14 @@ class FakePlaybackController(
 
     override fun pause() {
         pauseCount++
+    }
+
+    override fun stop() {
+        stopCount++
+    }
+
+    override fun setVolume(volume: Float) {
+        _volumeCalls += volume
     }
 
     override fun seekTo(positionMs: Long) {

@@ -42,6 +42,21 @@ expect interface PlaybackController {
     fun setPlaybackSpeed(speed: Float)
 
     /**
+     * Stop playback and clear the current queue. Use to fully terminate a playback
+     * session (vs. [pause] which can be resumed). On Android, calls Media3's
+     * `MediaController.stop()`. On Desktop/Apple, pauses and resets position to 0.
+     */
+    fun stop()
+
+    /**
+     * Set output volume multiplier (0.0 = silent, 1.0 = normal). Used for sleep
+     * timer fade-out on Android (Media3 supports per-controller volume); on
+     * Desktop/Apple the underlying [AudioPlayer] does NOT expose volume control,
+     * so this is a no-op with a debug log.
+     */
+    fun setVolume(volume: Float)
+
+    /**
      * Replace the active queue with [items], starting playback at [startPositionMs] inside the queue (book-relative).
      * Suspends until the queue is loaded and prepared.
      */

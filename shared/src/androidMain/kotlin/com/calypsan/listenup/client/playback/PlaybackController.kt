@@ -17,6 +17,10 @@ actual interface PlaybackController {
 
     actual fun setPlaybackSpeed(speed: Float)
 
+    actual fun stop()
+
+    actual fun setVolume(volume: Float)
+
     actual suspend fun setMediaQueue(
         items: List<PlaybackMediaItem>,
         startPositionMs: Long,

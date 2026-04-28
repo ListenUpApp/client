@@ -213,4 +213,37 @@ class AndroidPlaybackControllerTest {
         assertEquals(1, index)
         assertEquals(60_000L, offset)
     }
+
+    // ---------------------------------------------------------------------------
+    // stop / setVolume — null-controller silent no-ops
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun `stop does not throw when controller is null`() {
+        val holder = FakeControllerHolder()
+        val sut = AndroidPlaybackController(holder)
+
+        sut.stop() // holder.controller == null — must not throw
+    }
+
+    @Test
+    fun `setVolume does not throw when controller is null`() {
+        val holder = FakeControllerHolder()
+        val sut = AndroidPlaybackController(holder)
+
+        sut.setVolume(0.5f) // holder.controller == null — must not throw
+    }
+
+    // ---------------------------------------------------------------------------
+    // seekTo — null-controller silent no-op (already covered by existing test,
+    // but verify the enhanced implementation still handles null gracefully)
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun `seekTo does not throw when controller is null (enhanced impl)`() {
+        val holder = FakeControllerHolder()
+        val sut = AndroidPlaybackController(holder)
+
+        sut.seekTo(75_000L) // controller null — must not throw
+    }
 }

@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.StateFlow
@@ -56,13 +57,53 @@ class AndroidPlaybackController(
     }
 
     override fun seekTo(positionMs: Long) {
-        holder.controller?.seekTo(positionMs)
-            ?: logger.warn { "AndroidPlaybackController.seekTo($positionMs): controller not ready" }
+        val controller = holder.controller
+        if (controller == null) {
+            logger.warn { "AndroidPlaybackController.seekTo($positionMs): controller not ready" }
+            return
+        }
+        // Resolve book-relative position to (mediaItemIndex, positionInItem) using Media3's
+        // current timeline. The Media3 timeline exposes per-window durations; we accumulate
+        // until we find the window containing positionMs.
+        val (index, offset) = resolveSeekPosition(controller, positionMs)
+        controller.seekTo(index, offset)
+    }
+
+    private fun resolveSeekPosition(
+        controller: MediaController,
+        bookPositionMs: Long,
+    ): Pair<Int, Long> {
+        val itemCount = controller.mediaItemCount
+        if (itemCount == 0) return 0 to 0L
+        var accumulated = 0L
+        for (i in 0 until itemCount) {
+            val window = Timeline.Window()
+            controller.currentTimeline.getWindow(i, window)
+            val itemDuration = window.durationMs
+            if (itemDuration <= 0L) continue // Skip un-prepared windows
+            val itemEnd = accumulated + itemDuration
+            if (bookPositionMs in accumulated until itemEnd) {
+                return i to bookPositionMs - accumulated
+            }
+            accumulated = itemEnd
+        }
+        // Position past end of queue → snap to last item's end
+        return itemCount - 1 to controller.duration.coerceAtLeast(0L)
     }
 
     override fun setPlaybackSpeed(speed: Float) {
         holder.controller?.setPlaybackParameters(PlaybackParameters(speed))
             ?: logger.warn { "AndroidPlaybackController.setPlaybackSpeed($speed): controller not ready" }
+    }
+
+    override fun stop() {
+        holder.controller?.stop()
+            ?: logger.warn { "AndroidPlaybackController.stop: controller not ready" }
+    }
+
+    override fun setVolume(volume: Float) {
+        holder.controller?.let { it.volume = volume }
+            ?: logger.warn { "AndroidPlaybackController.setVolume($volume): controller not ready" }
     }
 
     override suspend fun setMediaQueue(

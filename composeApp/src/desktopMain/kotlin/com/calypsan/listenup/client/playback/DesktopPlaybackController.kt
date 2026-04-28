@@ -32,6 +32,16 @@ class DesktopPlaybackController(
 
     override fun setPlaybackSpeed(speed: Float) = audioPlayer.setSpeed(speed)
 
+    override fun stop() {
+        audioPlayer.pause()
+        audioPlayer.seekTo(0L)
+    }
+
+    override fun setVolume(volume: Float) {
+        // No-op: AudioPlayer interface does not expose volume control.
+        // Sleep-timer fade-out is Android-only.
+    }
+
     override suspend fun setMediaQueue(
         items: List<PlaybackMediaItem>,
         startPositionMs: Long,
