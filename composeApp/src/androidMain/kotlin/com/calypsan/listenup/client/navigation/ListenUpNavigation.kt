@@ -534,8 +534,12 @@ private fun AuthenticatedNavigation(
                                 currentDestination = currentShellDestination,
                                 onDestinationChange = { currentShellDestination = it },
                                 nowPlayingContent = {
+                                    val nowPlayingScreenState by nowPlayingViewModel
+                                        .screenState
+                                        .collectAsStateWithLifecycle()
                                     NowPlayingBar(
-                                        state = nowPlayingViewModel.state.collectAsStateWithLifecycle().value,
+                                        state = nowPlayingScreenState.state,
+                                        isExpanded = nowPlayingScreenState.isExpanded,
                                         onTap = nowPlayingViewModel::expand,
                                         onPlayPause = nowPlayingViewModel::playPause,
                                         onSkipBack = { nowPlayingViewModel.skipBack() },

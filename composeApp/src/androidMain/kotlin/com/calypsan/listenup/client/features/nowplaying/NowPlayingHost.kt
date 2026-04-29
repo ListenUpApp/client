@@ -15,17 +15,20 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.LocalDeviceContext
 import com.calypsan.listenup.client.device.DeviceType
 import com.calypsan.listenup.client.features.shell.components.NavigationBarHeight
 import com.calypsan.listenup.client.playback.ContributorPickerType
+import com.calypsan.listenup.client.playback.NowPlayingOverlay
+import com.calypsan.listenup.client.playback.NowPlayingState
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
+import com.calypsan.listenup.client.playback.SleepTimerState
 
 /** Height of a standard snackbar for padding calculations */
 private val SnackbarHeight = 48.dp
@@ -49,18 +52,21 @@ fun NowPlayingHost(
     viewModel: NowPlayingViewModel,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
+    val screenState by viewModel.screenState.collectAsStateWithLifecycle()
     val isSnackbarVisible = snackbarHostState?.currentSnackbarData != null
 
     val deviceContext = LocalDeviceContext.current
     val useDockedBar = deviceContext.type in setOf(DeviceType.Tv, DeviceType.Desktop, DeviceType.Tablet)
     val isTv = deviceContext.isLeanback
 
+    val state = screenState.state
+    val activeState = state as? NowPlayingState.Active
+
     Box(modifier = modifier.fillMaxSize()) {
-        // Full screen (slides up when expanded)
+        // Full screen (slides up when expanded). Only renders when we have an Active book —
+        // expanding into Idle/Error has no meaningful UI.
         AnimatedVisibility(
-            visible = state.isExpanded,
+            visible = screenState.isExpanded && activeState != null,
             enter =
                 slideInVertically(
                     initialOffsetY = { it },
@@ -80,42 +86,45 @@ fun NowPlayingHost(
                         ),
                 ) + fadeOut(),
         ) {
-            NowPlayingScreen(
-                state = state,
-                sleepTimerState = sleepTimerState,
-                onCollapse = viewModel::collapse,
-                onPlayPause = viewModel::playPause,
-                onSeek = viewModel::seekWithinChapter,
-                onSkipBack = { viewModel.skipBack() },
-                onSkipForward = { viewModel.skipForward() },
-                onPreviousChapter = viewModel::previousChapter,
-                onNextChapter = viewModel::nextChapter,
-                onSpeedClick = viewModel::showSpeedPicker,
-                onChaptersClick = viewModel::showChapterPicker,
-                onSleepTimerClick = viewModel::showSleepTimer,
-                onGoToBook = {
-                    viewModel.collapse()
-                    onNavigateToBook(state.bookId)
-                },
-                onGoToSeries = { seriesId ->
-                    viewModel.collapse()
-                    onNavigateToSeries(seriesId)
-                },
-                onGoToContributor = { contributorId ->
-                    viewModel.collapse()
-                    onNavigateToContributor(contributorId)
-                },
-                onShowAuthorPicker = { viewModel.showContributorPicker(ContributorPickerType.AUTHORS) },
-                onShowNarratorPicker = { viewModel.showContributorPicker(ContributorPickerType.NARRATORS) },
-                onCloseBook = viewModel::closeBook,
-                isTv = isTv,
-            )
+            if (activeState != null) {
+                NowPlayingScreen(
+                    state = activeState,
+                    sleepTimerState = screenState.sleepTimerState,
+                    onCollapse = viewModel::collapse,
+                    onPlayPause = viewModel::playPause,
+                    onSeek = viewModel::seekWithinChapter,
+                    onSkipBack = { viewModel.skipBack() },
+                    onSkipForward = { viewModel.skipForward() },
+                    onPreviousChapter = viewModel::previousChapter,
+                    onNextChapter = viewModel::nextChapter,
+                    onSpeedClick = viewModel::showSpeedPicker,
+                    onChaptersClick = viewModel::showChapterPicker,
+                    onSleepTimerClick = viewModel::showSleepTimer,
+                    onGoToBook = {
+                        viewModel.collapse()
+                        onNavigateToBook(activeState.bookId)
+                    },
+                    onGoToSeries = { seriesId ->
+                        viewModel.collapse()
+                        onNavigateToSeries(seriesId)
+                    },
+                    onGoToContributor = { contributorId ->
+                        viewModel.collapse()
+                        onNavigateToContributor(contributorId)
+                    },
+                    onShowAuthorPicker = { viewModel.showContributorPicker(ContributorPickerType.AUTHORS) },
+                    onShowNarratorPicker = { viewModel.showContributorPicker(ContributorPickerType.NARRATORS) },
+                    onCloseBook = viewModel::closeBook,
+                    isTv = isTv,
+                )
+            }
         }
 
         // Mini player — docked bar for TV/Desktop/Tablet, floating pill for phone
         if (useDockedBar) {
             DockedNowPlayingBar(
                 state = state,
+                isExpanded = screenState.isExpanded,
                 onTap = viewModel::expand,
                 onPlayPause = viewModel::playPause,
                 onSkipBack = { viewModel.skipBack() },
@@ -147,6 +156,7 @@ fun NowPlayingHost(
 
             NowPlayingBar(
                 state = state,
+                isExpanded = screenState.isExpanded,
                 onTap = viewModel::expand,
                 onPlayPause = viewModel::playPause,
                 onSkipBack = { viewModel.skipBack() },
@@ -158,18 +168,39 @@ fun NowPlayingHost(
             )
         }
 
-        // Chapter picker sheet
-        if (state.showChapterPicker) {
-            ChapterPickerSheet(
-                chapters = viewModel.getChapters(),
-                currentChapterIndex = state.chapterIndex,
-                onChapterSelected = viewModel::seekToChapter,
-                onDismiss = viewModel::hideChapterPicker,
-            )
+        OverlayDispatch(
+            overlay = screenState.overlay,
+            sleepTimerState = screenState.sleepTimerState,
+            activeState = activeState,
+            viewModel = viewModel,
+            onNavigateToContributor = onNavigateToContributor,
+        )
+    }
+}
+
+@Composable
+private fun OverlayDispatch(
+    overlay: NowPlayingOverlay,
+    sleepTimerState: SleepTimerState,
+    activeState: NowPlayingState.Active?,
+    viewModel: NowPlayingViewModel,
+    onNavigateToContributor: (String) -> Unit,
+) {
+    when (overlay) {
+        NowPlayingOverlay.None -> { /* no overlay */ }
+
+        NowPlayingOverlay.ChapterPicker -> {
+            if (activeState != null) {
+                ChapterPickerSheet(
+                    chapters = viewModel.getChapters(),
+                    currentChapterIndex = activeState.chapterIndex,
+                    onChapterSelected = viewModel::seekToChapter,
+                    onDismiss = viewModel::hideChapterPicker,
+                )
+            }
         }
 
-        // Sleep timer sheet
-        if (state.showSleepTimer) {
+        NowPlayingOverlay.SleepTimer -> {
             SleepTimerSheet(
                 currentState = sleepTimerState,
                 onSetTimer = viewModel::setSleepTimer,
@@ -179,34 +210,36 @@ fun NowPlayingHost(
             )
         }
 
-        // Contributor picker sheet (for multiple authors/narrators)
-        state.showContributorPicker?.let { pickerType ->
-            val contributors =
-                when (pickerType) {
-                    ContributorPickerType.AUTHORS -> state.authors
-                    ContributorPickerType.NARRATORS -> state.narrators
-                }
-            ContributorPickerSheet(
-                type = pickerType,
-                contributors = contributors,
-                onContributorSelected = { contributorId ->
-                    viewModel.hideContributorPicker()
-                    viewModel.collapse()
-                    onNavigateToContributor(contributorId)
-                },
-                onDismiss = viewModel::hideContributorPicker,
-            )
+        is NowPlayingOverlay.ContributorPicker -> {
+            if (activeState != null) {
+                val contributors =
+                    when (overlay.type) {
+                        ContributorPickerType.AUTHORS -> activeState.authors
+                        ContributorPickerType.NARRATORS -> activeState.narrators
+                    }
+                ContributorPickerSheet(
+                    type = overlay.type,
+                    contributors = contributors,
+                    onContributorSelected = { contributorId ->
+                        viewModel.hideContributorPicker()
+                        viewModel.collapse()
+                        onNavigateToContributor(contributorId)
+                    },
+                    onDismiss = viewModel::hideContributorPicker,
+                )
+            }
         }
 
-        // Speed picker sheet
-        if (state.showSpeedPicker) {
-            PlaybackSpeedSheet(
-                currentSpeed = state.playbackSpeed,
-                defaultSpeed = state.defaultPlaybackSpeed,
-                onSpeedChange = viewModel::setSpeed,
-                onResetToDefault = viewModel::resetSpeedToDefault,
-                onDismiss = viewModel::hideSpeedPicker,
-            )
+        NowPlayingOverlay.SpeedPicker -> {
+            if (activeState != null) {
+                PlaybackSpeedSheet(
+                    currentSpeed = activeState.playbackSpeed,
+                    defaultSpeed = activeState.defaultPlaybackSpeed,
+                    onSpeedChange = viewModel::setSpeed,
+                    onResetToDefault = viewModel::resetSpeedToDefault,
+                    onDismiss = viewModel::hideSpeedPicker,
+                )
+            }
         }
     }
 }

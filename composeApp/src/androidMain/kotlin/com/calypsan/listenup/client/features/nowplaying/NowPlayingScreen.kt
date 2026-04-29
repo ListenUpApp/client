@@ -119,7 +119,7 @@ private val logger = KotlinLogging.logger {}
 @Suppress("LongMethod", "LongParameterList")
 @Composable
 fun NowPlayingScreen(
-    state: NowPlayingState,
+    state: NowPlayingState.Active,
     sleepTimerState: SleepTimerState,
     onCollapse: () -> Unit,
     onPlayPause: () -> Unit,
@@ -376,7 +376,7 @@ fun NowPlayingScreen(
 @Suppress("LongParameterList")
 @Composable
 private fun TallNowPlayingLayout(
-    state: NowPlayingState,
+    state: NowPlayingState.Active,
     sleepTimerState: SleepTimerState,
     breathScale: Float,
     ambientAlpha: Float,
@@ -432,7 +432,7 @@ private fun TallNowPlayingLayout(
         ) {
             CoverArt(
                 bookId = state.bookId,
-                coverUrl = state.coverUrl,
+                coverUrl = state.coverPath,
                 breathScale = breathScale,
                 onColorExtracted = onColorExtracted,
             )
@@ -501,7 +501,7 @@ private fun TallNowPlayingLayout(
 @Suppress("LongParameterList", "LongMethod")
 @Composable
 private fun WideNowPlayingLayout(
-    state: NowPlayingState,
+    state: NowPlayingState.Active,
     sleepTimerState: SleepTimerState,
     dominantColor: Color,
     breathScale: Float,
@@ -543,7 +543,7 @@ private fun WideNowPlayingLayout(
         ) {
             CoverArt(
                 bookId = state.bookId,
-                coverUrl = state.coverUrl,
+                coverUrl = state.coverPath,
                 breathScale = breathScale,
                 onColorExtracted = onColorExtracted,
             )
@@ -655,7 +655,7 @@ private fun WideNowPlayingLayout(
 @Suppress("CognitiveComplexMethod")
 @Composable
 private fun NowPlayingTopBar(
-    state: NowPlayingState,
+    state: NowPlayingState.Active,
     onCollapse: () -> Unit,
     onGoToBook: () -> Unit,
     onGoToSeries: (String) -> Unit,
@@ -720,7 +720,7 @@ private fun NowPlayingTopBar(
                 )
 
                 // Go to Series (if available)
-                if (state.hasSeries) {
+                if (state.seriesId != null) {
                     DropdownMenuItem(
                         text = { Text("Go to Series") },
                         onClick = {
