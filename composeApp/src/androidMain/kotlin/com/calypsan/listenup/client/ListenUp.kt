@@ -173,7 +173,11 @@ val playbackModule =
         // Shared MediaController holder - single connection for all ViewModels
         // Eliminates duplicate controller connections and state drift
         single {
-            MediaControllerHolder(context = get())
+            MediaControllerHolder(
+                context = get(),
+                playbackManager = get(),
+                scope = get(),
+            )
         }
 
         // PlaybackController seam backed by the shared MediaControllerHolder
@@ -187,7 +191,6 @@ val playbackModule =
                 playbackManager = get(),
                 playbackController = get(),
                 networkMonitor = get(),
-                mediaControllerHolder = get(),
             )
         }
 

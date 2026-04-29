@@ -2,13 +2,21 @@ package com.calypsan.listenup.client.playback
 
 import android.content.ComponentName
 import android.content.Context
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
@@ -32,6 +40,8 @@ private val logger = KotlinLogging.logger {}
 @OptIn(ExperimentalAtomicApi::class)
 class MediaControllerHolder(
     private val context: Context,
+    private val playbackManager: PlaybackStateWriter,
+    private val scope: CoroutineScope,
 ) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var _controller: MediaController? = null
@@ -46,6 +56,71 @@ class MediaControllerHolder(
      */
     val controller: MediaController?
         get() = _controller
+
+    internal val playerListener: Player.Listener =
+        object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                playbackManager.setPlaying(isPlaying)
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                playbackManager.setBuffering(playbackState == Player.STATE_BUFFERING)
+                playbackManager.setPlaybackState(toCommonPlaybackState(playbackState))
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                val isNetworkError =
+                    error.errorCode in
+                        listOf(
+                            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+                            PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+                            PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
+                            PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+                        )
+                val message =
+                    if (isNetworkError) {
+                        "Couldn't connect to server. Download this book for offline listening."
+                    } else {
+                        "Playback error: ${error.localizedMessage ?: "Unknown error"}"
+                    }
+                playbackManager.reportError(message = message, isRecoverable = isNetworkError)
+                playbackManager.setPlaying(false)
+                logger.error { "ExoPlayer error: ${error.errorCodeName} - ${error.message}" }
+            }
+
+            override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+                playbackManager.updateSpeed(playbackParameters.speed)
+            }
+        }
+
+    private fun toCommonPlaybackState(media3State: Int): PlaybackState =
+        when (media3State) {
+            Player.STATE_IDLE -> PlaybackState.Idle
+            Player.STATE_BUFFERING -> PlaybackState.Buffering
+            Player.STATE_READY -> if (_controller?.isPlaying == true) PlaybackState.Playing else PlaybackState.Paused
+            Player.STATE_ENDED -> PlaybackState.Ended
+            else -> PlaybackState.Idle
+        }
+
+    private var positionPollJob: Job? = null
+
+    private companion object {
+        const val POSITION_POLL_INTERVAL_MS = 250L
+    }
+
+    internal fun startPositionPolling(controller: MediaController) {
+        positionPollJob?.cancel()
+        positionPollJob =
+            scope.launch {
+                while (isActive) {
+                    if (controller.isPlaying) {
+                        playbackManager.updatePosition(controller.currentPosition)
+                    }
+                    delay(POSITION_POLL_INTERVAL_MS)
+                }
+            }
+    }
 
     /**
      * Acquire a reference to the controller.
@@ -114,6 +189,10 @@ class MediaControllerHolder(
             try {
                 _controller = controllerFuture?.get()
                 isConnected.value = true
+                _controller?.let { newController ->
+                    newController.addListener(playerListener)
+                    startPositionPolling(newController)
+                }
                 logger.info { "MediaControllerHolder: connected" }
             } catch (e: Exception) {
                 logger.error(e) { "MediaControllerHolder: connection failed" }
@@ -124,6 +203,10 @@ class MediaControllerHolder(
 
     private fun disconnect() {
         logger.info { "MediaControllerHolder: disconnecting" }
+
+        positionPollJob?.cancel()
+        positionPollJob = null
+        _controller?.removeListener(playerListener)
 
         _controller?.release()
         _controller = null

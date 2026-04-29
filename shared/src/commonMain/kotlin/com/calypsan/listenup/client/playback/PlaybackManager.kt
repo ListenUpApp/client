@@ -38,6 +38,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -72,7 +73,8 @@ class PlaybackManager(
     private val syncApi: SyncApiContract?,
     private val scope: CoroutineScope,
     private val bookRepository: BookRepository,
-) : PlaybackStateProvider {
+) : PlaybackStateProvider,
+    PlaybackStateWriter {
     private val _currentBookId = MutableStateFlow<BookId?>(null)
     override val currentBookId: StateFlow<BookId?> = _currentBookId
 
@@ -104,12 +106,22 @@ class PlaybackManager(
     private val _playbackError = MutableStateFlow<PlaybackError?>(null)
     val playbackError: StateFlow<PlaybackError?> = _playbackError
 
+    private val _isBuffering = MutableStateFlow(false)
+    val isBuffering: StateFlow<Boolean> = _isBuffering
+
+    private val _playbackState = MutableStateFlow(PlaybackState.Idle)
+    val playbackState: StateFlow<PlaybackState> = _playbackState
+
     // Chapter state for notification and UI
     private val _chapters = MutableStateFlow<List<Chapter>>(emptyList())
     val chapters: StateFlow<List<Chapter>> = _chapters
 
     private val _currentChapter = MutableStateFlow<ChapterInfo?>(null)
     val currentChapter: StateFlow<ChapterInfo?> = _currentChapter
+
+    // Tracks the coroutine that observes AudioPlayer state/position on Desktop/Apple.
+    // Cancelled by clearPlayback so observations don't outlive a playback session.
+    private var playerObservationJob: Job? = null
 
     // Callback for chapter changes - used by PlaybackService to update notification
     var onChapterChanged: ((ChapterInfo) -> Unit)? = null
@@ -382,36 +394,43 @@ class PlaybackManager(
         }
         currentPositionMs.value = resumePositionMs
 
-        // Bridge player position back to PlaybackManager
-        scope.launch {
-            player.positionMs.collect { position ->
-                updatePosition(position)
-            }
-        }
+        // Bridge player state and position back to PlaybackManager.
+        // Both child launches are parented to playerObservationJob so a single
+        // cancel() in clearPlayback stops both collectors together.
+        playerObservationJob?.cancel()
+        playerObservationJob =
+            scope.launch {
+                launch {
+                    player.positionMs.collect { position ->
+                        updatePosition(position)
+                    }
+                }
+                launch {
+                    player.state.collect { playbackState ->
+                        setPlaybackState(playbackState)
+                        setBuffering(playbackState == PlaybackState.Buffering)
 
-        // Bridge player state back to PlaybackManager
-        scope.launch {
-            player.state.collect { playbackState ->
-                val playing = playbackState == PlaybackState.Playing
-                setPlaying(playing)
+                        val playing = playbackState == PlaybackState.Playing
+                        setPlaying(playing)
 
-                if (playbackState == PlaybackState.Ended) {
-                    val duration = totalDurationMs.value
-                    val position = currentPositionMs.value
-                    // Guard: only mark finished if position is actually near the end.
-                    // Prevents false completion from spurious Ended events on player
-                    // release/stop (#204).
-                    if (duration > 0 && position.toFloat() / duration >= 0.90f) {
-                        progressTracker.onBookFinished(bookId, duration)
-                    } else {
-                        logger.warn {
-                            "Ignoring Ended state: position=${position}ms " +
-                                "not near end (duration=${duration}ms)"
+                        if (playbackState == PlaybackState.Ended) {
+                            val duration = totalDurationMs.value
+                            val position = currentPositionMs.value
+                            // Guard: only mark finished if position is actually near the end.
+                            // Prevents false completion from spurious Ended events on player
+                            // release/stop (#204).
+                            if (duration > 0 && position.toFloat() / duration >= 0.90f) {
+                                progressTracker.onBookFinished(bookId, duration)
+                            } else {
+                                logger.warn {
+                                    "Ignoring Ended state: position=${position}ms " +
+                                        "not near end (duration=${duration}ms)"
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
 
         // Start playback
         player.play()
@@ -425,15 +444,32 @@ class PlaybackManager(
      * Update playback state.
      * Called by PlayerViewModel when state changes.
      */
-    fun setPlaying(playing: Boolean) {
+    override fun setPlaying(playing: Boolean) {
         isPlaying.value = playing
+    }
+
+    /**
+     * Update buffering flag. Called by platform-specific event sources
+     * (Android: MediaControllerHolder's Player.Listener; Desktop: PlaybackManager's
+     * own AudioPlayer.state observation in startPlayback).
+     */
+    override fun setBuffering(buffering: Boolean) {
+        _isBuffering.value = buffering
+    }
+
+    /**
+     * Update playback state (Idle/Buffering/Playing/Paused/Ended/Error). Same
+     * caller scheme as [setBuffering].
+     */
+    override fun setPlaybackState(state: PlaybackState) {
+        _playbackState.value = state
     }
 
     /**
      * Update current position.
      * Called by PlayerViewModel during position update loop.
      */
-    fun updatePosition(positionMs: Long) {
+    override fun updatePosition(positionMs: Long) {
         currentPositionMs.value = positionMs
         updateCurrentChapter(positionMs)
     }
@@ -442,7 +478,7 @@ class PlaybackManager(
      * Update playback speed.
      * Called by PlayerViewModel when speed changes.
      */
-    fun updateSpeed(speed: Float) {
+    override fun updateSpeed(speed: Float) {
         playbackSpeed.value = speed
     }
 
@@ -510,6 +546,8 @@ class PlaybackManager(
      * Called when playback stops or when access is revoked.
      */
     override fun clearPlayback() {
+        playerObservationJob?.cancel()
+        playerObservationJob = null
         _currentBookId.value = null
         _currentBookIdString.value = null
         _currentTimeline.value = null
@@ -520,15 +558,17 @@ class PlaybackManager(
         totalDurationMs.value = 0L
         playbackSpeed.value = 1.0f
         _playbackError.value = null
+        _isBuffering.value = false
+        _playbackState.value = PlaybackState.Idle
     }
 
     /**
      * Report a playback error to be displayed to the user.
      * Called by platform-specific error handlers.
      */
-    fun reportError(
+    override fun reportError(
         message: String,
-        isRecoverable: Boolean = false,
+        isRecoverable: Boolean,
     ) {
         _playbackError.value =
             PlaybackError(

@@ -4,18 +4,12 @@ package com.calypsan.listenup.client.playback
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.PlaybackParameters
-import androidx.media3.common.Player
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
-import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -26,41 +20,66 @@ private val logger = KotlinLogging.logger {}
  * Responsibilities:
  * - Uses PlaybackController seam for player commands
  * - Exposes playback state as flows for Compose
- * - Handles position updates using book-relative timeline
+ * - Mirrors PlaybackManager flows into PlayerUiState
  * - Provides control actions
- *
- * Note: [Player.Listener] registration and direct [MediaController] position polling
- * ([updatePosition]) are retained via [mediaControllerHolder] because the events
- * observed (onPlaybackStateChanged buffering/ended, onPlayerError with Media3-specific
- * error codes, currentMediaItemIndex/currentPosition polling) are NOT surfaced by
- * [PlaybackManager] or [PlaybackController]. Removing them would require extending
- * PlaybackManager with isBuffering, error, and per-item position flows — a separate
- * task deferred beyond Task 6.
  */
 class PlayerViewModel(
     private val playbackManager: PlaybackManager,
     private val playbackController: PlaybackController,
     private val networkMonitor: NetworkMonitor,
-    // TODO(Task-6-followup): mediaControllerHolder retained solely for Player.Listener
-    //  registration and updatePosition() polling. Remove once PlaybackManager exposes
-    //  isBuffering, playback errors, and per-mediaItem position flows.
-    private val mediaControllerHolder: MediaControllerHolder,
 ) : ViewModel() {
-    private var positionUpdateJob: Job? = null
-    private var playerListener: Player.Listener? = null
-
     val state: StateFlow<PlayerUiState>
         field = MutableStateFlow(PlayerUiState())
 
-    private var currentTimeline: PlaybackTimeline? = null
-
     init {
-        // Acquire reference to shared controller
         playbackController.acquire()
-    }
 
-    private val mediaController: androidx.media3.session.MediaController?
-        get() = mediaControllerHolder.controller
+        viewModelScope.launch {
+            playbackManager.isPlaying.collect { isPlaying ->
+                state.update { it.copy(isPlaying = isPlaying) }
+            }
+        }
+        viewModelScope.launch {
+            playbackManager.isBuffering.collect { isBuffering ->
+                state.update { it.copy(isBuffering = isBuffering) }
+            }
+        }
+        viewModelScope.launch {
+            playbackManager.playbackState.collect { playbackState ->
+                if (playbackState == PlaybackState.Ended) {
+                    state.update { it.copy(isPlaying = false, isFinished = true) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            playbackManager.playbackSpeed.collect { speed ->
+                state.update { it.copy(playbackSpeed = speed) }
+            }
+        }
+        viewModelScope.launch {
+            playbackManager.currentPositionMs.collect { positionMs ->
+                state.update { it.copy(currentPositionMs = positionMs) }
+            }
+        }
+        viewModelScope.launch {
+            playbackManager.totalDurationMs.collect { durationMs ->
+                state.update { it.copy(totalDurationMs = durationMs) }
+            }
+        }
+        viewModelScope.launch {
+            playbackManager.playbackError.collect { error ->
+                if (error != null) {
+                    state.update {
+                        it.copy(
+                            isPlaying = false,
+                            isLoading = false,
+                            error = error.message,
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     /**
      * Start playback of a book.
@@ -110,8 +129,6 @@ class PlayerViewModel(
                 return@launch
             }
 
-            currentTimeline = result.timeline
-
             state.value =
                 state.value.copy(
                     bookTitle = result.bookTitle,
@@ -133,17 +150,6 @@ class PlayerViewModel(
 
     private suspend fun connectAndPlay(prepareResult: PlaybackManager.PrepareResult) {
         try {
-            // Remove old listener if any, then register fresh one.
-            // TODO(Task-6-followup): listener registration uses mediaControllerHolder
-            //  directly because Player.Listener surfaces events (isBuffering, error codes,
-            //  playback state) not yet exposed through PlaybackController or PlaybackManager.
-            mediaControllerHolder.withController { controller ->
-                playerListener?.let { controller.removeListener(it) }
-                val listener = PlayerListener()
-                playerListener = listener
-                controller.addListener(listener)
-            }
-
             // Build queue from timeline and hand off to PlaybackController.
             logger.debug { "Building ${prepareResult.timeline.files.size} media items" }
             val items = buildPlaybackMediaItems(prepareResult)
@@ -160,7 +166,6 @@ class PlayerViewModel(
                     isPlaying = true,
                 )
 
-            startPositionUpdates()
             logger.info { "Playback started for: ${prepareResult.bookTitle}" }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
@@ -274,144 +279,8 @@ class PlayerViewModel(
         state.value = PlayerUiState()
     }
 
-    private fun startPositionUpdates() {
-        positionUpdateJob?.cancel()
-        positionUpdateJob =
-            viewModelScope.launch {
-                while (isActive) {
-                    updatePosition()
-                    delay(250) // Update 4 times per second for smooth progress
-                }
-            }
-    }
-
-    private fun stopPositionUpdates() {
-        positionUpdateJob?.cancel()
-        positionUpdateJob = null
-    }
-
-    private fun updatePosition() {
-        // TODO(Task-6-followup): position polling reads directly from mediaControllerHolder
-        //  because PlaybackController is command-only and PlaybackManager does not expose
-        //  per-mediaItem index + position as flows on Android. Migrate once those flows exist.
-        val controller = mediaController ?: return
-        val timeline = currentTimeline ?: return
-
-        val mediaItemIndex = controller.currentMediaItemIndex
-        val positionInFile = controller.currentPosition
-        val playbackState = controller.playbackState
-        val isPlaying = controller.isPlaying
-        val isBuffering = playbackState == Player.STATE_BUFFERING
-
-        // Validate ExoPlayer values before using them (silent validation, only log errors)
-        if (mediaItemIndex < 0 || mediaItemIndex >= timeline.files.size || positionInFile < 0) {
-            logger.error {
-                "INVALID position: mediaItem=$mediaItemIndex/${timeline.files.size}, posInFile=$positionInFile"
-            }
-            return
-        }
-
-        val bookPosition =
-            timeline.toBookPosition(
-                mediaItemIndex = mediaItemIndex,
-                positionInFileMs = positionInFile,
-            )
-
-        // Validate calculated book position
-        if (bookPosition < 0 || bookPosition > timeline.totalDurationMs + 1000) {
-            logger.error { "INVALID bookPosition: $bookPosition (duration=${timeline.totalDurationMs})" }
-            return
-        }
-
-        // Debounce: only update state if position changed significantly (>100ms) or playback state changed
-        val currentState = state.value
-        val positionDelta = kotlin.math.abs(bookPosition - currentState.currentPositionMs)
-        val stateChanged = isPlaying != currentState.isPlaying || isBuffering != currentState.isBuffering
-
-        if (!stateChanged && positionDelta < 100) {
-            return // Skip very minor position updates to reduce recomposition
-        }
-
-        state.value =
-            currentState.copy(
-                currentPositionMs = bookPosition,
-                isPlaying = isPlaying,
-                isBuffering = isBuffering,
-            )
-
-        // Publish position to PlaybackManager for NowPlayingViewModel
-        playbackManager.updatePosition(bookPosition)
-    }
-
-    private inner class PlayerListener : Player.Listener {
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            state.value = state.value.copy(isPlaying = isPlaying)
-            playbackManager.setPlaying(isPlaying)
-
-            if (isPlaying) {
-                startPositionUpdates()
-            } else {
-                stopPositionUpdates()
-                updatePosition() // One final update
-            }
-        }
-
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            val isBuffering = playbackState == Player.STATE_BUFFERING
-            state.value = state.value.copy(isBuffering = isBuffering)
-
-            if (playbackState == Player.STATE_ENDED) {
-                state.value =
-                    state.value.copy(
-                        isPlaying = false,
-                        isFinished = true,
-                    )
-            }
-        }
-
-        override fun onPlayerError(error: PlaybackException) {
-            logger.error { "ExoPlayer error: ${error.errorCodeName} - ${error.message}" }
-            val isNetworkError =
-                error.errorCode in
-                    listOf(
-                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-                        PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
-                        PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
-                        PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
-                    )
-            val message =
-                if (isNetworkError) {
-                    "Couldn't connect to server. Download this book for offline listening."
-                } else {
-                    "Playback error: ${error.localizedMessage ?: "Unknown error"}"
-                }
-            state.value =
-                state.value.copy(
-                    isPlaying = false,
-                    isLoading = false,
-                    error = message,
-                )
-            playbackManager.setPlaying(false)
-        }
-
-        override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
-            state.value = state.value.copy(playbackSpeed = playbackParameters.speed)
-            playbackManager.updateSpeed(playbackParameters.speed)
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
-        positionUpdateJob?.cancel()
-
-        // Remove our listener from the shared controller
-        playerListener?.let { listener ->
-            mediaController?.removeListener(listener)
-        }
-        playerListener = null
-
-        // Release our reference to the shared controller
         playbackController.release()
     }
 }

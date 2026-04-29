@@ -119,7 +119,7 @@ class DesktopPlayerViewModel(
 
         // Observe audio player errors
         viewModelScope.launch {
-            audioPlayer.state.collect { playbackState ->
+            playbackManager.playbackState.collect { playbackState ->
                 if (playbackState == PlaybackState.Error) {
                     state.update {
                         it.copy(errorMessage = "Playback error. Check GStreamer installation.")
@@ -154,7 +154,7 @@ class DesktopPlayerViewModel(
             )
 
             // Check if playback actually started
-            if (audioPlayer.state.value == PlaybackState.Error) {
+            if (playbackManager.playbackState.value == PlaybackState.Error) {
                 state.update {
                     it.copy(
                         errorMessage = "Playback failed. Check that GStreamer plugins are installed correctly.",
@@ -165,7 +165,7 @@ class DesktopPlayerViewModel(
     }
 
     fun playPause() {
-        val currentState = audioPlayer.state.value
+        val currentState = playbackManager.playbackState.value
         if (currentState == PlaybackState.Playing) {
             playbackController.pause()
             // Notify progress tracker of pause
