@@ -21,6 +21,7 @@ import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.client.playback.NowPlayingState
 import com.calypsan.listenup.desktop.DesktopApp
 import com.calypsan.listenup.desktop.tray.ListenUpTray
 import org.koin.compose.koinInject
@@ -98,7 +99,8 @@ private fun handleMediaKey(
     key: Key,
     playerViewModel: DesktopPlayerViewModel,
 ): Boolean {
-    if (!playerViewModel.state.value.isVisible) return false
+    // Only intercept media keys when there's a book loaded (any non-Idle variant).
+    if (playerViewModel.screenState.value.state is NowPlayingState.Idle) return false
 
     return when (key) {
         Key.MediaPlayPause, Key.Spacebar -> {

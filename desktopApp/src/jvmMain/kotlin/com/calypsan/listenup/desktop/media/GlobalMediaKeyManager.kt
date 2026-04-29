@@ -1,6 +1,7 @@
 package com.calypsan.listenup.desktop.media
 
 import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.client.playback.NowPlayingState
 import com.github.kwhat.jnativehook.GlobalScreen
 import com.github.kwhat.jnativehook.NativeHookException
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
@@ -27,7 +28,8 @@ class GlobalMediaKeyManager(
     private val keyListener =
         object : NativeKeyListener {
             override fun nativeKeyPressed(event: NativeKeyEvent) {
-                if (!playerViewModel.state.value.isVisible) return
+                // Only intercept global media keys when there's a book loaded.
+                if (playerViewModel.screenState.value.state is NowPlayingState.Idle) return
 
                 when (event.keyCode) {
                     NativeKeyEvent.VC_MEDIA_PLAY -> {

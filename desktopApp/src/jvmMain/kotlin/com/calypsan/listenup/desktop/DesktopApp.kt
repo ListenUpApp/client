@@ -68,6 +68,7 @@ import com.calypsan.listenup.client.features.tagdetail.TagDetailScreen
 import com.calypsan.listenup.client.features.profile.UserProfileScreen
 import com.calypsan.listenup.client.navigation.AuthNavigation
 import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.client.playback.NowPlayingState
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.desktop.nowplaying.DesktopNowPlayingBar
 import com.calypsan.listenup.desktop.nowplaying.DesktopNowPlayingScreen
@@ -212,7 +213,8 @@ private fun DesktopAuthenticatedNavigation() {
     val playerViewModel: DesktopPlayerViewModel = koinInject()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val playerState by playerViewModel.state.collectAsStateWithLifecycle()
+    val playerScreenState by playerViewModel.screenState.collectAsStateWithLifecycle()
+    val playerState = playerScreenState.state
 
     var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
     val backStack: SnapshotStateList<DetailDestination> =
@@ -287,8 +289,8 @@ private fun DesktopAuthenticatedNavigation() {
                 }
             }
 
-            // Persistent mini player (visible when playing, hidden on NowPlaying screen)
-            if (playerState.isVisible && !isShowingNowPlaying) {
+            // Persistent mini player (visible when a book is loaded, hidden on NowPlaying screen)
+            if (playerState !is NowPlayingState.Idle && !isShowingNowPlaying) {
                 DesktopNowPlayingBar(
                     state = playerState,
                     onPlayPause = { playerViewModel.playPause() },
@@ -477,7 +479,17 @@ private fun DetailScreen(
         }
 
         is DetailDestination.NowPlaying -> {
-            val state by playerViewModel.state.collectAsStateWithLifecycle()
+            val screenState by playerViewModel.screenState.collectAsStateWithLifecycle()
+            val state = screenState.state
+            // "Go to Book" only meaningful when there's a known bookId — Active or
+            // Preparing variants populate it; Error sometimes does; Idle never.
+            val activeBookId: String? =
+                when (state) {
+                    is NowPlayingState.Active -> state.bookId
+                    is NowPlayingState.Preparing -> state.bookId
+                    is NowPlayingState.Error -> state.bookId
+                    is NowPlayingState.Idle -> null
+                }
             DesktopNowPlayingScreen(
                 state = state,
                 onPlayPause = { playerViewModel.playPause() },
@@ -492,10 +504,13 @@ private fun DetailScreen(
                     navigateBack()
                 },
                 onBackClick = navigateBack,
-                onGoToBook = {
-                    navigateBack()
-                    navigateTo(DetailDestination.Book(state.bookId))
-                },
+                onGoToBook =
+                    activeBookId?.let { id ->
+                        {
+                            navigateBack()
+                            navigateTo(DetailDestination.Book(id))
+                        }
+                    },
                 onGoToSeries = { seriesId ->
                     navigateBack()
                     navigateTo(DetailDestination.Series(seriesId))
