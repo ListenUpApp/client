@@ -73,7 +73,8 @@ class PlaybackManager(
     private val syncApi: SyncApiContract?,
     private val scope: CoroutineScope,
     private val bookRepository: BookRepository,
-) : PlaybackStateProvider {
+) : PlaybackStateProvider,
+    PlaybackStateWriter {
     private val _currentBookId = MutableStateFlow<BookId?>(null)
     override val currentBookId: StateFlow<BookId?> = _currentBookId
 
@@ -443,7 +444,7 @@ class PlaybackManager(
      * Update playback state.
      * Called by PlayerViewModel when state changes.
      */
-    fun setPlaying(playing: Boolean) {
+    override fun setPlaying(playing: Boolean) {
         isPlaying.value = playing
     }
 
@@ -452,7 +453,7 @@ class PlaybackManager(
      * (Android: MediaControllerHolder's Player.Listener; Desktop: PlaybackManager's
      * own AudioPlayer.state observation in startPlayback).
      */
-    fun setBuffering(buffering: Boolean) {
+    override fun setBuffering(buffering: Boolean) {
         _isBuffering.value = buffering
     }
 
@@ -460,7 +461,7 @@ class PlaybackManager(
      * Update playback state (Idle/Buffering/Playing/Paused/Ended/Error). Same
      * caller scheme as [setBuffering].
      */
-    fun setPlaybackState(state: PlaybackState) {
+    override fun setPlaybackState(state: PlaybackState) {
         _playbackState.value = state
     }
 
@@ -468,7 +469,7 @@ class PlaybackManager(
      * Update current position.
      * Called by PlayerViewModel during position update loop.
      */
-    fun updatePosition(positionMs: Long) {
+    override fun updatePosition(positionMs: Long) {
         currentPositionMs.value = positionMs
         updateCurrentChapter(positionMs)
     }
@@ -477,7 +478,7 @@ class PlaybackManager(
      * Update playback speed.
      * Called by PlayerViewModel when speed changes.
      */
-    fun updateSpeed(speed: Float) {
+    override fun updateSpeed(speed: Float) {
         playbackSpeed.value = speed
     }
 
@@ -565,9 +566,9 @@ class PlaybackManager(
      * Report a playback error to be displayed to the user.
      * Called by platform-specific error handlers.
      */
-    fun reportError(
+    override fun reportError(
         message: String,
-        isRecoverable: Boolean = false,
+        isRecoverable: Boolean,
     ) {
         _playbackError.value =
             PlaybackError(

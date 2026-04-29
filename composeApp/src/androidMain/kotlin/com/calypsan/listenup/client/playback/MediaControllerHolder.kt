@@ -40,7 +40,7 @@ private val logger = KotlinLogging.logger {}
 @OptIn(ExperimentalAtomicApi::class)
 class MediaControllerHolder(
     private val context: Context,
-    private val playbackManager: PlaybackManager,
+    private val playbackManager: PlaybackStateWriter,
     private val scope: CoroutineScope,
 ) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
