@@ -153,6 +153,9 @@ class DesktopPlayerViewModel(
         )
 
     init {
+        // Note: DesktopPlaybackController.acquire/release are no-ops, so we don't call them
+        // here (Android does). If Desktop ever grows session lifecycle, mirror Android's pattern.
+
         // Load default playback speed (drives surfaceMetadataFlow)
         viewModelScope.launch {
             defaultPlaybackSpeedFlow.value = playbackPreferences.getDefaultPlaybackSpeed()
@@ -321,6 +324,7 @@ class DesktopPlayerViewModel(
         }
 
         playbackManager.clearPlayback()
+        sleepTimerManager.cancelTimer()
     }
 
     fun getChapters(): List<Chapter> = playbackManager.chapters.value
