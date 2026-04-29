@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  * 1. acquire/release delegate to [ControllerHolder]
  * 2. isReady mirrors holder.isConnected
  * 3. All command methods are silent no-ops when controller is null (no crash)
- * 4. resolveStartPosition index and offset arithmetic
+ * 4. resolveQueuePosition index and offset arithmetic
  */
 class AndroidPlaybackControllerTest {
     // ---------------------------------------------------------------------------
@@ -149,72 +149,6 @@ class AndroidPlaybackControllerTest {
         }
 
     // ---------------------------------------------------------------------------
-    // resolveStartPosition — pure arithmetic, no Media3 needed
-    // ---------------------------------------------------------------------------
-
-    @Test
-    fun `resolveStartPosition returns 0,0 for empty item list`() {
-        val holder = FakeControllerHolder()
-        val sut = AndroidPlaybackController(holder)
-
-        val (index, offset) = sut.resolveStartPosition(emptyList(), 75_000L)
-
-        assertEquals(0, index)
-        assertEquals(0L, offset)
-    }
-
-    @Test
-    fun `resolveStartPosition maps bookPosition to correct segment index and local offset`() {
-        val holder = FakeControllerHolder()
-        val sut = AndroidPlaybackController(holder)
-
-        val items =
-            listOf(
-                PlaybackMediaItem("id-0", "url0", null, 60_000L, 0L, "Ch 1", null, null, null),
-                PlaybackMediaItem("id-1", "url1", null, 60_000L, 60_000L, "Ch 2", null, null, null),
-            )
-
-        // bookPositionMs = 75_000 → second segment, 15_000ms in
-        val (index, offset) = sut.resolveStartPosition(items, 75_000L)
-
-        assertEquals(1, index)
-        assertEquals(15_000L, offset)
-    }
-
-    @Test
-    fun `resolveStartPosition clamps to start when position precedes first segment`() {
-        val holder = FakeControllerHolder()
-        val sut = AndroidPlaybackController(holder)
-
-        val items =
-            listOf(
-                PlaybackMediaItem("id-0", "url0", null, 60_000L, 1_000L, "Ch 1", null, null, null),
-            )
-
-        val (index, offset) = sut.resolveStartPosition(items, 0L)
-
-        assertEquals(0, index)
-        assertEquals(0L, offset)
-    }
-
-    @Test
-    fun `resolveStartPosition clamps to last segment end when position exceeds all segments`() {
-        val holder = FakeControllerHolder()
-        val sut = AndroidPlaybackController(holder)
-
-        val items =
-            listOf(
-                PlaybackMediaItem("id-0", "url0", null, 60_000L, 0L, "Ch 1", null, null, null),
-                PlaybackMediaItem("id-1", "url1", null, 60_000L, 60_000L, "Ch 2", null, null, null),
-            )
-
-        val (index, offset) = sut.resolveStartPosition(items, 200_000L)
-
-        assertEquals(1, index)
-        assertEquals(60_000L, offset)
-    }
-
-    // ---------------------------------------------------------------------------
     // stop / setVolume — null-controller silent no-ops
     // ---------------------------------------------------------------------------
 
@@ -235,33 +169,21 @@ class AndroidPlaybackControllerTest {
     }
 
     // ---------------------------------------------------------------------------
-    // seekTo — null-controller silent no-op (already covered by existing test,
-    // but verify the enhanced implementation still handles null gracefully)
+    // resolveQueuePosition — pure arithmetic, no Media3 needed
+    // Used by both setMediaQueue and seekTo call sites.
     // ---------------------------------------------------------------------------
 
     @Test
-    fun `seekTo does not throw when controller is null (enhanced impl)`() {
+    fun `resolveQueuePosition returns 0 0 for empty item list`() {
         val holder = FakeControllerHolder()
         val sut = AndroidPlaybackController(holder)
 
-        sut.seekTo(75_000L) // controller null — must not throw
-    }
-
-    // ---------------------------------------------------------------------------
-    // resolveSeekPosition — pure arithmetic, no Media3 needed
-    // ---------------------------------------------------------------------------
-
-    @Test
-    fun `resolveSeekPosition returns 0 0 for empty item list`() {
-        val holder = FakeControllerHolder()
-        val sut = AndroidPlaybackController(holder)
-
-        assertEquals(0 to 0L, sut.resolveSeekPosition(emptyList(), 0L))
-        assertEquals(0 to 0L, sut.resolveSeekPosition(emptyList(), 12_345L))
+        assertEquals(0 to 0L, sut.resolveQueuePosition(emptyList(), 0L))
+        assertEquals(0 to 0L, sut.resolveQueuePosition(emptyList(), 12_345L))
     }
 
     @Test
-    fun `resolveSeekPosition maps bookPosition to correct segment index and local offset`() {
+    fun `resolveQueuePosition maps bookPosition to correct segment index and local offset`() {
         val holder = FakeControllerHolder()
         val sut = AndroidPlaybackController(holder)
 
@@ -272,17 +194,17 @@ class AndroidPlaybackControllerTest {
             )
 
         // Position 75_000 → second item, offset 15_000
-        assertEquals(1 to 15_000L, sut.resolveSeekPosition(items, 75_000L))
+        assertEquals(1 to 15_000L, sut.resolveQueuePosition(items, 75_000L))
 
         // Position 0 → first item, offset 0
-        assertEquals(0 to 0L, sut.resolveSeekPosition(items, 0L))
+        assertEquals(0 to 0L, sut.resolveQueuePosition(items, 0L))
 
         // Position 30_000 → first item, offset 30_000
-        assertEquals(0 to 30_000L, sut.resolveSeekPosition(items, 30_000L))
+        assertEquals(0 to 30_000L, sut.resolveQueuePosition(items, 30_000L))
     }
 
     @Test
-    fun `resolveSeekPosition before first item snaps to 0 0`() {
+    fun `resolveQueuePosition before first item snaps to 0 0`() {
         val holder = FakeControllerHolder()
         val sut = AndroidPlaybackController(holder)
 
@@ -291,12 +213,12 @@ class AndroidPlaybackControllerTest {
                 PlaybackMediaItem("f1", "/1", null, 60_000L, 100L, "T", null, null, null),
             )
 
-        assertEquals(0 to 0L, sut.resolveSeekPosition(items, 0L))
-        assertEquals(0 to 0L, sut.resolveSeekPosition(items, 50L)) // before offsetMs=100
+        assertEquals(0 to 0L, sut.resolveQueuePosition(items, 0L))
+        assertEquals(0 to 0L, sut.resolveQueuePosition(items, 50L)) // before offsetMs=100
     }
 
     @Test
-    fun `resolveSeekPosition past last item snaps to lastIndex with last item duration (drift 26 fix)`() {
+    fun `resolveQueuePosition past last item snaps to lastIndex with last item duration (drift 26 fix)`() {
         val holder = FakeControllerHolder()
         val sut = AndroidPlaybackController(holder)
 
@@ -308,7 +230,7 @@ class AndroidPlaybackControllerTest {
 
         // Total duration = 150_000. seekTo(200_000) — past end.
         // Drift #26 (a) fix: should return (1, 90_000L) — LAST item's durationMs, not controller.duration
-        assertEquals(1 to 90_000L, sut.resolveSeekPosition(items, 200_000L))
+        assertEquals(1 to 90_000L, sut.resolveQueuePosition(items, 200_000L))
     }
 
     @Test

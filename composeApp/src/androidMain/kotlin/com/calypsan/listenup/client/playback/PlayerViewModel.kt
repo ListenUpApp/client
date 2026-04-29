@@ -9,6 +9,7 @@ import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -35,45 +36,46 @@ class PlayerViewModel(
 
         viewModelScope.launch {
             playbackManager.isPlaying.collect { isPlaying ->
-                state.value = state.value.copy(isPlaying = isPlaying)
+                state.update { it.copy(isPlaying = isPlaying) }
             }
         }
         viewModelScope.launch {
             playbackManager.isBuffering.collect { isBuffering ->
-                state.value = state.value.copy(isBuffering = isBuffering)
+                state.update { it.copy(isBuffering = isBuffering) }
             }
         }
         viewModelScope.launch {
             playbackManager.playbackState.collect { playbackState ->
                 if (playbackState == PlaybackState.Ended) {
-                    state.value = state.value.copy(isPlaying = false, isFinished = true)
+                    state.update { it.copy(isPlaying = false, isFinished = true) }
                 }
             }
         }
         viewModelScope.launch {
             playbackManager.playbackSpeed.collect { speed ->
-                state.value = state.value.copy(playbackSpeed = speed)
+                state.update { it.copy(playbackSpeed = speed) }
             }
         }
         viewModelScope.launch {
             playbackManager.currentPositionMs.collect { positionMs ->
-                state.value = state.value.copy(currentPositionMs = positionMs)
+                state.update { it.copy(currentPositionMs = positionMs) }
             }
         }
         viewModelScope.launch {
             playbackManager.totalDurationMs.collect { durationMs ->
-                state.value = state.value.copy(totalDurationMs = durationMs)
+                state.update { it.copy(totalDurationMs = durationMs) }
             }
         }
         viewModelScope.launch {
             playbackManager.playbackError.collect { error ->
                 if (error != null) {
-                    state.value =
-                        state.value.copy(
+                    state.update {
+                        it.copy(
                             isPlaying = false,
                             isLoading = false,
                             error = error.message,
                         )
+                    }
                 }
             }
         }

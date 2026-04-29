@@ -120,6 +120,7 @@ class PlaybackManagerBufferingStateTest {
 
             // clearPlayback resets to Idle regardless of what the player emits.
             assertEquals(PlaybackState.Idle, sut.playbackState.value)
+            assertFalse(sut.isBuffering.value, "clearPlayback must reset isBuffering to false")
 
             // Cancel to stop the infinite collect coroutines and let runTest complete.
             managerScope.coroutineContext[Job]?.cancel()

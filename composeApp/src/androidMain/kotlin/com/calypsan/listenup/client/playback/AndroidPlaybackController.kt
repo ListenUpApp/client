@@ -70,12 +70,21 @@ class AndroidPlaybackController(
             controller.seekTo(positionMs)
             return
         }
-        val (index, offset) = resolveSeekPosition(cachedQueue, positionMs)
+        val (index, offset) = resolveQueuePosition(cachedQueue, positionMs)
         logger.debug { "AndroidPlaybackController.seekTo: bookPos=$positionMs → idx=$index, offset=$offset" }
         controller.seekTo(index, offset)
     }
 
-    internal fun resolveSeekPosition(
+    /**
+     * Resolves a book-relative position (ms) to a `(itemIndex, offsetWithinItem)` pair
+     * suitable for Media3 `seekTo(windowIndex, positionMs)` and `setMediaItems(..., startIndex, positionMs)`.
+     *
+     * - Empty list → `(0, 0)`
+     * - Position within an item → `(itemIndex, bookPositionMs - item.offsetMs)`
+     * - Before first item → `(0, 0)`
+     * - Past last item → `(lastIndex, lastItem.durationMs)` (Drift #26 fix: uses item duration, not controller duration)
+     */
+    internal fun resolveQueuePosition(
         items: List<PlaybackMediaItem>,
         bookPositionMs: Long,
     ): Pair<Int, Long> {
@@ -139,26 +148,9 @@ class AndroidPlaybackController(
                             .build(),
                     ).build()
             }
-        val (startIndex, positionInItem) = resolveStartPosition(items, startPositionMs)
+        val (startIndex, positionInItem) = resolveQueuePosition(items, startPositionMs)
         controller.setMediaItems(mediaItems, startIndex, positionInItem)
         controller.prepare()
-    }
-
-    internal fun resolveStartPosition(
-        items: List<PlaybackMediaItem>,
-        bookPositionMs: Long,
-    ): Pair<Int, Long> {
-        if (items.isEmpty()) return 0 to 0L
-        val item = items.firstOrNull { bookPositionMs in it.offsetMs until it.offsetMs + it.durationMs }
-        return if (item != null) {
-            items.indexOf(item) to bookPositionMs - item.offsetMs
-        } else {
-            if (bookPositionMs < items.first().offsetMs) {
-                0 to 0L
-            } else {
-                items.size - 1 to items.last().durationMs
-            }
-        }
     }
 }
 
