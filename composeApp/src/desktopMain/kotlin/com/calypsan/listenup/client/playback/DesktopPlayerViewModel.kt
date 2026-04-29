@@ -1,19 +1,27 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "TooManyFunctions")
 
 package com.calypsan.listenup.client.playback
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -22,9 +30,18 @@ private val logger = KotlinLogging.logger {}
 /**
  * Desktop playback ViewModel.
  *
- * Thin bridge between UI and PlaybackManager/AudioPlayer.
- * Observes PlaybackManager state flows and forwards user actions to AudioPlayer.
- * Handles ProgressTracker integration for pause/resume events.
+ * Composes [PlaybackManager] flows + book metadata + UI ephemera into a single
+ * [NowPlayingScreenState] via layered `combine().stateIn(WhileSubscribed)`. Mirrors
+ * the Android `NowPlayingViewModel` shape — the heavy upstream pipeline is independent
+ * of overlay/expand ephemera, which join only at the screen-state boundary.
+ *
+ * Side-effect collectors (ProgressTracker pause/resume notifications + 30 s ticker +
+ * GStreamer error reporting) live in separate `viewModelScope.launch { collect }` blocks,
+ * not in the state-deriving combines.
+ *
+ * Desktop currently has no UI for overlays / expanded mode / sleep timer, but the screen
+ * state still tail-combines those flows for shape parity with Android (and to enable
+ * future Desktop UI without re-plumbing).
  */
 class DesktopPlayerViewModel(
     private val playbackManager: PlaybackManager,
@@ -33,32 +50,120 @@ class DesktopPlayerViewModel(
     private val progressTracker: ProgressTracker,
     private val bookRepository: BookRepository,
     private val playbackPreferences: PlaybackPreferences,
+    private val sleepTimerManager: SleepTimerManager,
 ) : ViewModel() {
-    val state: StateFlow<NowPlayingState>
-        field = MutableStateFlow(NowPlayingState())
+    private companion object {
+        const val SUBSCRIPTION_TIMEOUT_MS = 5_000L
+        const val PROGRESS_TICK_MS = 30_000L
+    }
+
+    private val overlayFlow = MutableStateFlow<NowPlayingOverlay>(NowPlayingOverlay.None)
+    private val isExpandedFlow = MutableStateFlow(false)
+    private val defaultPlaybackSpeedFlow = MutableStateFlow(1.0f)
 
     private var periodicUpdateJob: Job? = null
 
-    init {
-        observePlayback()
-    }
-
-    private fun observePlayback() {
-        // Observe current book
-        viewModelScope.launch {
-            playbackManager.currentBookId.collect { bookId ->
-                if (bookId != null) {
-                    loadBookInfo(bookId)
-                } else {
-                    state.update { it.copy(isVisible = false) }
-                }
+    /** Reactive book metadata for the current book id. One-shot fetch on bookId change via flatMapLatest. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val bookFlow: Flow<BookListItem?> =
+        playbackManager.currentBookId.flatMapLatest { bookId ->
+            flow {
+                emit(loadBook(bookId))
             }
         }
 
-        // Observe playback state
+    /** Aggregated playback dynamics (4 flows joined into one). */
+    private val dynamicsRawFlow: Flow<DynamicsRaw> =
+        combine(
+            playbackManager.isPlaying,
+            playbackManager.isBuffering,
+            playbackManager.currentPositionMs,
+            playbackManager.totalDurationMs,
+        ) { isPlaying, isBuffering, position, duration ->
+            DynamicsRaw(
+                isPlaying = isPlaying,
+                isBuffering = isBuffering,
+                currentPositionMs = position,
+                totalDurationMs = duration,
+            )
+        }
+
+    /** Aggregated surface metadata (chapter info + prepare progress + error + default speed). */
+    private val surfaceMetadataFlow: Flow<SurfaceMetadata> =
+        combine(
+            playbackManager.currentChapter,
+            playbackManager.prepareProgress,
+            playbackManager.playbackError,
+            defaultPlaybackSpeedFlow,
+        ) { chapter, prepare, error, defaultSpeed ->
+            SurfaceMetadata(
+                currentChapter = chapter,
+                prepareProgress = prepare,
+                error = error,
+                defaultPlaybackSpeed = defaultSpeed,
+            )
+        }
+
+    /** Sealed playback state derived from book + dynamics + metadata via the pure mapper. */
+    private val nowPlayingState: Flow<NowPlayingState> =
+        combine(
+            bookFlow,
+            dynamicsRawFlow,
+            playbackManager.playbackSpeed,
+            surfaceMetadataFlow,
+        ) { book, dynamicsRaw, speed, metadata ->
+            mapToNowPlayingState(
+                book = book,
+                dynamics =
+                    PlaybackDynamics(
+                        isPlaying = dynamicsRaw.isPlaying,
+                        isBuffering = dynamicsRaw.isBuffering,
+                        currentPositionMs = dynamicsRaw.currentPositionMs,
+                        totalDurationMs = dynamicsRaw.totalDurationMs,
+                        playbackSpeed = speed,
+                    ),
+                metadata = metadata,
+            )
+        }
+
+    /** Tail-combined screen state; the only flow the UI subscribes to. */
+    val screenState: StateFlow<NowPlayingScreenState> =
+        combine(
+            nowPlayingState,
+            overlayFlow,
+            isExpandedFlow,
+            sleepTimerManager.state,
+        ) { state, overlay, isExpanded, sleepTimer ->
+            NowPlayingScreenState(
+                state = state,
+                overlay = overlay,
+                isExpanded = isExpanded,
+                sleepTimerState = sleepTimer,
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
+            initialValue =
+                NowPlayingScreenState(
+                    state = NowPlayingState.Idle,
+                    overlay = NowPlayingOverlay.None,
+                    isExpanded = false,
+                    sleepTimerState = sleepTimerManager.state.value,
+                ),
+        )
+
+    init {
+        // Note: DesktopPlaybackController.acquire/release are no-ops, so we don't call them
+        // here (Android does). If Desktop ever grows session lifecycle, mirror Android's pattern.
+
+        // Load default playback speed (drives surfaceMetadataFlow)
+        viewModelScope.launch {
+            defaultPlaybackSpeedFlow.value = playbackPreferences.getDefaultPlaybackSpeed()
+        }
+
+        // Side effect: drive periodic ProgressTracker ticks while playing
         viewModelScope.launch {
             playbackManager.isPlaying.collect { isPlaying ->
-                state.update { it.copy(isPlaying = isPlaying) }
                 if (isPlaying) {
                     startPeriodicUpdates()
                 } else {
@@ -67,67 +172,31 @@ class DesktopPlayerViewModel(
             }
         }
 
-        // Observe position
-        viewModelScope.launch {
-            playbackManager.currentPositionMs.collect { positionMs ->
-                updatePosition(positionMs)
-            }
-        }
-
-        // Observe chapter
-        viewModelScope.launch {
-            playbackManager.currentChapter.collect { chapterInfo ->
-                if (chapterInfo != null) {
-                    state.update {
-                        it.copy(
-                            chapterIndex = chapterInfo.index,
-                            chapterTitle = chapterInfo.title,
-                            totalChapters = chapterInfo.totalChapters,
-                            chapterDurationMs = chapterInfo.endMs - chapterInfo.startMs,
-                        )
-                    }
-                }
-            }
-        }
-
-        // Observe speed
-        viewModelScope.launch {
-            playbackManager.playbackSpeed.collect { speed ->
-                state.update { it.copy(playbackSpeed = speed) }
-            }
-        }
-
-        // Observe total duration
-        viewModelScope.launch {
-            playbackManager.totalDurationMs.collect { durationMs ->
-                state.update { it.copy(bookDurationMs = durationMs) }
-            }
-        }
-
-        // Observe prepare progress
-        viewModelScope.launch {
-            playbackManager.prepareProgress.collect { progress ->
-                state.update {
-                    it.copy(
-                        isPreparing = progress != null,
-                        prepareProgress = progress?.progress ?: 0,
-                        prepareMessage = progress?.message,
-                    )
-                }
-            }
-        }
-
-        // Observe audio player errors
+        // Side effect: surface GStreamer / FFmpeg playback errors through the canonical
+        // playbackError flow so the mapper produces NowPlayingState.Error.
         viewModelScope.launch {
             playbackManager.playbackState.collect { playbackState ->
                 if (playbackState == PlaybackState.Error) {
-                    state.update {
-                        it.copy(errorMessage = "Playback error. Check GStreamer installation.")
-                    }
+                    playbackManager.reportError(
+                        message = "Playback error. Check GStreamer installation.",
+                        isRecoverable = false,
+                    )
                 } else if (playbackState == PlaybackState.Playing) {
-                    state.update { it.copy(errorMessage = null) }
+                    playbackManager.clearError()
                 }
             }
+        }
+    }
+
+    private suspend fun loadBook(bookId: BookId?): BookListItem? {
+        if (bookId == null) return null
+        return try {
+            bookRepository.getBookListItem(bookId.value)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.warn(e) { "getBookListItem failed for ${bookId.value}" }
+            null
         }
     }
 
@@ -136,16 +205,15 @@ class DesktopPlayerViewModel(
      */
     fun playBook(bookId: BookId) {
         viewModelScope.launch {
-            state.update { it.copy(isPreparing = true, errorMessage = null) }
-
             val result = playbackManager.prepareForPlayback(bookId)
             if (result == null) {
-                state.update { it.copy(isPreparing = false, errorMessage = "Failed to prepare playback") }
+                playbackManager.reportError(
+                    message = "Failed to prepare playback",
+                    isRecoverable = true,
+                )
                 logger.error { "Failed to prepare playback for $bookId" }
                 return@launch
             }
-
-            state.update { it.copy(isPreparing = false) }
 
             playbackManager.startPlayback(
                 player = audioPlayer,
@@ -153,13 +221,12 @@ class DesktopPlayerViewModel(
                 resumeSpeed = result.resumeSpeed,
             )
 
-            // Check if playback actually started
+            // Check if playback actually started; reportError if not
             if (playbackManager.playbackState.value == PlaybackState.Error) {
-                state.update {
-                    it.copy(
-                        errorMessage = "Playback failed. Check that GStreamer plugins are installed correctly.",
-                    )
-                }
+                playbackManager.reportError(
+                    message = "Playback failed. Check that GStreamer plugins are installed correctly.",
+                    isRecoverable = false,
+                )
             }
         }
     }
@@ -185,14 +252,16 @@ class DesktopPlayerViewModel(
 
     fun skipBack(seconds: Int = 10) {
         val currentPos = playbackManager.currentPositionMs.value
-        val newPos = (currentPos - (seconds * state.value.playbackSpeed * 1000).toLong()).coerceAtLeast(0)
+        val speed = playbackManager.playbackSpeed.value
+        val newPos = (currentPos - (seconds * speed * 1000).toLong()).coerceAtLeast(0)
         playbackController.seekTo(newPos)
     }
 
     fun skipForward(seconds: Int = 30) {
         val currentPos = playbackManager.currentPositionMs.value
         val totalDuration = playbackManager.totalDurationMs.value
-        val newPos = (currentPos + (seconds * state.value.playbackSpeed * 1000).toLong()).coerceAtMost(totalDuration)
+        val speed = playbackManager.playbackSpeed.value
+        val newPos = (currentPos + (seconds * speed * 1000).toLong()).coerceAtMost(totalDuration)
         playbackController.seekTo(newPos)
     }
 
@@ -204,7 +273,8 @@ class DesktopPlayerViewModel(
 
     fun seekWithinChapter(progress: Float) {
         val chapters = playbackManager.chapters.value
-        val currentChapter = chapters.getOrNull(state.value.chapterIndex) ?: return
+        val currentIndex = playbackManager.currentChapter.value?.index ?: 0
+        val currentChapter = chapters.getOrNull(currentIndex) ?: return
         val targetPosition = currentChapter.startTime + (currentChapter.duration * progress).toLong()
         playbackController.seekTo(targetPosition)
     }
@@ -217,6 +287,7 @@ class DesktopPlayerViewModel(
     fun resetSpeedToDefault() {
         viewModelScope.launch {
             val defaultSpeed = playbackPreferences.getDefaultPlaybackSpeed()
+            defaultPlaybackSpeedFlow.value = defaultSpeed
             playbackController.setPlaybackSpeed(defaultSpeed)
             playbackManager.onSpeedReset(defaultSpeed)
         }
@@ -224,20 +295,22 @@ class DesktopPlayerViewModel(
 
     fun cycleSpeed() {
         val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
-        val currentSpeed = state.value.playbackSpeed
+        val currentSpeed = playbackManager.playbackSpeed.value
         val currentIndex = speeds.indexOfFirst { it >= currentSpeed - 0.01f }
         val nextIndex = if (currentIndex == -1 || currentIndex >= speeds.lastIndex) 0 else currentIndex + 1
         setSpeed(speeds[nextIndex])
     }
 
     fun previousChapter() {
-        val newIndex = (state.value.chapterIndex - 1).coerceAtLeast(0)
+        val currentIndex = playbackManager.currentChapter.value?.index ?: 0
+        val newIndex = (currentIndex - 1).coerceAtLeast(0)
         seekToChapter(newIndex)
     }
 
     fun nextChapter() {
         val chapters = playbackManager.chapters.value
-        val newIndex = (state.value.chapterIndex + 1).coerceAtMost(chapters.lastIndex.coerceAtLeast(0))
+        val currentIndex = playbackManager.currentChapter.value?.index ?: 0
+        val newIndex = (currentIndex + 1).coerceAtMost(chapters.lastIndex.coerceAtLeast(0))
         seekToChapter(newIndex)
     }
 
@@ -251,71 +324,51 @@ class DesktopPlayerViewModel(
         }
 
         playbackManager.clearPlayback()
+        sleepTimerManager.cancelTimer()
     }
 
     fun getChapters(): List<Chapter> = playbackManager.chapters.value
 
-    private suspend fun loadBookInfo(bookId: BookId) {
-        val book = bookRepository.getBookListItem(bookId.value) ?: return
-        val chapters = playbackManager.chapters.value
+    // === UI ephemera setters (mirror Android for shape parity) ===
 
-        state.update {
-            it.copy(
-                isVisible = true,
-                bookId = bookId.value,
-                title = book.title,
-                author = book.authorNames,
-                coverUrl = book.coverPath,
-                coverBlurHash = book.coverBlurHash,
-                authors = book.authors,
-                narrators = book.narrators,
-                seriesId = book.seriesId,
-                seriesName = book.seriesName,
-                bookDurationMs = book.duration,
-                totalChapters = chapters.size,
-                playbackSpeed = playbackManager.playbackSpeed.value,
-                isPlaying = playbackManager.isPlaying.value,
-            )
-        }
+    fun expand() {
+        isExpandedFlow.value = true
     }
 
-    private fun updatePosition(bookPositionMs: Long) {
-        val bookDurationMs = state.value.bookDurationMs
-        val bookProgress =
-            if (bookDurationMs > 0) {
-                bookPositionMs.toFloat() / bookDurationMs
-            } else {
-                0f
-            }
+    fun collapse() {
+        isExpandedFlow.value = false
+    }
 
-        val chapterInfo = playbackManager.currentChapter.value
-        val (chapterProgress, chapterPositionMs) =
-            if (chapterInfo != null) {
-                val posInChapter = bookPositionMs - chapterInfo.startMs
-                val chapterDuration = chapterInfo.endMs - chapterInfo.startMs
-                val progress =
-                    if (chapterDuration > 0) {
-                        posInChapter.toFloat() / chapterDuration
-                    } else {
-                        0f
-                    }
-                progress.coerceIn(0f, 1f) to posInChapter.coerceAtLeast(0)
-            } else {
-                0f to 0L
-            }
+    fun showChapterPicker() {
+        overlayFlow.value = NowPlayingOverlay.ChapterPicker
+    }
 
-        // Debounce: skip tiny changes
-        val positionDeltaMs = kotlin.math.abs(bookPositionMs - state.value.bookPositionMs)
-        if (positionDeltaMs < 200) return
+    fun hideChapterPicker() {
+        overlayFlow.value = NowPlayingOverlay.None
+    }
 
-        state.update {
-            it.copy(
-                bookProgress = bookProgress.coerceIn(0f, 1f),
-                bookPositionMs = bookPositionMs,
-                chapterProgress = chapterProgress,
-                chapterPositionMs = chapterPositionMs,
-            )
-        }
+    fun showSpeedPicker() {
+        overlayFlow.value = NowPlayingOverlay.SpeedPicker
+    }
+
+    fun hideSpeedPicker() {
+        overlayFlow.value = NowPlayingOverlay.None
+    }
+
+    fun showSleepTimer() {
+        overlayFlow.value = NowPlayingOverlay.SleepTimer
+    }
+
+    fun hideSleepTimer() {
+        overlayFlow.value = NowPlayingOverlay.None
+    }
+
+    fun showContributorPicker(type: ContributorPickerType) {
+        overlayFlow.value = NowPlayingOverlay.ContributorPicker(type)
+    }
+
+    fun hideContributorPicker() {
+        overlayFlow.value = NowPlayingOverlay.None
     }
 
     /**
@@ -326,7 +379,7 @@ class DesktopPlayerViewModel(
         periodicUpdateJob =
             viewModelScope.launch {
                 while (isActive) {
-                    delay(30_000)
+                    delay(PROGRESS_TICK_MS)
                     val bookId = playbackManager.currentBookId.value ?: continue
                     val positionMs = playbackManager.currentPositionMs.value
                     val speed = playbackManager.playbackSpeed.value
@@ -344,4 +397,11 @@ class DesktopPlayerViewModel(
         super.onCleared()
         stopPeriodicUpdates()
     }
+
+    private data class DynamicsRaw(
+        val isPlaying: Boolean,
+        val isBuffering: Boolean,
+        val currentPositionMs: Long,
+        val totalDurationMs: Long,
+    )
 }

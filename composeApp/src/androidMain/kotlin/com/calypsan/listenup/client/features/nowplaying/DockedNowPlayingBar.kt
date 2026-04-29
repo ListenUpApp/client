@@ -37,8 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,18 +51,29 @@ import com.calypsan.listenup.client.playback.NowPlayingState
  *
  * Full-width, flush with screen edges, Spotify-desktop style.
  * Progress bar at top, transport controls centered, chapter info on the right.
+ *
+ * Renders for [NowPlayingState.Active] and [NowPlayingState.Preparing] only;
+ * hidden on Idle/Error.
  */
 @Composable
 fun DockedNowPlayingBar(
     state: NowPlayingState,
+    isExpanded: Boolean,
     onTap: () -> Unit,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isVisible =
+        when (state) {
+            is NowPlayingState.Active -> !isExpanded
+            is NowPlayingState.Preparing -> !isExpanded
+            else -> false
+        }
+
     AnimatedVisibility(
-        visible = (state.isVisible || state.isPreparing) && !state.isExpanded,
+        visible = isVisible,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
         modifier = modifier,
@@ -98,155 +109,214 @@ fun DockedNowPlayingBar(
             shape = RectangleShape,
             tonalElevation = 3.dp,
         ) {
-            Column {
-                // Progress bar at the top
-                if (state.isPreparing) {
-                    LinearProgressIndicator(
-                        progress = { state.prepareProgress / 100f },
-                        modifier = Modifier.fillMaxWidth().height(4.dp),
-                        trackColor = Color.Transparent,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        drawStopIndicator = {},
-                    )
-                } else {
-                    LinearProgressIndicator(
-                        progress = { state.bookProgress },
-                        modifier = Modifier.fillMaxWidth().height(4.dp),
-                        trackColor = Color.Transparent,
-                        drawStopIndicator = {},
+            when (state) {
+                is NowPlayingState.Active -> {
+                    ActiveDockedContent(
+                        state = state,
+                        onPlayPause = onPlayPause,
+                        onSkipBack = onSkipBack,
+                        onSkipForward = onSkipForward,
                     )
                 }
 
-                // Main content row — three sections with controls centered
-                Row(
+                is NowPlayingState.Preparing -> {
+                    PreparingDockedContent(state = state)
+                }
+
+                else -> { /* Idle/Error: not visible */ }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveDockedContent(
+    state: NowPlayingState.Active,
+    onPlayPause: () -> Unit,
+    onSkipBack: () -> Unit,
+    onSkipForward: () -> Unit,
+) {
+    Column {
+        // Progress bar at the top
+        LinearProgressIndicator(
+            progress = { state.bookProgress },
+            modifier = Modifier.fillMaxWidth().height(4.dp),
+            trackColor = Color.Transparent,
+            drawStopIndicator = {},
+        )
+
+        // Main content row — three sections with controls centered
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Left: Cover + title/author
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BookCoverImage(
+                    bookId = state.bookId,
+                    coverPath = state.coverPath,
+                    blurHash = state.coverBlurHash,
+                    contentDescription = "Book cover",
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .height(80.dp)
-                            .padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                )
+
+                Spacer(Modifier.width(16.dp))
+
+                Column {
+                    Text(
+                        text = state.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = state.author,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            // Center: Transport controls
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FilledTonalIconButton(
+                    onClick = onSkipBack,
+                    modifier = Modifier.size(44.dp),
+                    shape = RoundedCornerShape(12.dp),
                 ) {
-                    // Left: Cover + title/author
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        BookCoverImage(
-                            bookId = state.bookId,
-                            coverPath = state.coverUrl,
-                            blurHash = state.coverBlurHash,
-                            contentDescription = "Book cover",
-                            modifier =
-                                Modifier
-                                    .size(64.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
+                    Icon(
+                        Icons.Default.Replay10,
+                        contentDescription = "Skip back 10 seconds",
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+
+                FilledIconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.size(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(
+                        if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (state.isPlaying) "Pause" else "Play",
+                        modifier = Modifier.size(30.dp),
+                    )
+                }
+
+                FilledTonalIconButton(
+                    onClick = onSkipForward,
+                    modifier = Modifier.size(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Forward30,
+                        contentDescription = "Skip forward 30 seconds",
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+
+            // Right: Chapter + time remaining
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                ) {
+                    state.chapterTitle?.let { chapter ->
+                        Text(
+                            text = chapter,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.End,
                         )
-
-                        Spacer(Modifier.width(16.dp))
-
-                        Column {
-                            Text(
-                                text = state.title.ifEmpty { "Preparing..." },
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            if (state.isPreparing) {
-                                Text(
-                                    text = state.prepareMessage ?: "Preparing audio...",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            } else {
-                                Text(
-                                    text = state.author,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
                     }
-
-                    // Center: Transport controls
-                    if (!state.isPreparing) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            FilledTonalIconButton(
-                                onClick = onSkipBack,
-                                modifier = Modifier.size(44.dp),
-                                shape = RoundedCornerShape(12.dp),
-                            ) {
-                                Icon(
-                                    Icons.Default.Replay10,
-                                    contentDescription = "Skip back 10 seconds",
-                                    modifier = Modifier.size(22.dp),
-                                )
-                            }
-
-                            FilledIconButton(
-                                onClick = onPlayPause,
-                                modifier = Modifier.size(52.dp),
-                                shape = RoundedCornerShape(14.dp),
-                            ) {
-                                Icon(
-                                    if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (state.isPlaying) "Pause" else "Play",
-                                    modifier = Modifier.size(30.dp),
-                                )
-                            }
-
-                            FilledTonalIconButton(
-                                onClick = onSkipForward,
-                                modifier = Modifier.size(44.dp),
-                                shape = RoundedCornerShape(12.dp),
-                            ) {
-                                Icon(
-                                    Icons.Default.Forward30,
-                                    contentDescription = "Skip forward 30 seconds",
-                                    modifier = Modifier.size(22.dp),
-                                )
-                            }
-                        }
+                    val remainingMs = state.bookDurationMs - state.bookPositionMs
+                    if (remainingMs > 0) {
+                        Text(
+                            text = formatTimeRemaining(remainingMs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            textAlign = TextAlign.End,
+                        )
                     }
+                }
+            }
+        }
+    }
+}
 
-                    // Right: Chapter + time remaining
-                    if (!state.isPreparing) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.End,
-                            ) {
-                                state.chapterTitle?.let { chapter ->
-                                    Text(
-                                        text = chapter,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.End,
-                                    )
-                                }
-                                val remainingMs = state.bookDurationMs - state.bookPositionMs
-                                if (remainingMs > 0) {
-                                    Text(
-                                        text = formatTimeRemaining(remainingMs),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                        textAlign = TextAlign.End,
-                                    )
-                                }
-                            }
-                        }
-                    }
+@Composable
+private fun PreparingDockedContent(state: NowPlayingState.Preparing) {
+    Column {
+        // Progress bar at the top
+        LinearProgressIndicator(
+            progress = { state.progress / 100f },
+            modifier = Modifier.fillMaxWidth().height(4.dp),
+            trackColor = Color.Transparent,
+            color = MaterialTheme.colorScheme.tertiary,
+            drawStopIndicator = {},
+        )
+
+        // Cover + title/message — no transport controls or chapter info during preparing
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BookCoverImage(
+                    bookId = state.bookId,
+                    coverPath = state.coverPath,
+                    blurHash = state.coverBlurHash,
+                    contentDescription = "Book cover",
+                    modifier =
+                        Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                )
+
+                Spacer(Modifier.width(16.dp))
+
+                Column {
+                    Text(
+                        text = state.title.ifEmpty { "Preparing..." },
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = state.message ?: "Preparing audio...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }

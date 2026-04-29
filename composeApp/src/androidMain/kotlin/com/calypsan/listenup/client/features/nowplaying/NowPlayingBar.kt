@@ -1,10 +1,14 @@
 package com.calypsan.listenup.client.features.nowplaying
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,19 +24,15 @@ import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.border
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -52,19 +52,29 @@ import com.calypsan.listenup.client.playback.NowPlayingState
  * - Diverse button sizes (play larger than skips)
  * - Pill-shaped skip buttons (horizontally elongated)
  * - Tonal elevation for depth
+ *
+ * Renders for [NowPlayingState.Active] and [NowPlayingState.Preparing] only;
+ * hidden on Idle/Error.
  */
 @Composable
 fun NowPlayingBar(
     state: NowPlayingState,
+    isExpanded: Boolean,
     onTap: () -> Unit,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Show bar when visible (playing) OR when preparing (transcoding)
+    val isVisible =
+        when (state) {
+            is NowPlayingState.Active -> !isExpanded
+            is NowPlayingState.Preparing -> !isExpanded
+            else -> false
+        }
+
     AnimatedVisibility(
-        visible = (state.isVisible || state.isPreparing) && !state.isExpanded,
+        visible = isVisible,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
         modifier = modifier,
@@ -104,102 +114,155 @@ fun NowPlayingBar(
             tonalElevation = 6.dp,
             shadowElevation = 4.dp,
         ) {
-            Column {
-                Row(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .padding(start = 12.dp, end = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Cover art
-                    BookCoverImage(
-                        bookId = state.bookId,
-                        coverPath = state.coverUrl,
-                        blurHash = state.coverBlurHash,
-                        contentDescription = "Book cover",
-                        modifier =
-                            Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(12.dp)),
+            when (state) {
+                is NowPlayingState.Active -> {
+                    ActiveContent(
+                        state = state,
+                        focusBorderColor = focusBorderColor,
+                        onPlayPause = onPlayPause,
+                        onSkipBack = onSkipBack,
+                        onSkipForward = onSkipForward,
                     )
-
-                    Spacer(Modifier.width(12.dp))
-
-                    // Text info
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = state.title.ifEmpty { "Preparing..." },
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (state.isPreparing) {
-                            // Show prepare message during transcoding
-                            Text(
-                                text = state.prepareMessage ?: "Preparing audio...",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = focusBorderColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        } else {
-                            Text(
-                                text = state.author,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            state.chapterTitle?.let { chapter ->
-                                Text(
-                                    text = chapter,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = focusBorderColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
-
-                    // Controls (hide during preparing)
-                    if (!state.isPreparing) {
-                        NowPlayingBarControls(
-                            isPlaying = state.isPlaying,
-                            isBuffering = state.isBuffering,
-                            onPlayPause = onPlayPause,
-                            onSkipBack = onSkipBack,
-                            onSkipForward = onSkipForward,
-                        )
-                    }
                 }
 
-                // Progress bar - show transcode progress during preparing, playback progress otherwise
-                if (state.isPreparing) {
-                    LinearProgressIndicator(
-                        progress = { state.prepareProgress / 100f },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(3.dp),
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        drawStopIndicator = {},
-                    )
-                } else {
-                    LinearProgressIndicator(
-                        progress = { state.bookProgress },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(3.dp),
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        drawStopIndicator = {},
+                is NowPlayingState.Preparing -> {
+                    PreparingContent(state = state, focusBorderColor = focusBorderColor)
+                }
+
+                else -> { /* Idle/Error: not visible */ }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveContent(
+    state: NowPlayingState.Active,
+    focusBorderColor: androidx.compose.ui.graphics.Color,
+    onPlayPause: () -> Unit,
+    onSkipBack: () -> Unit,
+    onSkipForward: () -> Unit,
+) {
+    Column {
+        Row(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BookCoverImage(
+                bookId = state.bookId,
+                coverPath = state.coverPath,
+                blurHash = state.coverBlurHash,
+                contentDescription = "Book cover",
+                modifier =
+                    Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+            )
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = state.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = state.author,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                state.chapterTitle?.let { chapter ->
+                    Text(
+                        text = chapter,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = focusBorderColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
+
+            NowPlayingBarControls(
+                isPlaying = state.isPlaying,
+                isBuffering = state.isBuffering,
+                onPlayPause = onPlayPause,
+                onSkipBack = onSkipBack,
+                onSkipForward = onSkipForward,
+            )
         }
+
+        LinearProgressIndicator(
+            progress = { state.bookProgress },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(3.dp),
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            drawStopIndicator = {},
+        )
+    }
+}
+
+@Composable
+private fun PreparingContent(
+    state: NowPlayingState.Preparing,
+    focusBorderColor: androidx.compose.ui.graphics.Color,
+) {
+    Column {
+        Row(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BookCoverImage(
+                bookId = state.bookId,
+                coverPath = state.coverPath,
+                blurHash = state.coverBlurHash,
+                contentDescription = "Book cover",
+                modifier =
+                    Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+            )
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = state.title.ifEmpty { "Preparing..." },
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = state.message ?: "Preparing audio...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = focusBorderColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        LinearProgressIndicator(
+            progress = { state.progress / 100f },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(3.dp),
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.tertiary,
+            drawStopIndicator = {},
+        )
     }
 }
 

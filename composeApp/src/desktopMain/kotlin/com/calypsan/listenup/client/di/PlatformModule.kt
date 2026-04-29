@@ -144,6 +144,7 @@ val platformModule: Module =
                 progressTracker = get(),
                 bookRepository = get(),
                 playbackPreferences = get(),
+                sleepTimerManager = get(),
             )
         }
 

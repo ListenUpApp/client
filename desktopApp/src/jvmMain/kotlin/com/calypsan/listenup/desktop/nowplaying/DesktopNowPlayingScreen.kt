@@ -47,6 +47,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -87,13 +88,13 @@ private val logger = KotlinLogging.logger {}
 /**
  * Full-screen now-playing view for desktop.
  *
- * Adaptive layout with M3 Expressive styling:
- * - Wide layout: cover on left, controls on right
- * - Tall layout: vertical arrangement (centered)
- * - Dynamic color glow from cover art via kmpalette
- * - M3 Expressive wavy seek bar
- * - M3 connected button group for transport controls
- * - Overflow menu with navigation to book/series/contributor
+ * Dispatches over the [NowPlayingState] sealed hierarchy: [NowPlayingState.Active]
+ * gets the full transport / wavy seek bar / overflow menu UI; [NowPlayingState.Preparing]
+ * shows a centred preparing card; [NowPlayingState.Error] shows an error card with retry
+ * affordances; [NowPlayingState.Idle] shows nothing meaningful (caller normally avoids
+ * routing here when Idle).
+ *
+ * Active layout adapts: wide → cover left / controls right; tall → vertical centre.
  */
 @Composable
 fun DesktopNowPlayingScreen(
@@ -112,12 +113,183 @@ fun DesktopNowPlayingScreen(
     onGoToContributor: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    Surface(modifier = modifier.fillMaxSize()) {
+        when (state) {
+            is NowPlayingState.Idle -> {
+                IdleScreen(onBackClick = onBackClick)
+            }
+
+            is NowPlayingState.Preparing -> {
+                PreparingScreen(
+                    state = state,
+                    onBackClick = onBackClick,
+                )
+            }
+
+            is NowPlayingState.Error -> {
+                ErrorScreen(
+                    state = state,
+                    onBackClick = onBackClick,
+                    onClose = onClose,
+                )
+            }
+
+            is NowPlayingState.Active -> {
+                ActiveScreen(
+                    state = state,
+                    onPlayPause = onPlayPause,
+                    onSkipBack = onSkipBack,
+                    onSkipForward = onSkipForward,
+                    onPreviousChapter = onPreviousChapter,
+                    onNextChapter = onNextChapter,
+                    onSeekWithinChapter = onSeekWithinChapter,
+                    onSetSpeed = onSetSpeed,
+                    onClose = onClose,
+                    onBackClick = onBackClick,
+                    onGoToBook = onGoToBook,
+                    onGoToSeries = onGoToSeries,
+                    onGoToContributor = onGoToContributor,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IdleScreen(onBackClick: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        IconButton(onClick = onBackClick) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "No book is currently playing",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PreparingScreen(
+    state: NowPlayingState.Preparing,
+    onBackClick: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        IconButton(onClick = onBackClick) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                modifier = Modifier.size(180.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CoverArt(
+                    bookId = state.bookId,
+                    coverUrl = state.coverPath,
+                    blurHash = state.coverBlurHash,
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = state.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = state.author,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(24.dp))
+            LinearProgressIndicator(
+                progress = { state.progress.coerceIn(0, 100) / 100f },
+                modifier = Modifier.width(240.dp),
+            )
+            val prepareMessage = state.message
+            if (prepareMessage != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = prepareMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ErrorScreen(
+    state: NowPlayingState.Error,
+    onBackClick: () -> Unit,
+    onClose: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = "Close player")
+            }
+        }
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            if (state.title != null) {
+                Text(
+                    text = "Failed to play ${state.title}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            Text(
+                text = state.message,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = 400.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActiveScreen(
+    state: NowPlayingState.Active,
+    onPlayPause: () -> Unit,
+    onSkipBack: () -> Unit,
+    onSkipForward: () -> Unit,
+    onPreviousChapter: () -> Unit,
+    onNextChapter: () -> Unit,
+    onSeekWithinChapter: (Float) -> Unit,
+    onSetSpeed: (Float) -> Unit,
+    onClose: () -> Unit,
+    onBackClick: () -> Unit,
+    onGoToBook: (() -> Unit)?,
+    onGoToSeries: ((String) -> Unit)?,
+    onGoToContributor: ((String) -> Unit)?,
+) {
     // Dynamic color from cover art
     var dominantColor by remember { mutableStateOf(Color.Transparent) }
 
-    // Extract color when cover URL changes
-    LaunchedEffect(state.coverUrl) {
-        val coverPath = state.coverUrl
+    LaunchedEffect(state.coverPath) {
+        val coverPath = state.coverPath
         if (coverPath != null) {
             val color = extractDominantColor(coverPath)
             if (color != null) {
@@ -126,93 +298,91 @@ fun DesktopNowPlayingScreen(
         }
     }
 
-    Surface(modifier = modifier.fillMaxSize()) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val isWideLayout = maxWidth > maxHeight
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val isWideLayout = maxWidth > maxHeight
 
-            // Glow background
-            if (dominantColor != Color.Transparent) {
-                if (isWideLayout) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxHeight()
-                                .width(maxWidth * 0.5f)
-                                .align(Alignment.CenterStart)
-                                .background(
-                                    brush =
-                                        Brush.horizontalGradient(
-                                            colorStops =
-                                                arrayOf(
-                                                    0.0f to dominantColor.copy(alpha = 0.5f),
-                                                    0.3f to dominantColor.copy(alpha = 0.4f),
-                                                    0.6f to dominantColor.copy(alpha = 0.2f),
-                                                    0.85f to dominantColor.copy(alpha = 0.05f),
-                                                    1.0f to Color.Transparent,
-                                                ),
-                                        ),
-                                ),
-                    )
-                } else {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(550.dp)
-                                .offset(y = 80.dp)
-                                .align(Alignment.TopCenter)
-                                .background(
-                                    brush =
-                                        Brush.verticalGradient(
-                                            colorStops =
-                                                arrayOf(
-                                                    0.0f to Color.Transparent,
-                                                    0.15f to dominantColor.copy(alpha = 0.3f),
-                                                    0.35f to dominantColor.copy(alpha = 0.6f),
-                                                    0.5f to dominantColor.copy(alpha = 0.6f),
-                                                    0.65f to dominantColor.copy(alpha = 0.3f),
-                                                    0.85f to dominantColor.copy(alpha = 0.1f),
-                                                    1.0f to Color.Transparent,
-                                                ),
-                                        ),
-                                ),
-                    )
-                }
-            }
-
+        // Glow background
+        if (dominantColor != Color.Transparent) {
             if (isWideLayout) {
-                WideLayout(
-                    state = state,
-                    onPlayPause = onPlayPause,
-                    onSkipBack = onSkipBack,
-                    onSkipForward = onSkipForward,
-                    onPreviousChapter = onPreviousChapter,
-                    onNextChapter = onNextChapter,
-                    onSeek = onSeekWithinChapter,
-                    onSetSpeed = onSetSpeed,
-                    onClose = onClose,
-                    onBackClick = onBackClick,
-                    onGoToBook = onGoToBook,
-                    onGoToSeries = onGoToSeries,
-                    onGoToContributor = onGoToContributor,
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxHeight()
+                            .width(maxWidth * 0.5f)
+                            .align(Alignment.CenterStart)
+                            .background(
+                                brush =
+                                    Brush.horizontalGradient(
+                                        colorStops =
+                                            arrayOf(
+                                                0.0f to dominantColor.copy(alpha = 0.5f),
+                                                0.3f to dominantColor.copy(alpha = 0.4f),
+                                                0.6f to dominantColor.copy(alpha = 0.2f),
+                                                0.85f to dominantColor.copy(alpha = 0.05f),
+                                                1.0f to Color.Transparent,
+                                            ),
+                                    ),
+                            ),
                 )
             } else {
-                TallLayout(
-                    state = state,
-                    onPlayPause = onPlayPause,
-                    onSkipBack = onSkipBack,
-                    onSkipForward = onSkipForward,
-                    onPreviousChapter = onPreviousChapter,
-                    onNextChapter = onNextChapter,
-                    onSeek = onSeekWithinChapter,
-                    onSetSpeed = onSetSpeed,
-                    onClose = onClose,
-                    onBackClick = onBackClick,
-                    onGoToBook = onGoToBook,
-                    onGoToSeries = onGoToSeries,
-                    onGoToContributor = onGoToContributor,
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(550.dp)
+                            .offset(y = 80.dp)
+                            .align(Alignment.TopCenter)
+                            .background(
+                                brush =
+                                    Brush.verticalGradient(
+                                        colorStops =
+                                            arrayOf(
+                                                0.0f to Color.Transparent,
+                                                0.15f to dominantColor.copy(alpha = 0.3f),
+                                                0.35f to dominantColor.copy(alpha = 0.6f),
+                                                0.5f to dominantColor.copy(alpha = 0.6f),
+                                                0.65f to dominantColor.copy(alpha = 0.3f),
+                                                0.85f to dominantColor.copy(alpha = 0.1f),
+                                                1.0f to Color.Transparent,
+                                            ),
+                                    ),
+                            ),
                 )
             }
+        }
+
+        if (isWideLayout) {
+            WideLayout(
+                state = state,
+                onPlayPause = onPlayPause,
+                onSkipBack = onSkipBack,
+                onSkipForward = onSkipForward,
+                onPreviousChapter = onPreviousChapter,
+                onNextChapter = onNextChapter,
+                onSeek = onSeekWithinChapter,
+                onSetSpeed = onSetSpeed,
+                onClose = onClose,
+                onBackClick = onBackClick,
+                onGoToBook = onGoToBook,
+                onGoToSeries = onGoToSeries,
+                onGoToContributor = onGoToContributor,
+            )
+        } else {
+            TallLayout(
+                state = state,
+                onPlayPause = onPlayPause,
+                onSkipBack = onSkipBack,
+                onSkipForward = onSkipForward,
+                onPreviousChapter = onPreviousChapter,
+                onNextChapter = onNextChapter,
+                onSeek = onSeekWithinChapter,
+                onSetSpeed = onSetSpeed,
+                onClose = onClose,
+                onBackClick = onBackClick,
+                onGoToBook = onGoToBook,
+                onGoToSeries = onGoToSeries,
+                onGoToContributor = onGoToContributor,
+            )
         }
     }
 }
@@ -253,7 +423,7 @@ private suspend fun extractDominantColor(coverPath: String): Color? =
 
 @Composable
 private fun TallLayout(
-    state: NowPlayingState,
+    state: NowPlayingState.Active,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
@@ -294,7 +464,7 @@ private fun TallLayout(
         ) {
             CoverArt(
                 bookId = state.bookId,
-                coverUrl = state.coverUrl,
+                coverUrl = state.coverPath,
                 blurHash = state.coverBlurHash,
             )
         }
@@ -349,7 +519,7 @@ private fun TallLayout(
 
 @Composable
 private fun WideLayout(
-    state: NowPlayingState,
+    state: NowPlayingState.Active,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
@@ -380,7 +550,7 @@ private fun WideLayout(
         ) {
             CoverArt(
                 bookId = state.bookId,
-                coverUrl = state.coverUrl,
+                coverUrl = state.coverPath,
                 blurHash = state.coverBlurHash,
             )
         }
@@ -439,7 +609,7 @@ private fun WideLayout(
 
 @Composable
 private fun TopBar(
-    state: NowPlayingState,
+    state: NowPlayingState.Active,
     onBackClick: () -> Unit,
     onClose: () -> Unit,
     onGoToBook: (() -> Unit)?,
@@ -487,7 +657,7 @@ private fun TopBar(
 private fun OverflowMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
-    state: NowPlayingState,
+    state: NowPlayingState.Active,
     onGoToBook: (() -> Unit)?,
     onGoToSeries: ((String) -> Unit)?,
     onGoToContributor: ((String) -> Unit)?,
@@ -508,12 +678,13 @@ private fun OverflowMenu(
             )
         }
 
-        if (onGoToSeries != null && state.hasSeries) {
+        val seriesId = state.seriesId
+        if (onGoToSeries != null && seriesId != null) {
             DropdownMenuItem(
                 text = { Text("Go to Series") },
                 onClick = {
                     onDismiss()
-                    state.seriesId?.let { onGoToSeries(it) }
+                    onGoToSeries(seriesId)
                 },
                 leadingIcon = { Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = null) },
             )

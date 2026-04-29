@@ -5,69 +5,78 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * UI state for Now Playing components (mini player and full screen).
+ * UI state for now-playing surfaces (mini-player + full-screen player).
  *
- * Separates book-level progress (mini player) from chapter-level progress (full screen).
- * Designed for M3 Expressive UI with dynamic color and chapter-aware seek.
+ * Sealed hierarchy makes illegal state combinations unrepresentable:
+ * - [Idle] — no book loaded; mini-player hidden
+ * - [Preparing] — book is being prepared (transcoding/loading); shown with progress
+ * - [Active] — playback-ready; full UI state populated
+ * - [Error] — something failed; shown with optional book context for "Failed to play X"
+ *
+ * Replaces the pre-Phase-E2.2.1 flat data class with `isVisible`, `errorMessage`,
+ * `isPreparing`, etc. — the boolean / nullable fields are now expressed as variants.
+ *
+ * Per-variant UI ephemera (`isExpanded`, picker visibility) lives in [NowPlayingOverlay]
+ * and a separate `isExpanded: StateFlow<Boolean>`, both tail-combined into
+ * [NowPlayingScreenState] by the VM.
  */
-data class NowPlayingState(
-    // Visibility
-    val isVisible: Boolean = false,
-    // Book info
-    val bookId: String = "",
-    val title: String = "",
-    val author: String = "",
-    val coverUrl: String? = null,
-    val coverBlurHash: String? = null,
-    // Contributors (for navigation menu)
-    val authors: List<BookContributor> = emptyList(),
-    val narrators: List<BookContributor> = emptyList(),
-    // Series info (for navigation menu)
-    val seriesId: String? = null,
-    val seriesName: String? = null,
-    // Chapter info
-    val chapterTitle: String? = null,
-    val chapterIndex: Int = 0,
-    val totalChapters: Int = 0,
-    // Playback state
-    val isPlaying: Boolean = false,
-    val isBuffering: Boolean = false,
-    val playbackSpeed: Float = 1.0f,
-    val defaultPlaybackSpeed: Float = 1.0f, // Universal default from settings
-    // Transcode preparation state
-    val isPreparing: Boolean = false,
-    val prepareProgress: Int = 0, // 0-100
-    val prepareMessage: String? = null,
-    // Book-level progress (for mini player progress bar)
-    val bookProgress: Float = 0f, // 0.0 - 1.0
-    val bookPositionMs: Long = 0,
-    val bookDurationMs: Long = 0,
-    // Chapter-level progress (for full screen seek bar)
-    val chapterProgress: Float = 0f, // 0.0 - 1.0
-    val chapterPositionMs: Long = 0,
-    val chapterDurationMs: Long = 0,
-    // Error state
-    val errorMessage: String? = null,
-    // UI state
-    val isExpanded: Boolean = false,
-    val showChapterPicker: Boolean = false,
-    val showSpeedPicker: Boolean = false,
-    val showSleepTimer: Boolean = false,
-    val showContributorPicker: ContributorPickerType? = null,
-) {
-    val chapterPosition: Duration get() = chapterPositionMs.milliseconds
-    val chapterDuration: Duration get() = chapterDurationMs.milliseconds
+sealed interface NowPlayingState {
+    /** No active playback session. Default state. Mini-player hidden. */
+    data object Idle : NowPlayingState
 
-    val chapterLabel: String get() =
-        if (totalChapters > 0) {
-            "Chapter ${chapterIndex + 1} of $totalChapters"
-        } else {
-            ""
-        }
+    /** Book loaded; pre-playback transcoding / loading in flight. */
+    data class Preparing(
+        val bookId: String,
+        val title: String,
+        val author: String,
+        val coverPath: String?,
+        val coverBlurHash: String?,
+        val progress: Int, // 0-100
+        val message: String?,
+    ) : NowPlayingState
 
-    val hasSeries: Boolean get() = seriesId != null
-    val hasMultipleAuthors: Boolean get() = authors.size > 1
-    val hasMultipleNarrators: Boolean get() = narrators.size > 1
+    /** Playback-ready. Full UI state populated. */
+    data class Active(
+        val bookId: String,
+        val title: String,
+        val author: String,
+        val coverPath: String?,
+        val coverBlurHash: String?,
+        val authors: List<BookContributor>,
+        val narrators: List<BookContributor>,
+        val seriesId: String?,
+        val seriesName: String?,
+        val chapterTitle: String?,
+        val chapterIndex: Int,
+        val totalChapters: Int,
+        val isPlaying: Boolean,
+        val isBuffering: Boolean,
+        val playbackSpeed: Float,
+        val defaultPlaybackSpeed: Float,
+        val bookProgress: Float, // 0.0-1.0
+        val bookPositionMs: Long,
+        val bookDurationMs: Long,
+        val chapterProgress: Float, // 0.0-1.0
+        val chapterPositionMs: Long,
+        val chapterDurationMs: Long,
+    ) : NowPlayingState {
+        val chapterPosition: Duration get() = chapterPositionMs.milliseconds
+        val chapterDuration: Duration get() = chapterDurationMs.milliseconds
+
+        val chapterLabel: String get() =
+            if (totalChapters > 0) "Chapter ${chapterIndex + 1} of $totalChapters" else ""
+
+        val hasMultipleAuthors: Boolean get() = authors.size > 1
+        val hasMultipleNarrators: Boolean get() = narrators.size > 1
+    }
+
+    /** Error state. Optional book context for "Failed to play [title]". */
+    data class Error(
+        val bookId: String?,
+        val title: String?,
+        val message: String,
+        val isRecoverable: Boolean,
+    ) : NowPlayingState
 }
 
 /**
