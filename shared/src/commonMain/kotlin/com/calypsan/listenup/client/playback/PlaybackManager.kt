@@ -104,6 +104,12 @@ class PlaybackManager(
     private val _playbackError = MutableStateFlow<PlaybackError?>(null)
     val playbackError: StateFlow<PlaybackError?> = _playbackError
 
+    private val _isBuffering = MutableStateFlow(false)
+    val isBuffering: StateFlow<Boolean> = _isBuffering
+
+    private val _playbackState = MutableStateFlow(PlaybackState.Idle)
+    val playbackState: StateFlow<PlaybackState> = _playbackState
+
     // Chapter state for notification and UI
     private val _chapters = MutableStateFlow<List<Chapter>>(emptyList())
     val chapters: StateFlow<List<Chapter>> = _chapters
@@ -430,6 +436,23 @@ class PlaybackManager(
     }
 
     /**
+     * Update buffering flag. Called by platform-specific event sources
+     * (Android: MediaControllerHolder's Player.Listener; Desktop: PlaybackManager's
+     * own AudioPlayer.state observation in startPlayback).
+     */
+    fun setBuffering(buffering: Boolean) {
+        _isBuffering.value = buffering
+    }
+
+    /**
+     * Update playback state (Idle/Buffering/Playing/Paused/Ended/Error). Same
+     * caller scheme as [setBuffering].
+     */
+    fun setPlaybackState(state: PlaybackState) {
+        _playbackState.value = state
+    }
+
+    /**
      * Update current position.
      * Called by PlayerViewModel during position update loop.
      */
@@ -520,6 +543,8 @@ class PlaybackManager(
         totalDurationMs.value = 0L
         playbackSpeed.value = 1.0f
         _playbackError.value = null
+        _isBuffering.value = false
+        _playbackState.value = PlaybackState.Idle
     }
 
     /**
