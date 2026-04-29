@@ -30,6 +30,7 @@ sealed interface NowPlayingState {
         val title: String,
         val author: String,
         val coverPath: String?,
+        val coverBlurHash: String?,
         val progress: Int, // 0-100
         val message: String?,
     ) : NowPlayingState
@@ -65,7 +66,6 @@ sealed interface NowPlayingState {
         val chapterLabel: String get() =
             if (totalChapters > 0) "Chapter ${chapterIndex + 1} of $totalChapters" else ""
 
-        val hasSeries: Boolean get() = seriesId != null
         val hasMultipleAuthors: Boolean get() = authors.size > 1
         val hasMultipleNarrators: Boolean get() = narrators.size > 1
     }
