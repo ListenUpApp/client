@@ -246,4 +246,78 @@ class AndroidPlaybackControllerTest {
 
         sut.seekTo(75_000L) // controller null — must not throw
     }
+
+    // ---------------------------------------------------------------------------
+    // resolveSeekPosition — pure arithmetic, no Media3 needed
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun `resolveSeekPosition returns 0 0 for empty item list`() {
+        val holder = FakeControllerHolder()
+        val sut = AndroidPlaybackController(holder)
+
+        assertEquals(0 to 0L, sut.resolveSeekPosition(emptyList(), 0L))
+        assertEquals(0 to 0L, sut.resolveSeekPosition(emptyList(), 12_345L))
+    }
+
+    @Test
+    fun `resolveSeekPosition maps bookPosition to correct segment index and local offset`() {
+        val holder = FakeControllerHolder()
+        val sut = AndroidPlaybackController(holder)
+
+        val items =
+            listOf(
+                PlaybackMediaItem("f1", "/1", null, 60_000L, 0L, "T", null, null, null),
+                PlaybackMediaItem("f2", "/2", null, 90_000L, 60_000L, "T", null, null, null),
+            )
+
+        // Position 75_000 → second item, offset 15_000
+        assertEquals(1 to 15_000L, sut.resolveSeekPosition(items, 75_000L))
+
+        // Position 0 → first item, offset 0
+        assertEquals(0 to 0L, sut.resolveSeekPosition(items, 0L))
+
+        // Position 30_000 → first item, offset 30_000
+        assertEquals(0 to 30_000L, sut.resolveSeekPosition(items, 30_000L))
+    }
+
+    @Test
+    fun `resolveSeekPosition before first item snaps to 0 0`() {
+        val holder = FakeControllerHolder()
+        val sut = AndroidPlaybackController(holder)
+
+        val items =
+            listOf(
+                PlaybackMediaItem("f1", "/1", null, 60_000L, 100L, "T", null, null, null),
+            )
+
+        assertEquals(0 to 0L, sut.resolveSeekPosition(items, 0L))
+        assertEquals(0 to 0L, sut.resolveSeekPosition(items, 50L)) // before offsetMs=100
+    }
+
+    @Test
+    fun `resolveSeekPosition past last item snaps to lastIndex with last item duration (drift 26 fix)`() {
+        val holder = FakeControllerHolder()
+        val sut = AndroidPlaybackController(holder)
+
+        val items =
+            listOf(
+                PlaybackMediaItem("f1", "/1", null, 60_000L, 0L, "T", null, null, null),
+                PlaybackMediaItem("f2", "/2", null, 90_000L, 60_000L, "T", null, null, null),
+            )
+
+        // Total duration = 150_000. seekTo(200_000) — past end.
+        // Drift #26 (a) fix: should return (1, 90_000L) — LAST item's durationMs, not controller.duration
+        assertEquals(1 to 90_000L, sut.resolveSeekPosition(items, 200_000L))
+    }
+
+    @Test
+    fun `seekTo with empty cached queue does not throw and falls back gracefully`() {
+        val holder = FakeControllerHolder() // controller is always null
+        val sut = AndroidPlaybackController(holder)
+
+        // No setMediaQueue call — cachedQueue is empty. Controller is null so the
+        // null-check fires first; either way the call must not throw.
+        sut.seekTo(5_000L)
+    }
 }

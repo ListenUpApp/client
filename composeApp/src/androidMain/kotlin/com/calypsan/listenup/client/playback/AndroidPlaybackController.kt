@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
-import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +39,8 @@ interface ControllerHolder {
 class AndroidPlaybackController(
     private val holder: ControllerHolder,
 ) : PlaybackController {
+    private var cachedQueue: List<PlaybackMediaItem> = emptyList()
+
     override fun acquire() = holder.acquire()
 
     override fun release() = holder.release()
@@ -62,33 +63,38 @@ class AndroidPlaybackController(
             logger.warn { "AndroidPlaybackController.seekTo($positionMs): controller not ready" }
             return
         }
-        // Resolve book-relative position to (mediaItemIndex, positionInItem) using Media3's
-        // current timeline. The Media3 timeline exposes per-window durations; we accumulate
-        // until we find the window containing positionMs.
-        val (index, offset) = resolveSeekPosition(controller, positionMs)
+        if (cachedQueue.isEmpty()) {
+            logger.warn {
+                "AndroidPlaybackController.seekTo($positionMs): no cached queue, falling back to single-arg seek"
+            }
+            controller.seekTo(positionMs)
+            return
+        }
+        val (index, offset) = resolveSeekPosition(cachedQueue, positionMs)
+        logger.debug { "AndroidPlaybackController.seekTo: bookPos=$positionMs → idx=$index, offset=$offset" }
         controller.seekTo(index, offset)
     }
 
-    private fun resolveSeekPosition(
-        controller: MediaController,
+    internal fun resolveSeekPosition(
+        items: List<PlaybackMediaItem>,
         bookPositionMs: Long,
     ): Pair<Int, Long> {
-        val itemCount = controller.mediaItemCount
-        if (itemCount == 0) return 0 to 0L
-        var accumulated = 0L
-        for (i in 0 until itemCount) {
-            val window = Timeline.Window()
-            controller.currentTimeline.getWindow(i, window)
-            val itemDuration = window.durationMs
-            if (itemDuration <= 0L) continue // Skip un-prepared windows
-            val itemEnd = accumulated + itemDuration
-            if (bookPositionMs in accumulated until itemEnd) {
-                return i to bookPositionMs - accumulated
+        if (items.isEmpty()) return 0 to 0L
+        for ((i, item) in items.withIndex()) {
+            if (bookPositionMs in item.offsetMs until item.offsetMs + item.durationMs) {
+                return i to bookPositionMs - item.offsetMs
             }
-            accumulated = itemEnd
         }
-        // Position past end of queue → snap to last item's end
-        return itemCount - 1 to controller.duration.coerceAtLeast(0L)
+        // Position before first item OR past last item
+        val first = items.first()
+        return if (bookPositionMs < first.offsetMs) {
+            0 to 0L
+        } else {
+            // Past end → snap to last item's end
+            // Drift #26 (a) fix: use LAST item's durationMs, not controller.duration
+            val lastIndex = items.size - 1
+            lastIndex to items.last().durationMs
+        }
     }
 
     override fun setPlaybackSpeed(speed: Float) {
@@ -115,6 +121,7 @@ class AndroidPlaybackController(
             logger.warn { "AndroidPlaybackController.setMediaQueue: controller not ready" }
             return
         }
+        cachedQueue = items
         val mediaItems =
             items.map { item ->
                 MediaItem
