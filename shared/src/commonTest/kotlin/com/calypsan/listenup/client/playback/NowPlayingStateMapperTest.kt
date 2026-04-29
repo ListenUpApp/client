@@ -15,7 +15,6 @@ class NowPlayingStateMapperTest {
         PlaybackDynamics(
             isPlaying = false,
             isBuffering = false,
-            playbackState = PlaybackState.Idle,
             currentPositionMs = 0L,
             totalDurationMs = 0L,
             playbackSpeed = 1.0f,
@@ -40,7 +39,8 @@ class NowPlayingStateMapperTest {
             authors = listOf(BookContributor(id = "author-1", name = "Test Author", roles = listOf("Author"))),
             narrators = listOf(BookContributor(id = "narrator-1", name = "Test Narrator", roles = listOf("Narrator"))),
             duration = duration,
-            coverPath = null,
+            coverPath = "/covers/sample.jpg",
+            coverBlurHash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
             addedAt = Timestamp(epochMillis = 1_704_067_200_000L),
             updatedAt = Timestamp(epochMillis = 1_704_067_200_000L),
         )
@@ -107,6 +107,8 @@ class NowPlayingStateMapperTest {
         assertEquals("book-1", result.bookId)
         assertEquals("Sample Book", result.title)
         assertEquals("Test Author", result.author)
+        assertEquals("/covers/sample.jpg", result.coverPath)
+        assertEquals("L6PZfSi_.AyE_3t7t7R**0o#DgR4", result.coverBlurHash)
         assertEquals(42, result.progress)
         assertEquals("Transcoding...", result.message)
     }

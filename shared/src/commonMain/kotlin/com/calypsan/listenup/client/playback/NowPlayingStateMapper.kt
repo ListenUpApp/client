@@ -113,7 +113,6 @@ fun mapToNowPlayingState(
 data class PlaybackDynamics(
     val isPlaying: Boolean,
     val isBuffering: Boolean,
-    val playbackState: PlaybackState,
     val currentPositionMs: Long,
     val totalDurationMs: Long,
     val playbackSpeed: Float,
