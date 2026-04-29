@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
@@ -94,7 +96,7 @@ class NowPlayingViewModel(
         }
 
     /** Sealed playback state derived from book + dynamics + metadata via the pure mapper. */
-    private val nowPlayingState: StateFlow<NowPlayingState> =
+    private val nowPlayingState: Flow<NowPlayingState> =
         combine(
             bookFlow,
             dynamicsRawFlow,
@@ -113,11 +115,7 @@ class NowPlayingViewModel(
                     ),
                 metadata = metadata,
             )
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
-            initialValue = NowPlayingState.Idle,
-        )
+        }
 
     /** Tail-combined screen state; the only flow the UI subscribes to. */
     val screenState: StateFlow<NowPlayingScreenState> =
@@ -145,8 +143,6 @@ class NowPlayingViewModel(
                 ),
         )
 
-    private var lastNotifiedChapterIndex: Int = -1
-
     init {
         // Acquire reference to shared controller
         playbackController.acquire()
@@ -157,15 +153,15 @@ class NowPlayingViewModel(
         }
 
         // Side effect: notify SleepTimerManager when the chapter index changes
-        // (drives end-of-chapter sleep timer). This is NOT replaced by the combine
-        // chain — it is a side effect, not a state derivation.
+        // (drives end-of-chapter sleep timer). Distinct-by-index dedupes within the
+        // flow rather than via a private var.
         viewModelScope.launch {
-            playbackManager.currentChapter.collect { chapterInfo ->
-                if (chapterInfo != null && chapterInfo.index != lastNotifiedChapterIndex) {
-                    lastNotifiedChapterIndex = chapterInfo.index
+            playbackManager.currentChapter
+                .filterNotNull()
+                .distinctUntilChangedBy { it.index }
+                .collect { chapterInfo ->
                     sleepTimerManager.onChapterChanged(chapterInfo.index)
                 }
-            }
         }
 
         // Side effect: handle sleep timer fade-out events
@@ -290,8 +286,7 @@ class NowPlayingViewModel(
     // === Playback actions ===
 
     fun playPause() {
-        val isPlaying = (nowPlayingState.value as? NowPlayingState.Active)?.isPlaying == true
-        if (isPlaying) {
+        if (playbackManager.isPlaying.value) {
             playbackController.pause()
         } else {
             playbackController.play()
@@ -339,16 +334,14 @@ class NowPlayingViewModel(
     }
 
     fun previousChapter() {
-        val activeState = nowPlayingState.value as? NowPlayingState.Active
-        val currentIndex = activeState?.chapterIndex ?: 0
+        val currentIndex = playbackManager.currentChapter.value?.index ?: 0
         logger.debug { "previousChapter called: current=$currentIndex" }
         val newIndex = (currentIndex - 1).coerceAtLeast(0)
         seekToChapter(newIndex)
     }
 
     fun nextChapter() {
-        val activeState = nowPlayingState.value as? NowPlayingState.Active
-        val currentIndex = activeState?.chapterIndex ?: 0
+        val currentIndex = playbackManager.currentChapter.value?.index ?: 0
         val chapters = playbackManager.chapters.value
         logger.debug { "nextChapter called: current=$currentIndex, total=${chapters.size}" }
         val newIndex = (currentIndex + 1).coerceAtMost(chapters.lastIndex.coerceAtLeast(0))
@@ -373,8 +366,7 @@ class NowPlayingViewModel(
 
     fun seekWithinChapter(progress: Float) {
         logger.debug { "seekWithinChapter called: progress=$progress" }
-        val activeState = nowPlayingState.value as? NowPlayingState.Active
-        val currentIndex = activeState?.chapterIndex ?: 0
+        val currentIndex = playbackManager.currentChapter.value?.index ?: 0
         val chapters = playbackManager.chapters.value
         val currentChapter = chapters.getOrNull(currentIndex)
         if (currentChapter == null) {
