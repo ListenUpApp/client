@@ -191,7 +191,6 @@ val playbackModule =
                 playbackManager = get(),
                 playbackController = get(),
                 networkMonitor = get(),
-                mediaControllerHolder = get(),
             )
         }
 
