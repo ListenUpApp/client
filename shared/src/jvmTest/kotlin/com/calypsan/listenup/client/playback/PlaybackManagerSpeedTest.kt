@@ -230,7 +230,7 @@ class PlaybackManagerSpeedTest {
         everySuspend { downloadService.wasExplicitlyDeleted(any()) } returns false
         everySuspend { downloadService.downloadBook(any()) } returns DownloadResult.AlreadyDownloaded
 
-        return PlaybackManager(
+        return PlaybackManagerImpl(
             serverConfig = serverConfig,
             playbackPreferences = playbackPreferences,
             bookDao = db.bookDao(),

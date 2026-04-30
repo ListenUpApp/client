@@ -188,7 +188,7 @@ class PlaybackManagerFallbackFetchTest {
                 tagRepository = mock(),
             )
 
-        return PlaybackManager(
+        return PlaybackManagerImpl(
             serverConfig = serverConfig,
             playbackPreferences = playbackPreferences,
             bookDao = db.bookDao(),
