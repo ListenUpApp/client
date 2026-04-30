@@ -35,6 +35,7 @@ val playbackPresentationModule =
                 sleepTimerManager = get(),
                 playbackController = get(),
                 playbackPreferences = get(),
+                networkMonitor = get(),
             )
         }
         single {
