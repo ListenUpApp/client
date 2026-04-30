@@ -52,7 +52,6 @@ import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingBar
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.presentation.nowplaying.NowPlayingViewModel
-import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
@@ -387,7 +386,6 @@ private fun AuthenticatedNavigation(
     val scope = rememberCoroutineScope()
 
     // ViewModels for shortcut action handling
-    val playerViewModel: PlayerViewModel = koinInject()
     val nowPlayingViewModel: NowPlayingViewModel = koinInject()
 
     // AppStartupViewModel holds the library-setup check result across Activity re-creations.
@@ -433,7 +431,7 @@ private fun AuthenticatedNavigation(
                 if (result is com.calypsan.listenup.client.core.Success && result.data.isNotEmpty()) {
                     val book = result.data.first()
                     logger.info { "Resuming book: ${book.title}" }
-                    playerViewModel.playBook(BookId(book.bookId))
+                    nowPlayingViewModel.playBook(BookId(book.bookId))
                     nowPlayingViewModel.expand()
                 } else {
                     logger.warn { "No recent book to resume" }
@@ -448,7 +446,7 @@ private fun AuthenticatedNavigation(
 
             is ShortcutAction.PlayBook -> {
                 logger.info { "Playing book: ${action.bookId}" }
-                playerViewModel.playBook(BookId(action.bookId))
+                nowPlayingViewModel.playBook(BookId(action.bookId))
                 nowPlayingViewModel.expand()
             }
 
@@ -476,7 +474,7 @@ private fun AuthenticatedNavigation(
                 val result = homeRepository.getContinueListening(1)
                 if (result is com.calypsan.listenup.client.core.Success && result.data.isNotEmpty()) {
                     val book = result.data.first()
-                    playerViewModel.playBook(BookId(book.bookId))
+                    nowPlayingViewModel.playBook(BookId(book.bookId))
                     nowPlayingViewModel.expand()
                     // Let the user interact with sleep timer in the player
                 }
