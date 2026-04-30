@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.presentation.nowplaying
 
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
@@ -14,6 +15,7 @@ import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
+import dev.mokkery.verify
 import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.CoroutineScope
@@ -181,6 +183,139 @@ class NowPlayingViewModelTest {
             }
         }
 
+    // ========== playPause ==========
+
+    @Test
+    fun `playPause when playing calls controller pause`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            every { fixture.playbackController.pause() } returns Unit
+            every { fixture.playbackController.play() } returns Unit
+            fixture.fakePm.isPlayingFlow.value = true
+
+            val vm = fixture.newVm()
+            vm.playPause()
+            advanceUntilIdle()
+
+            verify(VerifyMode.exactly(1)) { fixture.playbackController.pause() }
+            verify(VerifyMode.not) { fixture.playbackController.play() }
+        }
+
+    @Test
+    fun `playPause when paused calls controller play`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            every { fixture.playbackController.pause() } returns Unit
+            every { fixture.playbackController.play() } returns Unit
+            fixture.fakePm.isPlayingFlow.value = false
+
+            val vm = fixture.newVm()
+            vm.playPause()
+            advanceUntilIdle()
+
+            verify(VerifyMode.exactly(1)) { fixture.playbackController.play() }
+            verify(VerifyMode.not) { fixture.playbackController.pause() }
+        }
+
+    // ========== Skip/seek ==========
+
+    @Test
+    fun `skipForward at speed 1_5 advances by speed-multiplied delta and clamps to total`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            every { fixture.playbackController.seekTo(any()) } returns Unit
+            fixture.fakePm.currentTimelineFlow.value = stubTimeline()
+            fixture.fakePm.currentPositionMsFlow.value = 100_000L
+            fixture.fakePm.totalDurationMsFlow.value = 1_800_000L
+            fixture.fakePm.playbackSpeedFlow.value = 1.5f
+
+            val vm = fixture.newVm()
+            vm.skipForward(30)
+            advanceUntilIdle()
+
+            // 100_000 + (30 × 1.5 × 1000) = 145_000
+            verify(VerifyMode.exactly(1)) { fixture.playbackController.seekTo(145_000L) }
+            assertEquals(listOf(145_000L), fixture.fakePm.updatedPositions)
+
+            // Edge: at total - 5000, 30s skip clamps to total.
+            // updatePosition(145_000) above moved currentPositionMsFlow to 145_000;
+            // now reset to total - 5000 to exercise the clamp.
+            fixture.fakePm.currentPositionMsFlow.value = 1_800_000L - 5_000L
+            fixture.fakePm.updatedPositions.clear()
+            vm.skipForward(30)
+            advanceUntilIdle()
+            assertEquals(listOf(1_800_000L), fixture.fakePm.updatedPositions)
+        }
+
+    @Test
+    fun `skipBack at speed 1_5 retreats by speed-multiplied delta and clamps to zero`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            every { fixture.playbackController.seekTo(any()) } returns Unit
+            fixture.fakePm.currentTimelineFlow.value = stubTimeline()
+            fixture.fakePm.currentPositionMsFlow.value = 100_000L
+            fixture.fakePm.playbackSpeedFlow.value = 1.5f
+
+            val vm = fixture.newVm()
+            vm.skipBack(10)
+            advanceUntilIdle()
+
+            // 100_000 - (10 × 1.5 × 1000) = 85_000
+            verify(VerifyMode.exactly(1)) { fixture.playbackController.seekTo(85_000L) }
+            assertEquals(listOf(85_000L), fixture.fakePm.updatedPositions)
+
+            // Edge: at 5000ms, 10s skip clamps to 0.
+            fixture.fakePm.currentPositionMsFlow.value = 5_000L
+            fixture.fakePm.updatedPositions.clear()
+            vm.skipBack(10)
+            advanceUntilIdle()
+            assertEquals(listOf(0L), fixture.fakePm.updatedPositions)
+        }
+
+    @Test
+    fun `seekToChapter seeks to chapter start and ignores out-of-range indices`() =
+        runTest(testDispatcher) {
+            // Production [NowPlayingViewModel.seekToChapter] uses chapters.getOrNull(index)
+            // and returns when null — so out-of-range indices are a no-op (NOT clamped).
+            // This deviates from the Task 3 skeleton's "clamp to last/first" expectation;
+            // the test asserts production behavior.
+            val fixture = TestFixture()
+            every { fixture.playbackController.seekTo(any()) } returns Unit
+            fixture.fakePm.chaptersFlow.value = stubChapters()
+
+            val vm = fixture.newVm()
+
+            vm.seekToChapter(1)
+            advanceUntilIdle()
+            verify(VerifyMode.exactly(1)) { fixture.playbackController.seekTo(600_000L) }
+            assertEquals(listOf(600_000L), fixture.fakePm.updatedPositions)
+
+            // Out-of-range high (chapters.size == 3) → no-op.
+            fixture.fakePm.updatedPositions.clear()
+            vm.seekToChapter(99)
+            advanceUntilIdle()
+            verify(VerifyMode.not) { fixture.playbackController.seekTo(any<Long>()) }
+            assertTrue(
+                fixture.fakePm.updatedPositions.isEmpty(),
+                "out-of-range high index must NOT update position; got: ${fixture.fakePm.updatedPositions}",
+            )
+
+            // Out-of-range low (negative) → no-op.
+            vm.seekToChapter(-1)
+            advanceUntilIdle()
+            verify(VerifyMode.not) { fixture.playbackController.seekTo(any<Long>()) }
+            assertTrue(
+                fixture.fakePm.updatedPositions.isEmpty(),
+                "out-of-range low index must NOT update position; got: ${fixture.fakePm.updatedPositions}",
+            )
+
+            // Index 0 → seeks to first chapter (startTime 0).
+            vm.seekToChapter(0)
+            advanceUntilIdle()
+            verify(VerifyMode.exactly(1)) { fixture.playbackController.seekTo(0L) }
+            assertEquals(listOf(0L), fixture.fakePm.updatedPositions)
+        }
+
     // ========== Helpers ==========
 
     private fun stubPrepareResult(bookId: BookId): PrepareResult =
@@ -211,5 +346,32 @@ class NowPlayingViewModelTest {
             totalChapters = 1,
             resumePositionMs = 0L,
             resumeSpeed = 1.0f,
+        )
+
+    private fun stubTimeline(): PlaybackTimeline =
+        PlaybackTimeline(
+            bookId = BookId("book-1"),
+            totalDurationMs = 1_800_000L,
+            files =
+                listOf(
+                    PlaybackTimeline.FileSegment(
+                        audioFileId = "af-stub",
+                        filename = "stub.m4b",
+                        format = "m4b",
+                        startOffsetMs = 0L,
+                        durationMs = 1_800_000L,
+                        size = 1_000_000L,
+                        streamingUrl = "https://example.test/stub.m4b",
+                        localPath = null,
+                        mediaItemIndex = 0,
+                    ),
+                ),
+        )
+
+    private fun stubChapters(): List<Chapter> =
+        listOf(
+            Chapter(id = "ch-0", title = "Chapter 1", duration = 600_000L, startTime = 0L),
+            Chapter(id = "ch-1", title = "Chapter 2", duration = 600_000L, startTime = 600_000L),
+            Chapter(id = "ch-2", title = "Chapter 3", duration = 600_000L, startTime = 1_200_000L),
         )
 }
