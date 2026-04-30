@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.features.bookdetail
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.download.DownloadResult
-import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.client.presentation.player.DesktopPlayerViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 

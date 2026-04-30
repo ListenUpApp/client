@@ -51,7 +51,7 @@ import com.calypsan.listenup.client.features.invite.InviteRegistrationScreen
 import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingBar
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
-import com.calypsan.listenup.client.playback.NowPlayingViewModel
+import com.calypsan.listenup.client.presentation.nowplaying.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen

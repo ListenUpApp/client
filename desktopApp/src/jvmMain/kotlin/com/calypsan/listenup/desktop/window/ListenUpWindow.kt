@@ -20,7 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.LocalPreferences
-import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.client.presentation.player.DesktopPlayerViewModel
 import com.calypsan.listenup.client.playback.NowPlayingState
 import com.calypsan.listenup.desktop.DesktopApp
 import com.calypsan.listenup.desktop.tray.ListenUpTray

@@ -1,6 +1,6 @@
 @file:Suppress("MagicNumber", "TooManyFunctions")
 
-package com.calypsan.listenup.client.playback
+package com.calypsan.listenup.client.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +9,19 @@ import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.playback.AudioPlayer
+import com.calypsan.listenup.client.playback.ContributorPickerType
+import com.calypsan.listenup.client.playback.NowPlayingOverlay
+import com.calypsan.listenup.client.playback.NowPlayingScreenState
+import com.calypsan.listenup.client.playback.NowPlayingState
+import com.calypsan.listenup.client.playback.PlaybackController
+import com.calypsan.listenup.client.playback.PlaybackDynamics
+import com.calypsan.listenup.client.playback.PlaybackManager
+import com.calypsan.listenup.client.playback.PlaybackState
+import com.calypsan.listenup.client.playback.ProgressTracker
+import com.calypsan.listenup.client.playback.SleepTimerManager
+import com.calypsan.listenup.client.playback.SurfaceMetadata
+import com.calypsan.listenup.client.playback.mapToNowPlayingState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi

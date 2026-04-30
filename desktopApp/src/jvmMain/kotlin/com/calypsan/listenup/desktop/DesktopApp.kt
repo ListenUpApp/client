@@ -67,7 +67,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.features.tagdetail.TagDetailScreen
 import com.calypsan.listenup.client.features.profile.UserProfileScreen
 import com.calypsan.listenup.client.navigation.AuthNavigation
-import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.client.presentation.player.DesktopPlayerViewModel
 import com.calypsan.listenup.client.playback.NowPlayingState
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.desktop.nowplaying.DesktopNowPlayingBar

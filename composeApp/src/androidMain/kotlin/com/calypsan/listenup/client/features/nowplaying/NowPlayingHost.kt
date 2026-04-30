@@ -27,7 +27,7 @@ import com.calypsan.listenup.client.features.shell.components.NavigationBarHeigh
 import com.calypsan.listenup.client.playback.ContributorPickerType
 import com.calypsan.listenup.client.playback.NowPlayingOverlay
 import com.calypsan.listenup.client.playback.NowPlayingState
-import com.calypsan.listenup.client.playback.NowPlayingViewModel
+import com.calypsan.listenup.client.presentation.nowplaying.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.SleepTimerState
 
 /** Height of a standard snackbar for padding calculations */
