@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.model.ThemeMode
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -251,6 +252,17 @@ interface PlaybackPreferences {
 
     /** Flow of preference change events for sync layer. */
     val preferenceChanges: SharedFlow<PreferenceChangeEvent>
+
+    /**
+     * Reactively observe the default playback speed.
+     *
+     * Emits the current value on first collect, then re-emits whenever
+     * [setDefaultPlaybackSpeed] is called from any caller.
+     *
+     * EM-R1: rethrows [CancellationException]; non-cancellation failures
+     * during the initial read fall back to [DEFAULT_PLAYBACK_SPEED].
+     */
+    fun observeDefaultPlaybackSpeed(): Flow<Float>
 
     /**
      * Get the default playback speed for new books.

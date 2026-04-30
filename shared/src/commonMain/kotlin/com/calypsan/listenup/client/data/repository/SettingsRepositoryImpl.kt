@@ -7,12 +7,19 @@ import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences as DomainPlaybackPreferences
 import kotlin.time.TimeSource
 import com.calypsan.listenup.client.domain.repository.AuthState as DomainAuthState
 import com.calypsan.listenup.client.domain.repository.PreferenceChangeEvent as DomainPreferenceChangeEvent
@@ -602,6 +609,27 @@ class SettingsRepositoryImpl(
     }
 
     // Universal playback speed (synced across devices)
+
+    override fun observeDefaultPlaybackSpeed(): Flow<Float> =
+        flow {
+            // Initial emit — best-effort read; fall back to the constant on non-cancellation error.
+            val initial =
+                try {
+                    getDefaultPlaybackSpeed()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.warn(e) { "Initial getDefaultPlaybackSpeed failed; falling back to default." }
+                    DomainPlaybackPreferences.DEFAULT_PLAYBACK_SPEED
+                }
+            emit(initial)
+
+            // Re-emits driven by setDefaultPlaybackSpeed → preferenceChanges.PlaybackSpeedChanged.
+            preferenceChanges
+                .filterIsInstance<DomainPreferenceChangeEvent.PlaybackSpeedChanged>()
+                .map { it.speed }
+                .collect { emit(it) }
+        }
 
     /**
      * Get the default playback speed for new books.

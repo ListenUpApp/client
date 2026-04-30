@@ -17,6 +17,7 @@ import dev.mokkery.mock
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import app.cash.turbine.test
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -707,6 +708,43 @@ class SettingsRepositoryTest {
 
             // Then
             assertEquals(1.25f, result)
+        }
+
+    // ========== observeDefaultPlaybackSpeed Tests ==========
+
+    @Test
+    fun `observeDefaultPlaybackSpeed emits current value on first collect`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            everySuspend { storage.read("default_playback_speed") } returns "1.5"
+            val repository = SettingsRepositoryImpl(storage, instanceRepository)
+
+            // When / Then
+            repository.observeDefaultPlaybackSpeed().test {
+                assertEquals(1.5f, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `observeDefaultPlaybackSpeed re-emits when setDefaultPlaybackSpeed is called`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            everySuspend { storage.read("default_playback_speed") } returns "1.0"
+            everySuspend { storage.save("default_playback_speed", "1.75") } returns Unit
+            val repository = SettingsRepositoryImpl(storage, instanceRepository)
+
+            // When / Then
+            repository.observeDefaultPlaybackSpeed().test {
+                assertEquals(1.0f, awaitItem())
+                repository.setDefaultPlaybackSpeed(1.75f)
+                assertEquals(1.75f, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     // ========== Regression Tests ==========
