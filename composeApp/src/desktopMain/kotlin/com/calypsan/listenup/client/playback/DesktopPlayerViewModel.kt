@@ -171,21 +171,6 @@ class DesktopPlayerViewModel(
                 }
             }
         }
-
-        // Side effect: surface GStreamer / FFmpeg playback errors through the canonical
-        // playbackError flow so the mapper produces NowPlayingState.Error.
-        viewModelScope.launch {
-            playbackManager.playbackState.collect { playbackState ->
-                if (playbackState is PlaybackState.Error) {
-                    playbackManager.reportError(
-                        message = "Playback error. Check GStreamer installation.",
-                        isRecoverable = false,
-                    )
-                } else if (playbackState == PlaybackState.Playing) {
-                    playbackManager.clearError()
-                }
-            }
-        }
     }
 
     private suspend fun loadBook(bookId: BookId?): BookListItem? {
@@ -220,14 +205,6 @@ class DesktopPlayerViewModel(
                 resumePositionMs = result.resumePositionMs,
                 resumeSpeed = result.resumeSpeed,
             )
-
-            // Check if playback actually started; reportError if not
-            if (playbackManager.playbackState.value is PlaybackState.Error) {
-                playbackManager.reportError(
-                    message = "Playback failed. Check that GStreamer plugins are installed correctly.",
-                    isRecoverable = false,
-                )
-            }
         }
     }
 

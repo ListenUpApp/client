@@ -31,6 +31,8 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 /**
  * Verifies the isBuffering and playbackState flows added in W7 Phase E2.1 Task 1,
@@ -123,6 +125,62 @@ class PlaybackManagerBufferingStateTest {
             assertFalse(sut.isBuffering.value, "clearPlayback must reset isBuffering to false")
 
             // Cancel to stop the infinite collect coroutines and let runTest complete.
+            managerScope.coroutineContext[Job]?.cancel()
+        }
+
+    @Test
+    fun `playerObservationJob surfaces PlaybackState_Error as PlaybackError on playbackError flow`() =
+        runTest {
+            seedBookAndAudioFiles()
+
+            val managerScope = CoroutineScope(coroutineContext + Job())
+            val sut = createPlaybackManager(scope = managerScope)
+            val player = FakePlayer()
+
+            val prepareResult = sut.prepareForPlayback(BookId("book-1"))
+            checkNotNull(prepareResult) { "prepareForPlayback must succeed" }
+            sut.activateBook(BookId("book-1"))
+
+            sut.startPlayback(player = player, resumePositionMs = 0L, resumeSpeed = 1.0f)
+            advanceUntilIdle()
+
+            assertNull(sut.playbackError.value)
+
+            player.emitState(PlaybackState.Error(message = "GStreamer hosed", isRecoverable = false))
+            advanceUntilIdle()
+
+            val error = sut.playbackError.value
+            assertNotNull(error)
+            assertEquals("GStreamer hosed", error.message)
+            assertEquals(false, error.isRecoverable)
+
+            managerScope.coroutineContext[Job]?.cancel()
+        }
+
+    @Test
+    fun `playerObservationJob clears playbackError on transition to Playing`() =
+        runTest {
+            seedBookAndAudioFiles()
+
+            val managerScope = CoroutineScope(coroutineContext + Job())
+            val sut = createPlaybackManager(scope = managerScope)
+            val player = FakePlayer()
+
+            val prepareResult = sut.prepareForPlayback(BookId("book-1"))
+            checkNotNull(prepareResult) { "prepareForPlayback must succeed" }
+            sut.activateBook(BookId("book-1"))
+
+            sut.startPlayback(player = player, resumePositionMs = 0L, resumeSpeed = 1.0f)
+            advanceUntilIdle()
+
+            player.emitState(PlaybackState.Error(message = "transient", isRecoverable = true))
+            advanceUntilIdle()
+            assertNotNull(sut.playbackError.value)
+
+            player.emitState(PlaybackState.Playing)
+            advanceUntilIdle()
+            assertNull(sut.playbackError.value)
+
             managerScope.coroutineContext[Job]?.cancel()
         }
 
