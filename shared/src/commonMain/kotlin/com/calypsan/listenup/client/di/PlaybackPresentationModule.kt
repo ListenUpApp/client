@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.presentation.nowplaying.NowPlayingViewModel
 import com.calypsan.listenup.client.presentation.player.DesktopPlayerViewModel
-import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.module
 
 /**
@@ -11,20 +10,34 @@ import org.koin.dsl.module
  * Both Android and Desktop Koin graphs include this module. NowPlayingViewModel is consumed
  * from Android Compose only today; DesktopPlayerViewModel is Desktop-only.
  *
- * `NowPlayingViewModel` uses `factoryOf` rather than `viewModelOf` because the latter ships
- * in `koin-compose-viewmodel`, which is not on the shared classpath — `factoryOf` from
- * `koin-core` produces an equivalent factory binding that `koinInject<T>()` and Android's
- * `koinViewModel<T>()` both resolve.
+ * Both VMs are bound as `single` because they are app-session singletons hoisted to the
+ * authenticated nav root and shared across the entire session. Their state — overlayFlow,
+ * isExpandedFlow, defaultPlaybackSpeedFlow, viewModelScope-launched chapter-change and
+ * sleep-event collectors — must survive Compose recompositions and Android configuration
+ * changes. A `factory` binding would silently drop that state on every `koinInject<T>()`
+ * call from a recomposing nav-root composable; a Compose `viewModel {}` binding would
+ * require `koin-compose-viewmodel` (not on the shared classpath) and would not cover
+ * the Desktop non-Compose constructor-injection sites (e.g. `GlobalMediaKeyManager` in
+ * `desktopAppModule`).
  *
- * `DesktopPlayerViewModel` stays bound as a `single` (Q5 fallback) because the Desktop graph
- * has multiple non-Compose constructor-injection sites (e.g. `GlobalMediaKeyManager` in
- * `desktopAppModule`) that must share the same VM instance with the UI. Migrating those to a
- * Compose-scoped lookup is non-trivial and out of scope for E2.2.2 — E2.2.3 will revisit this
- * when the Desktop player VM is consolidated into the shared shape.
+ * `viewModelOf` is not used because it ships in `koin-compose-viewmodel`, which is not on
+ * the shared classpath. The `single` scope is the same precedent as `LibraryViewModel`
+ * in `presentationModule` (a hoisted app-session VM).
+ *
+ * E2.2.3 will likely consolidate `DesktopPlayerViewModel` into the shared shape, at which
+ * point the Desktop binding can be retired in favour of the consolidated VM.
  */
 val playbackPresentationModule =
     module {
-        factoryOf(::NowPlayingViewModel)
+        single {
+            NowPlayingViewModel(
+                playbackManager = get(),
+                bookRepository = get(),
+                sleepTimerManager = get(),
+                playbackController = get(),
+                playbackPreferences = get(),
+            )
+        }
         single {
             DesktopPlayerViewModel(
                 playbackManager = get(),
