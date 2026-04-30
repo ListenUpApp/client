@@ -33,6 +33,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Verifies the isBuffering and playbackState flows added in W7 Phase E2.1 Task 1,
@@ -186,12 +187,69 @@ class PlaybackManagerBufferingStateTest {
             managerScope.coroutineContext[Job]?.cancel()
         }
 
+    @Test
+    fun `playerObservationJob notifies progressTracker onPlaybackStarted when player transitions to Playing`() =
+        runTest {
+            seedBookAndAudioFiles()
+
+            val managerScope = CoroutineScope(coroutineContext + Job())
+            val progressTracker = buildFakeProgressTracker(scope = managerScope)
+
+            val sut = createPlaybackManager(scope = managerScope, progressTracker = progressTracker)
+            val player = FakePlayer()
+
+            val prepareResult = sut.prepareForPlayback(BookId("book-1"))
+            checkNotNull(prepareResult) { "prepareForPlayback must succeed" }
+            sut.activateBook(BookId("book-1"))
+            sut.startPlayback(player = player, resumePositionMs = 0L, resumeSpeed = 1.0f)
+            advanceUntilIdle()
+
+            // FakePlayer's play() emits Playing — verify progressTracker was notified.
+            val startedCount = progressTracker.onPlaybackStartedCalls.count { it.first == BookId("book-1") }
+            assertTrue(
+                startedCount >= 1,
+                "expected at least one onPlaybackStarted(BookId(\"book-1\"), …) invocation, got $startedCount",
+            )
+
+            managerScope.coroutineContext[Job]?.cancel()
+        }
+
+    @Test
+    fun `playerObservationJob notifies progressTracker onPlaybackPaused when player transitions to Paused`() =
+        runTest {
+            seedBookAndAudioFiles()
+
+            val managerScope = CoroutineScope(coroutineContext + Job())
+            val progressTracker = buildFakeProgressTracker(scope = managerScope)
+
+            val sut = createPlaybackManager(scope = managerScope, progressTracker = progressTracker)
+            val player = FakePlayer()
+
+            val prepareResult = sut.prepareForPlayback(BookId("book-1"))
+            checkNotNull(prepareResult) { "prepareForPlayback must succeed" }
+            sut.activateBook(BookId("book-1"))
+            sut.startPlayback(player = player, resumePositionMs = 0L, resumeSpeed = 1.0f)
+            advanceUntilIdle()
+
+            player.emitState(PlaybackState.Paused)
+            advanceUntilIdle()
+
+            val pausedCount = progressTracker.onPlaybackPausedCalls.count { it.first == BookId("book-1") }
+            assertTrue(
+                pausedCount >= 1,
+                "expected at least one onPlaybackPaused(BookId(\"book-1\"), …) invocation, got $pausedCount",
+            )
+
+            managerScope.coroutineContext[Job]?.cancel()
+        }
+
     // =========================================================================
     // Fixture helpers
     // =========================================================================
 
     private fun createPlaybackManager(
         scope: CoroutineScope = CoroutineScope(Job()),
+        progressTracker: ProgressTracker = buildProgressTracker(scope = scope),
     ): PlaybackManager {
         val tokenProvider: AudioTokenProvider = mock()
         everySuspend { tokenProvider.prepareForPlayback() } returns Unit
@@ -217,7 +275,7 @@ class PlaybackManagerBufferingStateTest {
             audioFileDao = db.audioFileDao(),
             chapterDao = db.chapterDao(),
             imageStorage = imageStorage,
-            progressTracker = buildProgressTracker(scope = scope),
+            progressTracker = progressTracker,
             tokenProvider = tokenProvider,
             deviceContext = DeviceContext(type = DeviceType.Phone),
             downloadService = downloadService,

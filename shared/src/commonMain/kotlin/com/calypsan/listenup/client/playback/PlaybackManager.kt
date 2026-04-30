@@ -420,6 +420,10 @@ open class PlaybackManager(
                         // Drift #29 — error routing. AudioPlayer actuals emit
                         // PlaybackState.Error(message?) for platform-native failures;
                         // PlaybackManager turns that into PlaybackError on the public flow.
+                        // Drift #28 — progressTracker routing. The Desktop+iOS arm
+                        // routes Playing/Paused transitions through progressTracker so
+                        // VMs no longer call it directly; mirrors the existing
+                        // Ended → onBookFinished arm.
                         when (playbackState) {
                             is PlaybackState.Error -> {
                                 _playbackError.value =
@@ -434,6 +438,23 @@ open class PlaybackManager(
 
                             PlaybackState.Playing -> {
                                 _playbackError.value = null
+                                currentBookId.value?.let { activeBookId ->
+                                    progressTracker.onPlaybackStarted(
+                                        activeBookId,
+                                        currentPositionMs.value,
+                                        playbackSpeed.value,
+                                    )
+                                }
+                            }
+
+                            PlaybackState.Paused -> {
+                                currentBookId.value?.let { activeBookId ->
+                                    progressTracker.onPlaybackPaused(
+                                        activeBookId,
+                                        currentPositionMs.value,
+                                        playbackSpeed.value,
+                                    )
+                                }
                             }
 
                             else -> {}
@@ -458,11 +479,10 @@ open class PlaybackManager(
                 }
             }
 
-        // Start playback
+        // Start playback. The Playing transition is routed through progressTracker
+        // by the playerObservationJob arm above (drift #28); no explicit call here.
         player.play()
 
-        // Notify progress tracker
-        progressTracker.onPlaybackStarted(bookId, resumePositionMs, resumeSpeed)
         logger.info { "Playback started via AudioPlayer at position ${resumePositionMs}ms, speed ${resumeSpeed}x" }
     }
 
