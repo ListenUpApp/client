@@ -420,44 +420,21 @@ open class PlaybackManager(
                         // Drift #29 — error routing. AudioPlayer actuals emit
                         // PlaybackState.Error(message?) for platform-native failures;
                         // PlaybackManager turns that into PlaybackError on the public flow.
-                        // Drift #28 — progressTracker routing. The Desktop+iOS arm
-                        // routes Playing/Paused transitions through progressTracker so
-                        // VMs no longer call it directly; mirrors the existing
-                        // Ended → onBookFinished arm.
-                        when (playbackState) {
-                            is PlaybackState.Error -> {
-                                _playbackError.value =
-                                    PlaybackError(
-                                        message = playbackState.message ?: "Playback failed.",
-                                        isRecoverable = playbackState.isRecoverable,
-                                        timestampMs =
-                                            com.calypsan.listenup.client.core
-                                                .currentEpochMilliseconds(),
-                                    )
-                            }
-
-                            PlaybackState.Playing -> {
-                                _playbackError.value = null
-                                currentBookId.value?.let { activeBookId ->
-                                    progressTracker.onPlaybackStarted(
-                                        activeBookId,
-                                        currentPositionMs.value,
-                                        playbackSpeed.value,
-                                    )
-                                }
-                            }
-
-                            PlaybackState.Paused -> {
-                                currentBookId.value?.let { activeBookId ->
-                                    progressTracker.onPlaybackPaused(
-                                        activeBookId,
-                                        currentPositionMs.value,
-                                        playbackSpeed.value,
-                                    )
-                                }
-                            }
-
-                            else -> {}
+                        // (Android emits errors via [reportError] from MediaControllerHolder;
+                        // setPlaybackState never carries Error on the Android path.)
+                        // Drift #28 — Playing/Paused → progressTracker routing lives in
+                        // [setPlaybackState] so both Desktop+iOS (via this collect) and
+                        // Android (via PlaybackStateWriter.setPlaybackState from
+                        // MediaControllerHolder.Player.Listener) flow through one path.
+                        if (playbackState is PlaybackState.Error) {
+                            _playbackError.value =
+                                PlaybackError(
+                                    message = playbackState.message ?: "Playback failed.",
+                                    isRecoverable = playbackState.isRecoverable,
+                                    timestampMs =
+                                        com.calypsan.listenup.client.core
+                                            .currentEpochMilliseconds(),
+                                )
                         }
 
                         if (playbackState == PlaybackState.Ended) {
@@ -480,7 +457,8 @@ open class PlaybackManager(
             }
 
         // Start playback. The Playing transition is routed through progressTracker
-        // by the playerObservationJob arm above (drift #28); no explicit call here.
+        // by [setPlaybackState] when the collect above forwards the player's
+        // emission (drift #28); no explicit call here.
         player.play()
 
         logger.info { "Playback started via AudioPlayer at position ${resumePositionMs}ms, speed ${resumeSpeed}x" }
@@ -506,9 +484,40 @@ open class PlaybackManager(
     /**
      * Update playback state (Idle/Buffering/Playing/Paused/Ended/Error). Same
      * caller scheme as [setBuffering].
+     *
+     * Drift #28 — every Playing/Paused transition (whether triggered by Desktop's
+     * AudioPlayer state observation in [playerObservationJob] or Android's
+     * [MediaControllerHolder.Player.Listener] pushing through this seam) routes
+     * through [progressTracker] here. VMs no longer call the tracker directly.
+     * Playing also clears any previous [playbackError] so transient failures
+     * resolve as soon as the player recovers.
      */
     override fun setPlaybackState(state: PlaybackState) {
         _playbackState.value = state
+        when (state) {
+            PlaybackState.Playing -> {
+                _playbackError.value = null
+                currentBookId.value?.let { activeBookId ->
+                    progressTracker.onPlaybackStarted(
+                        activeBookId,
+                        currentPositionMs.value,
+                        playbackSpeed.value,
+                    )
+                }
+            }
+
+            PlaybackState.Paused -> {
+                currentBookId.value?.let { activeBookId ->
+                    progressTracker.onPlaybackPaused(
+                        activeBookId,
+                        currentPositionMs.value,
+                        playbackSpeed.value,
+                    )
+                }
+            }
+
+            else -> {}
+        }
     }
 
     /**
