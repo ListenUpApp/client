@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class DesktopPlaybackController(
     private val audioPlayer: AudioPlayer,
+    private val playbackManager: PlaybackManager,
 ) : PlaybackController {
     private val _isReady = MutableStateFlow(true)
     override val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
@@ -59,5 +60,13 @@ class DesktopPlaybackController(
         if (startPositionMs > 0L) {
             audioPlayer.seekTo(startPositionMs)
         }
+    }
+
+    override suspend fun startPlayback(prepareResult: PlaybackManager.PrepareResult) {
+        playbackManager.startPlayback(
+            player = audioPlayer,
+            resumePositionMs = prepareResult.resumePositionMs,
+            resumeSpeed = prepareResult.resumeSpeed,
+        )
     }
 }

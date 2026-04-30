@@ -64,6 +64,23 @@ expect interface PlaybackController {
         items: List<PlaybackMediaItem>,
         startPositionMs: Long,
     )
+
+    /**
+     * Start playback for a prepared book.
+     *
+     * Encapsulates the platform-specific play-from-cold flow:
+     * - Android: builds [PlaybackMediaItem] list from the timeline, calls [setMediaQueue],
+     *   [setPlaybackSpeed], [play].
+     * - Desktop / Apple: delegates to [PlaybackManager.startPlayback] which observes the
+     *   shared [AudioPlayer] state.
+     *
+     * Note: book activation ([PlaybackManager.activateBook]) is the VM's responsibility —
+     * call it before this method so [PlaybackManager.currentBookId] is populated when the
+     * platform-specific play path reads it.
+     *
+     * VMs call this once on user-initiated playBook; per-platform actuals do the right thing.
+     */
+    suspend fun startPlayback(prepareResult: PlaybackManager.PrepareResult)
 }
 
 /**

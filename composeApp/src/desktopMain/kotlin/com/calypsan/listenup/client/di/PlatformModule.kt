@@ -85,7 +85,12 @@ val platformModule: Module =
         }
 
         // Playback controller seam (delegates to AudioPlayer for command-side operations)
-        single<PlaybackController> { DesktopPlaybackController(audioPlayer = get()) }
+        single<PlaybackController> {
+            DesktopPlaybackController(
+                audioPlayer = get(),
+                playbackManager = get(),
+            )
+        }
 
         // Download service (stub)
         single<DownloadService> { StubDownloadService() }

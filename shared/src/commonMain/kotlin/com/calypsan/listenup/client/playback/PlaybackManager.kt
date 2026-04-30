@@ -56,8 +56,12 @@ private val logger = KotlinLogging.logger {}
  * - Provide central control interface for playback
  * - Trigger background downloads for offline availability
  * - Negotiate audio format with server for transcoding support
+ *
+ * Note on `open`: this class is `open` solely for mokkery mockability in
+ * composeApp/desktopTest controller tests. No production subclasses exist;
+ * revert to `class` once PlaybackManager lives behind an interface.
  */
-class PlaybackManager(
+open class PlaybackManager(
     private val serverConfig: ServerConfig,
     private val playbackPreferences: PlaybackPreferences,
     private val bookDao: BookDao,

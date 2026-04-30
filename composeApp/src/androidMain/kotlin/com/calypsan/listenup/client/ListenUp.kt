@@ -182,7 +182,9 @@ val playbackModule =
 
         // PlaybackController seam backed by the shared MediaControllerHolder
         single<PlaybackController> {
-            AndroidPlaybackController(get<MediaControllerHolder>().asControllerHolder())
+            AndroidPlaybackController(
+                holder = get<MediaControllerHolder>().asControllerHolder(),
+            )
         }
 
         // Player ViewModel - connects UI to PlaybackController seam
