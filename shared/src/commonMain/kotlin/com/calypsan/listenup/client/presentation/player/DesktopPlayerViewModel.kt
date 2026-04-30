@@ -73,7 +73,6 @@ class DesktopPlayerViewModel(
 
     private val overlayFlow = MutableStateFlow<NowPlayingOverlay>(NowPlayingOverlay.None)
     private val isExpandedFlow = MutableStateFlow(false)
-    private val defaultPlaybackSpeedFlow = MutableStateFlow(1.0f)
 
     private var periodicUpdateJob: Job? = null
 
@@ -108,7 +107,7 @@ class DesktopPlayerViewModel(
             playbackManager.currentChapter,
             playbackManager.prepareProgress,
             playbackManager.playbackError,
-            defaultPlaybackSpeedFlow,
+            playbackPreferences.observeDefaultPlaybackSpeed(),
         ) { chapter, prepare, error, defaultSpeed ->
             SurfaceMetadata(
                 currentChapter = chapter,
@@ -169,11 +168,6 @@ class DesktopPlayerViewModel(
     init {
         // Note: DesktopPlaybackController.acquire/release are no-ops, so we don't call them
         // here (Android does). If Desktop ever grows session lifecycle, mirror Android's pattern.
-
-        // Load default playback speed (drives surfaceMetadataFlow)
-        viewModelScope.launch {
-            defaultPlaybackSpeedFlow.value = playbackPreferences.getDefaultPlaybackSpeed()
-        }
 
         // Side effect: drive periodic ProgressTracker ticks while playing
         viewModelScope.launch {
@@ -278,7 +272,6 @@ class DesktopPlayerViewModel(
     fun resetSpeedToDefault() {
         viewModelScope.launch {
             val defaultSpeed = playbackPreferences.getDefaultPlaybackSpeed()
-            defaultPlaybackSpeedFlow.value = defaultSpeed
             playbackController.setPlaybackSpeed(defaultSpeed)
             playbackManager.onSpeedReset(defaultSpeed)
         }

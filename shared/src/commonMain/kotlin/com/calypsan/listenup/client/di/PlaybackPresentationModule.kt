@@ -12,9 +12,8 @@ import org.koin.dsl.module
  *
  * Both VMs are bound as `single` because they are app-session singletons hoisted to the
  * authenticated nav root and shared across the entire session. Their state — overlayFlow,
- * isExpandedFlow, defaultPlaybackSpeedFlow, viewModelScope-launched chapter-change and
- * sleep-event collectors — must survive Compose recompositions and Android configuration
- * changes. A `factory` binding would silently drop that state on every `koinInject<T>()`
+ * isExpandedFlow, and viewModelScope-launched chapter-change and sleep-event collectors
+ * — must survive Compose recompositions and Android configuration changes. A `factory` binding would silently drop that state on every `koinInject<T>()`
  * call from a recomposing nav-root composable; a Compose `viewModel {}` binding would
  * require `koin-compose-viewmodel` (not on the shared classpath) and would not cover
  * the Desktop non-Compose constructor-injection sites (e.g. `GlobalMediaKeyManager` in

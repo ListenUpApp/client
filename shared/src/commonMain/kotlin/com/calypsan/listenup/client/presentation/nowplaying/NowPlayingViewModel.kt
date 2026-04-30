@@ -63,7 +63,6 @@ class NowPlayingViewModel(
 
     private val overlayFlow = MutableStateFlow<NowPlayingOverlay>(NowPlayingOverlay.None)
     private val isExpandedFlow = MutableStateFlow(false)
-    private val defaultPlaybackSpeedFlow = MutableStateFlow(1.0f)
 
     /** Reactive book metadata for the current book id. One-shot fetch on bookId change via flatMapLatest. */
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -96,7 +95,7 @@ class NowPlayingViewModel(
             playbackManager.currentChapter,
             playbackManager.prepareProgress,
             playbackManager.playbackError,
-            defaultPlaybackSpeedFlow,
+            playbackPreferences.observeDefaultPlaybackSpeed(),
         ) { chapter, prepare, error, defaultSpeed ->
             SurfaceMetadata(
                 currentChapter = chapter,
@@ -157,11 +156,6 @@ class NowPlayingViewModel(
     init {
         // Acquire reference to shared controller
         playbackController.acquire()
-
-        // Load default playback speed (drives surfaceMetadataFlow)
-        viewModelScope.launch {
-            defaultPlaybackSpeedFlow.value = playbackPreferences.getDefaultPlaybackSpeed()
-        }
 
         // Side effect: notify SleepTimerManager when the chapter index changes
         // (drives end-of-chapter sleep timer). Distinct-by-index dedupes within the
@@ -410,7 +404,6 @@ class NowPlayingViewModel(
     fun resetSpeedToDefault() {
         viewModelScope.launch {
             val defaultSpeed = playbackPreferences.getDefaultPlaybackSpeed()
-            defaultPlaybackSpeedFlow.value = defaultSpeed
             playbackController.setPlaybackSpeed(defaultSpeed)
             // Notify PlaybackManager that user reset to default
             playbackManager.onSpeedReset(defaultSpeed)
