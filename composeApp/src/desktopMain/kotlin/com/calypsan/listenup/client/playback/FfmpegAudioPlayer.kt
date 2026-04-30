@@ -66,7 +66,7 @@ class FfmpegAudioPlayer(
     override suspend fun load(segments: List<AudioSegment>) {
         if (segments.isEmpty()) {
             logger.error { "Cannot load empty segment list" }
-            _state.value = PlaybackState.Error(message = "Playback error. Check GStreamer installation.")
+            _state.value = PlaybackState.Error(message = "Playback error. No audio segments were provided.")
             return
         }
 
@@ -166,7 +166,7 @@ class FfmpegAudioPlayer(
         val segment = segments.getOrNull(index)
         if (segment == null) {
             logger.error { "Invalid segment index: $index" }
-            _state.value = PlaybackState.Error(message = "Playback error. Check GStreamer installation.")
+            _state.value = PlaybackState.Error(message = "Playback error. Segment index $index is out of range.")
             return
         }
 
