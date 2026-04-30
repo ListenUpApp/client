@@ -201,7 +201,10 @@ class FfmpegAudioPlayer(
                 logger.error { "Invalid audio format: sampleRate=$sampleRate, channels=$channels" }
                 newGrabber.stop()
                 newGrabber.release()
-                _state.value = PlaybackState.Error(message = "Playback error. Check GStreamer installation.")
+                _state.value =
+                    PlaybackState.Error(
+                        message = "Playback error. Audio stream has invalid format (${sampleRate}Hz, ${channels}ch).",
+                    )
                 return
             }
 
