@@ -1,6 +1,6 @@
 package com.calypsan.listenup.desktop.media
 
-import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.client.presentation.player.DesktopPlayerViewModel
 import com.calypsan.listenup.client.playback.NowPlayingState
 import com.github.kwhat.jnativehook.GlobalScreen
 import com.github.kwhat.jnativehook.NativeHookException

@@ -58,7 +58,7 @@ class AvFoundationAudioPlayer(
     private val tokenProvider: AudioTokenProvider,
     private val scope: CoroutineScope,
 ) : AudioPlayer {
-    private val _state = MutableStateFlow(PlaybackState.Idle)
+    private val _state = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     override val state: StateFlow<PlaybackState> = _state
 
     private val _positionMs = MutableStateFlow(0L)
@@ -83,7 +83,7 @@ class AvFoundationAudioPlayer(
     override suspend fun load(segments: List<AudioSegment>) {
         if (segments.isEmpty()) {
             logger.error { "Cannot load empty segment list" }
-            _state.value = PlaybackState.Error
+            _state.value = PlaybackState.Error()
             return
         }
 
@@ -338,7 +338,7 @@ class AvFoundationAudioPlayer(
         val currentItem = queuePlayer.currentItem
         if (currentItem != null && currentItem.status == AVPlayerItemStatusFailed) {
             logger.error { "AVPlayerItem failed: ${currentItem.error?.localizedDescription}" }
-            _state.value = PlaybackState.Error
+            _state.value = PlaybackState.Error()
             return
         }
 

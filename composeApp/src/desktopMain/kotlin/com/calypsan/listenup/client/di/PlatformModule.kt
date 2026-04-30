@@ -13,7 +13,6 @@ import com.calypsan.listenup.client.playback.AudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AudioPlayer
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 import com.calypsan.listenup.client.playback.DesktopPlaybackController
-import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
 import com.calypsan.listenup.client.playback.PlaybackController
 import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.ProgressTracker
@@ -40,7 +39,8 @@ import java.util.UUID
  * - BackgroundSyncScheduler (stub - relies on SSE while running)
  * - PlaybackManager for playback orchestration
  * - ProgressTracker for position persistence
- * - DesktopPlayerViewModel for UI integration
+ *
+ * DesktopPlayerViewModel is bound in the shared `playbackPresentationModule`.
  */
 val platformModule: Module =
     module {
@@ -132,19 +132,6 @@ val platformModule: Module =
                 deviceContext = get(),
                 scope = get(qualifier = named("playbackScope")),
                 bookRepository = get(),
-            )
-        }
-
-        // Desktop player ViewModel
-        single {
-            DesktopPlayerViewModel(
-                playbackManager = get(),
-                playbackController = get(),
-                audioPlayer = get(),
-                progressTracker = get(),
-                bookRepository = get(),
-                playbackPreferences = get(),
-                sleepTimerManager = get(),
             )
         }
 

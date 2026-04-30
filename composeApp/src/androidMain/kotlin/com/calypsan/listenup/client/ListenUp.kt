@@ -10,6 +10,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.calypsan.listenup.client.core.ImageLoaderFactory
 import com.calypsan.listenup.client.data.remote.PlaybackApi
+import com.calypsan.listenup.client.di.playbackPresentationModule
 import com.calypsan.listenup.client.di.sharedModules
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadManager
@@ -26,7 +27,6 @@ import com.calypsan.listenup.client.playback.AudioTokenProvider
 import com.calypsan.listenup.client.playback.AndroidPlaybackController
 import com.calypsan.listenup.client.playback.MediaControllerHolder
 import com.calypsan.listenup.client.playback.asControllerHolder
-import com.calypsan.listenup.client.playback.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.PlaybackController
 import com.calypsan.listenup.client.playback.PlaybackErrorHandler
 import com.calypsan.listenup.client.playback.PlaybackManager
@@ -193,17 +193,6 @@ val playbackModule =
                 networkMonitor = get(),
             )
         }
-
-        // Now Playing ViewModel - app-wide mini player and full screen state
-        viewModel {
-            NowPlayingViewModel(
-                playbackManager = get(),
-                bookRepository = get(),
-                sleepTimerManager = get(),
-                playbackController = get(),
-                playbackPreferences = get(),
-            )
-        }
     }
 
 /**
@@ -266,7 +255,7 @@ class ListenUp :
             androidContext(this@ListenUp)
 
             // Load all shared and Android-specific modules
-            modules(sharedModules + androidModule + playbackModule + downloadModule)
+            modules(sharedModules + androidModule + playbackModule + playbackPresentationModule + downloadModule)
         }
 
         // Configure WorkManager with custom factory for dependency injection.

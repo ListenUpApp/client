@@ -1,6 +1,6 @@
 @file:Suppress("MagicNumber", "TooManyFunctions")
 
-package com.calypsan.listenup.client.playback
+package com.calypsan.listenup.client.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +9,19 @@ import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.playback.AudioPlayer
+import com.calypsan.listenup.client.playback.ContributorPickerType
+import com.calypsan.listenup.client.playback.NowPlayingOverlay
+import com.calypsan.listenup.client.playback.NowPlayingScreenState
+import com.calypsan.listenup.client.playback.NowPlayingState
+import com.calypsan.listenup.client.playback.PlaybackController
+import com.calypsan.listenup.client.playback.PlaybackDynamics
+import com.calypsan.listenup.client.playback.PlaybackManager
+import com.calypsan.listenup.client.playback.PlaybackState
+import com.calypsan.listenup.client.playback.ProgressTracker
+import com.calypsan.listenup.client.playback.SleepTimerManager
+import com.calypsan.listenup.client.playback.SurfaceMetadata
+import com.calypsan.listenup.client.playback.mapToNowPlayingState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,9 +48,10 @@ private val logger = KotlinLogging.logger {}
  * the Android `NowPlayingViewModel` shape — the heavy upstream pipeline is independent
  * of overlay/expand ephemera, which join only at the screen-state boundary.
  *
- * Side-effect collectors (ProgressTracker pause/resume notifications + 30 s ticker +
- * GStreamer error reporting) live in separate `viewModelScope.launch { collect }` blocks,
- * not in the state-deriving combines.
+ * Side-effect collectors (ProgressTracker pause/resume notifications + 30 s ticker)
+ * live in separate `viewModelScope.launch { collect }` blocks, not in the state-deriving
+ * combines. Player-error routing lives in `PlaybackManager.startPlayback` so iOS gets
+ * the same plumbing for free.
  *
  * Desktop currently has no UI for overlays / expanded mode / sleep timer, but the screen
  * state still tail-combines those flows for shape parity with Android (and to enable
@@ -59,7 +73,6 @@ class DesktopPlayerViewModel(
 
     private val overlayFlow = MutableStateFlow<NowPlayingOverlay>(NowPlayingOverlay.None)
     private val isExpandedFlow = MutableStateFlow(false)
-    private val defaultPlaybackSpeedFlow = MutableStateFlow(1.0f)
 
     private var periodicUpdateJob: Job? = null
 
@@ -94,7 +107,7 @@ class DesktopPlayerViewModel(
             playbackManager.currentChapter,
             playbackManager.prepareProgress,
             playbackManager.playbackError,
-            defaultPlaybackSpeedFlow,
+            playbackPreferences.observeDefaultPlaybackSpeed(),
         ) { chapter, prepare, error, defaultSpeed ->
             SurfaceMetadata(
                 currentChapter = chapter,
@@ -156,11 +169,6 @@ class DesktopPlayerViewModel(
         // Note: DesktopPlaybackController.acquire/release are no-ops, so we don't call them
         // here (Android does). If Desktop ever grows session lifecycle, mirror Android's pattern.
 
-        // Load default playback speed (drives surfaceMetadataFlow)
-        viewModelScope.launch {
-            defaultPlaybackSpeedFlow.value = playbackPreferences.getDefaultPlaybackSpeed()
-        }
-
         // Side effect: drive periodic ProgressTracker ticks while playing
         viewModelScope.launch {
             playbackManager.isPlaying.collect { isPlaying ->
@@ -168,21 +176,6 @@ class DesktopPlayerViewModel(
                     startPeriodicUpdates()
                 } else {
                     stopPeriodicUpdates()
-                }
-            }
-        }
-
-        // Side effect: surface GStreamer / FFmpeg playback errors through the canonical
-        // playbackError flow so the mapper produces NowPlayingState.Error.
-        viewModelScope.launch {
-            playbackManager.playbackState.collect { playbackState ->
-                if (playbackState == PlaybackState.Error) {
-                    playbackManager.reportError(
-                        message = "Playback error. Check GStreamer installation.",
-                        isRecoverable = false,
-                    )
-                } else if (playbackState == PlaybackState.Playing) {
-                    playbackManager.clearError()
                 }
             }
         }
@@ -220,14 +213,6 @@ class DesktopPlayerViewModel(
                 resumePositionMs = result.resumePositionMs,
                 resumeSpeed = result.resumeSpeed,
             )
-
-            // Check if playback actually started; reportError if not
-            if (playbackManager.playbackState.value == PlaybackState.Error) {
-                playbackManager.reportError(
-                    message = "Playback failed. Check that GStreamer plugins are installed correctly.",
-                    isRecoverable = false,
-                )
-            }
         }
     }
 
@@ -287,7 +272,6 @@ class DesktopPlayerViewModel(
     fun resetSpeedToDefault() {
         viewModelScope.launch {
             val defaultSpeed = playbackPreferences.getDefaultPlaybackSpeed()
-            defaultPlaybackSpeedFlow.value = defaultSpeed
             playbackController.setPlaybackSpeed(defaultSpeed)
             playbackManager.onSpeedReset(defaultSpeed)
         }

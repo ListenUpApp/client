@@ -1,6 +1,6 @@
 @file:Suppress("MagicNumber", "TooManyFunctions")
 
-package com.calypsan.listenup.client.playback
+package com.calypsan.listenup.client.presentation.nowplaying
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +9,17 @@ import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.playback.ContributorPickerType
+import com.calypsan.listenup.client.playback.NowPlayingOverlay
+import com.calypsan.listenup.client.playback.NowPlayingScreenState
+import com.calypsan.listenup.client.playback.NowPlayingState
+import com.calypsan.listenup.client.playback.PlaybackController
+import com.calypsan.listenup.client.playback.PlaybackDynamics
+import com.calypsan.listenup.client.playback.PlaybackManager
+import com.calypsan.listenup.client.playback.SleepTimerManager
+import com.calypsan.listenup.client.playback.SleepTimerMode
+import com.calypsan.listenup.client.playback.SurfaceMetadata
+import com.calypsan.listenup.client.playback.mapToNowPlayingState
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -52,7 +63,6 @@ class NowPlayingViewModel(
 
     private val overlayFlow = MutableStateFlow<NowPlayingOverlay>(NowPlayingOverlay.None)
     private val isExpandedFlow = MutableStateFlow(false)
-    private val defaultPlaybackSpeedFlow = MutableStateFlow(1.0f)
 
     /** Reactive book metadata for the current book id. One-shot fetch on bookId change via flatMapLatest. */
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -85,7 +95,7 @@ class NowPlayingViewModel(
             playbackManager.currentChapter,
             playbackManager.prepareProgress,
             playbackManager.playbackError,
-            defaultPlaybackSpeedFlow,
+            playbackPreferences.observeDefaultPlaybackSpeed(),
         ) { chapter, prepare, error, defaultSpeed ->
             SurfaceMetadata(
                 currentChapter = chapter,
@@ -146,11 +156,6 @@ class NowPlayingViewModel(
     init {
         // Acquire reference to shared controller
         playbackController.acquire()
-
-        // Load default playback speed (drives surfaceMetadataFlow)
-        viewModelScope.launch {
-            defaultPlaybackSpeedFlow.value = playbackPreferences.getDefaultPlaybackSpeed()
-        }
 
         // Side effect: notify SleepTimerManager when the chapter index changes
         // (drives end-of-chapter sleep timer). Distinct-by-index dedupes within the
@@ -399,17 +404,11 @@ class NowPlayingViewModel(
     fun resetSpeedToDefault() {
         viewModelScope.launch {
             val defaultSpeed = playbackPreferences.getDefaultPlaybackSpeed()
-            defaultPlaybackSpeedFlow.value = defaultSpeed
             playbackController.setPlaybackSpeed(defaultSpeed)
             // Notify PlaybackManager that user reset to default
             playbackManager.onSpeedReset(defaultSpeed)
         }
     }
-
-    /**
-     * Get the universal default playback speed.
-     */
-    suspend fun getDefaultPlaybackSpeed(): Float = playbackPreferences.getDefaultPlaybackSpeed()
 
     fun cycleSpeed() {
         val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)

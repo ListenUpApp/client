@@ -109,7 +109,7 @@ class PlaybackManager(
     private val _isBuffering = MutableStateFlow(false)
     val isBuffering: StateFlow<Boolean> = _isBuffering
 
-    private val _playbackState = MutableStateFlow(PlaybackState.Idle)
+    private val _playbackState = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     val playbackState: StateFlow<PlaybackState> = _playbackState
 
     // Chapter state for notification and UI
@@ -412,6 +412,28 @@ class PlaybackManager(
 
                         val playing = playbackState == PlaybackState.Playing
                         setPlaying(playing)
+
+                        // Drift #29 — error routing. AudioPlayer actuals emit
+                        // PlaybackState.Error(message?) for platform-native failures;
+                        // PlaybackManager turns that into PlaybackError on the public flow.
+                        when (playbackState) {
+                            is PlaybackState.Error -> {
+                                _playbackError.value =
+                                    PlaybackError(
+                                        message = playbackState.message ?: "Playback failed.",
+                                        isRecoverable = playbackState.isRecoverable,
+                                        timestampMs =
+                                            com.calypsan.listenup.client.core
+                                                .currentEpochMilliseconds(),
+                                    )
+                            }
+
+                            PlaybackState.Playing -> {
+                                _playbackError.value = null
+                            }
+
+                            else -> {}
+                        }
 
                         if (playbackState == PlaybackState.Ended) {
                             val duration = totalDurationMs.value

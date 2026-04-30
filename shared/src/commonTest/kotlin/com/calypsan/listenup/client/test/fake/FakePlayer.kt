@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * both need a player that records received calls and that can have state driven by the test.
  */
 class FakePlayer : AudioPlayer {
-    private val _state = MutableStateFlow(PlaybackState.Idle)
+    private val _state = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     private val _positionMs = MutableStateFlow(0L)
     private val _durationMs = MutableStateFlow(0L)
 
