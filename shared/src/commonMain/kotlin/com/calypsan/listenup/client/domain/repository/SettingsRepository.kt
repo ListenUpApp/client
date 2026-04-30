@@ -257,7 +257,9 @@ interface PlaybackPreferences {
      * Reactively observe the default playback speed.
      *
      * Emits the current value on first collect, then re-emits whenever
-     * [setDefaultPlaybackSpeed] is called from any caller.
+     * [setDefaultPlaybackSpeed] is called from any caller. Use this in
+     * ViewModels' combine chains so a Settings change propagates to the
+     * now-playing surface without manual coordination.
      *
      * EM-R1: rethrows [CancellationException]; non-cancellation failures
      * during the initial read fall back to [DEFAULT_PLAYBACK_SPEED].
