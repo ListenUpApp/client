@@ -25,15 +25,13 @@ private val logger = KotlinLogging.logger {}
 /**
  * Singleton holder for the MediaController connection.
  *
- * Both PlayerViewModel and NowPlayingViewModel use this shared controller
- * instead of creating their own connections. This eliminates:
- * - Duplicate listeners on the same player
- * - Potential state drift between two controllers
- * - Resource waste from multiple connections
+ * NowPlayingViewModel consumes this controller via the PlaybackController seam
+ * (PlayerViewModel was deleted in W7 Phase E2.2.3). The holder also owns the
+ * Player.Listener and position polling that drive PlaybackStateWriter on Android.
  *
  * The holder manages the lifecycle through reference counting:
- * - Each ViewModel calls acquire() on init
- * - Each ViewModel calls release() on onCleared()
+ * - Each consumer calls acquire() on init
+ * - Each consumer calls release() on onCleared()
  * - Connection is established on first acquire
  * - Connection is released when refCount hits 0
  */

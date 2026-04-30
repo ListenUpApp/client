@@ -465,8 +465,9 @@ open class PlaybackManager(
     }
 
     /**
-     * Update playback state.
-     * Called by PlayerViewModel when state changes.
+     * Update playing flag. Called by platform-specific event sources
+     * (Android: MediaControllerHolder's Player.Listener; Desktop: PlaybackManager's
+     * own AudioPlayer.state observation in startPlayback).
      */
     override fun setPlaying(playing: Boolean) {
         isPlaying.value = playing
@@ -521,8 +522,9 @@ open class PlaybackManager(
     }
 
     /**
-     * Update current position.
-     * Called by PlayerViewModel during position update loop.
+     * Update current position. Called by platform-specific event sources
+     * (Android: MediaControllerHolder's position polling loop; Desktop:
+     * PlaybackManager's own AudioPlayer.state observation in startPlayback).
      */
     override fun updatePosition(positionMs: Long) {
         currentPositionMs.value = positionMs
@@ -530,8 +532,10 @@ open class PlaybackManager(
     }
 
     /**
-     * Update playback speed.
-     * Called by PlayerViewModel when speed changes.
+     * Update playback speed. Called by platform-specific event sources
+     * (Android: MediaControllerHolder's Player.Listener on PlaybackParameters
+     * change; Desktop: PlaybackManager's own AudioPlayer.state observation in
+     * startPlayback).
      */
     override fun updateSpeed(speed: Float) {
         playbackSpeed.value = speed
