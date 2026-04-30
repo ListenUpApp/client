@@ -7,8 +7,11 @@ import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.playback.PlaybackController
+import com.calypsan.listenup.client.playback.PlaybackManager.ChapterInfo
 import com.calypsan.listenup.client.playback.PlaybackManager.PrepareResult
 import com.calypsan.listenup.client.playback.SleepTimerManager
+import com.calypsan.listenup.client.playback.SleepTimerMode
+import com.calypsan.listenup.client.playback.SleepTimerState
 import com.calypsan.listenup.client.test.fake.FakePlaybackManager
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -314,6 +317,122 @@ class NowPlayingViewModelTest {
             advanceUntilIdle()
             verify(VerifyMode.exactly(1)) { fixture.playbackController.seekTo(0L) }
             assertEquals(listOf(0L), fixture.fakePm.updatedPositions)
+        }
+
+    // ========== Speed ==========
+
+    @Test
+    fun `setSpeed updates controller and marks book as having custom speed`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            every { fixture.playbackController.setPlaybackSpeed(any()) } returns Unit
+
+            val vm = fixture.newVm()
+            vm.setSpeed(1.75f)
+            advanceUntilIdle()
+
+            verify(VerifyMode.exactly(1)) { fixture.playbackController.setPlaybackSpeed(1.75f) }
+            assertEquals(listOf(1.75f), fixture.fakePm.speedChanges)
+        }
+
+    @Test
+    fun `resetSpeedToDefault uses preference value and marks book as default and cycleSpeed wraps`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            everySuspend { fixture.playbackPreferences.getDefaultPlaybackSpeed() } returns 1.25f
+            every { fixture.playbackController.setPlaybackSpeed(any()) } returns Unit
+
+            val vm = fixture.newVm()
+            vm.resetSpeedToDefault()
+            advanceUntilIdle()
+
+            verify(VerifyMode.atLeast(1)) { fixture.playbackController.setPlaybackSpeed(1.25f) }
+            assertEquals(listOf(1.25f), fixture.fakePm.speedResets)
+
+            // cycleSpeed wraps from the highest value (3.0f) back to the lowest (0.5f).
+            // The cycle list is [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0].
+            fixture.fakePm.playbackSpeedFlow.value = 3.0f
+            vm.cycleSpeed()
+            advanceUntilIdle()
+            // cycleSpeed routes through setSpeed → onSpeedChanged, so speedChanges grows.
+            assertEquals(0.5f, fixture.fakePm.speedChanges.last())
+        }
+
+    // ========== Sleep timer ==========
+
+    @Test
+    fun `setSleepTimer arms timer and cancelSleepTimer disarms it`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            // SleepTimerManager is a real instance (closed concrete class — cannot mock with
+            // Mokkery in this classpath; see fixture init). Both setTimer and cancelTimer
+            // update state.value synchronously before any background work, so we can
+            // observe state through the real instance without virtual-time juggling.
+
+            val vm = fixture.newVm()
+            vm.setSleepTimer(SleepTimerMode.Duration(minutes = 15))
+            advanceUntilIdle()
+
+            val activeState = fixture.sleepTimerManager.state.value
+            assertTrue(
+                activeState is SleepTimerState.Active && activeState.mode is SleepTimerMode.Duration,
+                "expected active Duration timer; got: $activeState",
+            )
+
+            vm.cancelSleepTimer()
+            advanceUntilIdle()
+            assertTrue(
+                fixture.sleepTimerManager.state.value is SleepTimerState.Inactive,
+                "expected inactive after cancel; got: ${fixture.sleepTimerManager.state.value}",
+            )
+        }
+
+    @Test
+    fun `init-block sleepEvent observer fades out and pauses on timer expiry`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            every { fixture.playbackController.setVolume(any()) } returns Unit
+            every { fixture.playbackController.pause() } returns Unit
+
+            val vm = fixture.newVm()
+            advanceUntilIdle() // let init-block collectors start
+
+            // Use EndOfChapter mode + drive currentChapter to trigger the sleep event
+            // through public API. Duration mode's timer loop combines virtual-time delay
+            // with wall-clock math (Clock.System.now()), which doesn't progress under
+            // a TestDispatcher; EndOfChapter mode fires synchronously from
+            // SleepTimerManager.onChapterChanged when the chapter index advances.
+            vm.setSleepTimer(SleepTimerMode.EndOfChapter)
+            advanceUntilIdle()
+
+            // First chapter sets lastKnownChapterIndex; second (greater) triggers sleep.
+            fixture.fakePm.currentChapterFlow.value =
+                ChapterInfo(
+                    index = 0,
+                    title = "Chapter 1",
+                    startMs = 0L,
+                    endMs = 600_000L,
+                    remainingMs = 600_000L,
+                    totalChapters = 3,
+                    isGenericTitle = false,
+                )
+            advanceUntilIdle()
+            fixture.fakePm.currentChapterFlow.value =
+                ChapterInfo(
+                    index = 1,
+                    title = "Chapter 2",
+                    startMs = 600_000L,
+                    endMs = 1_200_000L,
+                    remainingMs = 600_000L,
+                    totalChapters = 3,
+                    isGenericTitle = false,
+                )
+            advanceUntilIdle() // drains fadeOutAndPause's 30 × delay + final 100ms delay
+
+            // fadeOutAndPause drives the controller through 30 setVolume steps, one pause,
+            // then a final setVolume(1f). At minimum: pause was invoked once.
+            verify(VerifyMode.atLeast(1)) { fixture.playbackController.pause() }
+            verify(VerifyMode.atLeast(1)) { fixture.playbackController.setVolume(any()) }
         }
 
     // ========== Helpers ==========
