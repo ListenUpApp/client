@@ -9,6 +9,7 @@ import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ListeningEventRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.test.fake.FakeProgressTracker
 import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
@@ -19,9 +20,11 @@ import kotlinx.coroutines.Job
 
 // Shared construction helpers for PlaybackManager jvmTests.
 //
-// ProgressTracker is a final class — Mokkery cannot synthesise a mock — so every
-// PlaybackManager test that exercises a code path touching ProgressTracker must
-// construct a real instance. These helpers centralise that 9-param boilerplate.
+// [ProgressTracker] is `open` (W7 Phase E2.2.3 Task 2) so seam-level tests can
+// substitute a hand-rolled [FakeProgressTracker] (see Testing rubric: "seam-level
+// tests use fakes with in-memory state, not mocks"). Tests that need real
+// session-state behaviour continue to use [buildProgressTracker] for a real
+// instance whose interface dependencies are interface mocks.
 
 /** Constructs a [ProgressTracker] whose dependencies are all interface mocks. */
 fun buildProgressTracker(
@@ -30,6 +33,28 @@ fun buildProgressTracker(
 ): ProgressTracker {
     val stubSyncApi = mock<SyncApiContract>()
     return ProgressTracker(
+        downloadRepository = mock<DownloadRepository>(),
+        listeningEventRepository = mock<ListeningEventRepository>(),
+        syncApi = stubSyncApi,
+        pushSyncOrchestrator = mock<PushSyncOrchestratorContract>(),
+        positionRepository = positionRepository,
+        pendingOperationRepository = mock<PendingOperationRepositoryContract>(MockMode.autoUnit),
+        endPlaybackSessionHandler = EndPlaybackSessionHandler(stubSyncApi),
+        scope = scope,
+    )
+}
+
+/**
+ * Constructs a [FakeProgressTracker] whose dependencies are all interface mocks.
+ * Mirrors [buildProgressTracker]; use when tests need to verify which tracker
+ * methods were called rather than asserting on real session-state behaviour.
+ */
+fun buildFakeProgressTracker(
+    scope: CoroutineScope = CoroutineScope(Job()),
+    positionRepository: PlaybackPositionRepository = defaultPositionRepository(),
+): FakeProgressTracker {
+    val stubSyncApi = mock<SyncApiContract>()
+    return FakeProgressTracker(
         downloadRepository = mock<DownloadRepository>(),
         listeningEventRepository = mock<ListeningEventRepository>(),
         syncApi = stubSyncApi,

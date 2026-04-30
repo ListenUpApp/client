@@ -33,6 +33,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Verifies the isBuffering and playbackState flows added in W7 Phase E2.1 Task 1,
@@ -186,12 +187,150 @@ class PlaybackManagerBufferingStateTest {
             managerScope.coroutineContext[Job]?.cancel()
         }
 
+    @Test
+    fun `playerObservationJob notifies progressTracker onPlaybackStarted when player transitions to Playing`() =
+        runTest {
+            seedBookAndAudioFiles()
+
+            val managerScope = CoroutineScope(coroutineContext + Job())
+            val progressTracker = buildFakeProgressTracker(scope = managerScope)
+
+            val sut = createPlaybackManager(scope = managerScope, progressTracker = progressTracker)
+            val player = FakePlayer()
+
+            val prepareResult = sut.prepareForPlayback(BookId("book-1"))
+            checkNotNull(prepareResult) { "prepareForPlayback must succeed" }
+            sut.activateBook(BookId("book-1"))
+            sut.startPlayback(player = player, resumePositionMs = 0L, resumeSpeed = 1.0f)
+            advanceUntilIdle()
+
+            // FakePlayer's play() emits Playing — verify progressTracker was notified.
+            val startedCount = progressTracker.onPlaybackStartedCalls.count { it.first == BookId("book-1") }
+            assertTrue(
+                startedCount >= 1,
+                "expected at least one onPlaybackStarted(BookId(\"book-1\"), …) invocation, got $startedCount",
+            )
+
+            managerScope.coroutineContext[Job]?.cancel()
+        }
+
+    @Test
+    fun `playerObservationJob notifies progressTracker onPlaybackPaused when player transitions to Paused`() =
+        runTest {
+            seedBookAndAudioFiles()
+
+            val managerScope = CoroutineScope(coroutineContext + Job())
+            val progressTracker = buildFakeProgressTracker(scope = managerScope)
+
+            val sut = createPlaybackManager(scope = managerScope, progressTracker = progressTracker)
+            val player = FakePlayer()
+
+            val prepareResult = sut.prepareForPlayback(BookId("book-1"))
+            checkNotNull(prepareResult) { "prepareForPlayback must succeed" }
+            sut.activateBook(BookId("book-1"))
+            sut.startPlayback(player = player, resumePositionMs = 0L, resumeSpeed = 1.0f)
+            advanceUntilIdle()
+
+            player.emitState(PlaybackState.Paused)
+            advanceUntilIdle()
+
+            val pausedCount = progressTracker.onPlaybackPausedCalls.count { it.first == BookId("book-1") }
+            assertTrue(
+                pausedCount >= 1,
+                "expected at least one onPlaybackPaused(BookId(\"book-1\"), …) invocation, got $pausedCount",
+            )
+
+            managerScope.coroutineContext[Job]?.cancel()
+        }
+
+    // -------------------------------------------------------------------------
+    // Drift #28 — Android arm. PlaybackStateWriter (implemented by PlaybackManager)
+    // is the seam Android's MediaControllerHolder.Player.Listener pushes state
+    // changes through. Verify setPlaybackState routes Playing/Paused transitions
+    // to the progressTracker so VMs no longer call it directly. MediaControllerHolder
+    // → PlaybackStateWriter forwarding is independently covered by
+    // MediaControllerHolderTest in composeApp/src/androidHostTest.
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `setPlaybackState Playing notifies progressTracker onPlaybackStarted`() =
+        runTest {
+            seedBookAndAudioFiles()
+
+            val managerScope = CoroutineScope(coroutineContext + Job())
+            val progressTracker = buildFakeProgressTracker(scope = managerScope)
+
+            val sut = createPlaybackManager(scope = managerScope, progressTracker = progressTracker)
+
+            // Activate the book WITHOUT starting an AudioPlayer — this mirrors the
+            // Android path where Media3 drives state transitions and the writer
+            // pushes them into PlaybackManager.
+            checkNotNull(sut.prepareForPlayback(BookId("book-1")))
+            sut.activateBook(BookId("book-1"))
+
+            sut.setPlaybackState(PlaybackState.Playing)
+            advanceUntilIdle()
+
+            val startedCount = progressTracker.onPlaybackStartedCalls.count { it.first == BookId("book-1") }
+            assertTrue(
+                startedCount >= 1,
+                "expected at least one onPlaybackStarted(BookId(\"book-1\"), …) invocation, got $startedCount",
+            )
+
+            managerScope.coroutineContext[Job]?.cancel()
+        }
+
+    @Test
+    fun `setPlaybackState Paused notifies progressTracker onPlaybackPaused`() =
+        runTest {
+            seedBookAndAudioFiles()
+
+            val managerScope = CoroutineScope(coroutineContext + Job())
+            val progressTracker = buildFakeProgressTracker(scope = managerScope)
+
+            val sut = createPlaybackManager(scope = managerScope, progressTracker = progressTracker)
+
+            checkNotNull(sut.prepareForPlayback(BookId("book-1")))
+            sut.activateBook(BookId("book-1"))
+
+            sut.setPlaybackState(PlaybackState.Paused)
+            advanceUntilIdle()
+
+            val pausedCount = progressTracker.onPlaybackPausedCalls.count { it.first == BookId("book-1") }
+            assertTrue(
+                pausedCount >= 1,
+                "expected at least one onPlaybackPaused(BookId(\"book-1\"), …) invocation, got $pausedCount",
+            )
+
+            managerScope.coroutineContext[Job]?.cancel()
+        }
+
+    @Test
+    fun `setPlaybackState does not notify progressTracker when no book is active`() =
+        runTest {
+            val managerScope = CoroutineScope(coroutineContext + Job())
+            val progressTracker = buildFakeProgressTracker(scope = managerScope)
+
+            val sut = createPlaybackManager(scope = managerScope, progressTracker = progressTracker)
+
+            // No activateBook() — currentBookId is null.
+            sut.setPlaybackState(PlaybackState.Playing)
+            sut.setPlaybackState(PlaybackState.Paused)
+            advanceUntilIdle()
+
+            assertEquals(0, progressTracker.onPlaybackStartedCalls.size)
+            assertEquals(0, progressTracker.onPlaybackPausedCalls.size)
+
+            managerScope.coroutineContext[Job]?.cancel()
+        }
+
     // =========================================================================
     // Fixture helpers
     // =========================================================================
 
     private fun createPlaybackManager(
         scope: CoroutineScope = CoroutineScope(Job()),
+        progressTracker: ProgressTracker = buildProgressTracker(scope = scope),
     ): PlaybackManager {
         val tokenProvider: AudioTokenProvider = mock()
         everySuspend { tokenProvider.prepareForPlayback() } returns Unit
@@ -217,7 +356,7 @@ class PlaybackManagerBufferingStateTest {
             audioFileDao = db.audioFileDao(),
             chapterDao = db.chapterDao(),
             imageStorage = imageStorage,
-            progressTracker = buildProgressTracker(scope = scope),
+            progressTracker = progressTracker,
             tokenProvider = tokenProvider,
             deviceContext = DeviceContext(type = DeviceType.Phone),
             downloadService = downloadService,

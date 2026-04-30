@@ -44,8 +44,15 @@ private val logger = KotlinLogging.logger {}
  *
  * Position is sacred: saves immediately on every pause/seek.
  * Events are queued locally via the unified push sync system.
+ *
+ * Note on `open`: this class (and its overridable methods below) are `open`
+ * solely so seam-level tests can substitute a hand-rolled
+ * [com.calypsan.listenup.client.test.fake.FakeProgressTracker] (see Testing
+ * rubric: "seam-level tests use fakes with in-memory state, not mocks"). No
+ * production subclasses exist; revert to `class`/`fun` once
+ * [ProgressTracker] lives behind an interface.
  */
-class ProgressTracker(
+open class ProgressTracker(
     private val downloadRepository: DownloadRepository,
     private val listeningEventRepository: ListeningEventRepository,
     private val syncApi: SyncApiContract,
@@ -61,7 +68,7 @@ class ProgressTracker(
     /**
      * Called when playback starts/resumes.
      */
-    fun onPlaybackStarted(
+    open fun onPlaybackStarted(
         bookId: BookId,
         positionMs: Long,
         speed: Float,
@@ -107,7 +114,7 @@ class ProgressTracker(
      * Called when playback pauses/stops.
      * Saves position immediately, queues event for sync.
      */
-    fun onPlaybackPaused(
+    open fun onPlaybackPaused(
         bookId: BookId,
         positionMs: Long,
         speed: Float,
@@ -381,7 +388,7 @@ class ProgressTracker(
      * @param bookId Book to get resume position for
      * @return Position to resume from, or null if never played
      */
-    suspend fun getResumePosition(bookId: BookId): PlaybackPositionEntity? {
+    open suspend fun getResumePosition(bookId: BookId): PlaybackPositionEntity? {
         // 1. Get local position via repository seam (instant, offline-first)
         val localResult = positionRepository.getEntity(bookId)
         val local = if (localResult is AppResult.Success) localResult.data else null

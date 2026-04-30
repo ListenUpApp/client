@@ -127,7 +127,12 @@ val iosPlaybackModule: Module =
         }
 
         // Playback controller seam (delegates to AudioPlayer for command-side operations)
-        single<PlaybackController> { ApplePlaybackController(audioPlayer = get()) }
+        single<PlaybackController> {
+            ApplePlaybackController(
+                audioPlayer = get(),
+                playbackManager = get(),
+            )
+        }
 
         // Background sync scheduler
         single<BackgroundSyncScheduler> { IosBackgroundSyncScheduler() }

@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.test.fake
 
 import com.calypsan.listenup.client.playback.PlaybackController
+import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.PlaybackMediaItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +40,9 @@ class FakePlaybackController(
     private val _setMediaQueueCalls: MutableList<Pair<List<PlaybackMediaItem>, Long>> = mutableListOf()
     val setMediaQueueCalls: List<Pair<List<PlaybackMediaItem>, Long>> get() = _setMediaQueueCalls.toList()
 
+    private val _startPlaybackCalls: MutableList<PlaybackManager.PrepareResult> = mutableListOf()
+    val startPlaybackCalls: List<PlaybackManager.PrepareResult> get() = _startPlaybackCalls.toList()
+
     override fun acquire() {
         acquireCount++
     }
@@ -76,6 +80,10 @@ class FakePlaybackController(
         startPositionMs: Long,
     ) {
         _setMediaQueueCalls += (items to startPositionMs)
+    }
+
+    override suspend fun startPlayback(prepareResult: PlaybackManager.PrepareResult) {
+        _startPlaybackCalls += prepareResult
     }
 
     /** Test helper: drive `isReady` from outside to simulate connection state changes. */

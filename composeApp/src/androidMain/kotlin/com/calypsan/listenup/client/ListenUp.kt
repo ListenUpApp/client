@@ -30,7 +30,6 @@ import com.calypsan.listenup.client.playback.asControllerHolder
 import com.calypsan.listenup.client.playback.PlaybackController
 import com.calypsan.listenup.client.playback.PlaybackErrorHandler
 import com.calypsan.listenup.client.playback.PlaybackManager
-import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.sync.AndroidBackgroundSyncScheduler
@@ -47,7 +46,6 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
-import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -182,15 +180,8 @@ val playbackModule =
 
         // PlaybackController seam backed by the shared MediaControllerHolder
         single<PlaybackController> {
-            AndroidPlaybackController(get<MediaControllerHolder>().asControllerHolder())
-        }
-
-        // Player ViewModel - connects UI to PlaybackController seam
-        viewModel {
-            PlayerViewModel(
-                playbackManager = get(),
-                playbackController = get(),
-                networkMonitor = get(),
+            AndroidPlaybackController(
+                holder = get<MediaControllerHolder>().asControllerHolder(),
             )
         }
     }
@@ -226,7 +217,7 @@ val downloadModule =
             AndroidBookDetailPlatformActions(
                 context = androidContext(),
                 downloadManager = get(),
-                playerViewModel = get(),
+                nowPlayingViewModel = get(),
                 localPreferences = get(),
                 networkMonitor = get(),
                 playbackManager = get(),

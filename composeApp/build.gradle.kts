@@ -5,6 +5,28 @@ plugins {
     alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.mokkery)
+}
+
+// Mokkery is used in desktopTest only — see composeApp/src/desktopTest.
+//
+// Scope note: this configuration currently exists for a single test file —
+// DesktopPlaybackControllerTest — which constructs a never-invoked
+// `mock<PlaybackManager>()` to satisfy the controller's constructor. Both flags
+// below are module-wide and therefore apply to every future mokkery mock in
+// composeApp/desktopTest; revisit them when a second test surfaces a different
+// mockability need (e.g. a real test that exercises PlaybackManager behaviour,
+// at which point a hand-rolled FakePlaybackManager + an interface seam is the
+// likely better answer).
+//
+// - `ignoreFinalMembers` lets us mock PlaybackManager (open class) without
+//   having to mark each member as `open` individually.
+// - `stubs.allowConcreteClassInstantiation` lets mokkery synthesize stub
+//   instances for concrete constructor argument types (DeviceContext,
+//   EndPlaybackSessionHandler).
+mokkery {
+    ignoreFinalMembers.set(true)
+    stubs.allowConcreteClassInstantiation.set(true)
 }
 
 kotlin {
@@ -159,6 +181,7 @@ kotlin {
             dependencies {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.mokkery.runtime)
             }
         }
     }

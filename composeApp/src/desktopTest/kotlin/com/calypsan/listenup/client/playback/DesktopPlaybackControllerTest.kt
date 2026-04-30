@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.playback
 
+import dev.mokkery.mock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
@@ -9,6 +10,10 @@ import kotlin.test.assertTrue
 
 /**
  * Delegation tests for [DesktopPlaybackController].
+ *
+ * These tests only exercise direct delegation to [AudioPlayer] (play/pause/seek/etc.);
+ * none invoke `startPlayback(prepareResult)`, so the [PlaybackManager] dependency is
+ * supplied as a never-invoked mokkery mock via [newController].
  *
  * Uses an inline [FakeAudioPlayer] (local to this test file) because [FakePlayer]
  * from shared's commonTest is not on the desktopTest classpath.
@@ -67,6 +72,9 @@ class DesktopPlaybackControllerTest {
         override fun release() {}
     }
 
+    /** Constructs a [DesktopPlaybackController] with a never-invoked [PlaybackManager] mock. */
+    private fun newController(player: AudioPlayer): DesktopPlaybackController = DesktopPlaybackController(audioPlayer = player, playbackManager = mock())
+
     // ---------------------------------------------------------------------------
     // acquire / release are no-ops
     // ---------------------------------------------------------------------------
@@ -74,7 +82,7 @@ class DesktopPlaybackControllerTest {
     @Test
     fun `acquire is a no-op`() {
         val player = FakeAudioPlayer()
-        val sut = DesktopPlaybackController(player)
+        val sut = newController(player)
 
         sut.acquire() // must not throw or delegate to player
 
@@ -84,7 +92,7 @@ class DesktopPlaybackControllerTest {
     @Test
     fun `release is a no-op`() {
         val player = FakeAudioPlayer()
-        val sut = DesktopPlaybackController(player)
+        val sut = newController(player)
 
         sut.release()
 
@@ -97,7 +105,7 @@ class DesktopPlaybackControllerTest {
 
     @Test
     fun `isReady is always true`() {
-        val sut = DesktopPlaybackController(FakeAudioPlayer())
+        val sut = newController(FakeAudioPlayer())
 
         assertTrue(sut.isReady.value)
     }
@@ -109,7 +117,7 @@ class DesktopPlaybackControllerTest {
     @Test
     fun `play delegates to audioPlayer`() {
         val player = FakeAudioPlayer()
-        val sut = DesktopPlaybackController(player)
+        val sut = newController(player)
 
         sut.play()
 
@@ -119,7 +127,7 @@ class DesktopPlaybackControllerTest {
     @Test
     fun `pause delegates to audioPlayer`() {
         val player = FakeAudioPlayer()
-        val sut = DesktopPlaybackController(player)
+        val sut = newController(player)
 
         sut.pause()
 
@@ -129,7 +137,7 @@ class DesktopPlaybackControllerTest {
     @Test
     fun `seekTo delegates to audioPlayer`() {
         val player = FakeAudioPlayer()
-        val sut = DesktopPlaybackController(player)
+        val sut = newController(player)
 
         sut.seekTo(45_000L)
 
@@ -139,7 +147,7 @@ class DesktopPlaybackControllerTest {
     @Test
     fun `setPlaybackSpeed delegates to audioPlayer setSpeed`() {
         val player = FakeAudioPlayer()
-        val sut = DesktopPlaybackController(player)
+        val sut = newController(player)
 
         sut.setPlaybackSpeed(1.5f)
 
@@ -154,7 +162,7 @@ class DesktopPlaybackControllerTest {
     fun `setMediaQueue maps items to AudioSegments and calls load`() =
         runTest {
             val player = FakeAudioPlayer()
-            val sut = DesktopPlaybackController(player)
+            val sut = newController(player)
 
             val items =
                 listOf(
@@ -176,7 +184,7 @@ class DesktopPlaybackControllerTest {
     fun `setMediaQueue seeks after load when startPositionMs is positive`() =
         runTest {
             val player = FakeAudioPlayer()
-            val sut = DesktopPlaybackController(player)
+            val sut = newController(player)
 
             val items =
                 listOf(
@@ -194,7 +202,7 @@ class DesktopPlaybackControllerTest {
     fun `setMediaQueue does not seek when startPositionMs is zero`() =
         runTest {
             val player = FakeAudioPlayer()
-            val sut = DesktopPlaybackController(player)
+            val sut = newController(player)
 
             val items =
                 listOf(
@@ -214,7 +222,7 @@ class DesktopPlaybackControllerTest {
     @Test
     fun `stop pauses and seeks to zero`() {
         val player = FakeAudioPlayer()
-        val sut = DesktopPlaybackController(player)
+        val sut = newController(player)
 
         sut.stop()
 
@@ -224,7 +232,7 @@ class DesktopPlaybackControllerTest {
     @Test
     fun `setVolume is a no-op`() {
         val player = FakeAudioPlayer()
-        val sut = DesktopPlaybackController(player)
+        val sut = newController(player)
 
         sut.setVolume(0.5f)
 

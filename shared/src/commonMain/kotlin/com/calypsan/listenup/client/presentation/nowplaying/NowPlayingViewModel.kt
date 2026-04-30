@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.playback.ContributorPickerType
 import com.calypsan.listenup.client.playback.NowPlayingOverlay
@@ -48,6 +49,10 @@ private val logger = KotlinLogging.logger {}
  * not re-execute the upstream combine chain.
  *
  * All command-side operations route through [PlaybackController].
+ *
+ * Lifecycle: Bound as a Koin `single` (per W7 Phase E2.2.2) — survives recomposition
+ * and lives for the process lifetime. `onCleared` will never fire and acquire/release
+ * is unneeded; PlaybackController is itself a `single` with matching lifecycle.
  */
 class NowPlayingViewModel(
     private val playbackManager: PlaybackManager,
@@ -55,6 +60,7 @@ class NowPlayingViewModel(
     private val sleepTimerManager: SleepTimerManager,
     private val playbackController: PlaybackController,
     private val playbackPreferences: PlaybackPreferences,
+    private val networkMonitor: NetworkMonitor,
 ) : ViewModel() {
     private companion object {
         const val FADE_DURATION_MS = 3000L
@@ -154,9 +160,6 @@ class NowPlayingViewModel(
         )
 
     init {
-        // Acquire reference to shared controller
-        playbackController.acquire()
-
         // Side effect: notify SleepTimerManager when the chapter index changes
         // (drives end-of-chapter sleep timer). Distinct-by-index dedupes within the
         // flow rather than via a private var.
@@ -290,6 +293,24 @@ class NowPlayingViewModel(
 
     // === Playback actions ===
 
+    fun playBook(bookId: BookId) {
+        viewModelScope.launch {
+            val result = playbackManager.prepareForPlayback(bookId)
+            if (result == null) {
+                val message =
+                    if (networkMonitor.isOnline()) {
+                        "Failed to load book"
+                    } else {
+                        "Can't play this book offline. Download it first."
+                    }
+                playbackManager.reportError(message, isRecoverable = true)
+                return@launch
+            }
+            playbackManager.activateBook(bookId)
+            playbackController.startPlayback(result)
+        }
+    }
+
     fun playPause() {
         if (playbackManager.isPlaying.value) {
             playbackController.pause()
@@ -419,12 +440,6 @@ class NowPlayingViewModel(
     }
 
     fun getChapters(): List<Chapter> = playbackManager.chapters.value
-
-    override fun onCleared() {
-        super.onCleared()
-        // Release our reference to the shared controller
-        playbackController.release()
-    }
 
     private data class DynamicsRaw(
         val isPlaying: Boolean,

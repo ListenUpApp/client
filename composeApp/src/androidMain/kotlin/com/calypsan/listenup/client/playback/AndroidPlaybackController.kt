@@ -152,6 +152,26 @@ class AndroidPlaybackController(
         controller.setMediaItems(mediaItems, startIndex, positionInItem)
         controller.prepare()
     }
+
+    override suspend fun startPlayback(prepareResult: PlaybackManager.PrepareResult) {
+        val items =
+            prepareResult.timeline.files.map { file ->
+                PlaybackMediaItem(
+                    mediaId = file.audioFileId,
+                    uri = file.playbackUri,
+                    localPath = file.localPath,
+                    durationMs = file.durationMs,
+                    offsetMs = file.startOffsetMs,
+                    title = prepareResult.bookTitle,
+                    artist = prepareResult.bookAuthor,
+                    albumTitle = prepareResult.seriesName,
+                    artworkUri = prepareResult.coverPath?.let { "file://$it" },
+                )
+            }
+        setMediaQueue(items, prepareResult.resumePositionMs)
+        setPlaybackSpeed(prepareResult.resumeSpeed)
+        play()
+    }
 }
 
 /**

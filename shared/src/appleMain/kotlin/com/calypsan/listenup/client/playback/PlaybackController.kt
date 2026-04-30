@@ -25,4 +25,6 @@ actual interface PlaybackController {
         items: List<PlaybackMediaItem>,
         startPositionMs: Long,
     )
+
+    actual suspend fun startPlayback(prepareResult: PlaybackManager.PrepareResult)
 }

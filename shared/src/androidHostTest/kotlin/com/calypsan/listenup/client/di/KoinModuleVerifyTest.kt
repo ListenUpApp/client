@@ -52,7 +52,9 @@ import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.download.DownloadService
+import com.calypsan.listenup.client.playback.PlaybackController
 import com.calypsan.listenup.client.playback.PlaybackManager
+import com.calypsan.listenup.client.playback.SleepTimerManager
 import kotlinx.coroutines.CoroutineScope
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.test.verify.verify
@@ -161,6 +163,28 @@ class KoinModuleVerifyTest {
                     HomeRepository::class,
                     SeriesRepository::class,
                     BookRepository::class,
+                ),
+        )
+    }
+
+    /**
+     * Verify [playbackPresentationModule] — single shared playback VM bound as `single`
+     * per W7 Phase E2.2.3 consolidation. Closes drift #33 ("playbackPresentationModule
+     * not covered by module.verify()").
+     *
+     * `extraTypes` enumerates cross-module dependencies that other Koin modules satisfy.
+     */
+    @Test
+    fun verifyPlaybackPresentationModule() {
+        playbackPresentationModule.verify(
+            extraTypes =
+                listOf(
+                    PlaybackManager::class,
+                    PlaybackController::class,
+                    BookRepository::class,
+                    SleepTimerManager::class,
+                    PlaybackPreferences::class,
+                    NetworkMonitor::class,
                 ),
         )
     }

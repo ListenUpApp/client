@@ -56,8 +56,12 @@ private val logger = KotlinLogging.logger {}
  * - Provide central control interface for playback
  * - Trigger background downloads for offline availability
  * - Negotiate audio format with server for transcoding support
+ *
+ * Note on `open`: this class is `open` solely for mokkery mockability in
+ * composeApp/desktopTest controller tests. No production subclasses exist;
+ * revert to `class` once PlaybackManager lives behind an interface.
  */
-class PlaybackManager(
+open class PlaybackManager(
     private val serverConfig: ServerConfig,
     private val playbackPreferences: PlaybackPreferences,
     private val bookDao: BookDao,
@@ -416,23 +420,21 @@ class PlaybackManager(
                         // Drift #29 — error routing. AudioPlayer actuals emit
                         // PlaybackState.Error(message?) for platform-native failures;
                         // PlaybackManager turns that into PlaybackError on the public flow.
-                        when (playbackState) {
-                            is PlaybackState.Error -> {
-                                _playbackError.value =
-                                    PlaybackError(
-                                        message = playbackState.message ?: "Playback failed.",
-                                        isRecoverable = playbackState.isRecoverable,
-                                        timestampMs =
-                                            com.calypsan.listenup.client.core
-                                                .currentEpochMilliseconds(),
-                                    )
-                            }
-
-                            PlaybackState.Playing -> {
-                                _playbackError.value = null
-                            }
-
-                            else -> {}
+                        // (Android emits errors via [reportError] from MediaControllerHolder;
+                        // setPlaybackState never carries Error on the Android path.)
+                        // Drift #28 — Playing/Paused → progressTracker routing lives in
+                        // [setPlaybackState] so both Desktop+iOS (via this collect) and
+                        // Android (via PlaybackStateWriter.setPlaybackState from
+                        // MediaControllerHolder.Player.Listener) flow through one path.
+                        if (playbackState is PlaybackState.Error) {
+                            _playbackError.value =
+                                PlaybackError(
+                                    message = playbackState.message ?: "Playback failed.",
+                                    isRecoverable = playbackState.isRecoverable,
+                                    timestampMs =
+                                        com.calypsan.listenup.client.core
+                                            .currentEpochMilliseconds(),
+                                )
                         }
 
                         if (playbackState == PlaybackState.Ended) {
@@ -454,17 +456,18 @@ class PlaybackManager(
                 }
             }
 
-        // Start playback
+        // Start playback. The Playing transition is routed through progressTracker
+        // by [setPlaybackState] when the collect above forwards the player's
+        // emission (drift #28); no explicit call here.
         player.play()
 
-        // Notify progress tracker
-        progressTracker.onPlaybackStarted(bookId, resumePositionMs, resumeSpeed)
         logger.info { "Playback started via AudioPlayer at position ${resumePositionMs}ms, speed ${resumeSpeed}x" }
     }
 
     /**
-     * Update playback state.
-     * Called by PlayerViewModel when state changes.
+     * Update playing flag. Called by platform-specific event sources
+     * (Android: MediaControllerHolder's Player.Listener; Desktop: PlaybackManager's
+     * own AudioPlayer.state observation in startPlayback).
      */
     override fun setPlaying(playing: Boolean) {
         isPlaying.value = playing
@@ -482,14 +485,46 @@ class PlaybackManager(
     /**
      * Update playback state (Idle/Buffering/Playing/Paused/Ended/Error). Same
      * caller scheme as [setBuffering].
+     *
+     * Drift #28 — every Playing/Paused transition (whether triggered by Desktop's
+     * AudioPlayer state observation in [playerObservationJob] or Android's
+     * [MediaControllerHolder.Player.Listener] pushing through this seam) routes
+     * through [progressTracker] here. VMs no longer call the tracker directly.
+     * Playing also clears any previous [playbackError] so transient failures
+     * resolve as soon as the player recovers.
      */
     override fun setPlaybackState(state: PlaybackState) {
         _playbackState.value = state
+        when (state) {
+            PlaybackState.Playing -> {
+                _playbackError.value = null
+                currentBookId.value?.let { activeBookId ->
+                    progressTracker.onPlaybackStarted(
+                        activeBookId,
+                        currentPositionMs.value,
+                        playbackSpeed.value,
+                    )
+                }
+            }
+
+            PlaybackState.Paused -> {
+                currentBookId.value?.let { activeBookId ->
+                    progressTracker.onPlaybackPaused(
+                        activeBookId,
+                        currentPositionMs.value,
+                        playbackSpeed.value,
+                    )
+                }
+            }
+
+            else -> {}
+        }
     }
 
     /**
-     * Update current position.
-     * Called by PlayerViewModel during position update loop.
+     * Update current position. Called by platform-specific event sources
+     * (Android: MediaControllerHolder's position polling loop; Desktop:
+     * PlaybackManager's own AudioPlayer.state observation in startPlayback).
      */
     override fun updatePosition(positionMs: Long) {
         currentPositionMs.value = positionMs
@@ -497,8 +532,10 @@ class PlaybackManager(
     }
 
     /**
-     * Update playback speed.
-     * Called by PlayerViewModel when speed changes.
+     * Update playback speed. Called by platform-specific event sources
+     * (Android: MediaControllerHolder's Player.Listener on PlaybackParameters
+     * change; Desktop: PlaybackManager's own AudioPlayer.state observation in
+     * startPlayback).
      */
     override fun updateSpeed(speed: Float) {
         playbackSpeed.value = speed

@@ -9,17 +9,17 @@ import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.playback.PlaybackManager
 import android.content.Context
 import android.content.Intent
-import com.calypsan.listenup.client.playback.PlayerViewModel
+import com.calypsan.listenup.client.presentation.nowplaying.NowPlayingViewModel
 import kotlinx.coroutines.flow.Flow
 
 /**
  * Android implementation of BookDetailPlatformActions.
- * Delegates to DownloadManager (WorkManager) and PlayerViewModel (Media3).
+ * Delegates to DownloadManager (WorkManager) and NowPlayingViewModel (Media3).
  */
 class AndroidBookDetailPlatformActions(
     private val context: Context,
     private val downloadManager: DownloadManager,
-    private val playerViewModel: PlayerViewModel,
+    private val nowPlayingViewModel: NowPlayingViewModel,
     private val localPreferences: LocalPreferences,
     private val networkMonitor: NetworkMonitor,
     private val playbackManager: PlaybackManager,
@@ -34,7 +34,7 @@ class AndroidBookDetailPlatformActions(
 
     override suspend fun deleteDownload(bookId: BookId) = downloadManager.deleteDownload(bookId)
 
-    override fun playBook(bookId: BookId) = playerViewModel.playBook(bookId)
+    override fun playBook(bookId: BookId) = nowPlayingViewModel.playBook(bookId)
 
     override fun observeWifiOnlyDownloads(): Flow<Boolean> = localPreferences.wifiOnlyDownloads
 
