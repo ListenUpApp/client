@@ -67,7 +67,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.features.tagdetail.TagDetailScreen
 import com.calypsan.listenup.client.features.profile.UserProfileScreen
 import com.calypsan.listenup.client.navigation.AuthNavigation
-import com.calypsan.listenup.client.presentation.player.DesktopPlayerViewModel
+import com.calypsan.listenup.client.presentation.nowplaying.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.NowPlayingState
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.desktop.nowplaying.DesktopNowPlayingBar
@@ -210,10 +210,10 @@ private fun DesktopAuthenticatedNavigation() {
     val scope = rememberCoroutineScope()
     val authSession: AuthSession = koinInject()
     val libraryResetHelper: LibraryResetHelperContract = koinInject()
-    val playerViewModel: DesktopPlayerViewModel = koinInject()
+    val nowPlayingViewModel: NowPlayingViewModel = koinInject()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val playerScreenState by playerViewModel.screenState.collectAsStateWithLifecycle()
+    val playerScreenState by nowPlayingViewModel.screenState.collectAsStateWithLifecycle()
     val playerState = playerScreenState.state
 
     var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
@@ -233,7 +233,7 @@ private fun DesktopAuthenticatedNavigation() {
                         destination = backStack.last(),
                         navigateTo = navigateTo,
                         navigateBack = navigateBack,
-                        playerViewModel = playerViewModel,
+                        nowPlayingViewModel = nowPlayingViewModel,
                     )
                 } else {
                     AppShell(
@@ -293,9 +293,9 @@ private fun DesktopAuthenticatedNavigation() {
             if (playerState !is NowPlayingState.Idle && !isShowingNowPlaying) {
                 DesktopNowPlayingBar(
                     state = playerState,
-                    onPlayPause = { playerViewModel.playPause() },
-                    onSkipBack = { playerViewModel.skipBack() },
-                    onSkipForward = { playerViewModel.skipForward() },
+                    onPlayPause = { nowPlayingViewModel.playPause() },
+                    onSkipBack = { nowPlayingViewModel.skipBack() },
+                    onSkipForward = { nowPlayingViewModel.skipForward() },
                     onClick = { navigateTo(DetailDestination.NowPlaying) },
                 )
             }
@@ -311,7 +311,7 @@ private fun DetailScreen(
     destination: DetailDestination,
     navigateTo: (DetailDestination) -> Unit,
     navigateBack: () -> Unit,
-    playerViewModel: DesktopPlayerViewModel,
+    nowPlayingViewModel: NowPlayingViewModel,
 ) {
     when (destination) {
         is DetailDestination.Book -> {
@@ -479,7 +479,7 @@ private fun DetailScreen(
         }
 
         is DetailDestination.NowPlaying -> {
-            val screenState by playerViewModel.screenState.collectAsStateWithLifecycle()
+            val screenState by nowPlayingViewModel.screenState.collectAsStateWithLifecycle()
             val state = screenState.state
             // "Go to Book" only meaningful when there's a known bookId — Active or
             // Preparing variants populate it; Error sometimes does; Idle never.
@@ -492,15 +492,15 @@ private fun DetailScreen(
                 }
             DesktopNowPlayingScreen(
                 state = state,
-                onPlayPause = { playerViewModel.playPause() },
-                onSkipBack = { playerViewModel.skipBack() },
-                onSkipForward = { playerViewModel.skipForward() },
-                onPreviousChapter = { playerViewModel.previousChapter() },
-                onNextChapter = { playerViewModel.nextChapter() },
-                onSeekWithinChapter = { progress -> playerViewModel.seekWithinChapter(progress) },
-                onSetSpeed = { speed -> playerViewModel.setSpeed(speed) },
+                onPlayPause = { nowPlayingViewModel.playPause() },
+                onSkipBack = { nowPlayingViewModel.skipBack() },
+                onSkipForward = { nowPlayingViewModel.skipForward() },
+                onPreviousChapter = { nowPlayingViewModel.previousChapter() },
+                onNextChapter = { nowPlayingViewModel.nextChapter() },
+                onSeekWithinChapter = { progress -> nowPlayingViewModel.seekWithinChapter(progress) },
+                onSetSpeed = { speed -> nowPlayingViewModel.setSpeed(speed) },
                 onClose = {
-                    playerViewModel.closeBook()
+                    nowPlayingViewModel.closeBook()
                     navigateBack()
                 },
                 onBackClick = navigateBack,

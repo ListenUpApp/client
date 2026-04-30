@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.features.bookdetail
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.download.DownloadResult
-import com.calypsan.listenup.client.presentation.player.DesktopPlayerViewModel
+import com.calypsan.listenup.client.presentation.nowplaying.NowPlayingViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.flowOf
  * are not yet implemented on desktop, so download-related methods return stubs.
  */
 class DesktopBookDetailPlatformActions(
-    private val playerViewModel: DesktopPlayerViewModel,
+    private val nowPlayingViewModel: NowPlayingViewModel,
 ) : BookDetailPlatformActions {
     override val isPlaybackAvailable: Boolean = true
 
@@ -29,7 +29,7 @@ class DesktopBookDetailPlatformActions(
     override suspend fun deleteDownload(bookId: BookId) {}
 
     override fun playBook(bookId: BookId) {
-        playerViewModel.playBook(bookId)
+        nowPlayingViewModel.playBook(bookId)
     }
 
     override fun observeWifiOnlyDownloads(): Flow<Boolean> = flowOf(false)

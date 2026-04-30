@@ -40,7 +40,7 @@ import java.util.UUID
  * - PlaybackManager for playback orchestration
  * - ProgressTracker for position persistence
  *
- * DesktopPlayerViewModel is bound in the shared `playbackPresentationModule`.
+ * NowPlayingViewModel is bound in the shared `playbackPresentationModule`.
  */
 val platformModule: Module =
     module {
@@ -145,6 +145,6 @@ val platformModule: Module =
 
         // Book detail platform actions (playback via FFmpeg, downloads stubbed)
         single<BookDetailPlatformActions> {
-            DesktopBookDetailPlatformActions(playerViewModel = get())
+            DesktopBookDetailPlatformActions(nowPlayingViewModel = get())
         }
     }
