@@ -3,6 +3,7 @@
 package com.calypsan.listenup.client.playback
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,7 +40,7 @@ class FfmpegAudioPlayer(
     private val tokenProvider: AudioTokenProvider,
     private val scope: CoroutineScope,
 ) : AudioPlayer {
-    private val _state = MutableStateFlow(PlaybackState.Idle)
+    private val _state = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     override val state: StateFlow<PlaybackState> = _state
 
     private val _positionMs = MutableStateFlow(0L)
@@ -65,7 +66,7 @@ class FfmpegAudioPlayer(
     override suspend fun load(segments: List<AudioSegment>) {
         if (segments.isEmpty()) {
             logger.error { "Cannot load empty segment list" }
-            _state.value = PlaybackState.Error
+            _state.value = PlaybackState.Error(message = "Playback error. Check GStreamer installation.")
             return
         }
 
@@ -165,7 +166,7 @@ class FfmpegAudioPlayer(
         val segment = segments.getOrNull(index)
         if (segment == null) {
             logger.error { "Invalid segment index: $index" }
-            _state.value = PlaybackState.Error
+            _state.value = PlaybackState.Error(message = "Playback error. Check GStreamer installation.")
             return
         }
 
@@ -200,7 +201,7 @@ class FfmpegAudioPlayer(
                 logger.error { "Invalid audio format: sampleRate=$sampleRate, channels=$channels" }
                 newGrabber.stop()
                 newGrabber.release()
-                _state.value = PlaybackState.Error
+                _state.value = PlaybackState.Error(message = "Playback error. Check GStreamer installation.")
                 return
             }
 
@@ -241,9 +242,11 @@ class FfmpegAudioPlayer(
                 newGrabber.timestamp = segmentOffset * 1000
                 logger.debug { "Applied pending seek: ${segmentOffset}ms into segment" }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Failed to open segment $index" }
-            _state.value = PlaybackState.Error
+            _state.value = PlaybackState.Error(message = "Playback failed: ${e.message}")
         }
     }
 
@@ -285,7 +288,7 @@ class FfmpegAudioPlayer(
         currentSegmentIndex = index
         openSegment(index)
 
-        if (_state.value == PlaybackState.Error) return
+        if (_state.value is PlaybackState.Error) return
 
         hasStartedPlaying = true
         _state.value = PlaybackState.Playing
@@ -311,10 +314,12 @@ class FfmpegAudioPlayer(
             scope.launch(Dispatchers.IO) {
                 try {
                     this.decodeLoop()
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     if (isActive) {
                         logger.error(e) { "Decode loop error" }
-                        _state.value = PlaybackState.Error
+                        _state.value = PlaybackState.Error(message = "Playback failed: ${e.message}")
                     }
                 }
             }

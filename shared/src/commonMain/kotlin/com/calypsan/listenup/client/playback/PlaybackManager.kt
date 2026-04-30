@@ -109,7 +109,7 @@ class PlaybackManager(
     private val _isBuffering = MutableStateFlow(false)
     val isBuffering: StateFlow<Boolean> = _isBuffering
 
-    private val _playbackState = MutableStateFlow(PlaybackState.Idle)
+    private val _playbackState = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     val playbackState: StateFlow<PlaybackState> = _playbackState
 
     // Chapter state for notification and UI

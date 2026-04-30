@@ -96,7 +96,7 @@ class MediaControllerHolderTest {
             holder.playerListener.onPlaybackStateChanged(Player.STATE_BUFFERING)
 
             assertEquals(listOf(true), writer.bufferingHistory)
-            assertEquals(listOf(PlaybackState.Buffering), writer.playbackStateHistory)
+            assertEquals(listOf<PlaybackState>(PlaybackState.Buffering), writer.playbackStateHistory)
         }
 
     @Test
@@ -113,7 +113,7 @@ class MediaControllerHolderTest {
             holder.playerListener.onPlaybackStateChanged(Player.STATE_READY)
 
             assertEquals(listOf(false), writer.bufferingHistory)
-            assertEquals(listOf(PlaybackState.Paused), writer.playbackStateHistory)
+            assertEquals(listOf<PlaybackState>(PlaybackState.Paused), writer.playbackStateHistory)
         }
 
     // onPlayerError is not tested here: PlaybackException's constructor internally calls

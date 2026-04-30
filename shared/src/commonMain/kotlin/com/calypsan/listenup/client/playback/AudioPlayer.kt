@@ -61,23 +61,36 @@ data class AudioSegment(
 
 /**
  * Playback state reported by the audio player.
+ *
+ * Sealed hierarchy so [Error] can carry a platform-specific diagnostic message.
+ * The five non-error variants are [data object]s with structural equality, so
+ * existing `state == PlaybackState.Idle` etc. continue to work unchanged.
  */
-enum class PlaybackState {
+sealed interface PlaybackState {
     /** No content loaded. */
-    Idle,
+    data object Idle : PlaybackState
 
     /** Content is loading/buffering. */
-    Buffering,
+    data object Buffering : PlaybackState
 
     /** Actively playing audio. */
-    Playing,
+    data object Playing : PlaybackState
 
     /** Playback is paused. */
-    Paused,
+    data object Paused : PlaybackState
 
     /** Playback completed (reached end of all segments). */
-    Ended,
+    data object Ended : PlaybackState
 
-    /** An error occurred during playback. */
-    Error,
+    /**
+     * An error occurred during playback.
+     *
+     * @property message Optional platform-specific diagnostic (e.g., "Check GStreamer installation.").
+     *                    PlaybackManager falls back to a generic string when null.
+     * @property isRecoverable Hint to UI whether retry might succeed.
+     */
+    data class Error(
+        val message: String? = null,
+        val isRecoverable: Boolean = false,
+    ) : PlaybackState
 }
