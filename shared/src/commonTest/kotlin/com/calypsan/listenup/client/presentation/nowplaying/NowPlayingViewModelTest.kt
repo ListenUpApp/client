@@ -6,8 +6,11 @@ import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.playback.NowPlayingOverlay
+import com.calypsan.listenup.client.playback.NowPlayingState
 import com.calypsan.listenup.client.playback.PlaybackController
 import com.calypsan.listenup.client.playback.PlaybackManager.ChapterInfo
+import com.calypsan.listenup.client.playback.PlaybackManager.PlaybackError
 import com.calypsan.listenup.client.playback.PlaybackManager.PrepareResult
 import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.playback.SleepTimerMode
@@ -26,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -433,6 +437,108 @@ class NowPlayingViewModelTest {
             // then a final setVolume(1f). At minimum: pause was invoked once.
             verify(VerifyMode.atLeast(1)) { fixture.playbackController.pause() }
             verify(VerifyMode.atLeast(1)) { fixture.playbackController.setVolume(any()) }
+        }
+
+    // === Overlay + state machine ===
+
+    @Test
+    fun `showChapterPicker updates screenState overlay - hideChapterPicker restores None`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+
+            val vm = fixture.newVm()
+            // screenState uses WhileSubscribed — keep an active collector so the
+            // upstream pipeline runs and .value reflects mutations.
+            backgroundScope.launch { vm.screenState.collect {} }
+            advanceUntilIdle()
+
+            vm.showChapterPicker()
+            advanceUntilIdle()
+            assertTrue(
+                vm.screenState.value.overlay is NowPlayingOverlay.ChapterPicker,
+                "expected ChapterPicker overlay; got: ${vm.screenState.value.overlay}",
+            )
+
+            vm.hideChapterPicker()
+            advanceUntilIdle()
+            assertTrue(
+                vm.screenState.value.overlay is NowPlayingOverlay.None,
+                "expected None overlay; got: ${vm.screenState.value.overlay}",
+            )
+        }
+
+    @Test
+    fun `playbackError emission surfaces as NowPlayingState Error - recovery clears it`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            // Activate a book so the VM has state to display.
+            fixture.fakePm.activateBook(BookId("book-1"))
+
+            val vm = fixture.newVm()
+            // screenState uses WhileSubscribed — keep an active collector so the
+            // upstream pipeline runs and .value reflects mutations.
+            backgroundScope.launch { vm.screenState.collect {} }
+            advanceUntilIdle()
+
+            // Drive an error.
+            fixture.fakePm.playbackErrorFlow.value =
+                PlaybackError(
+                    message = "Network unavailable",
+                    isRecoverable = true,
+                    timestampMs = 1_000L,
+                )
+            advanceUntilIdle()
+
+            // Per mapToNowPlayingState (NowPlayingStateMapper.kt:24-43), a non-null
+            // metadata.error produces NowPlayingState.Error. With activateBook driving
+            // currentBookIdFlow but bookRepository.getBookListItem stubbed to null,
+            // we hit the book-null + error branch.
+            val errored = vm.screenState.value
+            assertTrue(
+                errored.state is NowPlayingState.Error,
+                "expected state is NowPlayingState.Error; got: ${errored.state}",
+            )
+
+            // Recover.
+            fixture.fakePm.playbackErrorFlow.value = null
+            advanceUntilIdle()
+
+            val recovered = vm.screenState.value
+            assertTrue(
+                recovered.state !is NowPlayingState.Error,
+                "expected state recovered (not Error); got: ${recovered.state}",
+            )
+        }
+
+    // === closeBook ===
+
+    @Test
+    fun `closeBook stops controller, clears playback, cancels sleep timer, collapses overlay`() =
+        runTest(testDispatcher) {
+            val fixture = TestFixture()
+            every { fixture.playbackController.stop() } returns Unit
+            // Setup: book is playing and expanded.
+            fixture.fakePm.activateBook(BookId("book-1"))
+
+            val vm = fixture.newVm()
+            // screenState uses WhileSubscribed — keep an active collector so the
+            // upstream pipeline runs and .value reflects mutations.
+            backgroundScope.launch { vm.screenState.collect {} }
+            vm.expand()
+            advanceUntilIdle()
+            assertTrue(vm.screenState.value.isExpanded, "precondition: expanded")
+
+            vm.closeBook()
+            advanceUntilIdle()
+
+            verify(VerifyMode.exactly(1)) { fixture.playbackController.stop() }
+            assertEquals(1, fixture.fakePm.clearPlaybackCalls)
+            // SleepTimerManager is real — state should be Inactive after cancel.
+            assertTrue(
+                fixture.sleepTimerManager.state.value is SleepTimerState.Inactive,
+                "expected sleep timer Inactive after closeBook; got: ${fixture.sleepTimerManager.state.value}",
+            )
+            assertTrue(!vm.screenState.value.isExpanded, "expected collapsed after closeBook")
         }
 
     // ========== Helpers ==========
