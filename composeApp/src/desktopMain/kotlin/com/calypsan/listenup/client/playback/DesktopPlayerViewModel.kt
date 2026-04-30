@@ -35,9 +35,10 @@ private val logger = KotlinLogging.logger {}
  * the Android `NowPlayingViewModel` shape — the heavy upstream pipeline is independent
  * of overlay/expand ephemera, which join only at the screen-state boundary.
  *
- * Side-effect collectors (ProgressTracker pause/resume notifications + 30 s ticker +
- * GStreamer error reporting) live in separate `viewModelScope.launch { collect }` blocks,
- * not in the state-deriving combines.
+ * Side-effect collectors (ProgressTracker pause/resume notifications + 30 s ticker)
+ * live in separate `viewModelScope.launch { collect }` blocks, not in the state-deriving
+ * combines. Player-error routing lives in `PlaybackManager.startPlayback` so iOS gets
+ * the same plumbing for free.
  *
  * Desktop currently has no UI for overlays / expanded mode / sleep timer, but the screen
  * state still tail-combines those flows for shape parity with Android (and to enable

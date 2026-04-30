@@ -175,7 +175,9 @@ class PlaybackManagerBufferingStateTest {
 
             player.emitState(PlaybackState.Error(message = "transient", isRecoverable = true))
             advanceUntilIdle()
-            assertNotNull(sut.playbackError.value)
+            val midError = sut.playbackError.value
+            assertNotNull(midError)
+            assertEquals(true, midError.isRecoverable)
 
             player.emitState(PlaybackState.Playing)
             advanceUntilIdle()
