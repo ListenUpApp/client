@@ -4,16 +4,16 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.calypsan.listenup.client.core.error.AppException
 import com.calypsan.listenup.client.core.error.DownloadError
 import com.calypsan.listenup.client.core.error.ErrorBus
+import com.calypsan.listenup.client.core.error.ServerError
 import com.calypsan.listenup.client.data.remote.PlaybackApiContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.ResponseException
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
@@ -46,6 +46,7 @@ class DownloadWorker(
         const val KEY_FILE_SIZE = "file_size"
 
         private const val MAX_RETRIES = 3
+        private const val HTTP_UNAUTHORIZED = 401
     }
 
     override suspend fun doWork(): Result {
@@ -66,15 +67,16 @@ class DownloadWorker(
             logger.info { "Download cancelled: $audioFileId" }
             downloadRepository.markPaused(audioFileId)
             Result.failure()
-        } catch (e: ResponseException) {
-            // 401 after Auth plugin's refreshTokens returned null — treat as auth failure and pause.
-            // Other 4xx fall through to handleRetryableError for typed-error reporting.
-            if (e.response.status.value == HttpStatusCode.Unauthorized.value) {
+        } catch (e: AppException) {
+            // installListenUpErrorHandling() rewraps every ResponseException as AppException,
+            // so the old `catch (e: ResponseException)` block was dead code. Detect the 401
+            // case via the already-mapped AppError (ErrorMapper maps 401 → ServerError(401)).
+            // Restoration: pre-Phase-C the worker called markPaused on auth failure; preserve
+            // that semantic to avoid burning the 3-attempt retry budget on unrecoverable auth.
+            val serverError = e.error as? ServerError
+            if (serverError?.statusCode == HTTP_UNAUTHORIZED) {
                 logger.warn(e) { "Download paused due to auth failure: $audioFileId" }
-                downloadRepository.markFailed(
-                    audioFileId,
-                    DownloadError.DownloadFailed(debugInfo = e.message),
-                )
+                downloadRepository.markPaused(audioFileId)
                 Result.failure()
             } else {
                 handleRetryableError(audioFileId, e)
