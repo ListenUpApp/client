@@ -16,9 +16,9 @@ import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
 private val logger = KotlinLogging.logger {}
 
@@ -47,84 +47,18 @@ class DownloadManager(
     private val workManager: WorkManager,
     private val fileManager: DownloadFileManager,
     private val localPreferences: com.calypsan.listenup.client.domain.repository.LocalPreferences,
+    private val downloadRepository: DownloadRepository,
 ) : DownloadService {
     /**
      * Observe download status for a specific book.
      */
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
-        downloadDao
-            .observeForBook(bookId.value)
-            .map { downloads -> aggregateStatus(bookId.value, downloads) }
+        downloadRepository.observeBookStatus(bookId)
 
     /**
      * Observe download status for all books (for library indicators).
      */
-    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> =
-        downloadDao
-            .observeAll()
-            .map { downloads ->
-                downloads
-                    .groupBy { it.bookId }
-                    .mapValues { (bookId, files) -> aggregateStatus(bookId, files) }
-            }
-
-    private fun aggregateStatus(
-        bookId: String,
-        downloads: List<DownloadEntity>,
-    ): BookDownloadStatus {
-        if (downloads.isEmpty()) {
-            return BookDownloadStatus.NotDownloaded(bookId)
-        }
-
-        val activeDownloads = downloads.filter { it.state != DownloadState.DELETED }
-        if (activeDownloads.isEmpty()) {
-            return BookDownloadStatus.NotDownloaded(bookId)
-        }
-
-        val totalFiles = activeDownloads.size
-        val completedFiles = activeDownloads.count { it.state == DownloadState.COMPLETED }
-        val totalBytes = activeDownloads.sumOf { it.totalBytes }
-        val downloadedBytes = activeDownloads.sumOf { it.downloadedBytes }
-
-        return when {
-            activeDownloads.all { it.state == DownloadState.COMPLETED } -> {
-                BookDownloadStatus.Completed(bookId = bookId, totalBytes = totalBytes)
-            }
-
-            activeDownloads.any { it.state == DownloadState.FAILED } -> {
-                BookDownloadStatus.Failed(
-                    bookId = bookId,
-                    errorMessage =
-                        activeDownloads
-                            .firstOrNull { it.state == DownloadState.FAILED }
-                            ?.errorMessage
-                            ?: "Download failed",
-                    partiallyDownloadedFiles = completedFiles,
-                )
-            }
-
-            activeDownloads.all { it.state == DownloadState.PAUSED } -> {
-                BookDownloadStatus.Paused(
-                    bookId = bookId,
-                    pausedFiles = activeDownloads.size,
-                    downloadedBytes = downloadedBytes,
-                    totalBytes = totalBytes,
-                )
-            }
-
-            else -> {
-                BookDownloadStatus.InProgress(
-                    bookId = bookId,
-                    totalFiles = totalFiles,
-                    downloadingFiles = activeDownloads.count { it.state == DownloadState.DOWNLOADING },
-                    waitingForServerFiles = 0, // Phase D adds DownloadState.WAITING_FOR_SERVER
-                    completedFiles = completedFiles,
-                    totalBytes = totalBytes,
-                    downloadedBytes = downloadedBytes,
-                )
-            }
-        }
-    }
+    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> = downloadRepository.observeAllStatuses()
 
     /**
      * Download a book (queue all audio files).

@@ -207,6 +207,7 @@ val downloadModule =
                 workManager = WorkManager.getInstance(androidContext()),
                 fileManager = get(),
                 localPreferences = get<com.calypsan.listenup.client.domain.repository.LocalPreferences>(),
+                downloadRepository = get(),
             )
         }
 
