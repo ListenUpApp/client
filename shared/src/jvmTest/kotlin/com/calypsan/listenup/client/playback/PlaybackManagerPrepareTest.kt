@@ -139,7 +139,7 @@ class PlaybackManagerPrepareTest {
         // return null (no saved position), exercising the fresh-playback path.
         val progressTracker = buildProgressTracker()
 
-        return PlaybackManager(
+        return PlaybackManagerImpl(
             serverConfig = serverConfig,
             playbackPreferences = playbackPreferences,
             bookDao = db.bookDao(),

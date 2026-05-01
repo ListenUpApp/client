@@ -6,6 +6,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCAction
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,7 +84,7 @@ class AvFoundationAudioPlayer(
     override suspend fun load(segments: List<AudioSegment>) {
         if (segments.isEmpty()) {
             logger.error { "Cannot load empty segment list" }
-            _state.value = PlaybackState.Error()
+            _state.value = PlaybackState.Error(message = "Cannot load empty segment list")
             return
         }
 
@@ -96,6 +97,7 @@ class AvFoundationAudioPlayer(
             session.setActive(true, error = null)
             logger.info { "Audio session configured for playback" }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             logger.error { "Failed to configure audio session: ${e.message}" }
         }
 
@@ -337,8 +339,9 @@ class AvFoundationAudioPlayer(
         // Check for item errors
         val currentItem = queuePlayer.currentItem
         if (currentItem != null && currentItem.status == AVPlayerItemStatusFailed) {
-            logger.error { "AVPlayerItem failed: ${currentItem.error?.localizedDescription}" }
-            _state.value = PlaybackState.Error()
+            val description = currentItem.error?.localizedDescription
+            logger.error { "AVPlayerItem failed: $description" }
+            _state.value = PlaybackState.Error(message = description)
             return
         }
 

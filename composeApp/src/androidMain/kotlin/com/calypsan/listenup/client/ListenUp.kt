@@ -30,6 +30,7 @@ import com.calypsan.listenup.client.playback.asControllerHolder
 import com.calypsan.listenup.client.playback.PlaybackController
 import com.calypsan.listenup.client.playback.PlaybackErrorHandler
 import com.calypsan.listenup.client.playback.PlaybackManager
+import com.calypsan.listenup.client.playback.PlaybackManagerImpl
 import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.sync.AndroidBackgroundSyncScheduler
@@ -131,8 +132,8 @@ val playbackModule =
         single<AudioCapabilityDetector> { AndroidAudioCapabilityDetector() }
 
         // Playback manager - orchestrates playback startup
-        single {
-            PlaybackManager(
+        single<PlaybackManager> {
+            PlaybackManagerImpl(
                 serverConfig = get(),
                 playbackPreferences = get(),
                 bookDao = get(),

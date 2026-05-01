@@ -75,7 +75,7 @@ class PlaybackManagerFallbackFetchAtomicityTest {
 
             // ProgressTracker is a final class — use the shared helper from PlaybackManagerTestSupport.
             val playbackManager =
-                PlaybackManager(
+                PlaybackManagerImpl(
                     serverConfig = mock(),
                     playbackPreferences = mock(),
                     bookDao = db.bookDao(),
@@ -130,7 +130,7 @@ class PlaybackManagerFallbackFetchAtomicityTest {
 
             // ProgressTracker is a final class — use the shared helper from PlaybackManagerTestSupport.
             val playbackManager =
-                PlaybackManager(
+                PlaybackManagerImpl(
                     serverConfig = mock(),
                     playbackPreferences = mock(),
                     bookDao = db.bookDao(),

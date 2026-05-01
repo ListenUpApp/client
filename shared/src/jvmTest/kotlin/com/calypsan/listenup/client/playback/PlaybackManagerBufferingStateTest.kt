@@ -349,7 +349,7 @@ class PlaybackManagerBufferingStateTest {
         val playbackPreferences: PlaybackPreferences = mock()
         everySuspend { playbackPreferences.getDefaultPlaybackSpeed() } returns 1.0f
 
-        return PlaybackManager(
+        return PlaybackManagerImpl(
             serverConfig = serverConfig,
             playbackPreferences = playbackPreferences,
             bookDao = db.bookDao(),
