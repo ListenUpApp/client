@@ -9,10 +9,9 @@ import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
-import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector
-import com.calypsan.listenup.client.playback.AudioTokenProvider
 import com.calypsan.listenup.client.upload.ABSUploadWorker
+import io.ktor.client.HttpClient
 
 /**
  * WorkerFactory for injecting dependencies into all ListenUp workers.
@@ -24,8 +23,7 @@ import com.calypsan.listenup.client.upload.ABSUploadWorker
 class ListenUpWorkerFactory(
     private val downloadRepository: DownloadRepository,
     private val fileManager: DownloadFileManager,
-    private val tokenProvider: AudioTokenProvider,
-    private val serverConfig: ServerConfig,
+    private val httpClient: HttpClient,
     private val playbackPreferences: PlaybackPreferences,
     private val playbackApi: PlaybackApi,
     private val capabilityDetector: AudioCapabilityDetector,
@@ -44,8 +42,7 @@ class ListenUpWorkerFactory(
                     workerParameters,
                     downloadRepository,
                     fileManager,
-                    tokenProvider,
-                    serverConfig,
+                    httpClient,
                     playbackPreferences,
                     playbackApi,
                     capabilityDetector,

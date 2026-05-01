@@ -9,6 +9,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.calypsan.listenup.client.core.ImageLoaderFactory
+import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.di.playbackPresentationModule
 import com.calypsan.listenup.client.di.sharedModules
@@ -40,6 +41,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import com.calypsan.listenup.client.domain.repository.AuthState
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -257,8 +259,9 @@ class ListenUp :
             ListenUpWorkerFactory(
                 downloadRepository = get(),
                 fileManager = get(),
-                tokenProvider = get<AndroidAudioTokenProvider>(),
-                serverConfig = get(),
+                // WorkerFactory is non-suspending per the WorkManager API; runBlocking is required here.
+                // getClient() is mutex-protected lazy-cached, so this runs at most once per factory construction.
+                httpClient = runBlocking { get<ApiClientFactory>().getClient() },
                 playbackPreferences = get(),
                 playbackApi = get(),
                 capabilityDetector = get(),
