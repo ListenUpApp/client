@@ -9,9 +9,8 @@ import androidx.work.workDataOf
 import com.calypsan.listenup.client.core.error.DownloadError
 import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.DownloadDao
-import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.data.remote.PlaybackApi
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector
@@ -44,7 +43,7 @@ private val logger = KotlinLogging.logger {}
 class DownloadWorker(
     context: Context,
     params: WorkerParameters,
-    private val downloadDao: DownloadDao,
+    private val downloadRepository: DownloadRepository,
     private val fileManager: DownloadFileManager,
     private val tokenProvider: AudioTokenProvider,
     private val serverConfig: ServerConfig,
@@ -71,7 +70,7 @@ class DownloadWorker(
 
         logger.info { "Starting download: $audioFileId ($filename)" }
 
-        downloadDao.updateState(audioFileId, DownloadState.DOWNLOADING, System.currentTimeMillis())
+        downloadRepository.markDownloading(audioFileId, System.currentTimeMillis())
 
         return try {
             downloadFile(audioFileId, bookId, filename, expectedSize)
@@ -79,12 +78,12 @@ class DownloadWorker(
             Result.success()
         } catch (e: CancellationException) {
             logger.info { "Download cancelled: $audioFileId" }
-            downloadDao.updateState(audioFileId, DownloadState.PAUSED)
+            downloadRepository.markPaused(audioFileId)
             Result.failure()
         } catch (e: AuthenticationException) {
             // Auth failure after token refresh — pause instead of wasting retry budget
             logger.warn(e) { "Download paused due to auth failure: $audioFileId" }
-            downloadDao.updateState(audioFileId, DownloadState.PAUSED)
+            downloadRepository.markPaused(audioFileId)
             Result.failure()
         } catch (e: IOException) {
             // Check if this is a storage-related error (no retry for these)
@@ -98,8 +97,7 @@ class DownloadWorker(
             if (isStorageError) {
                 ErrorBus.emit(DownloadError.InsufficientStorage(debugInfo = e.message))
                 logger.error { "Download failed due to insufficient storage: $audioFileId" }
-                downloadDao.updateError(audioFileId, "Insufficient storage space")
-                downloadDao.updateState(audioFileId, DownloadState.FAILED)
+                downloadRepository.markFailed(audioFileId, DownloadError.InsufficientStorage(debugInfo = e.message))
                 Result.failure()
             } else {
                 // Regular IO error - may be transient, allow retry
@@ -116,13 +114,15 @@ class DownloadWorker(
     ): Result {
         ErrorBus.emit(DownloadError.DownloadFailed(debugInfo = e.message))
         logger.error(e) { "Download failed: $audioFileId" }
-        downloadDao.updateError(audioFileId, e.message ?: "Unknown error")
+        // markFailed sets state=FAILED + writes errorMessage + increments retryCount in one call,
+        // collapsing the previous redundant updateError + updateState(FAILED) writes (the prior
+        // updateError already set state=FAILED via its underlying query — no behavior change).
+        downloadRepository.markFailed(audioFileId, DownloadError.DownloadFailed(debugInfo = e.message))
 
         return if (runAttemptCount < MAX_RETRIES) {
             logger.info { "Will retry download: $audioFileId (attempt ${runAttemptCount + 1})" }
             Result.retry()
         } else {
-            downloadDao.updateState(audioFileId, DownloadState.FAILED)
             Result.failure()
         }
     }
@@ -221,7 +221,7 @@ class DownloadWorker(
 
             // Update total size in database
             if (totalSize > 0) {
-                downloadDao.updateProgress(audioFileId, startByte, totalSize)
+                downloadRepository.updateProgress(audioFileId, startByte, totalSize)
             }
 
             FileOutputStream(tempFile, startByte > 0).use { output ->
@@ -243,7 +243,7 @@ class DownloadWorker(
                         // Update progress periodically
                         val now = System.currentTimeMillis()
                         if (now - lastProgressUpdate > PROGRESS_INTERVAL_MS) {
-                            downloadDao.updateProgress(audioFileId, totalBytesRead, totalSize)
+                            downloadRepository.updateProgress(audioFileId, totalBytesRead, totalSize)
                             setProgress(
                                 workDataOf(
                                     "progress" to totalBytesRead,
@@ -268,7 +268,7 @@ class DownloadWorker(
             }
 
             // Mark complete in database
-            downloadDao.markCompleted(
+            downloadRepository.markCompleted(
                 audioFileId = audioFileId,
                 localPath = destPath.toString(),
                 completedAt = System.currentTimeMillis(),

@@ -8,18 +8,20 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.error.DownloadError
 import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
-import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
 private val logger = KotlinLogging.logger {}
 
@@ -48,95 +50,43 @@ class DownloadManager(
     private val workManager: WorkManager,
     private val fileManager: DownloadFileManager,
     private val localPreferences: com.calypsan.listenup.client.domain.repository.LocalPreferences,
+    private val downloadRepository: DownloadRepository,
 ) : DownloadService {
     /**
      * Observe download status for a specific book.
      */
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
-        downloadDao
-            .observeForBook(bookId.value)
-            .map { downloads -> aggregateStatus(bookId.value, downloads) }
+        downloadRepository.observeBookStatus(bookId)
 
     /**
      * Observe download status for all books (for library indicators).
      */
-    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> =
-        downloadDao
-            .observeAll()
-            .map { downloads ->
-                downloads
-                    .groupBy { it.bookId }
-                    .mapValues { (bookId, files) -> aggregateStatus(bookId, files) }
-            }
-
-    private fun aggregateStatus(
-        bookId: String,
-        downloads: List<DownloadEntity>,
-    ): BookDownloadStatus {
-        if (downloads.isEmpty()) {
-            return BookDownloadStatus.notDownloaded(bookId)
-        }
-
-        // If all files are DELETED, treat as not downloaded (show download button)
-        if (downloads.all { it.state == DownloadState.DELETED }) {
-            return BookDownloadStatus.notDownloaded(bookId)
-        }
-
-        // Filter out DELETED entries for counting
-        val activeDownloads = downloads.filter { it.state != DownloadState.DELETED }
-        if (activeDownloads.isEmpty()) {
-            return BookDownloadStatus.notDownloaded(bookId)
-        }
-
-        val totalFiles = activeDownloads.size
-        val completedFiles = activeDownloads.count { it.state == DownloadState.COMPLETED }
-        val totalBytes = activeDownloads.sumOf { it.totalBytes }
-        val downloadedBytes = activeDownloads.sumOf { it.downloadedBytes }
-
-        val state =
-            when {
-                activeDownloads.all { it.state == DownloadState.COMPLETED } -> BookDownloadState.COMPLETED
-                activeDownloads.any { it.state == DownloadState.DOWNLOADING } -> BookDownloadState.DOWNLOADING
-                activeDownloads.any { it.state == DownloadState.QUEUED } -> BookDownloadState.QUEUED
-                activeDownloads.any { it.state == DownloadState.FAILED } -> BookDownloadState.FAILED
-                activeDownloads.any { it.state == DownloadState.COMPLETED } -> BookDownloadState.PARTIAL
-                else -> BookDownloadState.NOT_DOWNLOADED
-            }
-
-        return BookDownloadStatus(
-            bookId = bookId,
-            state = state,
-            totalFiles = totalFiles,
-            completedFiles = completedFiles,
-            totalBytes = totalBytes,
-            downloadedBytes = downloadedBytes,
-        )
-    }
+    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> = downloadRepository.observeAllStatuses()
 
     /**
      * Download a book (queue all audio files).
      * Called when user taps download button OR starts streaming.
      *
-     * @return DownloadResult indicating success, failure reason, or if already downloaded
+     * @return AppResult indicating success, failure reason, or if already downloaded
      */
-    override suspend fun downloadBook(bookId: BookId): DownloadResult {
+    override suspend fun downloadBook(bookId: BookId): AppResult<DownloadOutcome> {
         // Check if already downloading or downloaded
         val existing = downloadDao.getForBook(bookId.value)
         if (existing.isNotEmpty() && existing.all { it.state == DownloadState.COMPLETED }) {
             logger.info { "Book ${bookId.value} already downloaded" }
-            return DownloadResult.AlreadyDownloaded
+            return AppResult.Success(DownloadOutcome.AlreadyDownloaded)
         }
 
         // Verify book exists before attempting download
         if (bookDao.getById(bookId) == null) {
             logger.error { "Book not found: ${bookId.value}" }
-            return DownloadResult.Error("Book not found")
+            return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "Book not found"))
         }
 
         val audioFiles: List<AudioFileEntity> = audioFileDao.getForBook(bookId.value)
         if (audioFiles.isEmpty()) {
             logger.warn { "No audio files for book ${bookId.value}" }
-            return DownloadResult.Error("No audio files available")
+            return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "No audio files available"))
         }
 
         // Create download entries for files not already completed
@@ -159,9 +109,11 @@ class DownloadManager(
                 "Insufficient storage for book ${bookId.value}: " +
                     "need ${requiredBytes / 1_000_000}MB, have ${availableBytes / 1_000_000}MB"
             }
-            return DownloadResult.InsufficientStorage(
-                requiredBytes = requiredBytes,
-                availableBytes = availableBytes,
+            return AppResult.Success(
+                DownloadOutcome.InsufficientStorage(
+                    requiredBytes = requiredBytes,
+                    availableBytes = availableBytes,
+                ),
             )
         }
 
@@ -225,7 +177,7 @@ class DownloadManager(
         }
 
         logger.info { "Queued ${toDownload.size} files for download: ${bookId.value}" }
-        return DownloadResult.Success
+        return AppResult.Success(DownloadOutcome.Started)
     }
 
     /**

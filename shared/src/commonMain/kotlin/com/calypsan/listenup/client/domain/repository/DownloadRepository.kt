@@ -1,28 +1,134 @@
 package com.calypsan.listenup.client.domain.repository
 
+import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.error.DownloadError
+import com.calypsan.listenup.client.data.local.db.DownloadEntity
+import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.domain.model.DownloadedBookSummary
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Repository for queries about the user's downloaded books.
+ * Single seam for download state and orchestration. All writes to the download DAO route through
+ * this repository (Sync Engine Rule 5 compliance). Aggregation lives here so all platforms share
+ * the same state-machine reducer.
  *
- * This is the domain-level surface for download-state reads. The per-book download
- * commands (start, cancel, delete) continue to live on
- * [com.calypsan.listenup.client.download.DownloadService]. W8 will unify these into
- * one repository; for now, this interface exposes only the reads that
- * [com.calypsan.listenup.client.presentation.storage.StorageViewModel] needs.
+ * Per W8 Phase B (handoff design § "Expand `DownloadRepository` interface"). Replaces:
+ * - The narrow read-only interface that previously lived here (limited to `observeDownloadedBooks`
+ *   and `deleteForBook`, used by `StorageViewModel`).
+ * - Direct `DownloadDao` access from `DownloadWorker` and `DownloadManager` (those callers will
+ *   be migrated to route through this interface in Phase B Tasks 7 and 8).
+ *
+ * Cross-phase carveout: methods marked **(Phase B alias)** below have placeholder implementations
+ * until Phase D adds the corresponding `DownloadState` enum entries (`CANCELLED`,
+ * `WAITING_FOR_SERVER`). The alias preserves the interface so Phases C and D don't reshape it.
  */
 interface DownloadRepository {
-    /**
-     * Observe all fully-downloaded books as domain summaries, sorted largest first.
-     */
+    // --- Reads ---
+
+    /** Observe the raw entities for a book (most callers should prefer [observeBookStatus]). */
+    fun observeForBook(bookId: BookId): Flow<List<DownloadEntity>>
+
+    /** Observe all download entities across all books. */
+    fun observeAll(): Flow<List<DownloadEntity>>
+
+    /** Observe the aggregated [BookDownloadStatus] for a single book. */
+    fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus>
+
+    /** Observe aggregated statuses keyed by bookId for cross-book UIs (e.g., library list). */
+    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>>
+
+    /** Observe completed-and-known-to-the-book-repository downloads as domain summaries. */
     fun observeDownloadedBooks(): Flow<List<DownloadedBookSummary>>
 
+    /** Get local file path for an audio file if downloaded; null otherwise. */
+    suspend fun getLocalPath(audioFileId: String): String?
+
+    // --- State-transition writes (Sync Engine Rule 5 enforcement point) ---
+
+    suspend fun markDownloading(
+        audioFileId: String,
+        startedAt: Long,
+    ): AppResult<Unit>
+
+    suspend fun updateProgress(
+        audioFileId: String,
+        downloadedBytes: Long,
+        totalBytes: Long,
+    ): AppResult<Unit>
+
+    suspend fun markCompleted(
+        audioFileId: String,
+        localPath: String,
+        completedAt: Long,
+    ): AppResult<Unit>
+
+    suspend fun markPaused(audioFileId: String): AppResult<Unit>
+
     /**
-     * Delete all download records for the given book.
-     *
-     * Called when a book finishes playing so the next playback session
-     * auto-downloads again (the user's default behaviour).
+     * **(Phase B alias)** — marks the file as PAUSED. Phase D will switch this to write
+     * the new `DownloadState.CANCELLED` enum entry (distinct from PAUSED so a late
+     * `transcode.complete` SSE event can be silently dropped without confusion). Until then,
+     * cancellation collapses into PAUSED, matching the pre-W8 behavior.
      */
+    suspend fun markCancelled(audioFileId: String): AppResult<Unit>
+
+    suspend fun markFailed(
+        audioFileId: String,
+        error: DownloadError,
+    ): AppResult<Unit>
+
+    /**
+     * **(Phase B alias)** — no-op. Phase D adds the `DownloadState.WAITING_FOR_SERVER` enum entry
+     * and activates this method to write the new state + persist `transcodeJobId` for the SSE
+     * `transcode.complete` re-enqueue path. The `transcodeJobId` parameter is accepted and
+     * ignored in Phase B.
+     */
+    suspend fun markWaitingForServer(
+        audioFileId: String,
+        transcodeJobId: String,
+    ): AppResult<Unit>
+
+    // --- Orchestration ---
+
+    /**
+     * Pre-flight check + DB insert + worker enqueue for a book's audio files.
+     *
+     * **(Phase C/D scope)** — Phase B keeps orchestration on the `DownloadService` impls
+     * (`DownloadManager` for Android, `AppleDownloadService` for iOS). This method throws
+     * `NotImplementedError` until Phase C/D moves the platform code onto the repository.
+     */
+    suspend fun enqueueForBook(bookId: BookId): AppResult<DownloadOutcome>
+
+    /**
+     * Cancel all in-flight downloads for a book.
+     *
+     * **(Phase C/D scope)** — see [enqueueForBook] for the same carveout reasoning.
+     */
+    suspend fun cancelForBook(bookId: BookId): AppResult<Unit>
+
+    /** Delete all download records for a book (used post-playback completion). */
     suspend fun deleteForBook(bookId: String)
+
+    /**
+     * Re-enqueue a single audio file's download.
+     *
+     * **(Phase D scope)** — wired by the Bug 4 SSE `transcode.complete` handler.
+     */
+    suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit>
+
+    /**
+     * App-startup recovery: re-enqueue any incomplete downloads.
+     *
+     * **(Phase C/D scope)** — see [enqueueForBook].
+     */
+    suspend fun resumeIncompleteDownloads(): AppResult<Unit>
+
+    /**
+     * **(Phase B alias)** — no-op. Phase D wires this to the SSE-reconnect hook: re-issues
+     * `preparePlayback` for any rows in `WAITING_FOR_SERVER` to catch missed
+     * `transcode.complete` events.
+     */
+    suspend fun recheckWaitingForServer(): AppResult<Unit>
 }

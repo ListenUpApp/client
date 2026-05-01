@@ -207,6 +207,7 @@ val downloadModule =
                 workManager = WorkManager.getInstance(androidContext()),
                 fileManager = get(),
                 localPreferences = get<com.calypsan.listenup.client.domain.repository.LocalPreferences>(),
+                downloadRepository = get(),
             )
         }
 
@@ -254,7 +255,7 @@ class ListenUp :
         // Must be done before verifyCriticalKoinBindings() because DownloadManager needs WorkManager.
         val workerFactory =
             ListenUpWorkerFactory(
-                downloadDao = get(),
+                downloadRepository = get(),
                 fileManager = get(),
                 tokenProvider = get<AndroidAudioTokenProvider>(),
                 serverConfig = get(),

@@ -1,49 +1,64 @@
 package com.calypsan.listenup.client.domain.model
 
 /**
- * Aggregated download status for a book.
+ * Aggregated download status for a book, modeled as a sealed hierarchy so consumers
+ * can exhaustively match on the variant shape without illegal-state combinations.
  *
- * Domain model representing the current download state of a book's audio files.
- * Used by ViewModels to display download progress and state in the UI.
+ * Replaces the legacy flat `data class BookDownloadStatus(state: BookDownloadState, ...)` per
+ * W8 Phase B (W8 handoff design § "Refactor `BookDownloadStatus` from flat data class to sealed
+ * hierarchy"). Closes the rubric drift around "UI state is a per-screen sealed hierarchy, not a
+ * flat data class."
  */
-data class BookDownloadStatus(
-    val bookId: String,
-    val state: BookDownloadState,
-    val totalFiles: Int,
-    val completedFiles: Int,
-    val totalBytes: Long,
-    val downloadedBytes: Long,
-) {
-    val progress: Float
-        get() = if (totalBytes > 0) downloadedBytes.toFloat() / totalBytes else 0f
+sealed interface BookDownloadStatus {
+    val bookId: String
 
-    val isFullyDownloaded: Boolean
-        get() = state == BookDownloadState.COMPLETED
+    /** No download exists for this book (or all files were explicitly deleted). */
+    data class NotDownloaded(
+        override val bookId: String,
+    ) : BookDownloadStatus
 
-    val isDownloading: Boolean
-        get() = state == BookDownloadState.DOWNLOADING || state == BookDownloadState.QUEUED
-
-    companion object {
-        fun notDownloaded(bookId: String) =
-            BookDownloadStatus(
-                bookId = bookId,
-                state = BookDownloadState.NOT_DOWNLOADED,
-                totalFiles = 0,
-                completedFiles = 0,
-                totalBytes = 0,
-                downloadedBytes = 0,
-            )
+    /**
+     * One or more files in this book are mid-flight (downloading, waiting for server, queued).
+     *
+     * @property waitingForServerFiles Count of files currently in `WAITING_FOR_SERVER` state. Zero
+     * until Phase D adds the state. The field is on the type now so Phase C/D don't reshape the
+     * sealed hierarchy mid-stream.
+     */
+    data class InProgress(
+        override val bookId: String,
+        val totalFiles: Int,
+        val downloadingFiles: Int,
+        val waitingForServerFiles: Int,
+        val completedFiles: Int,
+        val totalBytes: Long,
+        val downloadedBytes: Long,
+    ) : BookDownloadStatus {
+        val progress: Float = if (totalBytes > 0) downloadedBytes.toFloat() / totalBytes else 0f
     }
-}
 
-/**
- * Download state enumeration for a book.
- */
-enum class BookDownloadState {
-    NOT_DOWNLOADED,
-    QUEUED,
-    DOWNLOADING,
-    PARTIAL,
-    COMPLETED,
-    FAILED,
+    /** All files for this book are downloaded. */
+    data class Completed(
+        override val bookId: String,
+        val totalBytes: Long,
+    ) : BookDownloadStatus
+
+    /**
+     * One or more files failed and the worker exhausted its retries.
+     *
+     * @property partiallyDownloadedFiles Files that completed successfully before the failure;
+     * lets the UI show "X of N files downloaded" alongside the retry CTA.
+     */
+    data class Failed(
+        override val bookId: String,
+        val errorMessage: String,
+        val partiallyDownloadedFiles: Int,
+    ) : BookDownloadStatus
+
+    /** User cancelled or system paused the download. */
+    data class Paused(
+        override val bookId: String,
+        val pausedFiles: Int,
+        val downloadedBytes: Long,
+        val totalBytes: Long,
+    ) : BookDownloadStatus
 }

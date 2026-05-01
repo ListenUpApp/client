@@ -3,15 +3,17 @@
 
 package com.calypsan.listenup.client.download
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.error.DownloadError
 import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
-import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.playback.AudioTokenProvider
@@ -46,11 +48,22 @@ import com.calypsan.listenup.client.core.Success
 private val logger = KotlinLogging.logger {}
 
 /**
- * iOS implementation of DownloadService.
+ * iOS implementation of [DownloadService] using NSURLSession background downloads.
  *
- * Uses NSURLSession with download tasks that stream directly to disk.
- * Each file download is a single coroutine that suspends until complete.
- * Progress is tracked via delegate callbacks and written to the database.
+ * **W10 carveout (W8 Phase B):** this class still writes directly to
+ * [com.calypsan.listenup.client.data.local.db.DownloadDao] via the `downloadDao` constructor
+ * parameter — Sync Engine Rule 5 violation, deferred to W10. The Android side migrated to inject
+ * [com.calypsan.listenup.client.domain.repository.DownloadRepository] in W8 Phase B, but iOS is
+ * part of W10 (iOS Player Adoption) which owns the iOS migration onto shared Kotlin VMs and
+ * shared repositories. See `docs/superpowers/specs/2026-05-01-w8-handoff-design.md` § Phase B
+ * "AppleDownloadService keeps its current DAO writes" and § Out of scope ("iOS download adoption
+ * — deferred to W10").
+ *
+ * For Phase B specifically, this class's interface compliance was updated:
+ * - [downloadBook] returns [com.calypsan.listenup.client.core.AppResult]<[com.calypsan.listenup.client.domain.model.DownloadOutcome]> instead of the legacy `DownloadResult`.
+ * - [observeBookStatus] aggregates via the new sealed [com.calypsan.listenup.client.domain.model.BookDownloadStatus] hierarchy.
+ *
+ * The internal DAO writes remain untouched.
  */
 @OptIn(ExperimentalTime::class)
 class AppleDownloadService(
@@ -91,21 +104,21 @@ class AppleDownloadService(
     override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean = downloadDao.hasDeletedRecords(bookId.value)
 
     @Suppress("ReturnCount")
-    override suspend fun downloadBook(bookId: BookId): DownloadResult {
+    override suspend fun downloadBook(bookId: BookId): AppResult<DownloadOutcome> {
         val existing = downloadDao.getForBook(bookId.value)
         if (existing.isNotEmpty() && existing.all { it.state == DownloadState.COMPLETED }) {
-            return DownloadResult.AlreadyDownloaded
+            return AppResult.Success(DownloadOutcome.AlreadyDownloaded)
         }
 
         val bookEntity =
             bookDao.getById(bookId) ?: run {
                 logger.error { "Book not found: ${bookId.value}" }
-                return DownloadResult.Error("Book not found")
+                return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "Book not found"))
             }
 
         val audioFileEntities = audioFileDao.getForBook(bookId.value)
         if (audioFileEntities.isEmpty()) {
-            return DownloadResult.Error("No audio files available")
+            return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "No audio files available"))
         }
         val audioFiles: List<AudioFileResponse> = audioFileEntities.map { it.toAudioFileResponse() }
 
@@ -120,14 +133,14 @@ class AppleDownloadService(
 
         if (toDownload.isEmpty()) {
             logger.info { "All files already downloading or completed for ${bookId.value}" }
-            return DownloadResult.AlreadyDownloaded
+            return AppResult.Success(DownloadOutcome.AlreadyDownloaded)
         }
 
         // Check storage
         val requiredBytes = toDownload.sumOf { it.size }
         val availableBytes = fileManager.getAvailableSpace()
         if (availableBytes < (requiredBytes * 1.1).toLong()) {
-            return DownloadResult.InsufficientStorage(requiredBytes, availableBytes)
+            return AppResult.Success(DownloadOutcome.InsufficientStorage(requiredBytes, availableBytes))
         }
 
         // Ensure fresh token
@@ -135,12 +148,12 @@ class AppleDownloadService(
         val token =
             tokenProvider.getToken() ?: run {
                 logger.error { "No auth token available" }
-                return DownloadResult.Error("Not authenticated")
+                return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "Not authenticated"))
             }
 
         val serverUrl =
             serverConfig.getServerUrl()?.value ?: run {
-                return DownloadResult.Error("No server configured")
+                return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "No server configured"))
             }
 
         // Create download entries
@@ -181,7 +194,7 @@ class AppleDownloadService(
         }
 
         logger.info { "Queued ${toDownload.size} files for download: ${bookId.value}" }
-        return DownloadResult.Success
+        return AppResult.Success(DownloadOutcome.Started)
     }
 
     /**
@@ -331,34 +344,63 @@ class AppleDownloadService(
 
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
         downloadDao.observeForBook(bookId.value).map { entities ->
-            if (entities.isEmpty()) {
-                BookDownloadStatus.notDownloaded(bookId.value)
-            } else {
-                val totalFiles = entities.size
-                val completedFiles = entities.count { it.state == DownloadState.COMPLETED }
-                val totalBytes = entities.sumOf { it.totalBytes }
-                val downloadedBytes = entities.sumOf { it.downloadedBytes }
+            aggregateBookDownloadStatus(bookId.value, entities)
+        }
 
-                val state =
-                    when {
-                        entities.all { it.state == DownloadState.COMPLETED } -> BookDownloadState.COMPLETED
-                        entities.any { it.state == DownloadState.DOWNLOADING } -> BookDownloadState.DOWNLOADING
-                        entities.any { it.state == DownloadState.QUEUED } -> BookDownloadState.QUEUED
-                        entities.any { it.state == DownloadState.FAILED } -> BookDownloadState.FAILED
-                        entities.any { it.state == DownloadState.COMPLETED } -> BookDownloadState.PARTIAL
-                        else -> BookDownloadState.NOT_DOWNLOADED
-                    }
+    // Inline copy of DownloadManager.aggregateStatus until Task 8 moves the canonical version
+    // into DownloadRepository. iOS keeps its own copy through W10 (deferred carveout per W8 design).
+    private fun aggregateBookDownloadStatus(
+        bookId: String,
+        entities: List<DownloadEntity>,
+    ): BookDownloadStatus {
+        if (entities.isEmpty()) {
+            return BookDownloadStatus.NotDownloaded(bookId)
+        }
+        val activeDownloads = entities.filter { it.state != DownloadState.DELETED }
+        if (activeDownloads.isEmpty()) {
+            return BookDownloadStatus.NotDownloaded(bookId)
+        }
+        val totalFiles = activeDownloads.size
+        val completedFiles = activeDownloads.count { it.state == DownloadState.COMPLETED }
+        val totalBytes = activeDownloads.sumOf { it.totalBytes }
+        val downloadedBytes = activeDownloads.sumOf { it.downloadedBytes }
+        return when {
+            activeDownloads.all { it.state == DownloadState.COMPLETED } -> {
+                BookDownloadStatus.Completed(bookId = bookId, totalBytes = totalBytes)
+            }
 
-                BookDownloadStatus(
-                    bookId = bookId.value,
-                    state = state,
+            activeDownloads.any { it.state == DownloadState.FAILED } -> {
+                BookDownloadStatus.Failed(
+                    bookId = bookId,
+                    errorMessage =
+                        activeDownloads.firstOrNull { it.state == DownloadState.FAILED }?.errorMessage
+                            ?: "Download failed",
+                    partiallyDownloadedFiles = completedFiles,
+                )
+            }
+
+            activeDownloads.all { it.state == DownloadState.PAUSED } -> {
+                BookDownloadStatus.Paused(
+                    bookId = bookId,
+                    pausedFiles = activeDownloads.size,
+                    downloadedBytes = downloadedBytes,
+                    totalBytes = totalBytes,
+                )
+            }
+
+            else -> {
+                BookDownloadStatus.InProgress(
+                    bookId = bookId,
                     totalFiles = totalFiles,
+                    downloadingFiles = activeDownloads.count { it.state == DownloadState.DOWNLOADING },
+                    waitingForServerFiles = 0,
                     completedFiles = completedFiles,
                     totalBytes = totalBytes,
                     downloadedBytes = downloadedBytes,
                 )
             }
         }
+    }
 }
 
 /**

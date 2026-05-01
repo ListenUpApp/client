@@ -2,8 +2,8 @@ package com.calypsan.listenup.client.presentation.storage
 
 import app.cash.turbine.test
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.data.repository.FakeDownloadRepository
 import com.calypsan.listenup.client.domain.model.DownloadedBookSummary
-import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.StorageSpaceProvider
 import dev.mokkery.answering.returns
@@ -32,14 +32,16 @@ import kotlin.test.assertTrue
 class StorageViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
-    private class FakeDownloadRepository(
+    /**
+     * Local fake that overrides [observeDownloadedBooks] with a controllable [MutableStateFlow].
+     * All other DownloadRepository methods are satisfied by [FakeDownloadRepository]'s defaults.
+     */
+    private class StorageViewModelFakeDownloadRepository(
         initial: List<DownloadedBookSummary> = emptyList(),
-    ) : DownloadRepository {
+    ) : FakeDownloadRepository() {
         val downloads = MutableStateFlow(initial)
 
         override fun observeDownloadedBooks(): Flow<List<DownloadedBookSummary>> = downloads
-
-        override suspend fun deleteForBook(bookId: String) = Unit
     }
 
     @BeforeTest
@@ -53,7 +55,7 @@ class StorageViewModelTest {
     }
 
     private class Fixture(
-        val downloadRepository: FakeDownloadRepository,
+        val downloadRepository: StorageViewModelFakeDownloadRepository,
         val downloadService: DownloadService,
         val storageSpaceProvider: StorageSpaceProvider,
     )
@@ -65,7 +67,7 @@ class StorageViewModelTest {
     ): Pair<StorageViewModel, Fixture> {
         val fixture =
             Fixture(
-                downloadRepository = FakeDownloadRepository(downloads),
+                downloadRepository = StorageViewModelFakeDownloadRepository(downloads),
                 downloadService = mock(),
                 storageSpaceProvider = mock(),
             )

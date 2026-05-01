@@ -27,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
@@ -51,7 +50,7 @@ import listenup.composeapp.generated.resources.book_detail_waiting_for_wifi
  * - Queued (waiting for WiFi): WiFi-off icon, tap to cancel
  * - Downloading: Progress circle with %, tap to cancel
  * - Downloaded: Trash icon, tap to delete
- * - Failed/Partial: Retry icon, tap to resume
+ * - Failed/Paused: Retry icon, tap to resume
  *
  * @param isWaitingForWifi True when download is queued but waiting for WiFi connection
  *                         (wifiOnlyDownloads enabled + not on WiFi). Shows WiFi-off icon.
@@ -88,8 +87,8 @@ fun DownloadButton(
             contentAlignment = Alignment.Center,
             modifier = Modifier.fillMaxSize(),
         ) {
-            when (status.state) {
-                BookDownloadState.NOT_DOWNLOADED -> {
+            when (status) {
+                is BookDownloadStatus.NotDownloaded -> {
                     IconButton(onClick = onDownloadClick) {
                         Icon(
                             Icons.Outlined.Download,
@@ -99,43 +98,43 @@ fun DownloadButton(
                     }
                 }
 
-                BookDownloadState.QUEUED -> {
+                is BookDownloadStatus.InProgress -> {
                     IconButton(onClick = onCancelClick) {
-                        if (isWaitingForWifi) {
-                            // Waiting for WiFi - show WiFi-off icon
-                            Icon(
-                                Icons.Default.WifiOff,
-                                contentDescription = stringResource(Res.string.book_detail_waiting_for_wifi),
-                                tint = contentColor.copy(alpha = 0.7f),
-                            )
-                        } else {
-                            // Normal queued state - show spinner
-                            ListenUpLoadingIndicatorSmall()
+                        when {
+                            status.downloadingFiles > 0 -> {
+                                Box(contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(
+                                        progress = { status.progress },
+                                        modifier = Modifier.size(32.dp),
+                                        strokeWidth = 3.dp,
+                                        color = contentColor,
+                                        trackColor = contentColor.copy(alpha = 0.3f),
+                                    )
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = stringResource(Res.string.book_detail_cancel_download),
+                                        modifier = Modifier.size(12.dp),
+                                        tint = contentColor.copy(alpha = 0.6f),
+                                    )
+                                }
+                            }
+
+                            isWaitingForWifi -> {
+                                Icon(
+                                    Icons.Default.WifiOff,
+                                    contentDescription = stringResource(Res.string.book_detail_waiting_for_wifi),
+                                    tint = contentColor.copy(alpha = 0.7f),
+                                )
+                            }
+
+                            else -> {
+                                ListenUpLoadingIndicatorSmall()
+                            }
                         }
                     }
                 }
 
-                BookDownloadState.DOWNLOADING -> {
-                    IconButton(onClick = onCancelClick) {
-                        Box(contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(
-                                progress = { status.progress },
-                                modifier = Modifier.size(32.dp),
-                                strokeWidth = 3.dp,
-                                color = contentColor,
-                                trackColor = contentColor.copy(alpha = 0.3f),
-                            )
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = stringResource(Res.string.book_detail_cancel_download),
-                                modifier = Modifier.size(12.dp),
-                                tint = contentColor.copy(alpha = 0.6f),
-                            )
-                        }
-                    }
-                }
-
-                BookDownloadState.COMPLETED -> {
+                is BookDownloadStatus.Completed -> {
                     IconButton(onClick = onDeleteClick) {
                         Icon(
                             Icons.Outlined.Delete,
@@ -145,8 +144,8 @@ fun DownloadButton(
                     }
                 }
 
-                BookDownloadState.PARTIAL,
-                BookDownloadState.FAILED,
+                is BookDownloadStatus.Failed,
+                is BookDownloadStatus.Paused,
                 -> {
                     IconButton(onClick = onDownloadClick) {
                         Icon(
@@ -176,67 +175,71 @@ fun DownloadButtonExpanded(
     modifier: Modifier = Modifier,
     isWaitingForWifi: Boolean = false,
 ) {
-    val progressPercent = (status.progress * 100).toInt()
+    val onClick =
+        when (status) {
+            is BookDownloadStatus.NotDownloaded -> onDownloadClick
+            is BookDownloadStatus.InProgress -> onCancelClick
+            is BookDownloadStatus.Completed -> onDeleteClick
+            is BookDownloadStatus.Failed -> onDownloadClick
+            is BookDownloadStatus.Paused -> onDownloadClick
+        }
 
     OutlinedButton(
-        onClick =
-            when (status.state) {
-                BookDownloadState.NOT_DOWNLOADED -> onDownloadClick
-                BookDownloadState.QUEUED, BookDownloadState.DOWNLOADING -> onCancelClick
-                BookDownloadState.COMPLETED -> onDeleteClick
-                BookDownloadState.PARTIAL, BookDownloadState.FAILED -> onDownloadClick
-            },
+        onClick = onClick,
         modifier =
             modifier
                 .fillMaxWidth()
                 .height(52.dp),
         shape = RoundedCornerShape(26.dp),
     ) {
-        when (status.state) {
-            BookDownloadState.NOT_DOWNLOADED -> {
+        when (status) {
+            is BookDownloadStatus.NotDownloaded -> {
                 Icon(Icons.Outlined.Download, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(Res.string.book_detail_download))
             }
 
-            BookDownloadState.QUEUED -> {
-                if (isWaitingForWifi) {
-                    // Waiting for WiFi - show WiFi-off icon with message
-                    Icon(
-                        Icons.Default.WifiOff,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(Res.string.book_detail_waiting_for_wifi))
-                } else {
-                    // Normal queued state
-                    ListenUpLoadingIndicatorSmall()
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(Res.string.book_detail_queued))
+            is BookDownloadStatus.InProgress -> {
+                when {
+                    status.downloadingFiles > 0 -> {
+                        val progressPercent = (status.progress * 100).toInt()
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                progress = { status.progress },
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(Res.string.book_detail_progresspercent, progressPercent))
+                        }
+                    }
+
+                    isWaitingForWifi -> {
+                        Icon(
+                            Icons.Default.WifiOff,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(Res.string.book_detail_waiting_for_wifi))
+                    }
+
+                    else -> {
+                        ListenUpLoadingIndicatorSmall()
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(Res.string.book_detail_queued))
+                    }
                 }
             }
 
-            BookDownloadState.DOWNLOADING -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(
-                        progress = { status.progress },
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(Res.string.book_detail_progresspercent, progressPercent))
-                }
-            }
-
-            BookDownloadState.COMPLETED -> {
+            is BookDownloadStatus.Completed -> {
                 Icon(Icons.Outlined.Delete, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(Res.string.book_detail_downloaded))
             }
 
-            BookDownloadState.PARTIAL,
-            BookDownloadState.FAILED,
+            is BookDownloadStatus.Failed,
+            is BookDownloadStatus.Paused,
             -> {
                 Icon(
                     Icons.Default.Refresh,

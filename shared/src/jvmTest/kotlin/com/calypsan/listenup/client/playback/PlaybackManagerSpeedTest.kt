@@ -15,7 +15,8 @@ import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import com.calypsan.listenup.client.domain.repository.ServerConfig
-import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
 import dev.mokkery.answering.returns
@@ -228,7 +229,7 @@ class PlaybackManagerSpeedTest {
         val downloadService: DownloadService = mock()
         everySuspend { downloadService.getLocalPath(any()) } returns null
         everySuspend { downloadService.wasExplicitlyDeleted(any()) } returns false
-        everySuspend { downloadService.downloadBook(any()) } returns DownloadResult.AlreadyDownloaded
+        everySuspend { downloadService.downloadBook(any()) } returns AppResult.Success(DownloadOutcome.AlreadyDownloaded)
 
         return PlaybackManagerImpl(
             serverConfig = serverConfig,
