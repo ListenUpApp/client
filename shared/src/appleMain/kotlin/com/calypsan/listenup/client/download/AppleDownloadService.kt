@@ -48,11 +48,22 @@ import com.calypsan.listenup.client.core.Success
 private val logger = KotlinLogging.logger {}
 
 /**
- * iOS implementation of DownloadService.
+ * iOS implementation of [DownloadService] using NSURLSession background downloads.
  *
- * Uses NSURLSession with download tasks that stream directly to disk.
- * Each file download is a single coroutine that suspends until complete.
- * Progress is tracked via delegate callbacks and written to the database.
+ * **W10 carveout (W8 Phase B):** this class still writes directly to
+ * [com.calypsan.listenup.client.data.local.db.DownloadDao] via the `downloadDao` constructor
+ * parameter — Sync Engine Rule 5 violation, deferred to W10. The Android side migrated to inject
+ * [com.calypsan.listenup.client.domain.repository.DownloadRepository] in W8 Phase B, but iOS is
+ * part of W10 (iOS Player Adoption) which owns the iOS migration onto shared Kotlin VMs and
+ * shared repositories. See `docs/superpowers/specs/2026-05-01-w8-handoff-design.md` § Phase B
+ * "AppleDownloadService keeps its current DAO writes" and § Out of scope ("iOS download adoption
+ * — deferred to W10").
+ *
+ * For Phase B specifically, this class's interface compliance was updated:
+ * - [downloadBook] returns [com.calypsan.listenup.client.core.AppResult]<[com.calypsan.listenup.client.domain.model.DownloadOutcome]> instead of the legacy `DownloadResult`.
+ * - [observeBookStatus] aggregates via the new sealed [com.calypsan.listenup.client.domain.model.BookDownloadStatus] hierarchy.
+ *
+ * The internal DAO writes remain untouched.
  */
 @OptIn(ExperimentalTime::class)
 class AppleDownloadService(
