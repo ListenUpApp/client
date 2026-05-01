@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.download
 
-import com.calypsan.listenup.client.data.local.images.JvmStoragePaths
+import com.calypsan.listenup.client.data.local.images.StoragePaths
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import java.io.File
@@ -17,8 +17,8 @@ import java.io.File
  * - Storage calculation with walkTopDown (no kotlinx-io equivalent)
  * - Available space query (platform-specific)
  */
-actual class DownloadFileManager(
-    private val storagePaths: JvmStoragePaths,
+actual open class DownloadFileManager(
+    private val storagePaths: StoragePaths,
 ) {
     private val downloadDir: Path
         get() {
@@ -88,7 +88,7 @@ actual class DownloadFileManager(
         return SystemFileSystem.metadataOrNull(filePath)?.size ?: 0L
     }
 
-    actual fun moveFile(
+    actual open fun moveFile(
         source: Path,
         destination: Path,
     ): Boolean =

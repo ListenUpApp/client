@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.data.remote.PlaybackApi
+import com.calypsan.listenup.client.data.remote.PlaybackApiContract
 import com.calypsan.listenup.client.features.bookdetail.BookDetailPlatformActions
 import com.calypsan.listenup.client.features.bookdetail.DesktopBookDetailPlatformActions
 import com.calypsan.listenup.client.download.DownloadFileManager
@@ -97,7 +98,7 @@ val platformModule: Module =
         single<DownloadService> { StubDownloadService() }
 
         // Playback API for codec negotiation
-        single { PlaybackApi(clientFactory = get()) }
+        single<PlaybackApiContract> { PlaybackApi(clientFactory = get()) }
 
         // Progress tracker
         single {
