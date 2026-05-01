@@ -18,6 +18,22 @@ import com.calypsan.listenup.client.core.Failure
 private val logger = KotlinLogging.logger {}
 
 /**
+ * Seam interface for playback API operations.
+ *
+ * Extracted so [DownloadAudioFile] can be tested in commonTest/jvmTest without
+ * a real [ApiClientFactory]. Production callers use [PlaybackApi]; test callers
+ * use a hand-rolled fake.
+ */
+interface PlaybackApiContract {
+    suspend fun preparePlayback(
+        bookId: String,
+        audioFileId: String,
+        capabilities: List<String>,
+        spatial: Boolean,
+    ): AppResult<PreparePlaybackResponse>
+}
+
+/**
  * API client for playback-related endpoints.
  *
  * Handles format negotiation for audio streaming, ensuring the client
@@ -28,7 +44,7 @@ private val logger = KotlinLogging.logger {}
  */
 class PlaybackApi(
     private val clientFactory: ApiClientFactory,
-) {
+) : PlaybackApiContract {
     /**
      * Prepare playback for an audio file.
      *
@@ -42,7 +58,7 @@ class PlaybackApi(
      * @param spatial Whether the client prefers spatial audio
      * @return PreparePlaybackResponse with stream URL and ready status
      */
-    suspend fun preparePlayback(
+    override suspend fun preparePlayback(
         bookId: String,
         audioFileId: String,
         capabilities: List<String>,

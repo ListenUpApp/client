@@ -16,7 +16,7 @@ import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
-import com.calypsan.listenup.client.data.remote.PlaybackApi
+import com.calypsan.listenup.client.data.remote.PlaybackApiContract
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.installListenUpErrorHandling
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
@@ -60,7 +60,7 @@ class PlaybackManagerImpl(
     private val tokenProvider: AudioTokenProvider,
     private val deviceContext: DeviceContext,
     private val downloadService: DownloadService,
-    private val playbackApi: PlaybackApi?,
+    private val playbackApi: PlaybackApiContract?,
     private val capabilityDetector: AudioCapabilityDetector?,
     private val syncApi: SyncApiContract?,
     private val scope: CoroutineScope,

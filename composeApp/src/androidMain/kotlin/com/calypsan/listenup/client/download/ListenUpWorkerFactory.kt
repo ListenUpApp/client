@@ -5,14 +5,14 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.calypsan.listenup.client.data.remote.ABSImportApiContract
+import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.data.remote.BackupApiContract
-import com.calypsan.listenup.client.data.remote.PlaybackApi
+import com.calypsan.listenup.client.data.remote.PlaybackApiContract
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
-import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector
-import com.calypsan.listenup.client.playback.AudioTokenProvider
 import com.calypsan.listenup.client.upload.ABSUploadWorker
+import kotlinx.coroutines.runBlocking
 
 /**
  * WorkerFactory for injecting dependencies into all ListenUp workers.
@@ -24,10 +24,11 @@ import com.calypsan.listenup.client.upload.ABSUploadWorker
 class ListenUpWorkerFactory(
     private val downloadRepository: DownloadRepository,
     private val fileManager: DownloadFileManager,
-    private val tokenProvider: AudioTokenProvider,
-    private val serverConfig: ServerConfig,
+    // Deferred to worker-creation time so getClient() is never called before onboarding
+    // completes (i.e. before serverConfig.getActiveUrl() returns non-null).
+    private val apiClientFactory: ApiClientFactory,
     private val playbackPreferences: PlaybackPreferences,
-    private val playbackApi: PlaybackApi,
+    private val playbackApi: PlaybackApiContract,
     private val capabilityDetector: AudioCapabilityDetector,
     private val backupApi: BackupApiContract,
     private val absImportApi: ABSImportApiContract,
@@ -39,13 +40,16 @@ class ListenUpWorkerFactory(
     ): ListenableWorker? =
         when (workerClassName) {
             DownloadWorker::class.java.name -> {
+                // WorkerFactory.createWorker is non-suspending; runBlocking is required.
+                // By the time WorkManager dispatches a download, onboarding has completed
+                // and serverConfig.getActiveUrl() is non-null — no cold-start crash risk.
+                val httpClient = runBlocking { apiClientFactory.getClient() }
                 DownloadWorker(
                     appContext,
                     workerParameters,
                     downloadRepository,
                     fileManager,
-                    tokenProvider,
-                    serverConfig,
+                    httpClient,
                     playbackPreferences,
                     playbackApi,
                     capabilityDetector,
