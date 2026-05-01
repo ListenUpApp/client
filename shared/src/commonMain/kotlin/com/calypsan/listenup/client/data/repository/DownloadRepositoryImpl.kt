@@ -111,10 +111,9 @@ class DownloadRepositoryImpl(
             downloadDao.updateState(audioFileId, DownloadState.PAUSED)
         }
 
-    // Phase B alias: cancellation collapses into PAUSED. Phase D adds DownloadState.CANCELLED.
     override suspend fun markCancelled(audioFileId: String): AppResult<Unit> =
         suspendRunCatching {
-            downloadDao.updateState(audioFileId, DownloadState.PAUSED)
+            downloadDao.updateState(audioFileId, DownloadState.CANCELLED)
         }
 
     override suspend fun markFailed(

@@ -99,7 +99,10 @@ open class FakeDownloadRepository(
         return AppResult.Success(Unit)
     }
 
-    override suspend fun markCancelled(audioFileId: String): AppResult<Unit> = markPaused(audioFileId)
+    override suspend fun markCancelled(audioFileId: String): AppResult<Unit> {
+        update(audioFileId) { it.copy(state = DownloadState.CANCELLED) }
+        return AppResult.Success(Unit)
+    }
 
     override suspend fun markFailed(
         audioFileId: String,

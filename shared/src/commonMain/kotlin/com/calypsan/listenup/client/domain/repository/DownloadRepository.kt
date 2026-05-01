@@ -67,10 +67,9 @@ interface DownloadRepository {
     suspend fun markPaused(audioFileId: String): AppResult<Unit>
 
     /**
-     * **(Phase B alias)** — marks the file as PAUSED. Phase D will switch this to write
-     * the new `DownloadState.CANCELLED` enum entry (distinct from PAUSED so a late
-     * `transcode.complete` SSE event can be silently dropped without confusion). Until then,
-     * cancellation collapses into PAUSED, matching the pre-W8 behavior.
+     * Mark the file as cancelled by user action. Distinct from [markPaused] (system-pause)
+     * so the SSE handler can recognize and silently drop late `transcode.complete` events for
+     * cancelled jobs.
      */
     suspend fun markCancelled(audioFileId: String): AppResult<Unit>
 

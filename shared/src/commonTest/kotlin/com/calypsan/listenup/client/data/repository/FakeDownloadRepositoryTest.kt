@@ -74,11 +74,11 @@ class FakeDownloadRepositoryTest {
         }
 
     @Test
-    fun `markCancelled aliases to PAUSED in Phase B`() =
+    fun `markCancelled writes CANCELLED state`() =
         runTest {
             val fake = FakeDownloadRepository(initial = listOf(entity("file-1", state = DownloadState.DOWNLOADING)))
             fake.markCancelled("file-1")
-            assertEquals(DownloadState.PAUSED, fake.entities.single().state)
+            assertEquals(DownloadState.CANCELLED, fake.entities.single().state)
         }
 
     @Test
