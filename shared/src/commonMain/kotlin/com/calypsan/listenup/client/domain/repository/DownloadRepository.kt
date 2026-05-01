@@ -110,9 +110,9 @@ interface DownloadRepository {
     suspend fun deleteForBook(bookId: String)
 
     /**
-     * Re-enqueue a single audio file's download.
-     *
-     * **(Phase D scope)** — wired by the Bug 4 SSE `transcode.complete` handler.
+     * Re-enqueue a single audio file's download. Called by the SSE `transcode.complete` handler
+     * (via [com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor]). Silently drops if the
+     * row is CANCELLED or COMPLETED (late event tolerance).
      */
     suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit>
 

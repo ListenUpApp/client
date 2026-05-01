@@ -3,6 +3,8 @@
 package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.core.IODispatcher
+import com.calypsan.listenup.client.download.AppleDownloadEnqueuer
+import com.calypsan.listenup.client.download.DownloadEnqueuer
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.AppleDownloadService
@@ -63,6 +65,9 @@ val iosPlaybackModule: Module =
 
         // Also expose concrete type for iOS-specific features
         single { get<AudioTokenProvider>() as AppleAudioTokenProvider }
+
+        // DownloadEnqueuer seam — iOS no-op (NSURLSession path is W10 carveout)
+        single<DownloadEnqueuer> { AppleDownloadEnqueuer() }
 
         // Download service
         single<DownloadService> {

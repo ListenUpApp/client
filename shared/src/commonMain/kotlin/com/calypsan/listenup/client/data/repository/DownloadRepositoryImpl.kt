@@ -12,6 +12,7 @@ import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.domain.model.DownloadedBookSummary
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
+import com.calypsan.listenup.client.download.DownloadEnqueuer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -20,8 +21,9 @@ import kotlinx.coroutines.flow.map
  * (Sync Engine Rule 5). Aggregation reducer lives here so platforms share the same state-machine.
  *
  * **Phase B scope:** state transitions + aggregation + reads. Orchestration methods
- * (`enqueueForBook`, `cancelForBook`, `resumeForAudioFile`, `resumeIncompleteDownloads`)
- * throw [NotImplementedError] in Phase B — Phase C / Phase D move platform code onto them.
+ * (`enqueueForBook`, `cancelForBook`, `resumeIncompleteDownloads`)
+ * throw [NotImplementedError] until Phase C/D moves platform code onto them.
+ * `resumeForAudioFile` is implemented in Phase D via the [DownloadEnqueuer] seam.
  *
  * Cross-phase aliases per W8 design:
  * - [markCancelled] writes [DownloadState.PAUSED]; Phase D switches to a new `CANCELLED` entry.
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.map
 class DownloadRepositoryImpl(
     private val downloadDao: DownloadDao,
     private val bookRepository: BookRepository,
+    private val enqueuer: DownloadEnqueuer,
 ) : DownloadRepository {
     // --- Reads ---
 
@@ -152,11 +155,22 @@ class DownloadRepositoryImpl(
         downloadDao.deleteForBook(bookId)
     }
 
-    @Suppress("NotImplementedDeclaration") // Phase D scope — intentional stub per W8 design
-    override suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit> =
-        throw NotImplementedError(
-            "DownloadRepository.resumeForAudioFile is Phase D scope (Bug 4 SSE handler).",
-        )
+    override suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit> {
+        val entity =
+            downloadDao.getByAudioFileId(audioFileId)
+                ?: return AppResult.Failure(
+                    DownloadError.DownloadFailed(
+                        debugInfo = "No download row for $audioFileId",
+                    ),
+                )
+
+        // Late SSE event for a cancelled or completed row — silently drop (defense-in-depth net).
+        if (entity.state == DownloadState.CANCELLED || entity.state == DownloadState.COMPLETED) {
+            return AppResult.Success(Unit)
+        }
+
+        return enqueuer.enqueue(entity)
+    }
 
     @Suppress("NotImplementedDeclaration") // Phase C/D scope — intentional stub per W8 design
     override suspend fun resumeIncompleteDownloads(): AppResult<Unit> =

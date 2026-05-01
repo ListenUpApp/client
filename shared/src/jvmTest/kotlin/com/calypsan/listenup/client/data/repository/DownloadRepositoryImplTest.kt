@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.download.DownloadEnqueuer
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
@@ -27,7 +28,8 @@ class DownloadRepositoryImplTest {
     private val db: ListenUpDatabase = createInMemoryTestDatabase()
     private val downloadDao = db.downloadDao()
     private val bookRepository = FakeBookRepository()
-    private val sut = DownloadRepositoryImpl(downloadDao, bookRepository)
+    private val enqueuer = FakeDownloadEnqueuer()
+    private val sut = DownloadRepositoryImpl(downloadDao, bookRepository, enqueuer)
 
     @AfterTest
     fun tearDown() {
@@ -212,6 +214,10 @@ class DownloadRepositoryImplTest {
             addedAt = Timestamp(0L),
             updatedAt = Timestamp(0L),
         )
+}
+
+private class FakeDownloadEnqueuer : DownloadEnqueuer {
+    override suspend fun enqueue(entity: com.calypsan.listenup.client.data.local.db.DownloadEntity): AppResult<Unit> = AppResult.Success(Unit)
 }
 
 private class FakeBookRepository : BookRepository {

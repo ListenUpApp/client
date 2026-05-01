@@ -843,6 +843,7 @@ val syncModule =
             com.calypsan.listenup.client.data.repository.DownloadRepositoryImpl(
                 downloadDao = get(),
                 bookRepository = get(),
+                enqueuer = get(),
             )
         }
 

@@ -5,8 +5,10 @@ import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.PlaybackApiContract
 import com.calypsan.listenup.client.features.bookdetail.BookDetailPlatformActions
 import com.calypsan.listenup.client.features.bookdetail.DesktopBookDetailPlatformActions
+import com.calypsan.listenup.client.download.DownloadEnqueuer
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadService
+import com.calypsan.listenup.client.download.JvmDownloadEnqueuer
 import com.calypsan.listenup.client.platform.DesktopAudioTokenProvider
 import com.calypsan.listenup.client.platform.StubBackgroundSyncScheduler
 import com.calypsan.listenup.client.platform.StubDownloadService
@@ -96,6 +98,9 @@ val platformModule: Module =
 
         // Download service (stub)
         single<DownloadService> { StubDownloadService() }
+
+        // DownloadEnqueuer seam — Desktop no-op (downloads not supported)
+        single<DownloadEnqueuer> { JvmDownloadEnqueuer() }
 
         // Playback API for codec negotiation
         single<PlaybackApiContract> { PlaybackApi(clientFactory = get()) }

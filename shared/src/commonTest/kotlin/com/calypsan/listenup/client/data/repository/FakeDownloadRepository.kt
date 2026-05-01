@@ -135,7 +135,25 @@ open class FakeDownloadRepository(
         state.update { current -> current.filterValues { it.bookId != bookId } }
     }
 
-    override suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit> = AppResult.Success(Unit)
+    private val _resumedAudioFiles = mutableListOf<String>()
+
+    /** Test helper: list of audioFileIds that resumeForAudioFile was called with (excludes silently-dropped late events). */
+    val resumedAudioFiles: List<String> get() = _resumedAudioFiles.toList()
+
+    override suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit> {
+        val entity =
+            state.value[audioFileId]
+                ?: return AppResult.Failure(
+                    com.calypsan.listenup.client.core.error.DownloadError.DownloadFailed(
+                        debugInfo = "No download row for $audioFileId",
+                    ),
+                )
+        if (entity.state == DownloadState.CANCELLED || entity.state == DownloadState.COMPLETED) {
+            return AppResult.Success(Unit) // late event tolerance
+        }
+        _resumedAudioFiles.add(audioFileId)
+        return AppResult.Success(Unit)
+    }
 
     override suspend fun resumeIncompleteDownloads(): AppResult<Unit> = AppResult.Success(Unit)
 
