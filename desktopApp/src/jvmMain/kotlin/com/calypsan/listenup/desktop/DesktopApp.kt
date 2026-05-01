@@ -25,7 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
+import com.calypsan.listenup.client.design.LocalDeviceContext
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
+import com.calypsan.listenup.client.device.DeviceContext
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.features.bookdetail.BookDetailScreen
 import com.calypsan.listenup.client.features.bookedit.BookEditScreen
@@ -225,7 +227,11 @@ private fun DesktopAuthenticatedNavigation() {
 
     val isShowingNowPlaying = backStack.lastOrNull() is DetailDestination.NowPlaying
 
-    CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
+    val deviceContext: DeviceContext = koinInject()
+    CompositionLocalProvider(
+        LocalSnackbarHostState provides snackbarHostState,
+        LocalDeviceContext provides deviceContext,
+    ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.weight(1f)) {
                 if (backStack.isNotEmpty()) {
