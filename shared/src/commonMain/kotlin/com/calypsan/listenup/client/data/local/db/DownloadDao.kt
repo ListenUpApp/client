@@ -30,6 +30,20 @@ interface DownloadDao {
     suspend fun getIncomplete(): List<DownloadEntity>
 
     /**
+     * Get all rows in WAITING_FOR_SERVER state. Used by the SSE-reconnect re-check path
+     * to re-issue preparePlayback for files we may have missed transcode.complete events for.
+     */
+    @Query("SELECT * FROM downloads WHERE state = 6")
+    suspend fun getWaitingForServer(): List<DownloadEntity>
+
+    /**
+     * Get WAITING_FOR_SERVER rows older than [thresholdMs]. Used by the 24h backstop in
+     * resumeIncompleteDownloads to mark stale jobs as TranscodeTimeout.
+     */
+    @Query("SELECT * FROM downloads WHERE state = 6 AND startedAt < :thresholdMs")
+    suspend fun getOldWaitingForServer(thresholdMs: Long): List<DownloadEntity>
+
+    /**
      * Get local path for a completed download.
      * Uses ordinal 3 for COMPLETED state (QUEUED=0, DOWNLOADING=1, PAUSED=2, COMPLETED=3, FAILED=4)
      */
@@ -94,6 +108,22 @@ interface DownloadDao {
         localPath: String,
         completedAt: Long,
     ) = markCompletedWithState(audioFileId, localPath, completedAt, DownloadState.COMPLETED)
+
+    /**
+     * Atomically transition to WAITING_FOR_SERVER and persist the transcodeJobId for SSE re-enqueue.
+     */
+    @Query(
+        """
+        UPDATE downloads SET
+            state = 6,
+            transcodeJobId = :transcodeJobId
+        WHERE audioFileId = :audioFileId
+    """,
+    )
+    suspend fun markWaitingForServer(
+        audioFileId: String,
+        transcodeJobId: String,
+    )
 
     // Mark error
     @Query(
