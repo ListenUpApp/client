@@ -114,9 +114,9 @@ class DownloadWorker(
     ): Result {
         ErrorBus.emit(DownloadError.DownloadFailed(debugInfo = e.message))
         logger.error(e) { "Download failed: $audioFileId" }
-        // markFailed via repository sets state=FAILED + writes errorMessage + increments retryCount.
-        // On retry, the next doWork() call's first action is markDownloading, which transitions
-        // back. State-machine churn is intentional — single repository call replaces split DAO writes.
+        // markFailed sets state=FAILED + writes errorMessage + increments retryCount in one call,
+        // collapsing the previous redundant updateError + updateState(FAILED) writes (the prior
+        // updateError already set state=FAILED via its underlying query — no behavior change).
         downloadRepository.markFailed(audioFileId, DownloadError.DownloadFailed(debugInfo = e.message))
 
         return if (runAttemptCount < MAX_RETRIES) {
