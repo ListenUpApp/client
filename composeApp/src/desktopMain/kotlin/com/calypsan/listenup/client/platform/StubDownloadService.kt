@@ -32,7 +32,7 @@ class StubDownloadService : DownloadService {
     }
 
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
-        flowOf(BookDownloadStatus.notDownloaded(bookId.value))
+        flowOf(BookDownloadStatus.NotDownloaded(bookId.value))
 
     override suspend fun resumeIncompleteDownloads() {
         // No-op: downloads not supported on desktop

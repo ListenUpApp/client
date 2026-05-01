@@ -41,7 +41,6 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.rememberCoverColors
-import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.features.library.ShelfPickerSheet
@@ -169,7 +168,7 @@ private fun BookDetailReadyContent(
 
     val downloadStatusFlow = remember(bookId) { platformActions.observeBookStatus(BookId(bookId)) }
     val downloadStatus by downloadStatusFlow
-        .collectAsStateWithLifecycle(initialValue = BookDownloadStatus.notDownloaded(bookId))
+        .collectAsStateWithLifecycle(initialValue = BookDownloadStatus.NotDownloaded(bookId))
 
     // WiFi-only download state detection
     val wifiOnlyFlow = remember { platformActions.observeWifiOnlyDownloads() }
@@ -182,28 +181,29 @@ private fun BookDetailReadyContent(
     // - WiFi-only is enabled AND
     // - Not currently on WiFi/unmetered network
     val isWaitingForWifi =
-        downloadStatus.state == BookDownloadState.QUEUED &&
+        downloadStatus.isQueued() &&
             wifiOnlyDownloads &&
             !isOnUnmeteredNetwork
 
     // Server reachability check - runs when screen loads
     var isServerReachable by remember { mutableStateOf<Boolean?>(null) }
-    LaunchedEffect(bookId, downloadStatus.isFullyDownloaded) {
+    val isFullyDownloaded = downloadStatus is BookDownloadStatus.Completed
+    LaunchedEffect(bookId, isFullyDownloaded) {
         // Only check if book isn't downloaded - downloaded books always play
-        if (!downloadStatus.isFullyDownloaded) {
+        if (!isFullyDownloaded) {
             isServerReachable = platformActions.checkServerReachable()
         }
     }
 
     // Playback availability: can play if book is downloaded OR server is confirmed reachable
     // While check is in progress (null), assume playable to avoid flicker for fast connections
-    val canPlay = downloadStatus.isFullyDownloaded || isServerReachable != false
+    val canPlay = isFullyDownloaded || isServerReachable != false
 
     // Downloads are always allowed — they queue locally and don't need the server to be reachable
     val canDownload = platformActions.isPlaybackAvailable
 
     // Show warning when server is unreachable and book isn't downloaded (informational only)
-    val showServerWarning = isServerReachable == false && !downloadStatus.isFullyDownloaded
+    val showServerWarning = isServerReachable == false && !isFullyDownloaded
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showMarkCompleteDialog by remember { mutableStateOf(false) }
@@ -300,7 +300,7 @@ private fun BookDetailReadyContent(
     if (showDeleteDialog) {
         DeleteDownloadDialog(
             bookTitle = book.title,
-            downloadSize = downloadStatus.downloadedBytes,
+            downloadSize = downloadStatus.downloadedOrTotalBytes(),
             onConfirm = {
                 scope.launch {
                     platformActions.deleteDownload(BookId(bookId))
@@ -665,6 +665,19 @@ private fun ImmersiveBookDetail(
         }
     }
 }
+
+/** True when a download is in the queue but no file is actively transferring yet. */
+private fun BookDownloadStatus.isQueued(): Boolean =
+    this is BookDownloadStatus.InProgress && downloadingFiles == 0 && completedFiles == 0
+
+/** Returns the best available byte count to display in the delete dialog. */
+private fun BookDownloadStatus.downloadedOrTotalBytes(): Long =
+    when (this) {
+        is BookDownloadStatus.Completed -> totalBytes
+        is BookDownloadStatus.InProgress -> downloadedBytes
+        is BookDownloadStatus.Paused -> downloadedBytes
+        else -> 0L
+    }
 
 @Composable
 private fun ServerUnreachableBanner(modifier: Modifier = Modifier) {

@@ -10,7 +10,6 @@ import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
-import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.domain.repository.ServerConfig
@@ -331,34 +330,63 @@ class AppleDownloadService(
 
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
         downloadDao.observeForBook(bookId.value).map { entities ->
-            if (entities.isEmpty()) {
-                BookDownloadStatus.notDownloaded(bookId.value)
-            } else {
-                val totalFiles = entities.size
-                val completedFiles = entities.count { it.state == DownloadState.COMPLETED }
-                val totalBytes = entities.sumOf { it.totalBytes }
-                val downloadedBytes = entities.sumOf { it.downloadedBytes }
+            aggregateBookDownloadStatus(bookId.value, entities)
+        }
 
-                val state =
-                    when {
-                        entities.all { it.state == DownloadState.COMPLETED } -> BookDownloadState.COMPLETED
-                        entities.any { it.state == DownloadState.DOWNLOADING } -> BookDownloadState.DOWNLOADING
-                        entities.any { it.state == DownloadState.QUEUED } -> BookDownloadState.QUEUED
-                        entities.any { it.state == DownloadState.FAILED } -> BookDownloadState.FAILED
-                        entities.any { it.state == DownloadState.COMPLETED } -> BookDownloadState.PARTIAL
-                        else -> BookDownloadState.NOT_DOWNLOADED
-                    }
+    // Inline copy of DownloadManager.aggregateStatus until Task 8 moves the canonical version
+    // into DownloadRepository. iOS keeps its own copy through W10 (deferred carveout per W8 design).
+    private fun aggregateBookDownloadStatus(
+        bookId: String,
+        entities: List<DownloadEntity>,
+    ): BookDownloadStatus {
+        if (entities.isEmpty()) {
+            return BookDownloadStatus.NotDownloaded(bookId)
+        }
+        val activeDownloads = entities.filter { it.state != DownloadState.DELETED }
+        if (activeDownloads.isEmpty()) {
+            return BookDownloadStatus.NotDownloaded(bookId)
+        }
+        val totalFiles = activeDownloads.size
+        val completedFiles = activeDownloads.count { it.state == DownloadState.COMPLETED }
+        val totalBytes = activeDownloads.sumOf { it.totalBytes }
+        val downloadedBytes = activeDownloads.sumOf { it.downloadedBytes }
+        return when {
+            activeDownloads.all { it.state == DownloadState.COMPLETED } -> {
+                BookDownloadStatus.Completed(bookId = bookId, totalBytes = totalBytes)
+            }
 
-                BookDownloadStatus(
-                    bookId = bookId.value,
-                    state = state,
+            activeDownloads.any { it.state == DownloadState.FAILED } -> {
+                BookDownloadStatus.Failed(
+                    bookId = bookId,
+                    errorMessage =
+                        activeDownloads.firstOrNull { it.state == DownloadState.FAILED }?.errorMessage
+                            ?: "Download failed",
+                    partiallyDownloadedFiles = completedFiles,
+                )
+            }
+
+            activeDownloads.all { it.state == DownloadState.PAUSED } -> {
+                BookDownloadStatus.Paused(
+                    bookId = bookId,
+                    pausedFiles = activeDownloads.size,
+                    downloadedBytes = downloadedBytes,
+                    totalBytes = totalBytes,
+                )
+            }
+
+            else -> {
+                BookDownloadStatus.InProgress(
+                    bookId = bookId,
                     totalFiles = totalFiles,
+                    downloadingFiles = activeDownloads.count { it.state == DownloadState.DOWNLOADING },
+                    waitingForServerFiles = 0,
                     completedFiles = completedFiles,
                     totalBytes = totalBytes,
                     downloadedBytes = downloadedBytes,
                 )
             }
         }
+    }
 }
 
 /**

@@ -54,7 +54,7 @@ class NoOpBookDetailPlatformActions : BookDetailPlatformActions {
     override val isPlaybackAvailable: Boolean = false
 
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
-        flowOf(BookDownloadStatus.notDownloaded(bookId.value))
+        flowOf(BookDownloadStatus.NotDownloaded(bookId.value))
 
     override suspend fun downloadBook(bookId: BookId): DownloadResult =
         DownloadResult.Error("Not available on this platform")

@@ -19,7 +19,7 @@ class DesktopBookDetailPlatformActions(
     override val isPlaybackAvailable: Boolean = true
 
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
-        flowOf(BookDownloadStatus.notDownloaded(bookId.value))
+        flowOf(BookDownloadStatus.NotDownloaded(bookId.value))
 
     override suspend fun downloadBook(bookId: BookId): DownloadResult =
         DownloadResult.Error("Downloads not yet available on desktop")

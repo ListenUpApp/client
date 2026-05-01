@@ -15,7 +15,6 @@ import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
-import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
@@ -74,18 +73,12 @@ class DownloadManager(
         downloads: List<DownloadEntity>,
     ): BookDownloadStatus {
         if (downloads.isEmpty()) {
-            return BookDownloadStatus.notDownloaded(bookId)
+            return BookDownloadStatus.NotDownloaded(bookId)
         }
 
-        // If all files are DELETED, treat as not downloaded (show download button)
-        if (downloads.all { it.state == DownloadState.DELETED }) {
-            return BookDownloadStatus.notDownloaded(bookId)
-        }
-
-        // Filter out DELETED entries for counting
         val activeDownloads = downloads.filter { it.state != DownloadState.DELETED }
         if (activeDownloads.isEmpty()) {
-            return BookDownloadStatus.notDownloaded(bookId)
+            return BookDownloadStatus.NotDownloaded(bookId)
         }
 
         val totalFiles = activeDownloads.size
@@ -93,24 +86,44 @@ class DownloadManager(
         val totalBytes = activeDownloads.sumOf { it.totalBytes }
         val downloadedBytes = activeDownloads.sumOf { it.downloadedBytes }
 
-        val state =
-            when {
-                activeDownloads.all { it.state == DownloadState.COMPLETED } -> BookDownloadState.COMPLETED
-                activeDownloads.any { it.state == DownloadState.DOWNLOADING } -> BookDownloadState.DOWNLOADING
-                activeDownloads.any { it.state == DownloadState.QUEUED } -> BookDownloadState.QUEUED
-                activeDownloads.any { it.state == DownloadState.FAILED } -> BookDownloadState.FAILED
-                activeDownloads.any { it.state == DownloadState.COMPLETED } -> BookDownloadState.PARTIAL
-                else -> BookDownloadState.NOT_DOWNLOADED
+        return when {
+            activeDownloads.all { it.state == DownloadState.COMPLETED } -> {
+                BookDownloadStatus.Completed(bookId = bookId, totalBytes = totalBytes)
             }
 
-        return BookDownloadStatus(
-            bookId = bookId,
-            state = state,
-            totalFiles = totalFiles,
-            completedFiles = completedFiles,
-            totalBytes = totalBytes,
-            downloadedBytes = downloadedBytes,
-        )
+            activeDownloads.any { it.state == DownloadState.FAILED } -> {
+                BookDownloadStatus.Failed(
+                    bookId = bookId,
+                    errorMessage =
+                        activeDownloads
+                            .firstOrNull { it.state == DownloadState.FAILED }
+                            ?.errorMessage
+                            ?: "Download failed",
+                    partiallyDownloadedFiles = completedFiles,
+                )
+            }
+
+            activeDownloads.all { it.state == DownloadState.PAUSED } -> {
+                BookDownloadStatus.Paused(
+                    bookId = bookId,
+                    pausedFiles = activeDownloads.size,
+                    downloadedBytes = downloadedBytes,
+                    totalBytes = totalBytes,
+                )
+            }
+
+            else -> {
+                BookDownloadStatus.InProgress(
+                    bookId = bookId,
+                    totalFiles = totalFiles,
+                    downloadingFiles = activeDownloads.count { it.state == DownloadState.DOWNLOADING },
+                    waitingForServerFiles = 0, // Phase D adds DownloadState.WAITING_FOR_SERVER
+                    completedFiles = completedFiles,
+                    totalBytes = totalBytes,
+                    downloadedBytes = downloadedBytes,
+                )
+            }
+        }
     }
 
     /**
