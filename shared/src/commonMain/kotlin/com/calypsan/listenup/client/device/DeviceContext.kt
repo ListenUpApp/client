@@ -14,5 +14,5 @@ data class DeviceContext(
             setOf(DeviceType.Phone, DeviceType.Tablet, DeviceType.Desktop, DeviceType.Tv)
     val supportsDownloads: Boolean get() =
         type in
-            setOf(DeviceType.Phone, DeviceType.Tablet, DeviceType.Watch, DeviceType.Desktop)
+            setOf(DeviceType.Phone, DeviceType.Tablet, DeviceType.Watch)
 }

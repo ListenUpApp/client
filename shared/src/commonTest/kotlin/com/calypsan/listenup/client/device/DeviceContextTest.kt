@@ -95,4 +95,45 @@ class DeviceContextTest {
             assertEquals(type, ctx.type)
         }
     }
+
+    @Test
+    fun `supportsDownloads true for Phone`() {
+        assertTrue(DeviceContext(DeviceType.Phone).supportsDownloads)
+    }
+
+    @Test
+    fun `supportsDownloads true for Tablet`() {
+        assertTrue(DeviceContext(DeviceType.Tablet).supportsDownloads)
+    }
+
+    @Test
+    fun `supportsDownloads true for Watch`() {
+        assertTrue(DeviceContext(DeviceType.Watch).supportsDownloads)
+    }
+
+    @Test
+    fun `supportsDownloads false for Desktop downloads not implemented UI hides affordance per W8 Phase A`() {
+        assertFalse(DeviceContext(DeviceType.Desktop).supportsDownloads)
+    }
+
+    @Test
+    fun `supportsDownloads false for Tv`() {
+        assertFalse(DeviceContext(DeviceType.Tv).supportsDownloads)
+    }
+
+    @Test
+    fun `supportsDownloads false for Auto`() {
+        assertFalse(DeviceContext(DeviceType.Auto).supportsDownloads)
+    }
+
+    @Test
+    fun `supportsDownloads false for Xr`() {
+        assertFalse(DeviceContext(DeviceType.Xr).supportsDownloads)
+    }
+
+    @Test
+    fun `supportsDownloads coverage exactly one outcome per DeviceType`() {
+        val all = DeviceType.entries.associateWith { DeviceContext(it).supportsDownloads }
+        assertEquals(DeviceType.entries.size, all.size)
+    }
 }
