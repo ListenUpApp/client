@@ -345,6 +345,24 @@ class SSEEventProcessor(
                 handleActivityCreated(event)
             }
 
+            is SSEEvent.TranscodeComplete -> {
+                logger.debug {
+                    "SSE: Transcode complete for job ${event.data.jobId}"
+                }
+            }
+
+            is SSEEvent.TranscodeProgress -> {
+                logger.debug {
+                    "SSE: Transcode progress for job ${event.data.jobId}: ${event.data.progress}%"
+                }
+            }
+
+            is SSEEvent.TranscodeFailed -> {
+                logger.warn {
+                    "SSE: Transcode failed for job ${event.data.jobId}: ${event.data.error}"
+                }
+            }
+
             is SSEEvent.Unknown -> {
                 logger.warn {
                     "SSE: unknown event type '${event.rawType}' at ${event.timestamp}"
