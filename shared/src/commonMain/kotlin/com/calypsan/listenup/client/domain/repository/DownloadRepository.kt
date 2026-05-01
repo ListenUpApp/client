@@ -80,10 +80,9 @@ interface DownloadRepository {
     ): AppResult<Unit>
 
     /**
-     * **(Phase B alias)** — no-op. Phase D adds the `DownloadState.WAITING_FOR_SERVER` enum entry
-     * and activates this method to write the new state + persist `transcodeJobId` for the SSE
-     * `transcode.complete` re-enqueue path. The `transcodeJobId` parameter is accepted and
-     * ignored in Phase B.
+     * Mark the file as awaiting server transcoding. Persists [transcodeJobId] so the SSE-reconnect
+     * recheck path can re-issue preparePlayback if the `transcode.complete` event was missed
+     * during disconnect.
      */
     suspend fun markWaitingForServer(
         audioFileId: String,

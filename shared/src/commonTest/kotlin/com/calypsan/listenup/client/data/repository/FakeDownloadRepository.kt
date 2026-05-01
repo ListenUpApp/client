@@ -114,7 +114,12 @@ open class FakeDownloadRepository(
     override suspend fun markWaitingForServer(
         audioFileId: String,
         transcodeJobId: String,
-    ): AppResult<Unit> = AppResult.Success(Unit)
+    ): AppResult<Unit> {
+        update(audioFileId) {
+            it.copy(state = DownloadState.WAITING_FOR_SERVER, transcodeJobId = transcodeJobId)
+        }
+        return AppResult.Success(Unit)
+    }
 
     // --- Orchestration ---
 

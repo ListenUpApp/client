@@ -92,12 +92,13 @@ class FakeDownloadRepositoryTest {
         }
 
     @Test
-    fun `markWaitingForServer is a no-op in Phase B`() =
+    fun `markWaitingForServer writes WAITING_FOR_SERVER state and persists transcodeJobId`() =
         runTest {
             val fake = FakeDownloadRepository(initial = listOf(entity("file-1")))
-            val before = fake.entities.single()
             fake.markWaitingForServer("file-1", transcodeJobId = "job-abc")
-            assertEquals(before, fake.entities.single())
+            val after = fake.entities.single()
+            assertEquals(DownloadState.WAITING_FOR_SERVER, after.state)
+            assertEquals("job-abc", after.transcodeJobId)
         }
 
     @Test

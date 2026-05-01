@@ -125,11 +125,13 @@ class DownloadRepositoryImpl(
             downloadDao.updateError(audioFileId, error.message)
         }
 
-    // Phase B alias: no-op. Phase D writes DownloadState.WAITING_FOR_SERVER + persists transcodeJobId.
     override suspend fun markWaitingForServer(
         audioFileId: String,
         transcodeJobId: String,
-    ): AppResult<Unit> = AppResult.Success(Unit)
+    ): AppResult<Unit> =
+        suspendRunCatching {
+            downloadDao.markWaitingForServer(audioFileId, transcodeJobId)
+        }
 
     // --- Orchestration (Phase B: stub; Phase C/D move platform code onto these) ---
 
