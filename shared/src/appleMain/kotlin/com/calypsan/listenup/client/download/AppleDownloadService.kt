@@ -3,7 +3,9 @@
 
 package com.calypsan.listenup.client.download
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.error.DownloadError
 import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -11,6 +13,7 @@ import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.playback.AudioTokenProvider
@@ -90,21 +93,21 @@ class AppleDownloadService(
     override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean = downloadDao.hasDeletedRecords(bookId.value)
 
     @Suppress("ReturnCount")
-    override suspend fun downloadBook(bookId: BookId): DownloadResult {
+    override suspend fun downloadBook(bookId: BookId): AppResult<DownloadOutcome> {
         val existing = downloadDao.getForBook(bookId.value)
         if (existing.isNotEmpty() && existing.all { it.state == DownloadState.COMPLETED }) {
-            return DownloadResult.AlreadyDownloaded
+            return AppResult.Success(DownloadOutcome.AlreadyDownloaded)
         }
 
         val bookEntity =
             bookDao.getById(bookId) ?: run {
                 logger.error { "Book not found: ${bookId.value}" }
-                return DownloadResult.Error("Book not found")
+                return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "Book not found"))
             }
 
         val audioFileEntities = audioFileDao.getForBook(bookId.value)
         if (audioFileEntities.isEmpty()) {
-            return DownloadResult.Error("No audio files available")
+            return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "No audio files available"))
         }
         val audioFiles: List<AudioFileResponse> = audioFileEntities.map { it.toAudioFileResponse() }
 
@@ -119,14 +122,14 @@ class AppleDownloadService(
 
         if (toDownload.isEmpty()) {
             logger.info { "All files already downloading or completed for ${bookId.value}" }
-            return DownloadResult.AlreadyDownloaded
+            return AppResult.Success(DownloadOutcome.AlreadyDownloaded)
         }
 
         // Check storage
         val requiredBytes = toDownload.sumOf { it.size }
         val availableBytes = fileManager.getAvailableSpace()
         if (availableBytes < (requiredBytes * 1.1).toLong()) {
-            return DownloadResult.InsufficientStorage(requiredBytes, availableBytes)
+            return AppResult.Success(DownloadOutcome.InsufficientStorage(requiredBytes, availableBytes))
         }
 
         // Ensure fresh token
@@ -134,12 +137,12 @@ class AppleDownloadService(
         val token =
             tokenProvider.getToken() ?: run {
                 logger.error { "No auth token available" }
-                return DownloadResult.Error("Not authenticated")
+                return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "Not authenticated"))
             }
 
         val serverUrl =
             serverConfig.getServerUrl()?.value ?: run {
-                return DownloadResult.Error("No server configured")
+                return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "No server configured"))
             }
 
         // Create download entries
@@ -180,7 +183,7 @@ class AppleDownloadService(
         }
 
         logger.info { "Queued ${toDownload.size} files for download: ${bookId.value}" }
-        return DownloadResult.Success
+        return AppResult.Success(DownloadOutcome.Started)
     }
 
     /**

@@ -52,7 +52,7 @@ import com.calypsan.listenup.client.data.sync.ProfilePayload
 import com.calypsan.listenup.client.data.sync.ScanCompletedPayload
 import com.calypsan.listenup.client.data.sync.ScanStartedPayload
 import com.calypsan.listenup.client.data.sync.SessionStartedPayload
-import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.download.DownloadService
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
@@ -219,7 +219,7 @@ class SSEEventProcessorTest {
             // DownloadService stubs
             everySuspend { downloadService.cancelDownload(any()) } returns Unit
             everySuspend { downloadService.deleteDownload(any()) } returns Unit
-            everySuspend { downloadService.downloadBook(any()) } returns DownloadResult.Success
+            everySuspend { downloadService.downloadBook(any()) } returns AppResult.Success(com.calypsan.listenup.client.domain.model.DownloadOutcome.Started)
             everySuspend { downloadService.getLocalPath(any()) } returns null
             everySuspend { downloadService.wasExplicitlyDeleted(any()) } returns false
         }

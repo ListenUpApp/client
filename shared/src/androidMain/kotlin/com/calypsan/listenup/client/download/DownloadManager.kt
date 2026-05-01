@@ -8,7 +8,9 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.error.DownloadError
 import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -16,6 +18,7 @@ import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
@@ -64,26 +67,26 @@ class DownloadManager(
      * Download a book (queue all audio files).
      * Called when user taps download button OR starts streaming.
      *
-     * @return DownloadResult indicating success, failure reason, or if already downloaded
+     * @return AppResult indicating success, failure reason, or if already downloaded
      */
-    override suspend fun downloadBook(bookId: BookId): DownloadResult {
+    override suspend fun downloadBook(bookId: BookId): AppResult<DownloadOutcome> {
         // Check if already downloading or downloaded
         val existing = downloadDao.getForBook(bookId.value)
         if (existing.isNotEmpty() && existing.all { it.state == DownloadState.COMPLETED }) {
             logger.info { "Book ${bookId.value} already downloaded" }
-            return DownloadResult.AlreadyDownloaded
+            return AppResult.Success(DownloadOutcome.AlreadyDownloaded)
         }
 
         // Verify book exists before attempting download
         if (bookDao.getById(bookId) == null) {
             logger.error { "Book not found: ${bookId.value}" }
-            return DownloadResult.Error("Book not found")
+            return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "Book not found"))
         }
 
         val audioFiles: List<AudioFileEntity> = audioFileDao.getForBook(bookId.value)
         if (audioFiles.isEmpty()) {
             logger.warn { "No audio files for book ${bookId.value}" }
-            return DownloadResult.Error("No audio files available")
+            return AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "No audio files available"))
         }
 
         // Create download entries for files not already completed
@@ -106,9 +109,11 @@ class DownloadManager(
                 "Insufficient storage for book ${bookId.value}: " +
                     "need ${requiredBytes / 1_000_000}MB, have ${availableBytes / 1_000_000}MB"
             }
-            return DownloadResult.InsufficientStorage(
-                requiredBytes = requiredBytes,
-                availableBytes = availableBytes,
+            return AppResult.Success(
+                DownloadOutcome.InsufficientStorage(
+                    requiredBytes = requiredBytes,
+                    availableBytes = availableBytes,
+                ),
             )
         }
 
@@ -172,7 +177,7 @@ class DownloadManager(
         }
 
         logger.info { "Queued ${toDownload.size} files for download: ${bookId.value}" }
-        return DownloadResult.Success
+        return AppResult.Success(DownloadOutcome.Started)
     }
 
     /**

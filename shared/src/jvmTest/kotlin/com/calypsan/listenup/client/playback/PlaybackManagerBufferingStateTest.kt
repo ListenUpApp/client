@@ -13,7 +13,8 @@ import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
-import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
 import com.calypsan.listenup.client.test.fake.FakePlayer
@@ -344,7 +345,7 @@ class PlaybackManagerBufferingStateTest {
         val downloadService: DownloadService = mock()
         everySuspend { downloadService.getLocalPath(any()) } returns null
         everySuspend { downloadService.wasExplicitlyDeleted(any()) } returns false
-        everySuspend { downloadService.downloadBook(any()) } returns DownloadResult.AlreadyDownloaded
+        everySuspend { downloadService.downloadBook(any()) } returns AppResult.Success(DownloadOutcome.AlreadyDownloaded)
 
         val playbackPreferences: PlaybackPreferences = mock()
         everySuspend { playbackPreferences.getDefaultPlaybackSpeed() } returns 1.0f

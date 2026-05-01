@@ -1,11 +1,13 @@
 package com.calypsan.listenup.client.platform
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.error.DownloadError
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
+import com.calypsan.listenup.client.download.DownloadService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
-import com.calypsan.listenup.client.download.DownloadResult
-import com.calypsan.listenup.client.download.DownloadService
 
 /**
  * Stub implementation of [DownloadService] for desktop.
@@ -20,8 +22,8 @@ class StubDownloadService : DownloadService {
 
     override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean = false
 
-    override suspend fun downloadBook(bookId: BookId): DownloadResult =
-        DownloadResult.Error("Downloads not yet supported on desktop")
+    override suspend fun downloadBook(bookId: BookId): AppResult<DownloadOutcome> =
+        AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "Downloads not yet supported on desktop"))
 
     override suspend fun cancelDownload(bookId: BookId) {
         // No-op: downloads not supported

@@ -42,7 +42,8 @@ import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
-import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.features.library.ShelfPickerSheet
 import com.calypsan.listenup.client.features.bookdetail.components.BookReadersSection
 import com.calypsan.listenup.client.features.bookdetail.components.ChapterListItem
@@ -265,25 +266,8 @@ private fun BookDetailReadyContent(
         onUserProfileClick = onUserProfileClick,
         onDownloadClick = {
             scope.launch {
-                when (val result = platformActions.downloadBook(BookId(bookId))) {
-                    is DownloadResult.Success -> { /* Download started */ }
-
-                    is DownloadResult.AlreadyDownloaded -> { /* Nothing to do */ }
-
-                    is DownloadResult.InsufficientStorage -> {
-                        val requiredMb = result.requiredBytes / 1_000_000
-                        val availableMb = result.availableBytes / 1_000_000
-                        snackbarHostState.showSnackbar(
-                            "Not enough storage. Need ${requiredMb}MB, have ${availableMb}MB available.",
-                        )
-                    }
-
-                    is DownloadResult.Error -> {
-                        snackbarHostState.showSnackbar(
-                            "Download failed: ${result.message}",
-                        )
-                    }
-                }
+                val result = platformActions.downloadBook(BookId(bookId))
+                handleDownloadResult(result) { message -> snackbarHostState.showSnackbar(message) }
             }
         },
         onCancelClick = {
@@ -705,4 +689,21 @@ private fun ServerUnreachableBanner(modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+private suspend fun handleDownloadResult(
+    result: AppResult<DownloadOutcome>,
+    showSnackbar: suspend (String) -> Unit,
+) {
+    if (result is AppResult.Failure) {
+        showSnackbar("Download failed: ${result.error.debugInfo ?: "Unknown error"}")
+        return
+    }
+    val outcome = (result as AppResult.Success).data
+    if (outcome is DownloadOutcome.InsufficientStorage) {
+        val requiredMb = outcome.requiredBytes / 1_000_000
+        val availableMb = outcome.availableBytes / 1_000_000
+        showSnackbar("Not enough storage. Need ${requiredMb}MB, have ${availableMb}MB available.")
+    }
+    // DownloadOutcome.Started and DownloadOutcome.AlreadyDownloaded: no UI action needed
 }

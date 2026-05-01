@@ -1,8 +1,10 @@
 package com.calypsan.listenup.client.features.bookdetail
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.error.DownloadError
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
-import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -20,7 +22,7 @@ interface BookDetailPlatformActions {
     fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus>
 
     /** Start downloading a book */
-    suspend fun downloadBook(bookId: BookId): DownloadResult
+    suspend fun downloadBook(bookId: BookId): AppResult<DownloadOutcome>
 
     /** Cancel an in-progress download */
     suspend fun cancelDownload(bookId: BookId)
@@ -56,8 +58,8 @@ class NoOpBookDetailPlatformActions : BookDetailPlatformActions {
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
         flowOf(BookDownloadStatus.NotDownloaded(bookId.value))
 
-    override suspend fun downloadBook(bookId: BookId): DownloadResult =
-        DownloadResult.Error("Not available on this platform")
+    override suspend fun downloadBook(bookId: BookId): AppResult<DownloadOutcome> =
+        AppResult.Failure(DownloadError.DownloadFailed(debugInfo = "Not available on this platform"))
 
     override suspend fun cancelDownload(bookId: BookId) {}
 

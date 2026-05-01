@@ -1,11 +1,12 @@
 package com.calypsan.listenup.client.features.bookdetail
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.download.DownloadManager
-import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.playback.PlaybackManager
 import android.content.Context
 import android.content.Intent
@@ -28,7 +29,7 @@ class AndroidBookDetailPlatformActions(
 
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> = downloadManager.observeBookStatus(bookId)
 
-    override suspend fun downloadBook(bookId: BookId): DownloadResult = downloadManager.downloadBook(bookId)
+    override suspend fun downloadBook(bookId: BookId): AppResult<DownloadOutcome> = downloadManager.downloadBook(bookId)
 
     override suspend fun cancelDownload(bookId: BookId) = downloadManager.cancelDownload(bookId)
 

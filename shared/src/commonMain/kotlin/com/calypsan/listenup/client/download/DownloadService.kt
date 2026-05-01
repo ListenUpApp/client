@@ -1,26 +1,10 @@
 package com.calypsan.listenup.client.download
 
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import kotlinx.coroutines.flow.Flow
-
-/**
- * Result of a download operation.
- */
-sealed interface DownloadResult {
-    data object Success : DownloadResult
-
-    data object AlreadyDownloaded : DownloadResult
-
-    data class InsufficientStorage(
-        val requiredBytes: Long,
-        val availableBytes: Long,
-    ) : DownloadResult
-
-    data class Error(
-        val message: String,
-    ) : DownloadResult
-}
 
 /**
  * Interface for download operations needed by PlaybackManager.
@@ -29,7 +13,8 @@ sealed interface DownloadResult {
  * the full download implementation remains platform-specific.
  *
  * Android: Implemented by DownloadManager (WorkManager-based)
- * iOS: Will use URLSession background downloads
+ * iOS: AppleDownloadService (NSURLSession background downloads)
+ * Desktop: StubDownloadService (no-op)
  */
 interface DownloadService {
     /**
@@ -47,25 +32,28 @@ interface DownloadService {
     /**
      * Trigger background download of a book's audio files.
      *
-     * @return Result indicating success, failure reason, or if already downloaded
+     * Returns [AppResult.Success] with one of:
+     * - [DownloadOutcome.Started] — fresh enqueue.
+     * - [DownloadOutcome.AlreadyDownloaded] — all files already complete; no work enqueued.
+     * - [DownloadOutcome.InsufficientStorage] — pre-flight storage check failed; no work enqueued.
+     *
+     * Returns [AppResult.Failure] with [com.calypsan.listenup.client.core.error.DownloadError]
+     * for unexpected errors (book not found, missing audio metadata, etc.).
      */
-    suspend fun downloadBook(bookId: BookId): DownloadResult
+    suspend fun downloadBook(bookId: BookId): AppResult<DownloadOutcome>
 
     /**
      * Cancel active download for a book.
-     * Called when book access is revoked or user cancels download.
      */
     suspend fun cancelDownload(bookId: BookId)
 
     /**
      * Delete downloaded files for a book.
-     * Called when book is deleted (access revoked) to clean up local storage.
      */
     suspend fun deleteDownload(bookId: BookId)
 
     /**
      * Observe download status for a book as a Flow.
-     * Emits new status whenever download state changes.
      */
     fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus>
 
