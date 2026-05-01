@@ -668,53 +668,38 @@ class DownloadWorkerLogicTest {
     // ---- Scenario 11 ----
 
     /**
-     * preparePlayback returns !ready (transcodeJobId set) → polling loop fires.
-     * runTest virtual clock skips delay(5000). pollCount asserts multiple calls.
-     * Final state: COMPLETED (transcode finishes on 3rd poll).
+     * preparePlayback returns !ready (transcodeJobId set) → writes WAITING_FOR_SERVER + exits.
      *
-     * Phase C preserves the existing polling path; this test locks it as a regression marker.
-     * Phase D will rewrite the path and replace this test.
+     * Phase D Bug 4 fix: the 30-minute polling loop is gone. When the server is still transcoding,
+     * the worker now writes WAITING_FOR_SERVER and exits cleanly. SSE transcode.complete will
+     * re-enqueue via repository.resumeForAudioFile when the server finishes.
      */
     @Test
-    fun `preparePlayback not ready — polling loop fires until ready`() =
+    fun `preparePlayback returns transcoding — writes WAITING_FOR_SERVER and exits cleanly`() =
         runTest {
             val tmpRoot = tempDir()
             try {
                 val fakeRepo = FakeDownloadRepository(initial = listOf(entity("file-1", totalBytes = 1000L)))
-                var pollCount = 0
-                val pollingApi =
-                    object : PlaybackApiContract {
-                        override suspend fun preparePlayback(
-                            bookId: String,
-                            audioFileId: String,
-                            capabilities: List<String>,
-                            spatial: Boolean,
-                        ): AppResult<PreparePlaybackResponse> {
-                            pollCount++
-                            return if (pollCount < 3) {
-                                AppResult.Success(
-                                    PreparePlaybackResponse(
-                                        ready = false,
-                                        streamUrl = "",
-                                        variant = "transcoded",
-                                        codec = "mp3",
-                                        transcodeJobId = "job-abc",
-                                        progress = pollCount * 30,
-                                    ),
-                                )
-                            } else {
-                                AppResult.Success(readyResponse())
-                            }
-                        }
-                    }
+                val transcodingApi =
+                    FakePlaybackApiContract(
+                        AppResult.Success(
+                            PreparePlaybackResponse(
+                                ready = false,
+                                streamUrl = "",
+                                variant = "",
+                                codec = "",
+                                transcodeJobId = "abc-123",
+                                progress = 42,
+                            ),
+                        ),
+                    )
 
-                val binaryEngine =
-                    MockEngine { _ ->
-                        respond(
-                            content = ByteArray(1000) { 0x42 },
-                            status = HttpStatusCode.OK,
-                            headers = headersOf(HttpHeaders.ContentLength, "1000"),
-                        )
+                // No stream engine handler needed — if the worker tries to fetch bytes, the test will
+                // fail because the MockEngine has no registered handler. This enforces the contract
+                // that the worker must exit before ever touching the HTTP stream.
+                val unusedEngine =
+                    MockEngine { request ->
+                        error("Unexpected HTTP request: ${request.url} — worker should have exited cleanly")
                     }
 
                 downloadAudioFile(
@@ -722,16 +707,18 @@ class DownloadWorkerLogicTest {
                     bookId = "book-1",
                     filename = "file-1.mp3",
                     expectedSize = 1000L,
-                    httpClient = productionLikeClient(binaryEngine),
+                    httpClient = productionLikeClient(unusedEngine),
                     repository = fakeRepo,
                     fileManager = fileManagerFor(tmpRoot),
-                    playbackApi = pollingApi,
+                    playbackApi = transcodingApi,
                     playbackPreferences = FakePlaybackPreferences(),
                     capabilityDetector = FakeAudioCapabilityDetector(),
                 )
 
-                assertTrue(pollCount >= 3, "Expected >=3 preparePlayback calls but got $pollCount")
-                assertEquals(DownloadState.COMPLETED, fakeRepo.entities.single().state)
+                // Bug 4 fix verification: row should be WAITING_FOR_SERVER, not stuck in DOWNLOADING.
+                val final = fakeRepo.entities.single()
+                assertEquals(DownloadState.WAITING_FOR_SERVER, final.state)
+                assertEquals("abc-123", final.transcodeJobId)
             } finally {
                 tmpRoot.deleteRecursively()
             }
