@@ -117,16 +117,19 @@ interface DownloadRepository {
     suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit>
 
     /**
-     * App-startup recovery: re-enqueue any incomplete downloads.
-     *
-     * **(Phase C/D scope)** — see [enqueueForBook].
+     * App-startup recovery: 24h backstop for stale WAITING_FOR_SERVER rows (mark as
+     * [com.calypsan.listenup.client.core.error.DownloadError.TranscodeTimeout]) + re-enqueue
+     * any other incomplete downloads via the platform [com.calypsan.listenup.client.download.DownloadEnqueuer].
+     * Existing `DownloadManager.resumeIncompleteDownloads` (Android) remains the primary app-startup
+     * hook; this method is for parity. Phase E may consolidate.
      */
     suspend fun resumeIncompleteDownloads(): AppResult<Unit>
 
     /**
-     * **(Phase B alias)** — no-op. Phase D wires this to the SSE-reconnect hook: re-issues
-     * `preparePlayback` for any rows in `WAITING_FOR_SERVER` to catch missed
-     * `transcode.complete` events.
+     * SSE-reconnect hook: re-issue `preparePlayback` for any rows in WAITING_FOR_SERVER to catch
+     * transcodes that completed during disconnect. Ready ones → [resumeForAudioFile]. Lost-job
+     * ones → [markFailed] with [com.calypsan.listenup.client.core.error.DownloadError.TranscodeTimeout].
+     * Still-transcoding ones left alone.
      */
     suspend fun recheckWaitingForServer(): AppResult<Unit>
 }

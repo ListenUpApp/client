@@ -4,7 +4,11 @@ import app.cash.turbine.test
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.remote.PlaybackApiContract
+import com.calypsan.listenup.client.data.remote.PreparePlaybackResponse
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.download.DownloadEnqueuer
+import com.calypsan.listenup.client.playback.AudioCapabilityDetector
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
@@ -29,7 +33,15 @@ class DownloadRepositoryImplTest {
     private val downloadDao = db.downloadDao()
     private val bookRepository = FakeBookRepository()
     private val enqueuer = FakeDownloadEnqueuer()
-    private val sut = DownloadRepositoryImpl(downloadDao, bookRepository, enqueuer)
+    private val sut =
+        DownloadRepositoryImpl(
+            downloadDao = downloadDao,
+            bookRepository = bookRepository,
+            enqueuer = enqueuer,
+            playbackApi = FakePlaybackApiContract(),
+            playbackPreferences = FakePlaybackPreferences(),
+            capabilityDetector = FakeAudioCapabilityDetector(),
+        )
 
     @AfterTest
     fun tearDown() {
@@ -218,6 +230,37 @@ class DownloadRepositoryImplTest {
 
 private class FakeDownloadEnqueuer : DownloadEnqueuer {
     override suspend fun enqueue(entity: com.calypsan.listenup.client.data.local.db.DownloadEntity): AppResult<Unit> = AppResult.Success(Unit)
+}
+
+private class FakePlaybackApiContract : PlaybackApiContract {
+    override suspend fun preparePlayback(
+        bookId: String,
+        audioFileId: String,
+        capabilities: List<String>,
+        spatial: Boolean,
+    ): AppResult<PreparePlaybackResponse> =
+        AppResult.Success(
+            PreparePlaybackResponse(ready = false, streamUrl = "", variant = "original", codec = "mp3", transcodeJobId = "job1", progress = 0),
+        )
+}
+
+private class FakePlaybackPreferences : PlaybackPreferences {
+    override val preferenceChanges: kotlinx.coroutines.flow.SharedFlow<com.calypsan.listenup.client.domain.repository.PreferenceChangeEvent>
+        get() = error("not used in test")
+
+    override fun observeDefaultPlaybackSpeed(): kotlinx.coroutines.flow.Flow<Float> = error("not used in test")
+
+    override suspend fun getDefaultPlaybackSpeed(): Float = error("not used in test")
+
+    override suspend fun setDefaultPlaybackSpeed(speed: Float) = error("not used in test")
+
+    override suspend fun getSpatialPlayback(): Boolean = false
+
+    override suspend fun setSpatialPlayback(enabled: Boolean) = error("not used in test")
+}
+
+private class FakeAudioCapabilityDetector : AudioCapabilityDetector {
+    override fun getSupportedCodecs(): List<String> = listOf("mp3", "aac")
 }
 
 private class FakeBookRepository : BookRepository {
