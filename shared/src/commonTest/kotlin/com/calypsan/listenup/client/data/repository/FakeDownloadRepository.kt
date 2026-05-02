@@ -189,7 +189,10 @@ open class FakeDownloadRepository(
         downloads: List<DownloadEntity>,
     ): BookDownloadStatus {
         if (downloads.isEmpty()) return BookDownloadStatus.NotDownloaded(bookId)
-        val activeDownloads = downloads.filter { it.state != DownloadState.DELETED }
+        val activeDownloads =
+            downloads.filter {
+                it.state != DownloadState.DELETED && it.state != DownloadState.CANCELLED
+            }
         if (activeDownloads.isEmpty()) return BookDownloadStatus.NotDownloaded(bookId)
         val totalFiles = activeDownloads.size
         val completedFiles = activeDownloads.count { it.state == DownloadState.COMPLETED }

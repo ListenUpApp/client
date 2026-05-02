@@ -283,7 +283,10 @@ class DownloadRepositoryImpl(
         if (downloads.isEmpty()) {
             return BookDownloadStatus.NotDownloaded(bookId)
         }
-        val activeDownloads = downloads.filter { it.state != DownloadState.DELETED }
+        val activeDownloads =
+            downloads.filter {
+                it.state != DownloadState.DELETED && it.state != DownloadState.CANCELLED
+            }
         if (activeDownloads.isEmpty()) {
             return BookDownloadStatus.NotDownloaded(bookId)
         }

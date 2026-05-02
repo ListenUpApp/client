@@ -1,21 +1,25 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.error.AppException
+import com.calypsan.listenup.client.core.error.ServerError
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
-import com.calypsan.listenup.client.core.error.AppException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.call.body
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.Failure
 
 private val logger = KotlinLogging.logger {}
+
+private const val HTTP_NOT_FOUND = 404
 
 /**
  * Seam interface for playback API operations.
@@ -99,8 +103,21 @@ class PlaybackApi(
         }
 
     override suspend fun cancelTranscode(jobId: String): AppResult<Unit> =
-        suspendRunCatching {
+        try {
             clientFactory.getClient().post("/api/v1/transcode/cancel/$jobId")
+            AppResult.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: AppException) {
+            // 404 means "already cancelled / completed / never existed" — idempotent per server contract.
+            val serverError = e.error as? ServerError
+            if (serverError?.statusCode == HTTP_NOT_FOUND) {
+                AppResult.Success(Unit)
+            } else {
+                AppResult.Failure(e.error)
+            }
+        } catch (e: Exception) {
+            Failure(e)
         }
 }
 

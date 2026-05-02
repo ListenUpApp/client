@@ -33,14 +33,14 @@ interface DownloadDao {
      * Get all rows in WAITING_FOR_SERVER state. Used by the SSE-reconnect re-check path
      * to re-issue preparePlayback for files we may have missed transcode.complete events for.
      */
-    @Query("SELECT * FROM downloads WHERE state = 6")
+    @Query("SELECT * FROM downloads WHERE state = 'WAITING_FOR_SERVER'")
     suspend fun getWaitingForServer(): List<DownloadEntity>
 
     /**
      * Get WAITING_FOR_SERVER rows older than [thresholdMs]. Used by the 24h backstop in
      * resumeIncompleteDownloads to mark stale jobs as TranscodeTimeout.
      */
-    @Query("SELECT * FROM downloads WHERE state = 6 AND startedAt < :thresholdMs")
+    @Query("SELECT * FROM downloads WHERE state = 'WAITING_FOR_SERVER' AND startedAt < :thresholdMs")
     suspend fun getOldWaitingForServer(thresholdMs: Long): List<DownloadEntity>
 
     /**
@@ -115,7 +115,7 @@ interface DownloadDao {
     @Query(
         """
         UPDATE downloads SET
-            state = 6,
+            state = 'WAITING_FOR_SERVER',
             transcodeJobId = :transcodeJobId
         WHERE audioFileId = :audioFileId
     """,
