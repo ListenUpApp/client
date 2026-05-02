@@ -12,10 +12,12 @@ import com.calypsan.listenup.client.test.db.passThroughTransactionRunner
 import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.ProgressPayload
 import com.calypsan.listenup.client.data.sync.push.DiscardProgressHandler
+import com.calypsan.listenup.client.data.sync.push.DiscardProgressPayload
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompletePayload
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.RestartBookHandler
+import com.calypsan.listenup.client.data.sync.push.RestartBookPayload
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.LastPlayedInfo
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
@@ -1073,90 +1075,116 @@ class PlaybackPositionRepositoryImplTest {
         }
 
     @Test
-    fun `savePlaybackState DiscardProgress resets fields when row exists`() =
+    fun `savePlaybackState DiscardProgress resets fields and queues DISCARD_PROGRESS`() =
         runTest {
             val dao = createMockDao()
-            val bookId = BookId("book-1")
-            val existing =
-                createPlaybackPositionEntity(bookId = "book-1", positionMs = 5000L).copy(
-                    isFinished = true,
-                    finishedAt = 1800000000000L,
-                )
-            everySuspend { dao.get(bookId) } returns existing
+            val pendingOps = mock<PendingOperationRepositoryContract>(MockMode.autoUnit)
+            val bookId = "book-discard"
+            val existing = createPlaybackPositionEntity(bookId = bookId, positionMs = 5000L).copy(isFinished = true)
+            everySuspend { dao.get(BookId(bookId)) } returns existing
             val captured = mutableListOf<PlaybackPositionEntity>()
             everySuspend { dao.save(any()) } calls { args ->
                 captured.add(args.arg(0) as PlaybackPositionEntity)
                 Unit
             }
-            val repository = createRepo(dao = dao)
+            val repository = createRepo(dao = dao, pendingOps = pendingOps)
 
-            val result = repository.savePlaybackState(bookId, PlaybackUpdate.DiscardProgress)
+            val result = repository.savePlaybackState(BookId(bookId), PlaybackUpdate.DiscardProgress)
 
             assertIs<AppResult.Success<Unit>>(result)
             val saved = captured.single()
             assertEquals(0L, saved.positionMs)
-            assertFalse(saved.isFinished)
-            assertNull(saved.finishedAt)
-            assertNull(saved.syncedAt)
+            assertEquals(false, saved.isFinished)
+            assertEquals(null, saved.finishedAt)
+            verifySuspend(VerifyMode.exactly(1)) {
+                pendingOps.queue<DiscardProgressPayload>(
+                    type = OperationType.DISCARD_PROGRESS,
+                    entityType = EntityType.BOOK,
+                    entityId = bookId,
+                    payload = any(),
+                    handler = any(),
+                )
+            }
         }
 
     @Test
-    fun `savePlaybackState DiscardProgress is no-op when no row`() =
+    fun `savePlaybackState DiscardProgress is no-op when no row and does not queue`() =
         runTest {
             val dao = createMockDao()
-            val bookId = BookId("new-book")
-            everySuspend { dao.get(bookId) } returns null
-            val repository = createRepo(dao = dao)
+            val pendingOps = mock<PendingOperationRepositoryContract>(MockMode.autoUnit)
+            val bookId = "book-no-row"
+            everySuspend { dao.get(BookId(bookId)) } returns null
+            val repository = createRepo(dao = dao, pendingOps = pendingOps)
 
-            val result = repository.savePlaybackState(bookId, PlaybackUpdate.DiscardProgress)
+            val result = repository.savePlaybackState(BookId(bookId), PlaybackUpdate.DiscardProgress)
 
             assertIs<AppResult.Success<Unit>>(result)
-            verifySuspend(VerifyMode.not) { dao.save(any()) }
+            verifySuspend(VerifyMode.exactly(0)) {
+                pendingOps.queue<DiscardProgressPayload>(
+                    type = any(),
+                    entityType = any(),
+                    entityId = any(),
+                    payload = any(),
+                    handler = any(),
+                )
+            }
         }
 
     @Test
-    fun `savePlaybackState Restart resets to position 0 and starts new session`() =
+    fun `savePlaybackState Restart resets fields and queues RESTART_BOOK`() =
         runTest {
             val dao = createMockDao()
-            val bookId = BookId("book-1")
-            val existing =
-                createPlaybackPositionEntity(bookId = "book-1", positionMs = 5000L).copy(
-                    isFinished = true,
-                    finishedAt = 1800000000000L,
-                    startedAt = 1700000000000L,
-                )
-            everySuspend { dao.get(bookId) } returns existing
+            val pendingOps = mock<PendingOperationRepositoryContract>(MockMode.autoUnit)
+            val bookId = "book-restart"
+            val existing = createPlaybackPositionEntity(bookId = bookId, positionMs = 9999L).copy(isFinished = true)
+            everySuspend { dao.get(BookId(bookId)) } returns existing
             val captured = mutableListOf<PlaybackPositionEntity>()
             everySuspend { dao.save(any()) } calls { args ->
                 captured.add(args.arg(0) as PlaybackPositionEntity)
                 Unit
             }
-            val repository = createRepo(dao = dao)
+            val repository = createRepo(dao = dao, pendingOps = pendingOps)
 
-            val result = repository.savePlaybackState(bookId, PlaybackUpdate.Restart)
+            val result = repository.savePlaybackState(BookId(bookId), PlaybackUpdate.Restart)
 
             assertIs<AppResult.Success<Unit>>(result)
             val saved = captured.single()
             assertEquals(0L, saved.positionMs)
-            assertFalse(saved.isFinished)
-            assertNull(saved.finishedAt)
+            assertEquals(false, saved.isFinished)
+            assertEquals(null, saved.finishedAt)
             // startedAt is freshly stamped (matches existing restartBook facade semantics).
-            assertNotNull(saved.startedAt)
-            assertNotEquals(1700000000000L, saved.startedAt)
+            verifySuspend(VerifyMode.exactly(1)) {
+                pendingOps.queue<RestartBookPayload>(
+                    type = OperationType.RESTART_BOOK,
+                    entityType = EntityType.BOOK,
+                    entityId = bookId,
+                    payload = any(),
+                    handler = any(),
+                )
+            }
         }
 
     @Test
-    fun `savePlaybackState Restart is no-op when no row`() =
+    fun `savePlaybackState Restart is no-op when no row and does not queue`() =
         runTest {
             val dao = createMockDao()
-            val bookId = BookId("new-book")
-            everySuspend { dao.get(bookId) } returns null
-            val repository = createRepo(dao = dao)
+            val pendingOps = mock<PendingOperationRepositoryContract>(MockMode.autoUnit)
+            val bookId = "book-no-row"
+            everySuspend { dao.get(BookId(bookId)) } returns null
+            val repository = createRepo(dao = dao, pendingOps = pendingOps)
 
-            val result = repository.savePlaybackState(bookId, PlaybackUpdate.Restart)
+            val result = repository.savePlaybackState(BookId(bookId), PlaybackUpdate.Restart)
 
             assertIs<AppResult.Success<Unit>>(result)
-            verifySuspend(VerifyMode.not) { dao.save(any()) }
+            verifySuspend(VerifyMode.exactly(0)) {
+                pendingOps.queue<RestartBookPayload>(
+                    type = any(),
+                    entityType = any(),
+                    entityId = any(),
+                    payload = any(),
+                    handler = any(),
+                )
+            }
         }
 
     // ========== markComplete — public-facade delegation (Task 7) ==========
@@ -1195,6 +1223,64 @@ class PlaybackPositionRepositoryImplTest {
                     handler = any(),
                 )
             }
+        }
+
+    // ========== discardProgress — public-facade delegation (Z1) ==========
+
+    @Test
+    fun `discardProgress delegates to savePlaybackState with DiscardProgress variant`() =
+        runTest {
+            val dao = createMockDao()
+            val pendingOps = mock<PendingOperationRepositoryContract>(MockMode.autoUnit)
+            val syncApi = createMockSyncApi()
+            val bookId = "book-discard-facade"
+            val existing = createPlaybackPositionEntity(bookId = bookId, positionMs = 5000L).copy(isFinished = true)
+            everySuspend { dao.get(BookId(bookId)) } returns existing
+            everySuspend { dao.save(any()) } returns Unit
+            val repository = createRepo(dao = dao, syncApi = syncApi, pendingOps = pendingOps)
+
+            val result = repository.discardProgress(bookId)
+
+            assertIs<AppResult.Success<Unit>>(result)
+            verifySuspend(VerifyMode.exactly(1)) {
+                pendingOps.queue<DiscardProgressPayload>(
+                    type = OperationType.DISCARD_PROGRESS,
+                    entityType = EntityType.BOOK,
+                    entityId = bookId,
+                    payload = any(),
+                    handler = any(),
+                )
+            }
+            verifySuspend(VerifyMode.exactly(0)) { syncApi.discardProgress(any(), any()) }
+        }
+
+    // ========== restartBook — public-facade delegation (Z1) ==========
+
+    @Test
+    fun `restartBook delegates to savePlaybackState with Restart variant`() =
+        runTest {
+            val dao = createMockDao()
+            val pendingOps = mock<PendingOperationRepositoryContract>(MockMode.autoUnit)
+            val syncApi = createMockSyncApi()
+            val bookId = "book-restart-facade"
+            val existing = createPlaybackPositionEntity(bookId = bookId, positionMs = 9999L).copy(isFinished = true)
+            everySuspend { dao.get(BookId(bookId)) } returns existing
+            everySuspend { dao.save(any()) } returns Unit
+            val repository = createRepo(dao = dao, syncApi = syncApi, pendingOps = pendingOps)
+
+            val result = repository.restartBook(bookId)
+
+            assertIs<AppResult.Success<Unit>>(result)
+            verifySuspend(VerifyMode.exactly(1)) {
+                pendingOps.queue<RestartBookPayload>(
+                    type = OperationType.RESTART_BOOK,
+                    entityType = EntityType.BOOK,
+                    entityId = bookId,
+                    payload = any(),
+                    handler = any(),
+                )
+            }
+            verifySuspend(VerifyMode.exactly(0)) { syncApi.restartBook(any()) }
         }
 
     // ========== savePlaybackState — failure path (Task 2) ==========

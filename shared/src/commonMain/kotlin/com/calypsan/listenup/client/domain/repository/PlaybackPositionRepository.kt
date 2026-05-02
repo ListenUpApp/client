@@ -104,24 +104,26 @@ interface PlaybackPositionRepository {
     /**
      * Discard all progress for a book.
      *
-     * Optimistic local delete followed by server sync.
-     * Removes the position from local storage immediately.
-     * On server failure, restores previous position.
+     * Local position row is reset (position=0, isFinished=false) and a
+     * DISCARD_PROGRESS pending-op is queued for the server. The pending-op
+     * is processed asynchronously by [com.calypsan.listenup.client.data.sync.push.OperationExecutor].
      *
      * @param bookId The book to discard progress for
-     * @return Result with Unit on success, or Failure on error
+     * @return [com.calypsan.listenup.client.core.AppResult.Success] when the local write + queue commit;
+     *   [com.calypsan.listenup.client.core.AppResult.Failure] only on local DB-write failure.
      */
     suspend fun discardProgress(bookId: String): com.calypsan.listenup.client.core.AppResult<Unit>
 
     /**
      * Restart a book from the beginning.
      *
-     * Optimistic local update followed by server sync.
-     * Sets position to 0, clears isFinished.
-     * On server failure, rolls back to previous state.
+     * Local position row is reset (position=0, isFinished=false, fresh startedAt)
+     * and a RESTART_BOOK pending-op is queued for the server. The pending-op
+     * is processed asynchronously by [com.calypsan.listenup.client.data.sync.push.OperationExecutor].
      *
      * @param bookId The book to restart
-     * @return Result with Unit on success, or Failure on error
+     * @return [com.calypsan.listenup.client.core.AppResult.Success] when the local write + queue commit;
+     *   [com.calypsan.listenup.client.core.AppResult.Failure] only on local DB-write failure.
      */
     suspend fun restartBook(bookId: String): com.calypsan.listenup.client.core.AppResult<Unit>
 
