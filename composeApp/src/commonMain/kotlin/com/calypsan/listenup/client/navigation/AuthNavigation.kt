@@ -1,5 +1,8 @@
 package com.calypsan.listenup.client.navigation
 
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -176,6 +179,9 @@ private fun ServerSetupNavigation() {
                 backStack.removeAt(backStack.lastIndex)
             }
         },
+        predictivePopTransitionSpec = {
+            slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
+        },
         entryProvider =
             entryProvider {
                 entry<ServerSelect> {
@@ -216,6 +222,9 @@ private fun SetupNavigation() {
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
             ),
+        predictivePopTransitionSpec = {
+            slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
+        },
         entryProvider =
             entryProvider {
                 entry<Setup> {
@@ -253,6 +262,9 @@ private fun LoginNavigation(
             if (backStack.size > 1) {
                 backStack.removeAt(backStack.lastIndex)
             }
+        },
+        predictivePopTransitionSpec = {
+            slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
         },
         entryProvider =
             entryProvider {
