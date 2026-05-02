@@ -573,13 +573,27 @@ class ProgressTrackerTest {
             // positionRepository.delete is the correct domain-layer entry point.
             val fixture = createFixture()
             val bookId = BookId("book-clear")
-            everySuspend { fixture.positionRepository.delete(bookId.value) } returns Unit
+            everySuspend { fixture.positionRepository.delete(bookId) } returns AppResult.Success(Unit)
 
             val tracker = fixture.build()
 
             tracker.clearProgress(bookId)
 
-            verifySuspend { fixture.positionRepository.delete(bookId.value) }
+            verifySuspend { fixture.positionRepository.delete(bookId) }
+        }
+
+    @Test
+    fun `clearProgress logs warning when delete returns Failure`() =
+        runTest {
+            val fixture = createFixture()
+            val bookId = BookId("book-1")
+            everySuspend { fixture.positionRepository.delete(bookId) } returns
+                AppResult.Failure(DataError("delete failure"))
+
+            // Should not throw — best-effort logging absorbs the failure.
+            fixture.build().clearProgress(bookId)
+
+            verifySuspend(VerifyMode.exactly(1)) { fixture.positionRepository.delete(bookId) }
         }
 
     // ========== write-path migration (Task 5) ==========
@@ -859,7 +873,7 @@ class ProgressTrackerTest {
 
             // No exception thrown. The Failure was logged and consumed.
             verifySuspend(VerifyMode.exactly(1)) {
-                fixture.positionRepository.markComplete("book-1", null, any())
+                fixture.positionRepository.markComplete(BookId("book-1"), null, any())
             }
         }
 

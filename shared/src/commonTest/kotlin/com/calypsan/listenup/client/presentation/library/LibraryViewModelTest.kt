@@ -880,7 +880,7 @@ class LibraryViewModelTest {
                 )
             val positions =
                 mapOf(
-                    "book-1" to
+                    BookId("book-1") to
                         PlaybackPosition(
                             bookId = "book-1",
                             positionMs = 5_000L, // 50% progress
@@ -890,7 +890,7 @@ class LibraryViewModelTest {
                             syncedAtMs = null,
                             lastPlayedAtMs = null,
                         ),
-                    "book-2" to
+                    BookId("book-2") to
                         PlaybackPosition(
                             bookId = "book-2",
                             positionMs = 10_000L, // 50% progress
@@ -909,8 +909,8 @@ class LibraryViewModelTest {
 
             // Then
             val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
-            assertEquals(0.5f, loaded.bookProgress["book-1"])
-            assertEquals(0.5f, loaded.bookProgress["book-2"])
+            assertEquals(0.5f, loaded.bookProgress[BookId("book-1")])
+            assertEquals(0.5f, loaded.bookProgress[BookId("book-2")])
         }
 
     @Test
@@ -924,7 +924,7 @@ class LibraryViewModelTest {
                 )
             val positions =
                 mapOf(
-                    "book-1" to
+                    BookId("book-1") to
                         PlaybackPosition(
                             bookId = "book-1",
                             positionMs = 9_950L, // 99.5% - should be included for completion badge
@@ -943,7 +943,7 @@ class LibraryViewModelTest {
 
             // Then - completed book is included with its progress (for completion badge)
             val loaded = assertIs<LibraryUiState.Loaded>(viewModel.uiState.value)
-            assertEquals(0.995f, loaded.bookProgress["book-1"])
+            assertEquals(0.995f, loaded.bookProgress[BookId("book-1")])
         }
 
     // ========== Per-Upstream Catch Tests ==========
