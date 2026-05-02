@@ -202,34 +202,39 @@ class SyncIndicatorViewModel(
     }
 }
 
-internal fun PendingOperationType.describe(entityName: String): String =
-    describeEntityOp(entityName) ?: describeGlobalOp()
+internal sealed interface OpDescription {
+    data class Entity(val template: (String) -> String) : OpDescription
 
-internal fun PendingOperationType.describeEntityOp(entityName: String): String? =
-    when (this) {
-        PendingOperationType.BOOK_UPDATE -> "Updating book $entityName"
-        PendingOperationType.CONTRIBUTOR_UPDATE -> "Updating contributor $entityName"
-        PendingOperationType.SERIES_UPDATE -> "Updating series $entityName"
-        PendingOperationType.SET_BOOK_CONTRIBUTORS -> "Setting contributors for book $entityName"
-        PendingOperationType.SET_BOOK_SERIES -> "Setting series for book $entityName"
-        else -> null
+    data class Global(val text: String) : OpDescription
+}
+
+internal val PendingOperationType.description: OpDescription
+    get() = when (this) {
+        PendingOperationType.BOOK_UPDATE -> OpDescription.Entity { name -> "Updating book $name" }
+        PendingOperationType.CONTRIBUTOR_UPDATE -> OpDescription.Entity { name -> "Updating contributor $name" }
+        PendingOperationType.SERIES_UPDATE -> OpDescription.Entity { name -> "Updating series $name" }
+        PendingOperationType.SET_BOOK_CONTRIBUTORS -> OpDescription.Entity { name -> "Setting contributors for book $name" }
+        PendingOperationType.SET_BOOK_SERIES -> OpDescription.Entity { name -> "Setting series for book $name" }
+        PendingOperationType.MERGE_CONTRIBUTOR -> OpDescription.Global("Merging contributors")
+        PendingOperationType.UNMERGE_CONTRIBUTOR -> OpDescription.Global("Unmerging contributor")
+        PendingOperationType.LISTENING_EVENT -> OpDescription.Global("Syncing listening data")
+        PendingOperationType.PLAYBACK_POSITION -> OpDescription.Global("Syncing playback position")
+        PendingOperationType.USER_PREFERENCES -> OpDescription.Global("Syncing preferences")
+        PendingOperationType.PROFILE_UPDATE -> OpDescription.Global("Updating profile")
+        PendingOperationType.PROFILE_AVATAR -> OpDescription.Global("Uploading avatar")
+        PendingOperationType.MARK_COMPLETE -> OpDescription.Global("Marking book complete")
+        PendingOperationType.DISCARD_PROGRESS -> OpDescription.Entity { name -> "Discarding progress for book $name" }
+        PendingOperationType.RESTART_BOOK -> OpDescription.Entity { name -> "Restarting book $name" }
+        PendingOperationType.END_PLAYBACK_SESSION -> OpDescription.Global("Syncing playback session")
+        PendingOperationType.CREATE_SHELF -> OpDescription.Global("Creating shelf")
+        PendingOperationType.UPDATE_SHELF -> OpDescription.Global("Updating shelf")
+        PendingOperationType.DELETE_SHELF -> OpDescription.Global("Deleting shelf")
+        PendingOperationType.ADD_BOOKS_TO_SHELF -> OpDescription.Global("Adding books to shelf")
+        PendingOperationType.REMOVE_BOOK_FROM_SHELF -> OpDescription.Global("Removing book from shelf")
     }
 
-internal fun PendingOperationType.describeGlobalOp(): String =
-    when (this) {
-        PendingOperationType.MERGE_CONTRIBUTOR -> "Merging contributors"
-        PendingOperationType.UNMERGE_CONTRIBUTOR -> "Unmerging contributor"
-        PendingOperationType.LISTENING_EVENT -> "Syncing listening data"
-        PendingOperationType.PLAYBACK_POSITION -> "Syncing playback position"
-        PendingOperationType.USER_PREFERENCES -> "Syncing preferences"
-        PendingOperationType.PROFILE_UPDATE -> "Updating profile"
-        PendingOperationType.PROFILE_AVATAR -> "Uploading avatar"
-        PendingOperationType.MARK_COMPLETE -> "Marking book complete"
-        PendingOperationType.END_PLAYBACK_SESSION -> "Syncing playback session"
-        PendingOperationType.CREATE_SHELF -> "Creating shelf"
-        PendingOperationType.UPDATE_SHELF -> "Updating shelf"
-        PendingOperationType.DELETE_SHELF -> "Deleting shelf"
-        PendingOperationType.ADD_BOOKS_TO_SHELF -> "Adding books to shelf"
-        PendingOperationType.REMOVE_BOOK_FROM_SHELF -> "Removing book from shelf"
-        else -> "Syncing"
+internal fun PendingOperationType.describe(entityName: String): String =
+    when (val d = description) {
+        is OpDescription.Entity -> d.template(entityName)
+        is OpDescription.Global -> d.text
     }

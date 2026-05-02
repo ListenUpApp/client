@@ -19,8 +19,20 @@ import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.ServerDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
+import com.calypsan.listenup.client.data.local.db.AudioFileDao
+import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
+import com.calypsan.listenup.client.data.local.db.BookReadersSummaryDao
+import com.calypsan.listenup.client.data.local.db.GenreDao
+import com.calypsan.listenup.client.data.local.db.ReaderSessionCacheDao
+import com.calypsan.listenup.client.data.local.db.ShelfBookDao
 import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserReadingSessionDao
+import com.calypsan.listenup.client.data.sync.SessionDaos
+import com.calypsan.listenup.client.data.sync.UserDaos
+import com.calypsan.listenup.client.data.sync.sse.BookRelationshipDaos
+import com.calypsan.listenup.client.data.sync.sse.SSEExternalServices
 import com.calypsan.listenup.client.data.local.db.UserProfileDao
 import com.calypsan.listenup.client.data.local.db.UserStatsDao
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
@@ -87,6 +99,12 @@ class KoinModuleVerifyTest {
                 listOf(
                     // Platform-specific types provided by other modules
                     CoroutineScope::class,
+                    ListenUpDatabase::class,
+                    TransactionRunner::class,
+                    BookRelationshipDaos::class,
+                    UserDaos::class,
+                    SessionDaos::class,
+                    SSEExternalServices::class,
                     SecureStorage::class,
                     ImageStorage::class,
                     CoverColorExtractor::class,
@@ -96,26 +114,32 @@ class KoinModuleVerifyTest {
                     // DAOs from database module
                     ActiveSessionDao::class,
                     ActivityDao::class,
-                    UserDao::class,
-                    BookDao::class,
-                    SyncDao::class,
-                    ChapterDao::class,
-                    SeriesDao::class,
-                    ContributorDao::class,
+                    AudioFileDao::class,
                     BookContributorDao::class,
+                    BookDao::class,
+                    BookReadersSummaryDao::class,
                     BookSeriesDao::class,
+                    ChapterDao::class,
                     CollectionDao::class,
-                    ShelfDao::class,
-                    ListeningEventDao::class,
-                    TagDao::class,
-                    UserProfileDao::class,
-                    UserStatsDao::class,
-                    PlaybackPositionDao::class,
-                    PendingOperationDao::class,
-                    DownloadDao::class,
+                    ContributorDao::class,
                     com.calypsan.listenup.client.data.local.db.CoverDownloadDao::class,
+                    DownloadDao::class,
+                    GenreDao::class,
+                    ListeningEventDao::class,
+                    PendingOperationDao::class,
+                    PlaybackPositionDao::class,
+                    ReaderSessionCacheDao::class,
                     SearchDao::class,
+                    SeriesDao::class,
                     ServerDao::class,
+                    ShelfBookDao::class,
+                    ShelfDao::class,
+                    SyncDao::class,
+                    TagDao::class,
+                    UserDao::class,
+                    UserProfileDao::class,
+                    UserReadingSessionDao::class,
+                    UserStatsDao::class,
                     // Playback and download services
                     PlaybackManager::class,
                     PlaybackStateProvider::class,

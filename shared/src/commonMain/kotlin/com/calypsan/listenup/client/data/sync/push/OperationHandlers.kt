@@ -704,6 +704,72 @@ class MarkCompleteHandler(
 }
 
 /**
+ * Handler for DISCARD_PROGRESS operations.
+ * Coalesces by book - latest discard wins (server endpoint is idempotent).
+ */
+class DiscardProgressHandler(
+    private val api: SyncApiContract,
+) : OperationHandler<DiscardProgressPayload> {
+    override val operationType = OperationType.DISCARD_PROGRESS
+
+    override fun parsePayload(json: String): DiscardProgressPayload = appJson.decodeFromString(json)
+
+    override fun serializePayload(payload: DiscardProgressPayload): String = appJson.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: DiscardProgressPayload,
+        newPayload: DiscardProgressPayload,
+    ): DiscardProgressPayload? {
+        if (existing.operationType != OperationType.DISCARD_PROGRESS) return null
+        return if (existingPayload.bookId == newPayload.bookId) newPayload else null
+    }
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: DiscardProgressPayload,
+    ): AppResult<Unit> =
+        when (val result = api.discardProgress(payload.bookId, keepHistory = true)) {
+            is Success -> Success(Unit)
+            is Failure -> result
+        }
+}
+
+/**
+ * Handler for RESTART_BOOK operations.
+ * Coalesces by book - latest restart wins (server endpoint is idempotent).
+ * Discards the server response; the local position row was already reset by
+ * PlaybackPositionRepositoryImpl.handleRestart inside the canonical transaction.
+ */
+class RestartBookHandler(
+    private val api: SyncApiContract,
+) : OperationHandler<RestartBookPayload> {
+    override val operationType = OperationType.RESTART_BOOK
+
+    override fun parsePayload(json: String): RestartBookPayload = appJson.decodeFromString(json)
+
+    override fun serializePayload(payload: RestartBookPayload): String = appJson.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: RestartBookPayload,
+        newPayload: RestartBookPayload,
+    ): RestartBookPayload? {
+        if (existing.operationType != OperationType.RESTART_BOOK) return null
+        return if (existingPayload.bookId == newPayload.bookId) newPayload else null
+    }
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: RestartBookPayload,
+    ): AppResult<Unit> =
+        when (val result = api.restartBook(payload.bookId)) {
+            is Success -> Success(Unit)
+            is Failure -> result
+        }
+}
+
+/**
  * Handler for END_PLAYBACK_SESSION operations.
  * Coalesces by book - latest duration wins for the same book.
  */

@@ -2,8 +2,6 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.local.db.EntityType
@@ -11,22 +9,22 @@ import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
-import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.sync.push.DiscardProgressHandler
+import com.calypsan.listenup.client.data.sync.push.DiscardProgressPayload
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompletePayload
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.RestartBookHandler
+import com.calypsan.listenup.client.data.sync.push.RestartBookPayload
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.LastPlayedInfo
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
-import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Instant
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * Implementation of PlaybackPositionRepository using Room.
@@ -34,11 +32,10 @@ private val logger = KotlinLogging.logger {}
  * Wraps PlaybackPositionDao and converts entities to domain models.
  * Position operations are instant and local-first.
  *
- * [markComplete] is a thin facade over [savePlaybackState] and uses the outbox
- * pattern: local save + unconditional MARK_COMPLETE pending-op queue (the sync
- * engine processes it asynchronously). [discardProgress] and [restartBook] retain
- * their own implementations with optimistic local update + immediate server sync +
- * rollback on failure — no pending-op infrastructure exists for those operations yet.
+ * [markComplete], [discardProgress], and [restartBook] are thin facades over
+ * [savePlaybackState] and use the outbox pattern: local save + pending-op queue
+ * (MARK_COMPLETE / DISCARD_PROGRESS / RESTART_BOOK respectively); the sync engine
+ * processes the op asynchronously.
  *
  * The [savePlaybackState] entry point owns per-book Mutex serialization
  * plus per-call transactional dispatch over the 11-variant [PlaybackUpdate]
@@ -47,16 +44,18 @@ private val logger = KotlinLogging.logger {}
  * book serialize on a per-book Mutex; different books proceed in parallel.
  *
  * @property dao Room DAO for position operations
- * @property syncApi API for syncing progress changes to server
  * @property pendingOps Queue for pending push operations
  * @property markCompleteHandler Handler for MARK_COMPLETE pending ops
+ * @property discardProgressHandler Handler for DISCARD_PROGRESS pending ops
+ * @property restartBookHandler Handler for RESTART_BOOK pending ops
  * @property transactionRunner Runs each variant handler inside a write transaction
  */
 class PlaybackPositionRepositoryImpl(
     private val dao: PlaybackPositionDao,
-    private val syncApi: SyncApiContract,
     private val pendingOps: PendingOperationRepositoryContract,
     private val markCompleteHandler: MarkCompleteHandler,
+    private val discardProgressHandler: DiscardProgressHandler,
+    private val restartBookHandler: RestartBookHandler,
     private val transactionRunner: TransactionRunner,
 ) : PlaybackPositionRepository {
     // ----- Per-book Mutex map ---------------------------------------------------------------
@@ -142,84 +141,11 @@ class PlaybackPositionRepositoryImpl(
         finishedAt: Long?,
     ): AppResult<Unit> = savePlaybackState(BookId(bookId), PlaybackUpdate.MarkComplete(startedAt, finishedAt))
 
-    override suspend fun discardProgress(bookId: String): AppResult<Unit> {
-        logger.debug { "discardProgress: $bookId" }
-        val existing = dao.get(BookId(bookId))
+    override suspend fun discardProgress(bookId: String): AppResult<Unit> =
+        savePlaybackState(BookId(bookId), PlaybackUpdate.DiscardProgress)
 
-        // Optimistic local delete
-        dao.delete(BookId(bookId))
-
-        // Sync to server
-        return when (val result = syncApi.discardProgress(bookId, keepHistory = true)) {
-            is Success -> {
-                logger.info { "discardProgress: synced $bookId to server" }
-                Success(Unit)
-            }
-
-            is Failure -> {
-                logger.warn { "discardProgress: server sync failed for $bookId, rolling back" }
-                // Rollback on failure - restore previous state
-                if (existing != null) {
-                    dao.save(existing)
-                }
-                result
-            }
-        }
-    }
-
-    override suspend fun restartBook(bookId: String): AppResult<Unit> {
-        logger.debug { "restartBook: $bookId" }
-        val existing = dao.get(BookId(bookId))
-        val now = currentEpochMilliseconds()
-
-        // Optimistic local update
-        if (existing != null) {
-            val restarted =
-                existing.copy(
-                    positionMs = 0,
-                    isFinished = false,
-                    finishedAt = null,
-                    updatedAt = now,
-                    lastPlayedAt = now,
-                    startedAt = now, // New reading session starts now
-                )
-            dao.save(restarted)
-        } else {
-            // Create new position if none exists
-            val newPosition =
-                PlaybackPositionEntity(
-                    bookId = BookId(bookId),
-                    positionMs = 0,
-                    playbackSpeed = 1.0f,
-                    hasCustomSpeed = false,
-                    updatedAt = now,
-                    lastPlayedAt = now,
-                    isFinished = false,
-                    finishedAt = null,
-                    startedAt = now,
-                )
-            dao.save(newPosition)
-        }
-
-        // Sync to server
-        return when (val result = syncApi.restartBook(bookId)) {
-            is Success -> {
-                logger.info { "restartBook: synced $bookId to server" }
-                Success(Unit)
-            }
-
-            is Failure -> {
-                logger.warn { "restartBook: server sync failed for $bookId, rolling back" }
-                // Rollback on failure
-                if (existing != null) {
-                    dao.save(existing)
-                } else {
-                    dao.delete(BookId(bookId))
-                }
-                result
-            }
-        }
-    }
+    override suspend fun restartBook(bookId: String): AppResult<Unit> =
+        savePlaybackState(BookId(bookId), PlaybackUpdate.Restart)
 
     // ----- Canonical entry point ------------------------------------------------------------
 
@@ -487,10 +413,9 @@ class PlaybackPositionRepositoryImpl(
     }
 
     private suspend fun handleDiscardProgress(bookId: BookId) {
-        // Local-only reset. The existing public `discardProgress(bookId)` facade
-        // owns the server-sync side (syncApi.discardProgress + rollback). No
-        // pending-op infrastructure exists for DISCARD_PROGRESS; the handler's
-        // job is just the local DB write inside the same transaction.
+        // Local-only reset followed by DISCARD_PROGRESS pending-op enqueue.
+        // The OperationExecutor processes the op asynchronously; the local
+        // DB write and the enqueue happen inside the same transaction.
         val existing = dao.get(bookId) ?: return // no-op if no row
         val now = currentEpochMilliseconds()
         dao.save(
@@ -503,13 +428,19 @@ class PlaybackPositionRepositoryImpl(
                 syncedAt = null,
             ),
         )
+        pendingOps.queue(
+            type = OperationType.DISCARD_PROGRESS,
+            entityType = EntityType.BOOK,
+            entityId = bookId.value,
+            payload = DiscardProgressPayload(bookId = bookId.value),
+            handler = discardProgressHandler,
+        )
     }
 
     private suspend fun handleRestart(bookId: BookId) {
-        // Local-only reset. The existing public `restartBook(bookId)` facade owns
-        // the server-sync side (syncApi.restartBook + rollback). No pending-op
-        // infrastructure exists for RESTART_BOOK; the handler's job is just the
-        // local DB write inside the same transaction.
+        // Local-only reset followed by RESTART_BOOK pending-op enqueue.
+        // The OperationExecutor processes the op asynchronously; the local
+        // DB write and the enqueue happen inside the same transaction.
         val existing = dao.get(bookId) ?: return // no-op if no row
         val now = currentEpochMilliseconds()
         dao.save(
@@ -522,6 +453,13 @@ class PlaybackPositionRepositoryImpl(
                 lastPlayedAt = now,
                 syncedAt = null,
             ),
+        )
+        pendingOps.queue(
+            type = OperationType.RESTART_BOOK,
+            entityType = EntityType.BOOK,
+            entityId = bookId.value,
+            payload = RestartBookPayload(bookId = bookId.value),
+            handler = restartBookHandler,
         )
     }
 
