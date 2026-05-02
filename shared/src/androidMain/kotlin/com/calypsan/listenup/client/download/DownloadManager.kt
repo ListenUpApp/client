@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber", "StringLiteralDuplication")
-
 package com.calypsan.listenup.client.download
 
 import androidx.work.Constraints
@@ -7,6 +5,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.await
 import androidx.work.workDataOf
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
@@ -17,6 +16,7 @@ import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
@@ -51,17 +51,20 @@ class DownloadManager(
     private val fileManager: DownloadFileManager,
     private val localPreferences: com.calypsan.listenup.client.domain.repository.LocalPreferences,
     private val downloadRepository: DownloadRepository,
+    private val transactionRunner: TransactionRunner,
 ) : DownloadService {
+    companion object {
+        private const val STORAGE_BUFFER_MULTIPLIER = 1.1 // 10% buffer for download size estimates
+        private const val DECIMAL_BYTES_PER_MB = 1_000_000L
+    }
+
     /**
      * Observe download status for a specific book.
      */
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
         downloadRepository.observeBookStatus(bookId)
 
-    /**
-     * Observe download status for all books (for library indicators).
-     */
-    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> = downloadRepository.observeAllStatuses()
+    override fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> = downloadRepository.observeAllStatuses()
 
     /**
      * Download a book (queue all audio files).
@@ -102,12 +105,12 @@ class DownloadManager(
         val requiredBytes = toDownload.sumOf { it.size }
         val availableBytes = fileManager.getAvailableSpace()
         // Add 10% buffer for safety
-        val requiredWithBuffer = (requiredBytes * 1.1).toLong()
+        val requiredWithBuffer = (requiredBytes * STORAGE_BUFFER_MULTIPLIER).toLong()
 
         if (availableBytes < requiredWithBuffer) {
             logger.warn {
                 "Insufficient storage for book ${bookId.value}: " +
-                    "need ${requiredBytes / 1_000_000}MB, have ${availableBytes / 1_000_000}MB"
+                    "need ${requiredBytes / DECIMAL_BYTES_PER_MB}MB, have ${availableBytes / DECIMAL_BYTES_PER_MB}MB"
             }
             return AppResult.Success(
                 DownloadOutcome.InsufficientStorage(
@@ -137,7 +140,11 @@ class DownloadManager(
                 )
             }
 
-        downloadDao.insertAll(entities)
+        // Persistence Rule 1: insert is transactional. resumeIncompleteDownloads is the
+        // documented recovery path for crash-between-commit-and-enqueue (Finding 08 D9).
+        transactionRunner.atomically {
+            downloadDao.insertAll(entities)
+        }
 
         // Determine network constraint based on WiFi-only preference
         // UNMETERED = WiFi/ethernet only, CONNECTED = any network (including cellular)
@@ -165,12 +172,12 @@ class DownloadManager(
                             .Builder()
                             .setRequiredNetworkType(requiredNetworkType)
                             .build(),
-                    ).addTag("download_${bookId.value}")
-                    .addTag("download_file_${file.id}")
+                    ).addTag(bookTag(bookId))
+                    .addTag(fileCancelTag(file.id))
                     .build()
 
             workManager.enqueueUniqueWork(
-                "download_${file.id}",
+                fileWorkName(file.id),
                 ExistingWorkPolicy.REPLACE,
                 workRequest,
             )
@@ -184,7 +191,10 @@ class DownloadManager(
      * Cancel active download for a book.
      */
     override suspend fun cancelDownload(bookId: BookId) {
-        workManager.cancelAllWorkByTag("download_${bookId.value}")
+        // Await WorkManager cancellation completion before updating DB state. Closes the race
+        // where a worker's final updateProgress write lands after cancelAllWorkByTag returns
+        // but before the state update fires (Finding 08 D10).
+        workManager.cancelAllWorkByTag(bookTag(bookId)).await()
         downloadDao.updateStateForBook(bookId.value, DownloadState.PAUSED)
         logger.info { "Cancelled download: ${bookId.value}" }
     }
@@ -196,7 +206,10 @@ class DownloadManager(
      */
     override suspend fun deleteDownload(bookId: BookId) {
         // Cancel any active downloads first
-        workManager.cancelAllWorkByTag("download_${bookId.value}")
+        // Await WorkManager cancellation completion before deleting files. Closes the race
+        // where a worker's final updateProgress write lands after cancelAllWorkByTag returns
+        // but before the deletion fires (Finding 08 D10).
+        workManager.cancelAllWorkByTag(bookTag(bookId)).await()
 
         // Delete files from disk
         fileManager.deleteBookFiles(bookId.value)
@@ -245,11 +258,8 @@ class DownloadManager(
         val requiredNetworkType = if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
 
         for (download in incomplete) {
-            // Only reset PAUSED state to QUEUED — do NOT reset DOWNLOADING.
-            // A DOWNLOADING entry means WorkManager may still have an active worker for it.
-            // Re-enqueueing with KEEP policy keeps that worker running, but if we reset the
-            // DB state to QUEUED the UI gets stuck on the spinner permanently because the
-            // worker only calls updateState(DOWNLOADING) once at the top of doWork().
+            // KEEP policy avoids displacing a worker that's already running for this row.
+            // Only PAUSED is reset — DOWNLOADING rows belong to a worker that owns state transitions.
             if (download.state == DownloadState.PAUSED) {
                 downloadDao.updateState(download.audioFileId, DownloadState.QUEUED)
             }
@@ -268,12 +278,12 @@ class DownloadManager(
                             .Builder()
                             .setRequiredNetworkType(requiredNetworkType)
                             .build(),
-                    ).addTag("download_${download.bookId}")
-                    .addTag("download_file_${download.audioFileId}")
+                    ).addTag(bookTag(download.bookId))
+                    .addTag(fileCancelTag(download.audioFileId))
                     .build()
 
             workManager.enqueueUniqueWork(
-                "download_${download.audioFileId}",
+                fileWorkName(download.audioFileId),
                 ExistingWorkPolicy.KEEP,
                 workRequest,
             )
@@ -304,4 +314,16 @@ class DownloadManager(
         downloadDao.deleteAll()
         logger.info { "Deleted all downloads" }
     }
+
+    // --- WorkManager string identifiers ---
+    // fileWorkName is the unique-work name for enqueueUniqueWork; fileCancelTag is for
+    // addTag/cancelAllWorkByTag. They produce different strings on purpose — do not consolidate.
+
+    private fun bookTag(bookId: BookId): String = bookTag(bookId.value)
+
+    private fun bookTag(bookIdValue: String): String = "download_$bookIdValue"
+
+    private fun fileCancelTag(audioFileId: String): String = "download_file_$audioFileId"
+
+    private fun fileWorkName(audioFileId: String): String = "download_$audioFileId"
 }

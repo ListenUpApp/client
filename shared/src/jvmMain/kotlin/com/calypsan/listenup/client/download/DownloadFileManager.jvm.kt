@@ -30,26 +30,19 @@ actual open class DownloadFileManager(
             return dir
         }
 
-    actual fun getDownloadPath(
+    actual fun getAudioFilePath(
         bookId: String,
         audioFileId: String,
         filename: String,
+        isTemp: Boolean,
     ): Path {
         val bookDir = Path(downloadDir.toString(), bookId)
         // Ensure book directory exists using kotlinx-io
         if (!SystemFileSystem.exists(bookDir)) {
             SystemFileSystem.createDirectories(bookDir)
         }
-        return Path(bookDir.toString(), "${audioFileId}_$filename")
-    }
-
-    actual fun getTempPath(
-        bookId: String,
-        audioFileId: String,
-        filename: String,
-    ): Path {
-        val destFile = getDownloadPath(bookId, audioFileId, filename)
-        return Path(destFile.parent!!.toString(), "${destFile.name}.tmp")
+        val finalName = if (isTemp) "${audioFileId}_$filename.tmp" else "${audioFileId}_$filename"
+        return Path(bookDir.toString(), finalName)
     }
 
     actual fun deleteBookFiles(bookId: String) {

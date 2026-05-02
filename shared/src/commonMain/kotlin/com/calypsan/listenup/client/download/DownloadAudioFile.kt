@@ -1,5 +1,4 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
-@file:Suppress("MagicNumber")
 
 package com.calypsan.listenup.client.download
 
@@ -100,8 +99,8 @@ internal suspend fun downloadAudioFile(
             }
         }
 
-    val destPath = fileManager.getDownloadPath(bookId, audioFileId, filename)
-    val tempPath = fileManager.getTempPath(bookId, audioFileId, filename)
+    val destPath = fileManager.getAudioFilePath(bookId, audioFileId, filename, isTemp = false)
+    val tempPath = fileManager.getAudioFilePath(bookId, audioFileId, filename, isTemp = true)
 
     // Resume support: if a partial tempFile exists, send Range header.
     val startByte =

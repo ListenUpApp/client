@@ -14,21 +14,15 @@ import kotlinx.io.files.Path
  */
 expect class DownloadFileManager {
     /**
-     * Get the final destination path for a downloaded file.
+     * Get the path for a downloaded file. [isTemp]=true returns the in-progress temp path
+     * (supports resume); [isTemp]=false returns the final destination path. Single function
+     * eliminates format-divergence risk between the two paths (Finding 08 D12).
      */
-    fun getDownloadPath(
+    fun getAudioFilePath(
         bookId: String,
         audioFileId: String,
         filename: String,
-    ): Path
-
-    /**
-     * Get temp path for in-progress download (supports resume).
-     */
-    fun getTempPath(
-        bookId: String,
-        audioFileId: String,
-        filename: String,
+        isTemp: Boolean,
     ): Path
 
     /**

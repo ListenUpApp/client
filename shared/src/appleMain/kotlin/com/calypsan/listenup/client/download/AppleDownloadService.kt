@@ -64,6 +64,14 @@ private val logger = KotlinLogging.logger {}
  * - [observeBookStatus] aggregates via the new sealed [com.calypsan.listenup.client.domain.model.BookDownloadStatus] hierarchy.
  *
  * The internal DAO writes remain untouched.
+ *
+ * **Codec negotiation: intentionally absent on iOS.** Android's `DownloadWorker.resolveDownloadUrl`
+ * negotiates with the server's `preparePlayback` endpoint to pick a transcoded variant when the
+ * device doesn't support the source codec. iOS's native AVFoundation audio player supports every
+ * codec the server can serve (AAC, MP3, FLAC, ALAC, Opus), so negotiation is unnecessary — the
+ * download URL points directly at the original file. **If a future server adds a codec iOS does
+ * not natively support, this class requires codec negotiation matching the Android worker's
+ * pattern.** Closes Finding 08 D6 (principled asymmetry, not silent omission).
  */
 @OptIn(ExperimentalTime::class)
 class AppleDownloadService(
@@ -226,7 +234,7 @@ class AppleDownloadService(
         logger.info { "Downloading: $filename (${audioFile.size / 1_000_000}MB)" }
 
         // Register this download so delegate can track it
-        val destPath = fileManager.getDownloadPath(bookId, audioFileId, filename)
+        val destPath = fileManager.getAudioFilePath(bookId, audioFileId, filename, isTemp = false)
 
         // Ensure parent directory exists
         val destUrl = NSURL.fileURLWithPath(destPath.toString())
@@ -347,8 +355,19 @@ class AppleDownloadService(
             aggregateBookDownloadStatus(bookId.value, entities)
         }
 
+    override fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> =
+        downloadDao.observeAll().map { downloads ->
+            downloads
+                .groupBy { it.bookId }
+                .mapValues { (bookId, files) -> aggregateBookDownloadStatus(bookId, files) }
+        }
+
     // Inline copy of DownloadManager.aggregateStatus until Task 8 moves the canonical version
     // into DownloadRepository. iOS keeps its own copy through W10 (deferred carveout per W8 design).
+    // Known parity gaps with Android's aggregator: does NOT filter DownloadState.CANCELLED from
+    // activeDownloads, and hardcodes waitingForServerFiles = 0. These gaps now reach the interface
+    // via observeAllStatuses (W8 Phase E D11) — when a cross-book consumer arrives before W10
+    // closes this carveout, fix here first or it will mis-report aggregate status on iOS.
     private fun aggregateBookDownloadStatus(
         bookId: String,
         entities: List<DownloadEntity>,
