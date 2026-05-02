@@ -966,6 +966,7 @@ val syncModule =
                         imageDownloader = get(),
                         playbackStateProvider = get<PlaybackManager>(),
                         downloadService = get(),
+                        downloadRepository = get(),
                     ),
                 activityDao = get(),
                 coverDownloadRepository = get(),

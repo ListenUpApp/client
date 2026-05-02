@@ -22,9 +22,11 @@ import com.calypsan.listenup.client.data.sync.SSEChannelMessage
 import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
+import com.calypsan.listenup.client.data.repository.FakeDownloadRepository
 import com.calypsan.listenup.client.data.sync.sse.BookRelationshipDaos
 import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
@@ -70,6 +72,8 @@ class SSEEventProcessorProgressMergeTest {
 
             override suspend fun deleteAvatar(userId: String) = Unit
         }
+
+    private val noOpDownloadRepository: DownloadRepository = FakeDownloadRepository()
 
     @AfterTest
     fun tearDown() {
@@ -128,6 +132,7 @@ class SSEEventProcessorProgressMergeTest {
                     imageDownloader = imageDownloader,
                     playbackStateProvider = playbackStateProvider,
                     downloadService = downloadService,
+                    downloadRepository = noOpDownloadRepository,
                 ),
             activityDao = activityDao,
             coverDownloadRepository = noOpCoverDownloadRepository,

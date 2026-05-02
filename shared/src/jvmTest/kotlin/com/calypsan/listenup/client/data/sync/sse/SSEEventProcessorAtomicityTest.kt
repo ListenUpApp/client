@@ -25,6 +25,7 @@ import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
+import com.calypsan.listenup.client.data.repository.FakeDownloadRepository
 import com.calypsan.listenup.client.data.sync.BookPayload
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEChannelMessage
@@ -34,6 +35,7 @@ import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.sse.BookRelationshipDaos
 import com.calypsan.listenup.client.domain.repository.AvatarDownloadRepository
 import com.calypsan.listenup.client.domain.repository.CoverDownloadRepository
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.test.db.createInMemoryTestDatabase
@@ -73,6 +75,8 @@ class SSEEventProcessorAtomicityTest {
 
             override suspend fun deleteAvatar(userId: String) = Unit
         }
+
+    private val noOpDownloadRepository: DownloadRepository = FakeDownloadRepository()
 
     @AfterTest
     fun tearDown() {
@@ -171,6 +175,7 @@ class SSEEventProcessorAtomicityTest {
                             imageDownloader = imageDownloader,
                             playbackStateProvider = playbackStateProvider,
                             downloadService = downloadService,
+                            downloadRepository = noOpDownloadRepository,
                         ),
                     activityDao = activityDao,
                     coverDownloadRepository = noOpCoverDownloadRepository,
@@ -313,6 +318,7 @@ class SSEEventProcessorAtomicityTest {
                             imageDownloader = imageDownloader,
                             playbackStateProvider = playbackStateProvider,
                             downloadService = downloadService,
+                            downloadRepository = noOpDownloadRepository,
                         ),
                     activityDao = activityDao,
                     coverDownloadRepository = noOpCoverDownloadRepository,
@@ -443,6 +449,7 @@ class SSEEventProcessorAtomicityTest {
                             imageDownloader = imageDownloader,
                             playbackStateProvider = playbackStateProvider,
                             downloadService = downloadService,
+                            downloadRepository = noOpDownloadRepository,
                         ),
                     activityDao = activityDao,
                     coverDownloadRepository = noOpCoverDownloadRepository,

@@ -7,6 +7,8 @@ import com.calypsan.listenup.client.data.local.db.ActivityDao
 import com.calypsan.listenup.client.data.local.db.ActivityEntity
 import com.calypsan.listenup.client.data.local.db.AudioFileDao
 import com.calypsan.listenup.client.data.local.db.AudioFileEntity
+import com.calypsan.listenup.client.data.local.db.DownloadEntity
+import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -38,7 +40,9 @@ import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
 import com.calypsan.listenup.client.data.repository.CoverDownloadRepositoryImpl
+import com.calypsan.listenup.client.data.repository.FakeDownloadRepository
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
+import com.calypsan.listenup.client.data.sync.TranscodeCompletePayload
 import com.calypsan.listenup.client.data.sync.SessionDaos
 import com.calypsan.listenup.client.data.sync.UserDaos
 import com.calypsan.listenup.client.data.sync.sse.BookRelationshipDaos
@@ -162,6 +166,7 @@ class SSEEventProcessorTest {
         val playbackStateProvider: PlaybackStateProvider = mock()
         val downloadService: DownloadService = mock()
         val avatarDownloadRepository: AvatarDownloadRepository = mock()
+        val downloadRepository: FakeDownloadRepository = FakeDownloadRepository()
 
         // StateFlow for current book ID
         private val currentBookIdFlow = MutableStateFlow<BookId?>(null)
@@ -263,6 +268,7 @@ class SSEEventProcessorTest {
                         imageDownloader = imageDownloader,
                         playbackStateProvider = playbackStateProvider,
                         downloadService = downloadService,
+                        downloadRepository = downloadRepository,
                     ),
                 activityDao = activityDao,
                 coverDownloadRepository =
@@ -941,6 +947,52 @@ class SSEEventProcessorTest {
             verifySuspend(VerifyMode.not) {
                 fixture.imageDownloader.downloadUserAvatar(testUserId, forceRefresh = true)
             }
+        }
+
+    // ========== TranscodeComplete Event Tests ==========
+
+    @Test
+    fun `handles transcode_complete by calling resumeForAudioFile`() =
+        runTest {
+            val fixture = TestFixture(this)
+            fixture.downloadRepository.seed(
+                DownloadEntity(
+                    audioFileId = "file-1",
+                    bookId = "book-1",
+                    filename = "audio.mp3",
+                    fileIndex = 0,
+                    state = DownloadState.WAITING_FOR_SERVER,
+                    localPath = null,
+                    totalBytes = 1000L,
+                    downloadedBytes = 0L,
+                    queuedAt = 0L,
+                    startedAt = 0L,
+                    completedAt = null,
+                    errorMessage = null,
+                    retryCount = 0,
+                    transcodeJobId = "job-abc",
+                ),
+            )
+
+            val processor = fixture.build()
+
+            processor.process(
+                SSEChannelMessage.Wire(
+                    SSEEvent.TranscodeComplete(
+                        timestamp = TEST_TIMESTAMP,
+                        data =
+                            TranscodeCompletePayload(
+                                jobId = "job-abc",
+                                bookId = "book-1",
+                                audioFileId = "file-1",
+                            ),
+                    ),
+                ),
+            )
+            advanceUntilIdle()
+
+            // Verify resumeForAudioFile was called
+            kotlin.test.assertEquals(listOf("file-1"), fixture.downloadRepository.resumedAudioFiles)
         }
 
     companion object {
