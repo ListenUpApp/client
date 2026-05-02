@@ -86,12 +86,12 @@ import com.calypsan.listenup.client.presentation.admin.SelectedUserDisplay
 import com.calypsan.listenup.client.presentation.admin.UserMappingTab
 import com.calypsan.listenup.client.util.DocumentPickerResult
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ABSImportScreen(
-    viewModel: ABSImportViewModel = koinInject(),
+    viewModel: ABSImportViewModel = koinViewModel(),
     onBackClick: () -> Unit,
     onComplete: () -> Unit,
 ) {

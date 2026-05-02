@@ -55,7 +55,7 @@ import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.presentation.auth.RegisterUiState
 import com.calypsan.listenup.client.presentation.auth.RegisterViewModel
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_back
@@ -80,7 +80,7 @@ import listenup.composeapp.generated.resources.auth_request_account
 fun RegisterScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: RegisterViewModel = koinInject(),
+    viewModel: RegisterViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

@@ -43,7 +43,7 @@ import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.presentation.connect.ServerConnectUiState
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.connect_back_to_server_list
@@ -70,7 +70,7 @@ fun ServerSetupScreen(
     onServerVerified: () -> Unit,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    viewModel: ServerConnectViewModel = koinInject(),
+    viewModel: ServerConnectViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var serverUrl by rememberSaveable { mutableStateOf("") }

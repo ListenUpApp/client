@@ -403,7 +403,7 @@ private fun AuthenticatedNavigation(
     val scope = rememberCoroutineScope()
 
     // ViewModels for shortcut action handling
-    val nowPlayingViewModel: NowPlayingViewModel = koinInject()
+    val nowPlayingViewModel: NowPlayingViewModel = koinViewModel()
 
     // AppStartupViewModel holds the library-setup check result across Activity re-creations.
     // This prevents the loading screen from reappearing on every config change or short
@@ -548,7 +548,7 @@ private fun AuthenticatedNavigation(
                         entry<Shell> {
                             // Preload library data by injecting LibraryViewModel early
                             @Suppress("UNUSED_VARIABLE")
-                            val libraryViewModel: LibraryViewModel = koinInject()
+                            val libraryViewModel: LibraryViewModel = koinViewModel()
 
                             // Get search state for overlay
                             AppShell(
@@ -856,8 +856,8 @@ private fun AuthenticatedNavigation(
                         }
                         // Admin screens
                         entry<Admin> {
-                            val viewModel: AdminViewModel = koinInject()
-                            val settingsViewModel: AdminSettingsViewModel = koinInject()
+                            val viewModel: AdminViewModel = koinViewModel()
+                            val settingsViewModel: AdminSettingsViewModel = koinViewModel()
                             val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
                             val readySettings = settingsState as? AdminSettingsUiState.Ready
 
@@ -918,7 +918,7 @@ private fun AuthenticatedNavigation(
                             }
                         }
                         entry<AdminInbox> {
-                            val viewModel: AdminInboxViewModel = koinInject()
+                            val viewModel: AdminInboxViewModel = koinViewModel()
                             com.calypsan.listenup.client.features.admin.inbox.AdminInboxScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
@@ -930,7 +930,7 @@ private fun AuthenticatedNavigation(
                             )
                         }
                         entry<AdminCategories> {
-                            val viewModel: AdminCategoriesViewModel = koinInject()
+                            val viewModel: AdminCategoriesViewModel = koinViewModel()
                             com.calypsan.listenup.client.features.admin.categories.AdminCategoriesScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
@@ -939,7 +939,7 @@ private fun AuthenticatedNavigation(
                             )
                         }
                         entry<CreateInvite> {
-                            val viewModel: CreateInviteViewModel = koinInject()
+                            val viewModel: CreateInviteViewModel = koinViewModel()
                             CreateInviteScreen(
                                 viewModel = viewModel,
                                 onBackClick = {

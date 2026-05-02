@@ -1,12 +1,20 @@
 package com.calypsan.listenup.client.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.calypsan.listenup.client.testing.FakeNavViewModel
 import com.calypsan.listenup.client.testing.NavDisplayTestHarness
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.module
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
 
 /**
@@ -92,4 +100,81 @@ class PhaseABoundarySuiteTest {
         lines.mapIndexedNotNull { idx, line ->
             if (Regex("""\bNavDisplay\(""").containsMatchIn(line)) name to idx else null
         }
+
+    @Test
+    fun `koinViewModel resolves a distinct VM instance per NavEntry`() {
+        val harness = NavDisplayTestHarness(composeRule)
+
+        val capturedVMs = mutableListOf<FakeNavViewModel>()
+        // Module override binds FakeNavViewModel via the canonical viewModel { } DSL,
+        // ensuring koinViewModel() resolves against the per-entry ViewModelStore
+        // that rememberViewModelStoreNavEntryDecorator provides.
+        val testModule = module {
+            viewModel { FakeNavViewModel() }
+        }
+
+        harness.composeBackStack(
+            initialKey = BookDetail("book-X"),
+            koinModule = testModule,
+        ) {
+            entry<BookDetail> { _ ->
+                val vm: FakeNavViewModel = koinViewModel()
+                SideEffect {
+                    if (capturedVMs.none { it === vm }) {
+                        capturedVMs.add(vm)
+                    }
+                }
+            }
+        }
+
+        composeRule.waitForIdle()
+        harness.navigate(BookDetail("book-Y"))
+        composeRule.waitForIdle()
+
+        assertEquals(2, capturedVMs.size, "Expected one VM per entry; got ${capturedVMs.size}")
+        assertEquals(
+            false,
+            capturedVMs[0] === capturedVMs[1],
+            "Two BookDetail entries with distinct args produced the SAME VM instance — " +
+                "cross-detail VM contamination present.",
+        )
+    }
+
+    @Test
+    fun `popping a NavEntry triggers onCleared on the entry-scoped VM`() {
+        val harness = NavDisplayTestHarness(composeRule)
+        val capturedVM = AtomicReference<FakeNavViewModel?>()
+        val testModule = module {
+            viewModel { FakeNavViewModel() }
+        }
+
+        // Start with a base destination plus one BookDetail on top so pop() leaves
+        // the harness on a valid entry rather than an empty stack.
+        harness.composeBackStack(
+            initialKey = Shell,
+            koinModule = testModule,
+        ) {
+            entry<Shell> { _ ->
+                Box(Modifier)
+            }
+            entry<BookDetail> { _ ->
+                val vm: FakeNavViewModel = koinViewModel()
+                SideEffect {
+                    capturedVM.compareAndSet(null, vm)
+                }
+            }
+        }
+
+        composeRule.waitForIdle()
+        harness.navigate(BookDetail("book-X"))
+        composeRule.waitForIdle()
+
+        val vm = capturedVM.get() ?: error("VM was not captured")
+        assertEquals(false, vm.clearedFlag, "VM cleared before pop")
+
+        harness.pop()
+        composeRule.waitForIdle()
+
+        assertEquals(true, vm.clearedFlag, "Popped entry's VM did not have onCleared() called")
+    }
 }

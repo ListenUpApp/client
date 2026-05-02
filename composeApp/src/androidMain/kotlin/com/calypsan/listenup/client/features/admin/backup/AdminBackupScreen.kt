@@ -67,7 +67,7 @@ import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 private const val LABEL_DELETE = "Delete"
 
@@ -75,8 +75,8 @@ private const val LABEL_DELETE = "Delete"
 @Composable
 @Suppress("LongMethod")
 fun AdminBackupScreen(
-    backupViewModel: AdminBackupViewModel = koinInject(),
-    absImportViewModel: ABSImportHubViewModel = koinInject(),
+    backupViewModel: AdminBackupViewModel = koinViewModel(),
+    absImportViewModel: ABSImportHubViewModel = koinViewModel(),
     onBackClick: () -> Unit,
     onCreateClick: () -> Unit,
     onRestoreClick: (String) -> Unit,

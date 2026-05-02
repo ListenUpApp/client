@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.testing
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
@@ -14,6 +15,8 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import org.koin.compose.KoinApplication
+import org.koin.core.module.Module
 
 /**
  * Phase A test harness. Composes a NavDisplay with both standard entry decorators
@@ -39,28 +42,43 @@ class NavDisplayTestHarness(
      * The optional [entryProviderBlock] lets callers register `entry<Key> { ... }`
      * handlers inside the entryProvider DSL; when absent, every NavKey renders an
      * empty Box.
+     *
+     * The optional [koinModule] supplies a test-scoped Koin module wrapping the
+     * NavDisplay in a `KoinApplication { }`. Pass a module with a `viewModel { }`
+     * binding when boundary tests need to resolve a VM via `koinViewModel()`.
+     * Reusable for Phase B/C tests.
      */
     fun composeBackStack(
         initialKey: NavKey,
+        koinModule: Module? = null,
         entryProviderBlock: (EntryProviderScope<NavKey>.() -> Unit)? = null,
     ) {
         stateRestorationTester.setContent {
-            val stack = rememberNavBackStack(initialKey)
-            SideEffect { backStack = stack }
-            NavDisplay(
-                backStack = stack,
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator(),
-                ),
-                entryProvider = entryProvider(
-                    fallback = { key -> NavEntry(key) { Box(Modifier) } },
-                ) {
-                    if (entryProviderBlock != null) {
-                        entryProviderBlock()
-                    }
-                },
-            )
+            val display: @Composable () -> Unit = {
+                val stack = rememberNavBackStack(initialKey)
+                SideEffect { backStack = stack }
+                NavDisplay(
+                    backStack = stack,
+                    entryDecorators = listOf(
+                        rememberSaveableStateHolderNavEntryDecorator(),
+                        rememberViewModelStoreNavEntryDecorator(),
+                    ),
+                    entryProvider = entryProvider(
+                        fallback = { key -> NavEntry(key) { Box(Modifier) } },
+                    ) {
+                        if (entryProviderBlock != null) {
+                            entryProviderBlock()
+                        }
+                    },
+                )
+            }
+            if (koinModule != null) {
+                KoinApplication(application = { modules(koinModule) }) {
+                    display()
+                }
+            } else {
+                display()
+            }
         }
     }
 

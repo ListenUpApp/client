@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.presentation.admin.AdminBackupUiState
 import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_back
@@ -58,7 +58,7 @@ import listenup.composeapp.generated.resources.admin_what_to_include
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateBackupScreen(
-    viewModel: AdminBackupViewModel = koinInject(),
+    viewModel: AdminBackupViewModel = koinViewModel(),
     onBackClick: () -> Unit,
     onSuccess: () -> Unit,
 ) {

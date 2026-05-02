@@ -47,7 +47,7 @@ import com.calypsan.listenup.client.presentation.auth.SetupErrorType
 import com.calypsan.listenup.client.presentation.auth.SetupField
 import com.calypsan.listenup.client.presentation.auth.SetupUiState
 import com.calypsan.listenup.client.presentation.auth.SetupViewModel
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.auth_confirm_password
@@ -70,7 +70,7 @@ import listenup.composeapp.generated.resources.auth_set_up_your_listenup_server
 @Composable
 fun SetupScreen(
     modifier: Modifier = Modifier,
-    viewModel: SetupViewModel = koinInject(),
+    viewModel: SetupViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
