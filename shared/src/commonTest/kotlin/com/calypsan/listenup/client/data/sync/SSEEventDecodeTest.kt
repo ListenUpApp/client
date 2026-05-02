@@ -185,4 +185,30 @@ class SSEEventDecodeTest {
             appJson.decodeFromString<SSEEvent>(json)
         }
     }
+
+    @Test
+    fun `decodes transcode_complete event`() {
+        val json = """{"timestamp":"2026-05-01T12:00:00Z","type":"transcode.complete","data":{"job_id":"abc","book_id":"book-1","audio_file_id":"file-1"}}"""
+        val event = appJson.decodeFromString<SSEEvent>(json)
+        assertIs<SSEEvent.TranscodeComplete>(event)
+        assertEquals("abc", event.data.jobId)
+        assertEquals("book-1", event.data.bookId)
+        assertEquals("file-1", event.data.audioFileId)
+    }
+
+    @Test
+    fun `decodes transcode_progress event`() {
+        val json = """{"timestamp":"2026-05-01T12:00:00Z","type":"transcode.progress","data":{"job_id":"abc","book_id":"book-1","audio_file_id":"file-1","progress":42}}"""
+        val event = appJson.decodeFromString<SSEEvent>(json)
+        assertIs<SSEEvent.TranscodeProgress>(event)
+        assertEquals(42, event.data.progress)
+    }
+
+    @Test
+    fun `decodes transcode_failed event`() {
+        val json = """{"timestamp":"2026-05-01T12:00:00Z","type":"transcode.failed","data":{"job_id":"abc","book_id":"book-1","audio_file_id":"file-1","error":"codec unsupported"}}"""
+        val event = appJson.decodeFromString<SSEEvent>(json)
+        assertIs<SSEEvent.TranscodeFailed>(event)
+        assertEquals("codec unsupported", event.data.error)
+    }
 }

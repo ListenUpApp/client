@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.appJson
 import com.calypsan.listenup.client.core.error.ErrorBus
 import com.calypsan.listenup.client.core.error.SyncError
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
+import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.plugins.ResponseException
@@ -54,6 +55,7 @@ class SSEManager(
     private val clientFactory: ApiClientFactory,
     private val serverConfig: ServerConfig,
     private val scope: CoroutineScope,
+    private val downloadRepository: DownloadRepository,
 ) : SSEManagerContract {
     private val _eventFlow =
         MutableSharedFlow<SSEChannelMessage>(
@@ -221,9 +223,19 @@ class SSEManager(
                     _eventFlow.emit(SSEChannelMessage.Reconnected(disconnectedAt = sinceParam))
                     // Clear disconnectedAt after successful reconnection with replay
                     disconnectedAt = null
+                    // Bug 4 (W8 Phase D): re-check WAITING_FOR_SERVER rows after reconnect to catch
+                    // transcode.complete events that fired during disconnect.
+                    scope.launch {
+                        downloadRepository.recheckWaitingForServer()
+                    }
                 } else if (isReconnection) {
                     logger.info { "SSE reconnected (no disconnectedAt recorded) - emitting Reconnected event" }
                     _eventFlow.emit(SSEChannelMessage.Reconnected(disconnectedAt = Timestamp.now().toIsoString()))
+                    // Bug 4 (W8 Phase D): re-check WAITING_FOR_SERVER rows after reconnect to catch
+                    // transcode.complete events that fired during disconnect.
+                    scope.launch {
+                        downloadRepository.recheckWaitingForServer()
+                    }
                 }
 
                 parseSSEStream(channel)

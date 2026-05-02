@@ -52,7 +52,7 @@ import androidx.room.TypeConverters
         ReaderSessionCacheEntity::class,
         CoverDownloadTaskEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 @TypeConverters(

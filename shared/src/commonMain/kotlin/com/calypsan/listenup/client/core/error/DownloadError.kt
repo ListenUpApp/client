@@ -37,4 +37,19 @@ sealed interface DownloadError : AppError {
         override val code = "DOWNLOAD_INSUFFICIENT_STORAGE"
         override val isRetryable = false
     }
+
+    /**
+     * Transcoding job timed out (24h backstop) or server lost the job. User can retry.
+     */
+    data class TranscodeTimeout(
+        val transcodeJobId: String,
+        val bookTitle: String? = null,
+        override val debugInfo: String? = null,
+    ) : DownloadError {
+        override val message =
+            bookTitle?.let { "Transcoding timed out for \"$it\". Try again." }
+                ?: "Transcoding timed out. Try again."
+        override val code = "DOWNLOAD_TRANSCODE_TIMEOUT"
+        override val isRetryable = true
+    }
 }

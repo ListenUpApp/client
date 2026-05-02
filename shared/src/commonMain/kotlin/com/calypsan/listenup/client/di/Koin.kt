@@ -756,6 +756,7 @@ val syncModule =
                             org.koin.core.qualifier
                                 .named("appScope"),
                     ),
+                downloadRepository = get(),
             )
         } bind SSEManagerContract::class
 
@@ -843,6 +844,10 @@ val syncModule =
             com.calypsan.listenup.client.data.repository.DownloadRepositoryImpl(
                 downloadDao = get(),
                 bookRepository = get(),
+                enqueuer = get(),
+                playbackApi = get(),
+                playbackPreferences = get(),
+                capabilityDetector = get(),
             )
         }
 
@@ -962,6 +967,7 @@ val syncModule =
                         imageDownloader = get(),
                         playbackStateProvider = get<PlaybackManager>(),
                         downloadService = get(),
+                        downloadRepository = get(),
                     ),
                 activityDao = get(),
                 coverDownloadRepository = get(),

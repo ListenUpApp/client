@@ -114,6 +114,7 @@ class SSEEventProcessor(
     private val imageDownloader = sseExternalServices.imageDownloader
     private val playbackStateProvider = sseExternalServices.playbackStateProvider
     private val downloadService = sseExternalServices.downloadService
+    private val downloadRepository = sseExternalServices.downloadRepository
 
     private val _accessRevokedEvents = MutableSharedFlow<AccessRevokedEvent>(extraBufferCapacity = 16)
 
@@ -343,6 +344,22 @@ class SSEEventProcessor(
 
             is SSEEvent.ActivityCreated -> {
                 handleActivityCreated(event)
+            }
+
+            is SSEEvent.TranscodeComplete -> {
+                handleTranscodeComplete(event.data)
+            }
+
+            is SSEEvent.TranscodeProgress -> {
+                logger.debug {
+                    "SSE: Transcode progress for job ${event.data.jobId}: ${event.data.progress}%"
+                }
+            }
+
+            is SSEEvent.TranscodeFailed -> {
+                logger.warn {
+                    "SSE: Transcode failed for job ${event.data.jobId}: ${event.data.error}"
+                }
             }
 
             is SSEEvent.Unknown -> {
@@ -1213,6 +1230,15 @@ class SSEEventProcessor(
                 reason = payload.reason,
             ),
         )
+    }
+
+    // ========== Transcode Event Handlers ==========
+
+    private suspend fun handleTranscodeComplete(
+        payload: com.calypsan.listenup.client.data.sync.TranscodeCompletePayload,
+    ) {
+        logger.info { "SSE: Transcode complete for audioFileId=${payload.audioFileId} (jobId=${payload.jobId})" }
+        downloadRepository.resumeForAudioFile(payload.audioFileId)
     }
 }
 

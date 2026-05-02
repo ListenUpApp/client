@@ -1,9 +1,9 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
-@file:Suppress("MagicNumber", "NestedBlockDepth")
+@file:Suppress("MagicNumber")
 
 package com.calypsan.listenup.client.download
 
-import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.remote.PlaybackApiContract
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
@@ -21,13 +21,27 @@ import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.io.IOException
 import kotlinx.io.buffered
 import kotlinx.io.files.SystemFileSystem
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Result of [resolveDownloadUrl]. Either a [Ready] URL to download from, or a [WaitForServer]
+ * signal that means: write WAITING_FOR_SERVER + exit cleanly; SSE `transcode.complete` will
+ * re-enqueue the worker via [DownloadRepository.resumeForAudioFile].
+ */
+internal sealed interface ResolveResult {
+    data class Ready(
+        val url: String,
+    ) : ResolveResult
+
+    data class WaitForServer(
+        val transcodeJobId: String,
+    ) : ResolveResult
+}
 
 private const val PROGRESS_INTERVAL_MS = 500L
 private const val BUFFER_SIZE = 8 * 1024
@@ -43,8 +57,7 @@ private const val PROGRESS_BYTES_INTERVAL = 256 * 1024L // 256KB — emit progre
  * - Progress updates via [setProgress] lambda
  * - Cancellation handling via [isStopped] lambda
  *
- * Phase C scope: preserves the existing transcode-poll path inside [resolveDownloadUrl].
- * Phase D rewrites that path to use markWaitingForServer + SSE re-enqueue.
+ * Phase D: transcode-poll loop replaced by WAITING_FOR_SERVER + SSE re-enqueue path.
  */
 @Suppress("CyclomaticComplexMethod", "CognitiveComplexMethod")
 internal suspend fun downloadAudioFile(
@@ -62,17 +75,30 @@ internal suspend fun downloadAudioFile(
     setProgress: suspend (downloadedBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
 ) = withContext(Dispatchers.IO) {
     // Resolve the download URL (relative — Ktor's defaultRequest provides the base).
-    // The transcode-poll path inside resolveDownloadUrl is preserved for Phase C; Phase D
-    // rewrites it to use markWaitingForServer + SSE re-enqueue.
-    val url =
+    // Phase D: if transcoding is in progress, write WAITING_FOR_SERVER and exit cleanly.
+    // SSE transcode.complete handler will re-enqueue via repository.resumeForAudioFile.
+    val resolved =
         resolveDownloadUrl(
             bookId = bookId,
             audioFileId = audioFileId,
             playbackApi = playbackApi,
             playbackPreferences = playbackPreferences,
             capabilityDetector = capabilityDetector,
-            isStopped = isStopped,
         )
+    val url =
+        when (resolved) {
+            is ResolveResult.Ready -> {
+                resolved.url
+            }
+
+            is ResolveResult.WaitForServer -> {
+                // Bug 4 fix: server is transcoding. Write WAITING_FOR_SERVER and exit cleanly.
+                // SSE transcode.complete handler (SSEEventProcessor.handleTranscodeComplete) will
+                // re-enqueue the worker via repository.resumeForAudioFile when ready.
+                repository.markWaitingForServer(audioFileId, resolved.transcodeJobId)
+                return@withContext
+            }
+        }
 
     val destPath = fileManager.getDownloadPath(bookId, audioFileId, filename)
     val tempPath = fileManager.getTempPath(bookId, audioFileId, filename)
@@ -167,11 +193,15 @@ internal suspend fun downloadAudioFile(
 }
 
 /**
- * Resolve the correct download URL via the prepare endpoint.
+ * Resolve the correct download URL via the prepare endpoint. Returns:
+ * - [ResolveResult.Ready] when transcoding is done OR not needed; caller proceeds to download.
+ * - [ResolveResult.WaitForServer] when transcoding is in progress; caller writes WAITING_FOR_SERVER
+ *   and exits cleanly. SSE `transcode.complete` will re-enqueue via [DownloadRepository.resumeForAudioFile].
  *
- * Returns a relative URL (Ktor's defaultRequest provides the base server URL via the
- * authenticated HttpClient). Phase C preserves the existing 30-minute polling loop;
- * Phase D rewrites this path to use markWaitingForServer + SSE re-enqueue.
+ * Phase D Bug 4 fix: previously polled for up to 30 minutes inside this function while the worker
+ * showed DOWNLOADING in the UI. The polling loop was the root cause of "minutes to first byte" —
+ * the worker reported active progress while actually waiting for the server. Now the worker exits
+ * cleanly and the user sees WAITING_FOR_SERVER honestly.
  */
 private suspend fun resolveDownloadUrl(
     bookId: String,
@@ -179,59 +209,30 @@ private suspend fun resolveDownloadUrl(
     playbackApi: PlaybackApiContract,
     playbackPreferences: PlaybackPreferences,
     capabilityDetector: AudioCapabilityDetector,
-    isStopped: () -> Boolean,
-): String {
+): ResolveResult {
     val capabilities = capabilityDetector.getSupportedCodecs()
     val spatial = playbackPreferences.getSpatialPlayback()
     val result = playbackApi.preparePlayback(bookId, audioFileId, capabilities, spatial)
 
-    if (result !is Success) {
-        logger.warn { "Prepare call failed, using original URL" }
-        return "/api/v1/books/$bookId/audio/$audioFileId"
+    if (result !is AppResult.Success) {
+        logger.warn { "Prepare call failed for $audioFileId, falling back to original URL" }
+        return ResolveResult.Ready("/api/v1/books/$bookId/audio/$audioFileId")
     }
 
     val response = result.data
 
-    // Phase C preserves the existing transcode-poll path. Phase D rewrites this.
+    // Bug 4 fix: if transcode is in progress, write WAITING_FOR_SERVER and exit. SSE handler
+    // (SSEEventProcessor.handleTranscodeComplete) will re-enqueue via repository.resumeForAudioFile.
     if (!response.ready && response.transcodeJobId != null) {
         logger.info {
-            "Transcoding in progress for $audioFileId, waiting... " +
-                "(jobId=${response.transcodeJobId}, progress=${response.progress}%)"
+            "Transcoding in progress for $audioFileId (jobId=${response.transcodeJobId}); " +
+                "writing WAITING_FOR_SERVER and exiting cleanly. SSE will re-enqueue when ready."
         }
-
-        val maxWaitMs = 30 * 60 * 1000L
-        val startTime = currentEpochMilliseconds()
-        var lastProgress = response.progress
-
-        while (currentEpochMilliseconds() - startTime < maxWaitMs) {
-            if (isStopped()) {
-                throw CancellationException("Download cancelled while waiting for transcode")
-            }
-
-            delay(5000)
-
-            val checkResult = playbackApi.preparePlayback(bookId, audioFileId, capabilities, spatial)
-            if (checkResult is Success) {
-                val checkResponse = checkResult.data
-                if (checkResponse.ready) {
-                    logger.info { "Transcode completed for $audioFileId" }
-                    return relativizeUrl(checkResponse.streamUrl)
-                }
-                if (checkResponse.progress > lastProgress) {
-                    logger.debug { "Transcode progress: ${checkResponse.progress}%" }
-                    lastProgress = checkResponse.progress
-                }
-            }
-        }
-
-        logger.warn { "Transcode timeout for $audioFileId, using original URL" }
-        return "/api/v1/books/$bookId/audio/$audioFileId"
+        return ResolveResult.WaitForServer(response.transcodeJobId)
     }
 
-    logger.debug {
-        "Using ${response.variant} variant for $audioFileId (codec: ${response.codec})"
-    }
-    return relativizeUrl(response.streamUrl)
+    logger.debug { "Using ${response.variant} variant for $audioFileId (codec: ${response.codec})" }
+    return ResolveResult.Ready(relativizeUrl(response.streamUrl))
 }
 
 /** Strip an absolute server URL prefix off [streamUrl] so we always pass a relative URL to Ktor. */

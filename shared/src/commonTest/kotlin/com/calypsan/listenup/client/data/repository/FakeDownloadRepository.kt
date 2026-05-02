@@ -99,7 +99,10 @@ open class FakeDownloadRepository(
         return AppResult.Success(Unit)
     }
 
-    override suspend fun markCancelled(audioFileId: String): AppResult<Unit> = markPaused(audioFileId)
+    override suspend fun markCancelled(audioFileId: String): AppResult<Unit> {
+        update(audioFileId) { it.copy(state = DownloadState.CANCELLED) }
+        return AppResult.Success(Unit)
+    }
 
     override suspend fun markFailed(
         audioFileId: String,
@@ -114,20 +117,51 @@ open class FakeDownloadRepository(
     override suspend fun markWaitingForServer(
         audioFileId: String,
         transcodeJobId: String,
-    ): AppResult<Unit> = AppResult.Success(Unit)
+    ): AppResult<Unit> {
+        update(audioFileId) {
+            it.copy(state = DownloadState.WAITING_FOR_SERVER, transcodeJobId = transcodeJobId)
+        }
+        return AppResult.Success(Unit)
+    }
 
     // --- Orchestration ---
 
     override suspend fun enqueueForBook(bookId: BookId): AppResult<DownloadOutcome> =
         enqueueFailure?.invoke(bookId) ?: AppResult.Success(DownloadOutcome.Started)
 
-    override suspend fun cancelForBook(bookId: BookId): AppResult<Unit> = AppResult.Success(Unit)
+    override suspend fun cancelForBook(bookId: BookId): AppResult<Unit> {
+        val rowsForBook = state.value.values.filter { it.bookId == bookId.value }
+        for (row in rowsForBook) {
+            if (row.state != DownloadState.COMPLETED && row.state != DownloadState.DELETED) {
+                update(row.audioFileId) { it.copy(state = DownloadState.CANCELLED) }
+            }
+        }
+        return AppResult.Success(Unit)
+    }
 
     override suspend fun deleteForBook(bookId: String) {
         state.update { current -> current.filterValues { it.bookId != bookId } }
     }
 
-    override suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit> = AppResult.Success(Unit)
+    private val _resumedAudioFiles = mutableListOf<String>()
+
+    /** Test helper: list of audioFileIds that resumeForAudioFile was called with (excludes silently-dropped late events). */
+    val resumedAudioFiles: List<String> get() = _resumedAudioFiles.toList()
+
+    override suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit> {
+        val entity =
+            state.value[audioFileId]
+                ?: return AppResult.Failure(
+                    com.calypsan.listenup.client.core.error.DownloadError.DownloadFailed(
+                        debugInfo = "No download row for $audioFileId",
+                    ),
+                )
+        if (entity.state == DownloadState.CANCELLED || entity.state == DownloadState.COMPLETED) {
+            return AppResult.Success(Unit) // late event tolerance
+        }
+        _resumedAudioFiles.add(audioFileId)
+        return AppResult.Success(Unit)
+    }
 
     override suspend fun resumeIncompleteDownloads(): AppResult<Unit> = AppResult.Success(Unit)
 
@@ -155,7 +189,10 @@ open class FakeDownloadRepository(
         downloads: List<DownloadEntity>,
     ): BookDownloadStatus {
         if (downloads.isEmpty()) return BookDownloadStatus.NotDownloaded(bookId)
-        val activeDownloads = downloads.filter { it.state != DownloadState.DELETED }
+        val activeDownloads =
+            downloads.filter {
+                it.state != DownloadState.DELETED && it.state != DownloadState.CANCELLED
+            }
         if (activeDownloads.isEmpty()) return BookDownloadStatus.NotDownloaded(bookId)
         val totalFiles = activeDownloads.size
         val completedFiles = activeDownloads.count { it.state == DownloadState.COMPLETED }
@@ -190,7 +227,7 @@ open class FakeDownloadRepository(
                     bookId = bookId,
                     totalFiles = totalFiles,
                     downloadingFiles = activeDownloads.count { it.state == DownloadState.DOWNLOADING },
-                    waitingForServerFiles = 0,
+                    waitingForServerFiles = activeDownloads.count { it.state == DownloadState.WAITING_FOR_SERVER },
                     completedFiles = completedFiles,
                     totalBytes = totalBytes,
                     downloadedBytes = downloadedBytes,

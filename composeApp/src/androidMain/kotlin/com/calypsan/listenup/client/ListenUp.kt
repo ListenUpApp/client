@@ -13,6 +13,8 @@ import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.PlaybackApiContract
 import com.calypsan.listenup.client.di.playbackPresentationModule
 import com.calypsan.listenup.client.di.sharedModules
+import com.calypsan.listenup.client.download.AndroidDownloadEnqueuer
+import com.calypsan.listenup.client.download.DownloadEnqueuer
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.features.bookdetail.AndroidBookDetailPlatformActions
@@ -214,6 +216,14 @@ val downloadModule =
 
         // Also expose the concrete type for Android-specific features
         single { get<DownloadService>() as DownloadManager }
+
+        // DownloadEnqueuer seam — Android backend for DownloadRepository.resumeForAudioFile
+        single<DownloadEnqueuer> {
+            AndroidDownloadEnqueuer(
+                workManager = WorkManager.getInstance(androidContext()),
+                localPreferences = get(),
+            )
+        }
 
         // Platform actions for BookDetailScreen (download + playback integration)
         single<BookDetailPlatformActions> {

@@ -67,10 +67,9 @@ interface DownloadRepository {
     suspend fun markPaused(audioFileId: String): AppResult<Unit>
 
     /**
-     * **(Phase B alias)** — marks the file as PAUSED. Phase D will switch this to write
-     * the new `DownloadState.CANCELLED` enum entry (distinct from PAUSED so a late
-     * `transcode.complete` SSE event can be silently dropped without confusion). Until then,
-     * cancellation collapses into PAUSED, matching the pre-W8 behavior.
+     * Mark the file as cancelled by user action. Distinct from [markPaused] (system-pause)
+     * so the SSE handler can recognize and silently drop late `transcode.complete` events for
+     * cancelled jobs.
      */
     suspend fun markCancelled(audioFileId: String): AppResult<Unit>
 
@@ -80,10 +79,9 @@ interface DownloadRepository {
     ): AppResult<Unit>
 
     /**
-     * **(Phase B alias)** — no-op. Phase D adds the `DownloadState.WAITING_FOR_SERVER` enum entry
-     * and activates this method to write the new state + persist `transcodeJobId` for the SSE
-     * `transcode.complete` re-enqueue path. The `transcodeJobId` parameter is accepted and
-     * ignored in Phase B.
+     * Mark the file as awaiting server transcoding. Persists [transcodeJobId] so the SSE-reconnect
+     * recheck path can re-issue preparePlayback if the `transcode.complete` event was missed
+     * during disconnect.
      */
     suspend fun markWaitingForServer(
         audioFileId: String,
@@ -102,9 +100,10 @@ interface DownloadRepository {
     suspend fun enqueueForBook(bookId: BookId): AppResult<DownloadOutcome>
 
     /**
-     * Cancel all in-flight downloads for a book.
-     *
-     * **(Phase C/D scope)** — see [enqueueForBook] for the same carveout reasoning.
+     * Cancel all in-flight downloads for a book. For WAITING_FOR_SERVER rows, calls
+     * [com.calypsan.listenup.client.data.remote.PlaybackApiContract.cancelTranscode] so the
+     * server stops the transcode job (Q8 B1: cancel-tells-server). All non-terminal rows
+     * transition to [DownloadState.CANCELLED].
      */
     suspend fun cancelForBook(bookId: BookId): AppResult<Unit>
 
@@ -112,23 +111,26 @@ interface DownloadRepository {
     suspend fun deleteForBook(bookId: String)
 
     /**
-     * Re-enqueue a single audio file's download.
-     *
-     * **(Phase D scope)** — wired by the Bug 4 SSE `transcode.complete` handler.
+     * Re-enqueue a single audio file's download. Called by the SSE `transcode.complete` handler
+     * (via [com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor]). Silently drops if the
+     * row is CANCELLED or COMPLETED (late event tolerance).
      */
     suspend fun resumeForAudioFile(audioFileId: String): AppResult<Unit>
 
     /**
-     * App-startup recovery: re-enqueue any incomplete downloads.
-     *
-     * **(Phase C/D scope)** — see [enqueueForBook].
+     * App-startup recovery: 24h backstop for stale WAITING_FOR_SERVER rows (mark as
+     * [com.calypsan.listenup.client.core.error.DownloadError.TranscodeTimeout]) + re-enqueue
+     * any other incomplete downloads via the platform [com.calypsan.listenup.client.download.DownloadEnqueuer].
+     * Existing `DownloadManager.resumeIncompleteDownloads` (Android) remains the primary app-startup
+     * hook; this method is for parity. Phase E may consolidate.
      */
     suspend fun resumeIncompleteDownloads(): AppResult<Unit>
 
     /**
-     * **(Phase B alias)** — no-op. Phase D wires this to the SSE-reconnect hook: re-issues
-     * `preparePlayback` for any rows in `WAITING_FOR_SERVER` to catch missed
-     * `transcode.complete` events.
+     * SSE-reconnect hook: re-issue `preparePlayback` for any rows in WAITING_FOR_SERVER to catch
+     * transcodes that completed during disconnect. Ready ones → [resumeForAudioFile]. Lost-job
+     * ones → [markFailed] with [com.calypsan.listenup.client.core.error.DownloadError.TranscodeTimeout].
+     * Still-transcoding ones left alone.
      */
     suspend fun recheckWaitingForServer(): AppResult<Unit>
 }

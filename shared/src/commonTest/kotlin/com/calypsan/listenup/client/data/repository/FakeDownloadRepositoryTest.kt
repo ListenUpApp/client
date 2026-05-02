@@ -74,11 +74,11 @@ class FakeDownloadRepositoryTest {
         }
 
     @Test
-    fun `markCancelled aliases to PAUSED in Phase B`() =
+    fun `markCancelled writes CANCELLED state`() =
         runTest {
             val fake = FakeDownloadRepository(initial = listOf(entity("file-1", state = DownloadState.DOWNLOADING)))
             fake.markCancelled("file-1")
-            assertEquals(DownloadState.PAUSED, fake.entities.single().state)
+            assertEquals(DownloadState.CANCELLED, fake.entities.single().state)
         }
 
     @Test
@@ -92,12 +92,13 @@ class FakeDownloadRepositoryTest {
         }
 
     @Test
-    fun `markWaitingForServer is a no-op in Phase B`() =
+    fun `markWaitingForServer writes WAITING_FOR_SERVER state and persists transcodeJobId`() =
         runTest {
             val fake = FakeDownloadRepository(initial = listOf(entity("file-1")))
-            val before = fake.entities.single()
             fake.markWaitingForServer("file-1", transcodeJobId = "job-abc")
-            assertEquals(before, fake.entities.single())
+            val after = fake.entities.single()
+            assertEquals(DownloadState.WAITING_FOR_SERVER, after.state)
+            assertEquals("job-abc", after.transcodeJobId)
         }
 
     @Test
@@ -196,6 +197,28 @@ class FakeDownloadRepositoryTest {
                 assertEquals(1, status.downloadingFiles)
                 assertEquals(2, status.totalFiles)
                 assertEquals(500L, status.downloadedBytes)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `aggregator counts WAITING_FOR_SERVER files`() =
+        runTest {
+            val fake =
+                FakeDownloadRepository(
+                    initial =
+                        listOf(
+                            entity("file-1", state = DownloadState.WAITING_FOR_SERVER),
+                            entity("file-2", state = DownloadState.WAITING_FOR_SERVER),
+                            entity("file-3", state = DownloadState.QUEUED),
+                        ),
+                )
+            fake.observeBookStatus(BookId("book-1")).test {
+                val status = awaitItem()
+                assertIs<BookDownloadStatus.InProgress>(status)
+                assertEquals(2, status.waitingForServerFiles)
+                assertEquals(0, status.downloadingFiles)
+                assertEquals(3, status.totalFiles)
                 cancelAndIgnoreRemainingEvents()
             }
         }

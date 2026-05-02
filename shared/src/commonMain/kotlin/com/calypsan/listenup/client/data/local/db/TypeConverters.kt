@@ -119,7 +119,9 @@ class Converters {
 /**
  * Download state for tracking individual audio file downloads.
  *
- * Ordinals: QUEUED=0, DOWNLOADING=1, PAUSED=2, COMPLETED=3, FAILED=4, DELETED=5
+ * Ordinals: QUEUED=0, DOWNLOADING=1, PAUSED=2, COMPLETED=3, FAILED=4, DELETED=5,
+ *           WAITING_FOR_SERVER=6 (W8 Phase D — server is transcoding; SSE transcode.complete will re-enqueue),
+ *           CANCELLED=7 (W8 Phase D — user cancelled, distinct from PAUSED so late SSE events drop).
  */
 enum class DownloadState {
     QUEUED, // Waiting to start
@@ -128,6 +130,8 @@ enum class DownloadState {
     COMPLETED, // Successfully downloaded
     FAILED, // Error occurred
     DELETED, // User explicitly deleted - files removed, don't auto-download
+    WAITING_FOR_SERVER, // Server is transcoding; SSE transcode.complete will re-enqueue
+    CANCELLED, // User cancelled mid-transcode; distinct from PAUSED so late SSE events drop
 }
 
 /**

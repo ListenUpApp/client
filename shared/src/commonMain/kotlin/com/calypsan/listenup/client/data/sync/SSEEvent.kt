@@ -81,6 +81,29 @@ sealed interface SSEEvent {
         val data: LibraryAccessModeChangedPayload,
     ) : SSEEvent
 
+    // ===== Transcode events =====
+
+    @Serializable
+    @SerialName("transcode.complete")
+    data class TranscodeComplete(
+        override val timestamp: String,
+        val data: TranscodeCompletePayload,
+    ) : SSEEvent
+
+    @Serializable
+    @SerialName("transcode.progress")
+    data class TranscodeProgress(
+        override val timestamp: String,
+        val data: TranscodeProgressPayload,
+    ) : SSEEvent
+
+    @Serializable
+    @SerialName("transcode.failed")
+    data class TranscodeFailed(
+        override val timestamp: String,
+        val data: TranscodeFailedPayload,
+    ) : SSEEvent
+
     // ===== Heartbeat (no payload) =====
 
     @Serializable
@@ -365,6 +388,29 @@ data class ScanProgressPayload(
 data class LibraryAccessModeChangedPayload(
     @SerialName("library_id") val libraryId: String,
     @SerialName("access_mode") val accessMode: String,
+)
+
+@Serializable
+data class TranscodeCompletePayload(
+    @SerialName("job_id") val jobId: String,
+    @SerialName("book_id") val bookId: String,
+    @SerialName("audio_file_id") val audioFileId: String,
+)
+
+@Serializable
+data class TranscodeProgressPayload(
+    @SerialName("job_id") val jobId: String,
+    @SerialName("book_id") val bookId: String,
+    @SerialName("audio_file_id") val audioFileId: String,
+    val progress: Int,
+)
+
+@Serializable
+data class TranscodeFailedPayload(
+    @SerialName("job_id") val jobId: String,
+    @SerialName("book_id") val bookId: String,
+    @SerialName("audio_file_id") val audioFileId: String,
+    val error: String,
 )
 
 @Serializable
