@@ -5,10 +5,13 @@ android-minSdk = "33"
 android-targetSdk = "37"
 androidx-activity = "1.13.0"
 androidx-lifecycle = "2.10.0"
+androidx-lifecycle-viewmodel-navigation3 = "2.10.0"
 androidx-material3-adaptive = "1.2.0"
 androidx-navigation3 = "1.1.1"
 androidx-palette = "1.0.0"
 androidx-material-icons = "1.7.8"
+androidx-compose-ui-test = "1.11.0"
+robolectric = "4.15.1"
 composeMultiplatform = "1.10.3"
 compose-material3 = "1.11.0-alpha07"
 kotlin = "2.3.20"
@@ -73,6 +76,8 @@ compose-components-resources = { module = "org.jetbrains.compose.components:comp
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidx-material-icons" }
 # Navigation 3 (AndroidX - Android only)
 androidx-navigation3-ui-android = { module = "androidx.navigation3:navigation3-ui-android", version.ref = "androidx-navigation3" }
+# Navigation 3 ViewModel decorator add-on (lifecycle add-on artifact aligned with androidx-lifecycle version stream)
+androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle-viewmodel-navigation3" }
 # Navigation 3 (JetBrains Multiplatform) - only navigation3-ui exists on Maven Central
 navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3-multiplatform" }
 # Material 3 Adaptive (JetBrains Multiplatform)
@@ -118,6 +123,10 @@ ffmpeg = { module = "org.bytedeco:ffmpeg", version.ref = "ffmpeg-javacpp" }
 mokkery-runtime = { group = "dev.mokkery", name = "mokkery-runtime", version.ref = "mokkery" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "androidx-compose-ui-test" }
+androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "androidx-compose-ui-test" }
+detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }
 # Room (Database)
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
