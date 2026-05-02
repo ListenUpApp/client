@@ -8,12 +8,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import androidx.savedstate.serialization.SavedStateConfiguration
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.AuthState
@@ -29,6 +33,27 @@ import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_checking_server
+
+/**
+ * [SavedStateConfiguration] that registers every [AuthRoute] subtype for `NavKey`
+ * polymorphic serialization. The cross-platform [rememberNavBackStack] overload
+ * requires an explicit [SerializersModule] (the no-config Android-only overload
+ * uses reflection, which isn't portable to Desktop / iOS — see
+ * `RememberNavBackStack.android.kt`'s docs). Closed sealed hierarchies still
+ * need every subtype enumerated here so the polymorphic discriminator survives
+ * a process-death save→restore round trip.
+ */
+private val authNavSavedStateConfiguration = SavedStateConfiguration {
+    serializersModule = SerializersModule {
+        polymorphic(NavKey::class) {
+            subclass(ServerSelect::class)
+            subclass(ServerSetup::class)
+            subclass(Setup::class)
+            subclass(Login::class)
+            subclass(Register::class)
+        }
+    }
+}
 
 /**
  * Auth-only navigation for initial authentication flow.
@@ -135,7 +160,7 @@ private fun PendingApprovalNavigation(
  */
 @Composable
 private fun ServerSetupNavigation() {
-    val backStack = remember { mutableStateListOf<AuthRoute>(ServerSelect) }
+    val backStack = rememberNavBackStack(authNavSavedStateConfiguration, ServerSelect)
 
     NavDisplay(
         backStack = backStack,
@@ -175,7 +200,7 @@ private fun ServerSetupNavigation() {
  */
 @Composable
 private fun SetupNavigation() {
-    val backStack = remember { mutableStateListOf<AuthRoute>(Setup) }
+    val backStack = rememberNavBackStack(authNavSavedStateConfiguration, Setup)
 
     NavDisplay(
         backStack = backStack,
@@ -197,7 +222,7 @@ private fun LoginNavigation(
     openRegistration: Boolean,
 ) {
     val scope = rememberCoroutineScope()
-    val backStack = remember { mutableStateListOf<AuthRoute>(Login) }
+    val backStack = rememberNavBackStack(authNavSavedStateConfiguration, Login)
     val serverConfig: com.calypsan.listenup.client.domain.repository.ServerConfig = koinInject()
 
     // Refresh open registration value from server

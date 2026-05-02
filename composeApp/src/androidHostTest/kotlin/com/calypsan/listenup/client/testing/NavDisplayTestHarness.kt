@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
@@ -21,10 +22,16 @@ import androidx.navigation3.ui.NavDisplay
  * Designed for reuse:
  *  - Phase B extends with DeepLinkTestHarness for Intent-driven tests
  *  - Phase C extends with per-platform graph-coverage assertions
+ *
+ * Process-death survival is exercised via Compose UI-Test's [StateRestorationTester],
+ * which is the canonical mechanism for emulating an Activity / process recreation
+ * inside a Robolectric host test — it drives the same `SaveableStateRegistry.performSave()`
+ * → re-instantiate → restore round-trip that `rememberNavBackStack` relies on.
  */
 class NavDisplayTestHarness(
     private val composeRule: ComposeContentTestRule,
 ) {
+    private val stateRestorationTester = StateRestorationTester(composeRule)
     private lateinit var backStack: NavBackStack<NavKey>
 
     /**
@@ -37,7 +44,7 @@ class NavDisplayTestHarness(
         initialKey: NavKey,
         entryProviderBlock: (EntryProviderScope<NavKey>.() -> Unit)? = null,
     ) {
-        composeRule.setContent {
+        stateRestorationTester.setContent {
             val stack = rememberNavBackStack(initialKey)
             SideEffect { backStack = stack }
             NavDisplay(
@@ -79,15 +86,18 @@ class NavDisplayTestHarness(
     }
 
     /**
-     * Drive a SavedStateRegistry save → re-instantiate → restore round-trip and
-     * return the restored back-stack contents. Used to simulate process death.
+     * Drive a SavedStateRegistry save → re-instantiate → restore round-trip via
+     * Compose UI-Test's [StateRestorationTester.emulateSavedInstanceStateRestore],
+     * then return the restored back-stack contents. Used to simulate process death.
      *
-     * Implementation note: this method's body is filled in during Task 4 once
-     * the SavedStateRegistry round-trip mechanism is verified against the
-     * Robolectric Activity scaffold.
+     * After this call returns, [currentBackStack] reflects the restored state. The
+     * `SideEffect { backStack = stack }` inside [composeBackStack] re-binds the
+     * harness's reference to the freshly-restored [NavBackStack] instance during
+     * the second composition pass.
      */
-    @Suppress("FunctionOnlyReturningConstant")
     fun simulateProcessDeath(): List<NavKey> {
-        TODO("Implemented in Task 4 — process-death boundary test")
+        stateRestorationTester.emulateSavedInstanceStateRestore()
+        composeRule.waitForIdle()
+        return backStack.toList()
     }
 }

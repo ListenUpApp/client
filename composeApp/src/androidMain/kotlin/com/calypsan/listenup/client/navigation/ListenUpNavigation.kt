@@ -17,7 +17,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -26,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
@@ -250,7 +250,7 @@ private fun LoadingScreen(message: String = "Loading...") {
  */
 @Composable
 private fun ServerSetupNavigation() {
-    val backStack = remember { mutableStateListOf<AuthRoute>(ServerSelect) }
+    val backStack = rememberNavBackStack(ServerSelect)
 
     NavDisplay(
         backStack = backStack,
@@ -292,7 +292,7 @@ private fun ServerSetupNavigation() {
  */
 @Composable
 private fun SetupNavigation() {
-    val backStack = remember { mutableStateListOf<AuthRoute>(Setup) }
+    val backStack = rememberNavBackStack(Setup)
 
     NavDisplay(
         backStack = backStack,
@@ -318,7 +318,7 @@ private fun LoginNavigation(
     openRegistration: Boolean,
 ) {
     val scope = rememberCoroutineScope()
-    val backStack = remember { mutableStateListOf<AuthRoute>(Login) }
+    val backStack = rememberNavBackStack(Login)
     val serverConfig: com.calypsan.listenup.client.domain.repository.ServerConfig = koinInject()
 
     // Refresh open registration value from server
@@ -396,9 +396,10 @@ private fun AuthenticatedNavigation(
     val startupState by startupViewModel.state.collectAsStateWithLifecycle()
 
     // Hoist navigation state above the isChecking check so it survives loading periods.
-    // Using remember without key ensures the backStack persists when isChecking toggles,
+    // rememberNavBackStack persists across configuration changes and process death
+    // (rubric §Navigation rule); the back stack survives when isChecking toggles,
     // preventing navigation position from being lost on app resume.
-    val backStack = remember { mutableStateListOf<Route>(Shell) }
+    val backStack = rememberNavBackStack(Shell)
 
     // Track shell tab state here so it survives navigation to detail screens
     var currentShellDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }

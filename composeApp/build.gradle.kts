@@ -47,7 +47,13 @@ kotlin {
         androidResources { enable = true }
 
         // Enable Android host tests (JVM-based unit tests)
-        withHostTest {}
+        // isIncludeAndroidResources = true merges AndroidManifest + transitive AAR
+        // manifests (notably ui-test-manifest's `androidx.activity.ComponentActivity`
+        // launcher entry) so Robolectric-hosted Compose UI tests can resolve the
+        // activity that `createComposeRule()` launches.
+        withHostTest {
+            isIncludeAndroidResources = true
+        }
 
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
