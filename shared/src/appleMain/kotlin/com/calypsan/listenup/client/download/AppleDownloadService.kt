@@ -364,6 +364,10 @@ class AppleDownloadService(
 
     // Inline copy of DownloadManager.aggregateStatus until Task 8 moves the canonical version
     // into DownloadRepository. iOS keeps its own copy through W10 (deferred carveout per W8 design).
+    // Known parity gaps with Android's aggregator: does NOT filter DownloadState.CANCELLED from
+    // activeDownloads, and hardcodes waitingForServerFiles = 0. These gaps now reach the interface
+    // via observeAllStatuses (W8 Phase E D11) — when a cross-book consumer arrives before W10
+    // closes this carveout, fix here first or it will mis-report aggregate status on iOS.
     private fun aggregateBookDownloadStatus(
         bookId: String,
         entities: List<DownloadEntity>,
