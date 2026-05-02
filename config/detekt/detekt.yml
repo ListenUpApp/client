@@ -613,3 +613,11 @@ style:
       - 'platform.Foundation.*'  # iOS Foundation framework
       - 'platform.Security.*'  # iOS Security framework
       - 'platform.CoreFoundation.*'  # iOS CoreFoundation framework
+
+# =============================================================================
+# CUSTOM LISTENUP RULES (build-logic/detekt-rules)
+# =============================================================================
+listenup-custom:
+  active: true
+  NoKoinInjectViewModel:
+    active: true
