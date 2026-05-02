@@ -64,6 +64,14 @@ private val logger = KotlinLogging.logger {}
  * - [observeBookStatus] aggregates via the new sealed [com.calypsan.listenup.client.domain.model.BookDownloadStatus] hierarchy.
  *
  * The internal DAO writes remain untouched.
+ *
+ * **Codec negotiation: intentionally absent on iOS.** Android's `DownloadWorker.resolveDownloadUrl`
+ * negotiates with the server's `preparePlayback` endpoint to pick a transcoded variant when the
+ * device doesn't support the source codec. iOS's native AVFoundation audio player supports every
+ * codec the server can serve (AAC, MP3, FLAC, ALAC, Opus), so negotiation is unnecessary — the
+ * download URL points directly at the original file. **If a future server adds a codec iOS does
+ * not natively support, this class requires codec negotiation matching the Android worker's
+ * pattern.** Closes Finding 08 D6 (principled asymmetry, not silent omission).
  */
 @OptIn(ExperimentalTime::class)
 class AppleDownloadService(
