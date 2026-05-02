@@ -100,9 +100,10 @@ interface DownloadRepository {
     suspend fun enqueueForBook(bookId: BookId): AppResult<DownloadOutcome>
 
     /**
-     * Cancel all in-flight downloads for a book.
-     *
-     * **(Phase C/D scope)** — see [enqueueForBook] for the same carveout reasoning.
+     * Cancel all in-flight downloads for a book. For WAITING_FOR_SERVER rows, calls
+     * [com.calypsan.listenup.client.data.remote.PlaybackApiContract.cancelTranscode] so the
+     * server stops the transcode job (Q8 B1: cancel-tells-server). All non-terminal rows
+     * transition to [DownloadState.CANCELLED].
      */
     suspend fun cancelForBook(bookId: BookId): AppResult<Unit>
 

@@ -129,7 +129,15 @@ open class FakeDownloadRepository(
     override suspend fun enqueueForBook(bookId: BookId): AppResult<DownloadOutcome> =
         enqueueFailure?.invoke(bookId) ?: AppResult.Success(DownloadOutcome.Started)
 
-    override suspend fun cancelForBook(bookId: BookId): AppResult<Unit> = AppResult.Success(Unit)
+    override suspend fun cancelForBook(bookId: BookId): AppResult<Unit> {
+        val rowsForBook = state.value.values.filter { it.bookId == bookId.value }
+        for (row in rowsForBook) {
+            if (row.state != DownloadState.COMPLETED && row.state != DownloadState.DELETED) {
+                update(row.audioFileId) { it.copy(state = DownloadState.CANCELLED) }
+            }
+        }
+        return AppResult.Success(Unit)
+    }
 
     override suspend fun deleteForBook(bookId: String) {
         state.update { current -> current.filterValues { it.bookId != bookId } }

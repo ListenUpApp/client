@@ -31,6 +31,13 @@ interface PlaybackApiContract {
         capabilities: List<String>,
         spatial: Boolean,
     ): AppResult<PreparePlaybackResponse>
+
+    /**
+     * Cancel a server-side transcoding job. 204 on success; 404 if job doesn't exist
+     * or already completed/cancelled (idempotent). Used by W8 Phase D's
+     * cancel-during-WAITING_FOR_SERVER flow.
+     */
+    suspend fun cancelTranscode(jobId: String): AppResult<Unit>
 }
 
 /**
@@ -89,6 +96,11 @@ class PlaybackApi(
                 is com.calypsan.listenup.client.core.Success -> result.data.toDomain()
                 is com.calypsan.listenup.client.core.Failure -> throw AppException(result.error)
             }
+        }
+
+    override suspend fun cancelTranscode(jobId: String): AppResult<Unit> =
+        suspendRunCatching {
+            clientFactory.getClient().post("/api/v1/transcode/cancel/$jobId")
         }
 }
 

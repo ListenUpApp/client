@@ -802,6 +802,8 @@ private class FakePlaybackApiContract(
         capabilities: List<String>,
         spatial: Boolean,
     ): AppResult<PreparePlaybackResponse> = result
+
+    override suspend fun cancelTranscode(jobId: String): AppResult<Unit> = AppResult.Success(Unit)
 }
 
 private class FakePlaybackPreferences : PlaybackPreferences {

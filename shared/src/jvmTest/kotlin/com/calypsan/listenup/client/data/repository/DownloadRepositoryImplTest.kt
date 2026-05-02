@@ -242,6 +242,8 @@ private class FakePlaybackApiContract : PlaybackApiContract {
         AppResult.Success(
             PreparePlaybackResponse(ready = false, streamUrl = "", variant = "original", codec = "mp3", transcodeJobId = "job1", progress = 0),
         )
+
+    override suspend fun cancelTranscode(jobId: String): AppResult<Unit> = AppResult.Success(Unit)
 }
 
 private class FakePlaybackPreferences : PlaybackPreferences {

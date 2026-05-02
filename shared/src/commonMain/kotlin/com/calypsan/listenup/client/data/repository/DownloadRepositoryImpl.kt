@@ -17,8 +17,11 @@ import com.calypsan.listenup.client.domain.repository.DownloadRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.download.DownloadEnqueuer
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Single seam for download state + aggregation. All download writes go through this class
@@ -149,12 +152,31 @@ class DownloadRepositoryImpl(
                 "orchestration on DownloadManager (Android) and AppleDownloadService (iOS).",
         )
 
-    @Suppress("NotImplementedDeclaration") // Phase C/D scope — intentional stub per W8 design
     override suspend fun cancelForBook(bookId: BookId): AppResult<Unit> =
-        throw NotImplementedError(
-            "DownloadRepository.cancelForBook is Phase C/D scope. Phase B keeps cancellation " +
-                "on the DownloadService impls.",
-        )
+        suspendRunCatching {
+            val rows = downloadDao.getForBook(bookId.value)
+
+            // For WAITING_FOR_SERVER rows, tell the server to stop transcoding (Q8 B1).
+            // Failures are logged but not fatal — local state still transitions to CANCELLED below.
+            for (row in rows) {
+                if (row.state == DownloadState.WAITING_FOR_SERVER) {
+                    val jobId = row.transcodeJobId ?: continue
+                    val result = playbackApi.cancelTranscode(jobId)
+                    if (result is AppResult.Failure) {
+                        logger.warn {
+                            "cancelTranscode failed for jobId=$jobId: ${result.error.message} — continuing with local cancel"
+                        }
+                    }
+                }
+            }
+
+            // Transition all non-terminal rows to CANCELLED.
+            for (row in rows) {
+                if (row.state != DownloadState.COMPLETED && row.state != DownloadState.DELETED) {
+                    markCancelled(row.audioFileId)
+                }
+            }
+        }
 
     override suspend fun deleteForBook(bookId: String) {
         downloadDao.deleteForBook(bookId)
