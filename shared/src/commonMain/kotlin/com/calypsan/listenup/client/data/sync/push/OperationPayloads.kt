@@ -198,6 +198,26 @@ data class MarkCompletePayload(
 )
 
 /**
+ * Payload for DISCARD_PROGRESS operations.
+ * Coalesces by book - latest discard wins (idempotent on the server).
+ */
+@Serializable
+data class DiscardProgressPayload(
+    @SerialName("book_id")
+    val bookId: String,
+)
+
+/**
+ * Payload for RESTART_BOOK operations.
+ * Coalesces by book - latest restart wins (idempotent on the server).
+ */
+@Serializable
+data class RestartBookPayload(
+    @SerialName("book_id")
+    val bookId: String,
+)
+
+/**
  * Payload for END_PLAYBACK_SESSION operations.
  * Coalesces by book - latest duration wins for the same book.
  */
