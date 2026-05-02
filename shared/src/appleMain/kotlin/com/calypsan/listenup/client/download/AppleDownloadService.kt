@@ -226,7 +226,7 @@ class AppleDownloadService(
         logger.info { "Downloading: $filename (${audioFile.size / 1_000_000}MB)" }
 
         // Register this download so delegate can track it
-        val destPath = fileManager.getDownloadPath(bookId, audioFileId, filename)
+        val destPath = fileManager.getAudioFilePath(bookId, audioFileId, filename, isTemp = false)
 
         // Ensure parent directory exists
         val destUrl = NSURL.fileURLWithPath(destPath.toString())

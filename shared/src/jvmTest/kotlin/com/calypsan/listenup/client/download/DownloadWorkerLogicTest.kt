@@ -215,7 +215,7 @@ class DownloadWorkerLogicTest {
                 val fileManager = fileManagerFor(tmpRoot)
 
                 // Pre-write 400 bytes to the temp path so startByte = 400
-                val tempPath = fileManager.getTempPath("book-1", "file-1", "file-1.mp3")
+                val tempPath = fileManager.getAudioFilePath("book-1", "file-1", "file-1.mp3", isTemp = true)
                 SystemFileSystem.sink(tempPath).buffered().use { sink ->
                     sink.write(ByteArray(400) { 0x41 })
                 }

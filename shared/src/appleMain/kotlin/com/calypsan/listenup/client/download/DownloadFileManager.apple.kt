@@ -40,10 +40,11 @@ actual class DownloadFileManager {
             return path
         }
 
-    actual fun getDownloadPath(
+    actual fun getAudioFilePath(
         bookId: String,
         audioFileId: String,
         filename: String,
+        isTemp: Boolean,
     ): Path {
         val bookDirPath = Path(downloadDir, bookId)
 
@@ -56,16 +57,8 @@ actual class DownloadFileManager {
                 error = null,
             )
         }
-        return Path(bookDirPath, "${audioFileId}_$filename")
-    }
-
-    actual fun getTempPath(
-        bookId: String,
-        audioFileId: String,
-        filename: String,
-    ): Path {
-        val destFile = getDownloadPath(bookId, audioFileId, filename)
-        return Path(destFile.parent!!, "${destFile.name}.tmp")
+        val finalName = if (isTemp) "${audioFileId}_$filename.tmp" else "${audioFileId}_$filename"
+        return Path(bookDirPath, finalName)
     }
 
     actual fun deleteBookFiles(bookId: String) {
