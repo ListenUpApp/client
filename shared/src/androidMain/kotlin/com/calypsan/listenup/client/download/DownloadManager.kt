@@ -259,6 +259,7 @@ class DownloadManager(
 
         for (download in incomplete) {
             // KEEP policy avoids displacing a worker that's already running for this row.
+            // Only PAUSED is reset — DOWNLOADING rows belong to a worker that owns state transitions.
             if (download.state == DownloadState.PAUSED) {
                 downloadDao.updateState(download.audioFileId, DownloadState.QUEUED)
             }
