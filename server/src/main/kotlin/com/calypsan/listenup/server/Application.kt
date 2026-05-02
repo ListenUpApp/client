@@ -2,6 +2,7 @@ package com.calypsan.listenup.server
 
 import com.calypsan.listenup.server.routes.healthRoutes
 import com.calypsan.listenup.server.routes.instanceRoutes
+import com.calypsan.listenup.server.routes.sseRoutes
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -39,5 +40,6 @@ fun Application.module() {
     routing {
         healthRoutes()
         instanceRoutes()
+        sseRoutes()
     }
 }
