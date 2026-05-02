@@ -1,8 +1,10 @@
 package com.calypsan.listenup.server
 
+import com.calypsan.listenup.api.PingService
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
@@ -10,6 +12,11 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.readUTF8Line
+import kotlinx.rpc.krpc.ktor.client.installKrpc
+import kotlinx.rpc.krpc.ktor.client.rpc
+import kotlinx.rpc.krpc.ktor.client.rpcConfig
+import kotlinx.rpc.krpc.serialization.json.json
+import kotlinx.rpc.withService
 
 class PluginSmokeTest : FunSpec({
     test("StatusPages returns a structured JSON 404 for unknown paths") {
@@ -42,6 +49,23 @@ class PluginSmokeTest : FunSpec({
                 if (line.startsWith("data:")) dataLine = line
             }
             dataLine shouldContain "pong"
+        }
+    }
+
+    test("kotlinx.rpc round-trip works on CIO") {
+        testApplication {
+            application { module() }
+
+            val rpcClient = createClient {
+                install(WebSockets)
+                installKrpc()
+            }
+
+            val service = rpcClient.rpc("ws://localhost/api/rpc") {
+                rpcConfig { serialization { json() } }
+            }.withService<PingService>()
+
+            service.ping() shouldBe "pong"
         }
     }
 })

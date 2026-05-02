@@ -1,0 +1,15 @@
+package com.calypsan.listenup.api
+
+import kotlinx.rpc.annotations.Rpc
+
+/**
+ * Phase 0 smoke-test service.
+ *
+ * Exists only to prove the kotlinx.rpc pipeline (codegen → server registration →
+ * client proxy → wire round-trip) works on CIO. Will be deleted in Phase 1 when
+ * real domain @Rpc services replace it.
+ */
+@Rpc
+interface PingService {
+    suspend fun ping(): String
+}
