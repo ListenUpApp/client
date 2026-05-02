@@ -165,6 +165,13 @@ open class FakeDownloadRepository(
 
     override suspend fun resumeIncompleteDownloads(): AppResult<Unit> = AppResult.Success(Unit)
 
+    /**
+     * Phase D production impl re-issues `preparePlayback` for WAITING_FOR_SERVER rows. The fake
+     * leaves this as a no-op deliberately — mirroring would require injecting a fake
+     * `PlaybackApiContract` into the fake's constructor, cascading to every test that uses it.
+     * Tests that need recheck behavior should use `DownloadRepositoryImplTest` against the real
+     * impl with a `FakePlaybackApiContract`.
+     */
     override suspend fun recheckWaitingForServer(): AppResult<Unit> = AppResult.Success(Unit)
 
     // --- Test helpers ---
