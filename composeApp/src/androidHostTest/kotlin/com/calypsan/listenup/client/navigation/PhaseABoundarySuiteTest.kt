@@ -43,4 +43,53 @@ class PhaseABoundarySuiteTest {
         val restored = harness.simulateProcessDeath()
         assertEquals(expected, restored, "Back stack did not survive process-death round-trip")
     }
+
+    @Test
+    fun `every NavDisplay invocation site installs both standard entry decorators`() {
+        // Static-analysis test: greps the navigation source files for `NavDisplay(`
+        // and asserts that within 30 lines after each match, both
+        // `rememberSaveableStateHolderNavEntryDecorator` and
+        // `rememberViewModelStoreNavEntryDecorator` appear in the same NavDisplay
+        // arglist.
+
+        val authNav = readNavigationSource(
+            "composeApp/src/commonMain/kotlin/com/calypsan/listenup/client/navigation/AuthNavigation.kt",
+        )
+        val listenUpNav = readNavigationSource(
+            "composeApp/src/androidMain/kotlin/com/calypsan/listenup/client/navigation/ListenUpNavigation.kt",
+        )
+
+        val sites = mutableListOf<Pair<String, Int>>()
+        sites += findNavDisplaySites("AuthNavigation.kt", authNav)
+        sites += findNavDisplaySites("ListenUpNavigation.kt", listenUpNav)
+
+        assertEquals(7, sites.size, "Expected 7 NavDisplay sites; found ${sites.size}")
+
+        for ((file, lineIdx) in sites) {
+            val window = if (file.endsWith("AuthNavigation.kt")) authNav else listenUpNav
+            val sliceEnd = (lineIdx + 30).coerceAtMost(window.size)
+            val slice = window.subList(lineIdx, sliceEnd).joinToString("\n")
+            val hasSaveable = "rememberSaveableStateHolderNavEntryDecorator" in slice
+            val hasVmStore = "rememberViewModelStoreNavEntryDecorator" in slice
+            assertEquals(true, hasSaveable, "$file:${lineIdx + 1} missing rememberSaveableStateHolderNavEntryDecorator")
+            assertEquals(true, hasVmStore, "$file:${lineIdx + 1} missing rememberViewModelStoreNavEntryDecorator")
+        }
+    }
+
+    private fun readNavigationSource(path: String): List<String> {
+        // Test working directory is `client/composeApp/`. Project root is two levels up.
+        val candidates = listOf(
+            java.io.File("../../$path"),
+            java.io.File("../$path"),
+            java.io.File(path),
+        )
+        val file = candidates.firstOrNull { it.exists() }
+            ?: error("Could not locate $path; tried: ${candidates.joinToString { it.absolutePath }}")
+        return file.readLines()
+    }
+
+    private fun findNavDisplaySites(name: String, lines: List<String>): List<Pair<String, Int>> =
+        lines.mapIndexedNotNull { idx, line ->
+            if (Regex("""\bNavDisplay\(""").containsMatchIn(line)) name to idx else null
+        }
 }

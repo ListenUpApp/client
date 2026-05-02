@@ -136,6 +136,9 @@ kotlin {
             // Navigation 3 (multiplatform)
             implementation(libs.navigation3.ui)
 
+            // Navigation 3 ViewModel decorator add-on (multiplatform — per-entry ViewModelStore scoping)
+            implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+
             // Material 3 Adaptive (multiplatform)
             implementation(libs.material3.adaptive)
             implementation(libs.material3.adaptive.layout)

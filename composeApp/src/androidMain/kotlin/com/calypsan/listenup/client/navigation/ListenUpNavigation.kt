@@ -24,8 +24,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
@@ -254,6 +256,11 @@ private fun ServerSetupNavigation() {
 
     NavDisplay(
         backStack = backStack,
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
         onBack = {
             if (backStack.size > 1) {
                 backStack.removeAt(backStack.lastIndex)
@@ -296,6 +303,11 @@ private fun SetupNavigation() {
 
     NavDisplay(
         backStack = backStack,
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
         entryProvider =
             entryProvider {
                 entry<Setup> {
@@ -329,6 +341,11 @@ private fun LoginNavigation(
 
     NavDisplay(
         backStack = backStack,
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
         entryProvider =
             entryProvider {
                 entry<Login> {
@@ -504,6 +521,11 @@ private fun AuthenticatedNavigation(
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
             NavDisplay(
                 backStack = backStack,
+                entryDecorators =
+                    listOf(
+                        rememberSaveableStateHolderNavEntryDecorator(),
+                        rememberViewModelStoreNavEntryDecorator(),
+                    ),
                 // Only handle back if we're not at root - let system handle back-to-home
                 onBack = {
                     if (backStack.size > 1) {
