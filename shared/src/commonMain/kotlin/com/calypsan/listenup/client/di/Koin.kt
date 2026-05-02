@@ -756,6 +756,7 @@ val syncModule =
                             org.koin.core.qualifier
                                 .named("appScope"),
                     ),
+                downloadRepository = get(),
             )
         } bind SSEManagerContract::class
 
