@@ -1,0 +1,26 @@
+<configuration>
+    <!-- Toggle output format via env: LISTENUP_LOG_FORMAT=json for production -->
+    <variable name="LOG_FORMAT" value="${LISTENUP_LOG_FORMAT:-text}"/>
+
+    <if condition='property("LOG_FORMAT").equals("json")'>
+        <then>
+            <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+            </appender>
+        </then>
+        <else>
+            <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+                </encoder>
+            </appender>
+        </else>
+    </if>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+    <logger name="io.netty" level="WARN"/>
+    <logger name="org.eclipse.jetty" level="WARN"/>
+</configuration>

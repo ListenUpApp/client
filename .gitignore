@@ -20,3 +20,6 @@ captures
 composeApp/src/commonMain/composeResources/values/strings.xml
 composeApp/src/commonMain/composeResources/values-*/strings.xml
 iosApp/iosApp/Resources/*.lproj/Localizable.strings
+
+# Git worktrees (Claude Code subagent-driven development)
+.worktrees/
