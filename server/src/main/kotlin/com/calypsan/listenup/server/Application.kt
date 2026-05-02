@@ -1,5 +1,6 @@
 package com.calypsan.listenup.server
 
+import com.calypsan.listenup.server.routes.healthRoutes
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -28,7 +29,6 @@ fun Application.module() {
     install(Koin) { modules(module { }) }
 
     routing {
-        // Routes are registered by extension functions in src/main/kotlin/.../routes/
-        // and added in subsequent tasks.
+        healthRoutes()
     }
 }
