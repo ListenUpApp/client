@@ -18,6 +18,7 @@ import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
+import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.domain.model.DownloadOutcome
 import com.calypsan.listenup.client.domain.repository.DownloadRepository
@@ -52,6 +53,7 @@ class DownloadManager(
     private val fileManager: DownloadFileManager,
     private val localPreferences: com.calypsan.listenup.client.domain.repository.LocalPreferences,
     private val downloadRepository: DownloadRepository,
+    private val transactionRunner: TransactionRunner,
 ) : DownloadService {
     /**
      * Observe download status for a specific book.
@@ -138,7 +140,11 @@ class DownloadManager(
                 )
             }
 
-        downloadDao.insertAll(entities)
+        // Persistence Rule 1: insert is transactional. resumeIncompleteDownloads is the
+        // documented recovery path for crash-between-commit-and-enqueue (Finding 08 D9).
+        transactionRunner.atomically {
+            downloadDao.insertAll(entities)
+        }
 
         // Determine network constraint based on WiFi-only preference
         // UNMETERED = WiFi/ethernet only, CONNECTED = any network (including cellular)
@@ -252,11 +258,7 @@ class DownloadManager(
         val requiredNetworkType = if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
 
         for (download in incomplete) {
-            // Only reset PAUSED state to QUEUED — do NOT reset DOWNLOADING.
-            // A DOWNLOADING entry means WorkManager may still have an active worker for it.
-            // Re-enqueueing with KEEP policy keeps that worker running, but if we reset the
-            // DB state to QUEUED the UI gets stuck on the spinner permanently because the
-            // worker only calls updateState(DOWNLOADING) once at the top of doWork().
+            // KEEP policy avoids displacing a worker that's already running for this row.
             if (download.state == DownloadState.PAUSED) {
                 downloadDao.updateState(download.audioFileId, DownloadState.QUEUED)
             }
