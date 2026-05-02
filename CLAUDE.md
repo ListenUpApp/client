@@ -195,7 +195,11 @@ These are the rules most likely to affect day-to-day work. The full rubric is in
 
 ## Commits
 
-- **Gitmoji syntax.** Every commit starts with a gitmoji (e.g., `✨ add user wishlist`, `🐛 fix update ordering`, `♻️ extract notifications DO`). See [gitmoji.dev](https://gitmoji.dev) for the full list.
+- **Gitmoji prefix, always.** Every commit starts with a gitmoji (e.g., `✨`, `🐛`, `♻️`, `📦`, `🚨`, `👷`, `🎨`, `📝`, `✅`). See [gitmoji.dev](https://gitmoji.dev) for the full list.
+- **Conventional `type(scope):` for domain clarity.** When the change is in a clear domain, follow the gitmoji with a Conventional Commits prefix: `<gitmoji> <type>(<scope>): <subject>`. The repo has multiple domains — `server`, `shared`, `composeApp`, `androidApp`, `desktopApp`, `ci`, `quality`, `docs` — and the scope makes it obvious at a glance which one a commit touches.
+  - Examples: `📦 chore(server): include :server module in settings.gradle.kts` · `✨ feat(server): GET /healthz endpoint with Kotest contract test` · `🐛 fix(shared): re-enqueue position events on WAITING_FOR_SERVER` · `🚨 chore(quality): extend Detekt source.setFrom to :server` · `👷 ci(server): build and test :server module on every PR`.
+  - Common types: `feat`, `fix`, `chore`, `refactor`, `test`, `docs`, `ci`, `perf`, `style`. Pick the one that matches the dominant intent.
+- **Bare gitmoji is fine for cross-cutting trivia** that doesn't belong to a single domain — formatting sweeps, dependency bumps, gitignore tweaks. Example: `🎨 spotless apply across repo`.
 - **Subject line only.** No commit body, no description, no bullet lists of what changed. If a change is so large it needs a description, it is probably two changes.
 - **No Claude attributions.** Do not add `Co-Authored-By: Claude` or any similar footer. Commits stand on their own.
 
