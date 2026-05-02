@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.navigation
 
+import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 /**
@@ -9,7 +10,7 @@ import kotlinx.serialization.Serializable
  * authentication screens before the user reaches the main app.
  */
 @Serializable
-sealed interface AuthRoute
+sealed interface AuthRoute : NavKey
 
 /**
  * Server selection screen - shows discovered servers via mDNS.

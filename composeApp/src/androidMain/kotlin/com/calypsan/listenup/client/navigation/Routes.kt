@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.navigation
 
+import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 /**
@@ -15,7 +16,7 @@ import kotlinx.serialization.Serializable
  * are defined in commonMain/AuthRoutes.kt as AuthRoute subtypes.
  */
 @Serializable
-sealed interface Route
+sealed interface Route : NavKey
 
 /**
  * App shell - main authenticated container.
