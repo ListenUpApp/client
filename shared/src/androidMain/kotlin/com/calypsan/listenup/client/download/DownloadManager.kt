@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber", "StringLiteralDuplication")
-
 package com.calypsan.listenup.client.download
 
 import androidx.work.Constraints
@@ -55,6 +53,11 @@ class DownloadManager(
     private val downloadRepository: DownloadRepository,
     private val transactionRunner: TransactionRunner,
 ) : DownloadService {
+    companion object {
+        private const val STORAGE_BUFFER_MULTIPLIER = 1.1 // 10% buffer for download size estimates
+        private const val BYTES_PER_MB = 1_000_000L
+    }
+
     /**
      * Observe download status for a specific book.
      */
@@ -102,12 +105,12 @@ class DownloadManager(
         val requiredBytes = toDownload.sumOf { it.size }
         val availableBytes = fileManager.getAvailableSpace()
         // Add 10% buffer for safety
-        val requiredWithBuffer = (requiredBytes * 1.1).toLong()
+        val requiredWithBuffer = (requiredBytes * STORAGE_BUFFER_MULTIPLIER).toLong()
 
         if (availableBytes < requiredWithBuffer) {
             logger.warn {
                 "Insufficient storage for book ${bookId.value}: " +
-                    "need ${requiredBytes / 1_000_000}MB, have ${availableBytes / 1_000_000}MB"
+                    "need ${requiredBytes / BYTES_PER_MB}MB, have ${availableBytes / BYTES_PER_MB}MB"
             }
             return AppResult.Success(
                 DownloadOutcome.InsufficientStorage(
@@ -169,12 +172,12 @@ class DownloadManager(
                             .Builder()
                             .setRequiredNetworkType(requiredNetworkType)
                             .build(),
-                    ).addTag("download_${bookId.value}")
-                    .addTag("download_file_${file.id}")
+                    ).addTag(bookTag(bookId))
+                    .addTag(fileTag(file.id))
                     .build()
 
             workManager.enqueueUniqueWork(
-                "download_${file.id}",
+                workName(file.id),
                 ExistingWorkPolicy.REPLACE,
                 workRequest,
             )
@@ -191,7 +194,7 @@ class DownloadManager(
         // Await WorkManager cancellation completion before updating DB state. Closes the race
         // where a worker's final updateProgress write lands after cancelAllWorkByTag returns
         // but before the state update fires (Finding 08 D10).
-        workManager.cancelAllWorkByTag("download_${bookId.value}").await()
+        workManager.cancelAllWorkByTag(bookTag(bookId)).await()
         downloadDao.updateStateForBook(bookId.value, DownloadState.PAUSED)
         logger.info { "Cancelled download: ${bookId.value}" }
     }
@@ -206,7 +209,7 @@ class DownloadManager(
         // Await WorkManager cancellation completion before deleting files. Closes the race
         // where a worker's final updateProgress write lands after cancelAllWorkByTag returns
         // but before the deletion fires (Finding 08 D10).
-        workManager.cancelAllWorkByTag("download_${bookId.value}").await()
+        workManager.cancelAllWorkByTag(bookTag(bookId)).await()
 
         // Delete files from disk
         fileManager.deleteBookFiles(bookId.value)
@@ -275,12 +278,12 @@ class DownloadManager(
                             .Builder()
                             .setRequiredNetworkType(requiredNetworkType)
                             .build(),
-                    ).addTag("download_${download.bookId}")
-                    .addTag("download_file_${download.audioFileId}")
+                    ).addTag(bookTag(download.bookId))
+                    .addTag(fileTag(download.audioFileId))
                     .build()
 
             workManager.enqueueUniqueWork(
-                "download_${download.audioFileId}",
+                workName(download.audioFileId),
                 ExistingWorkPolicy.KEEP,
                 workRequest,
             )
@@ -311,4 +314,12 @@ class DownloadManager(
         downloadDao.deleteAll()
         logger.info { "Deleted all downloads" }
     }
+
+    private fun bookTag(bookId: BookId): String = bookTag(bookId.value)
+
+    private fun bookTag(bookIdValue: String): String = "download_$bookIdValue"
+
+    private fun fileTag(audioFileId: String): String = "download_file_$audioFileId"
+
+    private fun workName(audioFileId: String): String = "download_$audioFileId"
 }
