@@ -153,61 +153,6 @@ class PlaybackPositionRepositoryImplTest {
             assertIs<AppResult.Failure>(result)
         }
 
-    // ========== observe() Tests ==========
-
-    @Test
-    fun `observe emits position when it exists`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            val entity = createPlaybackPositionEntity(bookId = "book-1", positionMs = 30000L)
-            every { dao.observe(BookId("book-1")) } returns flowOf(entity)
-            val repository = createRepo(dao = dao)
-
-            // When
-            val result = repository.observe("book-1").first()
-
-            // Then
-            assertNotNull(result)
-            assertEquals("book-1", result.bookId)
-            assertEquals(30000L, result.positionMs)
-        }
-
-    @Test
-    fun `observe emits null when position does not exist`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            every { dao.observe(any()) } returns flowOf(null)
-            val repository = createRepo(dao = dao)
-
-            // When
-            val result = repository.observe("missing-book").first()
-
-            // Then
-            assertNull(result)
-        }
-
-    @Test
-    fun `observe emits changes when position updates`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            val entity1 = createPlaybackPositionEntity(bookId = "book-1", positionMs = 1000L)
-            val entity2 = createPlaybackPositionEntity(bookId = "book-1", positionMs = 2000L)
-            every { dao.observe(BookId("book-1")) } returns flowOf(null, entity1, entity2)
-            val repository = createRepo(dao = dao)
-
-            // When
-            val emissions = repository.observe("book-1").take(3).toList()
-
-            // Then
-            assertEquals(3, emissions.size)
-            assertNull(emissions[0])
-            assertEquals(1000L, emissions[1]?.positionMs)
-            assertEquals(2000L, emissions[2]?.positionMs)
-        }
-
     // ========== observeAll() Tests ==========
 
     @Test
@@ -229,9 +174,9 @@ class PlaybackPositionRepositoryImplTest {
 
             // Then
             assertEquals(3, result.size)
-            assertEquals(1000L, result["book-1"]?.positionMs)
-            assertEquals(2000L, result["book-2"]?.positionMs)
-            assertEquals(3000L, result["book-3"]?.positionMs)
+            assertEquals(1000L, result[BookId("book-1")]?.positionMs)
+            assertEquals(2000L, result[BookId("book-2")]?.positionMs)
+            assertEquals(3000L, result[BookId("book-3")]?.positionMs)
         }
 
     @Test
@@ -287,103 +232,8 @@ class PlaybackPositionRepositoryImplTest {
             val result = repository.observeAll().first()
 
             // Then
-            assertTrue(result.containsKey("unique-book-id-123"))
-            assertFalse(result.containsKey("wrong-key"))
-        }
-
-    // ========== save() Tests ==========
-
-    @Test
-    fun `save creates new position when none exists`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            everySuspend { dao.get(BookId("new-book")) } returns null
-            val repository = createRepo(dao = dao)
-
-            // When
-            repository.save(
-                bookId = "new-book",
-                positionMs = 5000L,
-                playbackSpeed = 1.25f,
-                hasCustomSpeed = true,
-            )
-
-            // Then
-            verifySuspend {
-                dao.save(
-                    any(), // Entity with correct values
-                )
-            }
-        }
-
-    @Test
-    fun `save preserves syncedAt for existing position`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            val existingEntity =
-                createPlaybackPositionEntity(
-                    bookId = "book-1",
-                    positionMs = 1000L,
-                    syncedAt = 1704067200000L, // Previously synced
-                )
-            everySuspend { dao.get(BookId("book-1")) } returns existingEntity
-            val repository = createRepo(dao = dao)
-
-            // When
-            repository.save(
-                bookId = "book-1",
-                positionMs = 2000L,
-                playbackSpeed = 1.0f,
-                hasCustomSpeed = false,
-            )
-
-            // Then - verify dao.get was called to retrieve existing entity (which has syncedAt)
-            // and dao.save was called (the impl preserves syncedAt from existing entity)
-            verifySuspend { dao.get(BookId("book-1")) }
-            verifySuspend { dao.save(any()) }
-        }
-
-    @Test
-    fun `save sets syncedAt to null for new position`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            everySuspend { dao.get(BookId("new-book")) } returns null
-            val repository = createRepo(dao = dao)
-
-            // When
-            repository.save(
-                bookId = "new-book",
-                positionMs = 5000L,
-                playbackSpeed = 1.0f,
-                hasCustomSpeed = false,
-            )
-
-            // Then - verify dao.save was called (syncedAt should be null since no existing entity)
-            verifySuspend { dao.save(any()) }
-            verifySuspend { dao.get(BookId("new-book")) }
-        }
-
-    @Test
-    fun `save calls dao with correct parameters`() =
-        runTest {
-            // Given
-            val dao = createMockDao()
-            everySuspend { dao.get(any()) } returns null
-            val repository = createRepo(dao = dao)
-
-            // When
-            repository.save(
-                bookId = "test-book",
-                positionMs = 12345L,
-                playbackSpeed = 1.75f,
-                hasCustomSpeed = true,
-            )
-
-            // Then
-            verifySuspend { dao.save(any()) }
+            assertTrue(result.containsKey(BookId("unique-book-id-123")))
+            assertFalse(result.containsKey(BookId("wrong-key")))
         }
 
     // ========== delete() Tests ==========
@@ -396,7 +246,7 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When
-            repository.delete("book-to-delete")
+            repository.delete(BookId("book-to-delete"))
 
             // Then
             verifySuspend { dao.delete(BookId("book-to-delete")) }
@@ -410,10 +260,37 @@ class PlaybackPositionRepositoryImplTest {
             val repository = createRepo(dao = dao)
 
             // When/Then - should not throw
-            repository.delete("nonexistent-book")
+            repository.delete(BookId("nonexistent-book"))
 
             // Verify delete was still called
             verifySuspend { dao.delete(BookId("nonexistent-book")) }
+        }
+
+    @Test
+    fun `delete returns Success when dao succeeds`() =
+        runTest {
+            val dao = createMockDao()
+            val bookId = BookId("book-ok")
+            everySuspend { dao.delete(bookId) } returns Unit
+            val repository = createRepo(dao = dao)
+
+            val result = repository.delete(bookId)
+
+            assertIs<AppResult.Success<Unit>>(result)
+            verifySuspend(VerifyMode.exactly(1)) { dao.delete(bookId) }
+        }
+
+    @Test
+    fun `delete returns Failure when dao throws`() =
+        runTest {
+            val dao = createMockDao()
+            val bookId = BookId("book-fail")
+            everySuspend { dao.delete(bookId) } throws RuntimeException("dao boom")
+            val repository = createRepo(dao = dao)
+
+            val result = repository.delete(bookId)
+
+            assertIs<AppResult.Failure>(result)
         }
 
     // ========== Entity to Domain Conversion Tests ==========
@@ -661,7 +538,7 @@ class PlaybackPositionRepositoryImplTest {
 
             // Then - should have 1 entry, with the second position value
             assertEquals(1, result.size)
-            assertEquals(2000L, result["book-1"]?.positionMs)
+            assertEquals(2000L, result[BookId("book-1")]?.positionMs)
         }
 
     // ========== getEntity() Tests (Task 3) ==========
@@ -1205,7 +1082,7 @@ class PlaybackPositionRepositoryImplTest {
             }
             val repository = createRepo(dao = dao, pendingOps = pendingOps)
 
-            val result = repository.markComplete(bookId, startedAt, finishedAt)
+            val result = repository.markComplete(BookId(bookId), startedAt, finishedAt)
 
             assertIs<AppResult.Success<Unit>>(result)
             val saved = captured.single()
@@ -1236,7 +1113,7 @@ class PlaybackPositionRepositoryImplTest {
             everySuspend { dao.save(any()) } returns Unit
             val repository = createRepo(dao = dao, pendingOps = pendingOps)
 
-            val result = repository.discardProgress(bookId)
+            val result = repository.discardProgress(BookId(bookId))
 
             assertIs<AppResult.Success<Unit>>(result)
             verifySuspend(VerifyMode.exactly(1)) {
@@ -1263,7 +1140,7 @@ class PlaybackPositionRepositoryImplTest {
             everySuspend { dao.save(any()) } returns Unit
             val repository = createRepo(dao = dao, pendingOps = pendingOps)
 
-            val result = repository.restartBook(bookId)
+            val result = repository.restartBook(BookId(bookId))
 
             assertIs<AppResult.Success<Unit>>(result)
             verifySuspend(VerifyMode.exactly(1)) {

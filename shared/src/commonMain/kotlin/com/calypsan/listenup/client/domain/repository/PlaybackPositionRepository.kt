@@ -36,43 +36,14 @@ interface PlaybackPositionRepository {
     suspend fun get(bookId: BookId): AppResult<PlaybackPosition?>
 
     /**
-     * Observe position changes for a specific book reactively.
-     *
-     * Emits whenever the position changes, enabling real-time
-     * progress indicators and resume UI updates.
-     *
-     * @param bookId The book to observe
-     * @return Flow emitting PlaybackPosition or null
-     */
-    fun observe(bookId: String): Flow<PlaybackPosition?>
-
-    /**
      * Observe all playback positions reactively.
      *
      * Used for displaying progress indicators across the library,
      * showing completion percentages on book cards.
      *
-     * @return Flow emitting map of bookId to PlaybackPosition
+     * @return Flow emitting map of [BookId] to PlaybackPosition
      */
-    fun observeAll(): Flow<Map<String, PlaybackPosition>>
-
-    /**
-     * Save a playback position.
-     *
-     * Instant local operation - syncs eventually.
-     * Position updates should never block on network.
-     *
-     * @param bookId The book to save position for
-     * @param positionMs Current position in milliseconds
-     * @param playbackSpeed Current playback speed
-     * @param hasCustomSpeed Whether user set a custom speed
-     */
-    suspend fun save(
-        bookId: String,
-        positionMs: Long,
-        playbackSpeed: Float,
-        hasCustomSpeed: Boolean,
-    )
+    fun observeAll(): Flow<Map<BookId, PlaybackPosition>>
 
     /**
      * Delete position for a book.
@@ -80,8 +51,9 @@ interface PlaybackPositionRepository {
      * Used when resetting progress or removing a book.
      *
      * @param bookId The book to clear position for
+     * @return [AppResult.Success] when the DAO write commits; [AppResult.Failure] only on local DB-write failure.
      */
-    suspend fun delete(bookId: String)
+    suspend fun delete(bookId: BookId): AppResult<Unit>
 
     /**
      * Mark a book as complete.
@@ -96,10 +68,10 @@ interface PlaybackPositionRepository {
      * @return Result with Unit on success, or Failure on error
      */
     suspend fun markComplete(
-        bookId: String,
+        bookId: BookId,
         startedAt: Long? = null,
         finishedAt: Long? = null,
-    ): com.calypsan.listenup.client.core.AppResult<Unit>
+    ): AppResult<Unit>
 
     /**
      * Discard all progress for a book.
@@ -109,10 +81,10 @@ interface PlaybackPositionRepository {
      * is processed asynchronously by [com.calypsan.listenup.client.data.sync.push.OperationExecutor].
      *
      * @param bookId The book to discard progress for
-     * @return [com.calypsan.listenup.client.core.AppResult.Success] when the local write + queue commit;
-     *   [com.calypsan.listenup.client.core.AppResult.Failure] only on local DB-write failure.
+     * @return [AppResult.Success] when the local write + queue commit;
+     *   [AppResult.Failure] only on local DB-write failure.
      */
-    suspend fun discardProgress(bookId: String): com.calypsan.listenup.client.core.AppResult<Unit>
+    suspend fun discardProgress(bookId: BookId): AppResult<Unit>
 
     /**
      * Restart a book from the beginning.
@@ -122,10 +94,10 @@ interface PlaybackPositionRepository {
      * is processed asynchronously by [com.calypsan.listenup.client.data.sync.push.OperationExecutor].
      *
      * @param bookId The book to restart
-     * @return [com.calypsan.listenup.client.core.AppResult.Success] when the local write + queue commit;
-     *   [com.calypsan.listenup.client.core.AppResult.Failure] only on local DB-write failure.
+     * @return [AppResult.Success] when the local write + queue commit;
+     *   [AppResult.Failure] only on local DB-write failure.
      */
-    suspend fun restartBook(bookId: String): com.calypsan.listenup.client.core.AppResult<Unit>
+    suspend fun restartBook(bookId: BookId): AppResult<Unit>
 
     /**
      * Read the persisted entity row for [bookId]. Returns null if the book has

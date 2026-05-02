@@ -347,7 +347,7 @@ class BookDetailViewModel(
         val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
             updateReady { it.copy(isMarkingComplete = true) }
-            when (playbackPositionRepository.markComplete(bookId, startedAt, finishedAt)) {
+            when (playbackPositionRepository.markComplete(BookId(bookId), startedAt, finishedAt)) {
                 is Success -> {
                     updateReady { it.copy(isMarkingComplete = false, isComplete = true) }
                     logger.info { "Marked book $bookId as complete" }
@@ -368,7 +368,7 @@ class BookDetailViewModel(
         val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
             updateReady { it.copy(isDiscardingProgress = true) }
-            when (playbackPositionRepository.discardProgress(bookId)) {
+            when (playbackPositionRepository.discardProgress(BookId(bookId))) {
                 is Success -> {
                     updateReady {
                         it.copy(
@@ -396,7 +396,7 @@ class BookDetailViewModel(
         val bookId = (state.value as? BookDetailUiState.Ready)?.book?.id?.value ?: return
         viewModelScope.launch {
             updateReady { it.copy(isRestarting = true) }
-            when (playbackPositionRepository.restartBook(bookId)) {
+            when (playbackPositionRepository.restartBook(BookId(bookId))) {
                 is Success -> {
                     updateReady {
                         it.copy(

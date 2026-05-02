@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.map
 
 /**
  * In-memory fake of [PlaybackPositionRepository] backed by a [MutableStateFlow] of
- * book-id → position. Emits on every write so reactive consumers (`observe`, `observeAll`)
+ * book-id → position. Emits on every write so reactive consumers (`observeAll`)
  * behave like the real Room-backed implementation.
  *
  * Why a fake instead of a Mokkery mock: the bugs this interface participates in (Bug 2 —
@@ -54,47 +54,26 @@ class FakePlaybackPositionRepository(
         )
     }
 
-    override fun observe(bookId: String): Flow<PlaybackPosition?> = state.asStateFlow().map { it[bookId] }
+    override fun observeAll(): Flow<Map<BookId, PlaybackPosition>> =
+        state.asStateFlow().map { stringKeyed ->
+            stringKeyed.mapKeys { (k, _) -> BookId(k) }
+        }
 
-    override fun observeAll(): Flow<Map<String, PlaybackPosition>> = state.asStateFlow()
-
-    override suspend fun save(
-        bookId: String,
-        positionMs: Long,
-        playbackSpeed: Float,
-        hasCustomSpeed: Boolean,
-    ) {
-        val now = nowMs()
-        state.value = state.value + (
-            bookId to
-                PlaybackPosition(
-                    bookId = bookId,
-                    positionMs = positionMs,
-                    playbackSpeed = playbackSpeed,
-                    hasCustomSpeed = hasCustomSpeed,
-                    updatedAtMs = now,
-                    syncedAtMs = null,
-                    lastPlayedAtMs = now,
-                    isFinished = state.value[bookId]?.isFinished ?: false,
-                    finishedAtMs = state.value[bookId]?.finishedAtMs,
-                    startedAtMs = state.value[bookId]?.startedAtMs,
-                )
-        )
-    }
-
-    override suspend fun delete(bookId: String) {
-        state.value = state.value - bookId
+    override suspend fun delete(bookId: BookId): AppResult<Unit> {
+        state.value = state.value - bookId.value
+        return Success(Unit)
     }
 
     override suspend fun markComplete(
-        bookId: String,
+        bookId: BookId,
         startedAt: Long?,
         finishedAt: Long?,
     ): AppResult<Unit> {
+        val key = bookId.value
         val now = nowMs()
         val existing =
-            state.value[bookId] ?: PlaybackPosition(
-                bookId = bookId,
+            state.value[key] ?: PlaybackPosition(
+                bookId = key,
                 positionMs = 0L,
                 playbackSpeed = 1.0f,
                 hasCustomSpeed = false,
@@ -103,7 +82,7 @@ class FakePlaybackPositionRepository(
                 lastPlayedAtMs = now,
             )
         state.value = state.value + (
-            bookId to
+            key to
                 existing.copy(
                     isFinished = true,
                     finishedAtMs = finishedAt ?: now,
@@ -114,15 +93,16 @@ class FakePlaybackPositionRepository(
         return Success(Unit)
     }
 
-    override suspend fun discardProgress(bookId: String): AppResult<Unit> {
-        state.value = state.value - bookId
+    override suspend fun discardProgress(bookId: BookId): AppResult<Unit> {
+        state.value = state.value - bookId.value
         return Success(Unit)
     }
 
-    override suspend fun restartBook(bookId: String): AppResult<Unit> {
-        val existing = state.value[bookId] ?: return Success(Unit)
+    override suspend fun restartBook(bookId: BookId): AppResult<Unit> {
+        val key = bookId.value
+        val existing = state.value[key] ?: return Success(Unit)
         state.value = state.value + (
-            bookId to
+            key to
                 existing.copy(
                     positionMs = 0L,
                     isFinished = false,

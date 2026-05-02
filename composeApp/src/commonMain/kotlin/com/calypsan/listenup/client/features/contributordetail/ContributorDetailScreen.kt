@@ -66,6 +66,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.getInitials
@@ -305,7 +306,7 @@ private fun WideContributorPortfolio(
                     onClick = { onBookClick(book.id.value) },
                     authorName = book.authorNames,
                     duration = book.formatDuration(),
-                    progress = state.bookProgress[book.id.value],
+                    progress = state.bookProgress[book.id],
                 )
             }
         }
@@ -665,7 +666,7 @@ private fun NarrowHeroHeader(
 @Composable
 private fun NarrowWorkSection(
     section: RoleSection,
-    bookProgress: Map<String, Float>,
+    bookProgress: Map<BookId, Float>,
     onBookClick: (String) -> Unit,
     onViewAllClick: () -> Unit,
 ) {
@@ -696,7 +697,7 @@ private fun NarrowWorkSection(
                     onClick = { onBookClick(book.id.value) },
                     authorName = book.authorNames,
                     duration = book.formatDuration(),
-                    progress = bookProgress[book.id.value],
+                    progress = bookProgress[book.id],
                     cardWidth = 150.dp,
                 )
             }

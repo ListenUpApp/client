@@ -47,6 +47,7 @@ import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.features.contributoredit.components.ContributorColorScheme
 import com.calypsan.listenup.client.features.contributoredit.components.rememberContributorColorScheme
 import com.calypsan.listenup.client.features.library.BookCard
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksUiState
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksViewModel
 import com.calypsan.listenup.client.presentation.contributordetail.SeriesGroup
@@ -245,7 +246,7 @@ private fun GridOnlyLayout(
                 onClick = { onBookClick(book.id.value) },
                 authorName = book.authorNames,
                 duration = book.formatDuration(),
-                progress = state.bookProgress[book.id.value],
+                progress = state.bookProgress[book.id],
             )
         }
     }
@@ -344,7 +345,7 @@ private fun CondensedHeader(
 @Composable
 private fun SeriesCarouselSection(
     seriesGroup: SeriesGroup,
-    bookProgress: Map<String, Float>,
+    bookProgress: Map<BookId, Float>,
     onBookClick: (String) -> Unit,
 ) {
     Column(
@@ -388,7 +389,7 @@ private fun SeriesCarouselSection(
                     onClick = { onBookClick(book.id.value) },
                     authorName = book.authorNames,
                     duration = book.formatDuration(),
-                    progress = bookProgress[book.id.value],
+                    progress = bookProgress[book.id],
                     cardWidth = 150.dp,
                 )
             }
@@ -403,7 +404,7 @@ private fun SeriesCarouselSection(
 @Composable
 private fun StandaloneBooksGrid(
     books: List<BookListItem>,
-    bookProgress: Map<String, Float>,
+    bookProgress: Map<BookId, Float>,
     onBookClick: (String) -> Unit,
 ) {
     Column(
@@ -452,7 +453,7 @@ private fun StandaloneBooksGrid(
                             onClick = { onBookClick(book.id.value) },
                             authorName = book.authorNames,
                             duration = book.formatDuration(),
-                            progress = bookProgress[book.id.value],
+                            progress = bookProgress[book.id],
                             modifier = Modifier.weight(1f),
                         )
                     }

@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,11 +20,14 @@ import kotlin.test.assertTrue
  */
 class FakePlaybackPositionRepositoryTest {
     @Test
-    fun saveAndGet() =
+    fun savePlaybackStateAndGet() =
         runTest {
             val repo = FakePlaybackPositionRepository()
 
-            repo.save(bookId = "book-1", positionMs = 5_000L, playbackSpeed = 1.25f, hasCustomSpeed = true)
+            repo.savePlaybackState(
+                BookId("book-1"),
+                PlaybackUpdate.Position(positionMs = 5_000L, speed = 1.0f),
+            )
 
             val result =
                 assertIs<AppResult.Success<com.calypsan.listenup.client.domain.model.PlaybackPosition?>>(
@@ -31,21 +35,22 @@ class FakePlaybackPositionRepositoryTest {
                 )
             val saved = assertNotNull(result.data)
             assertEquals(5_000L, saved.positionMs)
-            assertEquals(1.25f, saved.playbackSpeed)
-            assertTrue(saved.hasCustomSpeed)
         }
 
     @Test
-    fun observeEmitsOnWrite() =
+    fun observeAllEmitsOnWrite() =
         runTest {
             val repo = FakePlaybackPositionRepository()
 
-            repo.observe("book-1").test {
-                assertNull(awaitItem(), "initial emission must be null (nothing saved)")
-                repo.save("book-1", positionMs = 1_000L, playbackSpeed = 1.0f, hasCustomSpeed = false)
+            repo.observeAll().test {
+                val initial = awaitItem()
+                assertTrue(initial.isEmpty(), "initial emission must be empty (nothing saved)")
+
+                repo.savePlaybackState(BookId("book-1"), PlaybackUpdate.Position(positionMs = 1_000L, speed = 1.0f))
+
                 val after = awaitItem()
-                assertNotNull(after)
-                assertEquals(1_000L, after.positionMs)
+                assertEquals(1, after.size)
+                assertEquals(1_000L, after[BookId("book-1")]?.positionMs)
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -54,14 +59,15 @@ class FakePlaybackPositionRepositoryTest {
     fun observeAllReflectsAllBooks() =
         runTest {
             val repo = FakePlaybackPositionRepository()
-            repo.save("book-1", 100L, 1.0f, false)
-            repo.save("book-2", 200L, 1.5f, true)
+            repo.savePlaybackState(BookId("book-1"), PlaybackUpdate.Position(positionMs = 100L, speed = 1.0f))
+            repo.savePlaybackState(BookId("book-2"), PlaybackUpdate.Position(positionMs = 200L, speed = 1.0f))
 
             repo.observeAll().test {
                 val all = awaitItem()
                 assertEquals(2, all.size)
-                assertEquals(100L, all["book-1"]?.positionMs)
-                assertEquals(200L, all["book-2"]?.positionMs)
+                assertEquals(setOf(BookId("book-1"), BookId("book-2")), all.keys)
+                assertEquals(100L, all[BookId("book-1")]?.positionMs)
+                assertEquals(200L, all[BookId("book-2")]?.positionMs)
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -70,9 +76,9 @@ class FakePlaybackPositionRepositoryTest {
     fun markCompleteSetsIsFinishedAndFinishedAt() =
         runTest {
             val repo = FakePlaybackPositionRepository()
-            repo.save("book-1", 1_000L, 1.0f, false)
+            repo.savePlaybackState(BookId("book-1"), PlaybackUpdate.Position(positionMs = 1_000L, speed = 1.0f))
 
-            val result = repo.markComplete("book-1", startedAt = 100L, finishedAt = 999L)
+            val result = repo.markComplete(BookId("book-1"), startedAt = 100L, finishedAt = 999L)
 
             assertTrue(result is com.calypsan.listenup.client.core.Success)
             val after =
@@ -90,9 +96,9 @@ class FakePlaybackPositionRepositoryTest {
     fun discardProgressRemovesEntry() =
         runTest {
             val repo = FakePlaybackPositionRepository()
-            repo.save("book-1", 1_000L, 1.0f, false)
+            repo.savePlaybackState(BookId("book-1"), PlaybackUpdate.Position(positionMs = 1_000L, speed = 1.0f))
 
-            val result = repo.discardProgress("book-1")
+            val result = repo.discardProgress(BookId("book-1"))
 
             assertTrue(result is com.calypsan.listenup.client.core.Success)
             val afterDiscard = assertIs<AppResult.Success<*>>(repo.get(BookId("book-1")))
@@ -103,10 +109,10 @@ class FakePlaybackPositionRepositoryTest {
     fun restartBookResetsPositionAndClearsFinished() =
         runTest {
             val repo = FakePlaybackPositionRepository()
-            repo.save("book-1", 10_000L, 1.0f, false)
-            repo.markComplete("book-1")
+            repo.savePlaybackState(BookId("book-1"), PlaybackUpdate.Position(positionMs = 10_000L, speed = 1.0f))
+            repo.markComplete(BookId("book-1"))
 
-            val result = repo.restartBook("book-1")
+            val result = repo.restartBook(BookId("book-1"))
 
             assertTrue(result is com.calypsan.listenup.client.core.Success)
             val after =
@@ -125,9 +131,9 @@ class FakePlaybackPositionRepositoryTest {
         runTest {
             var clock = 1_000L
             val repo = FakePlaybackPositionRepository(nowMs = { clock })
-            repo.save("oldest", positionMs = 100L, playbackSpeed = 1.0f, hasCustomSpeed = false)
+            repo.savePlaybackState(BookId("oldest"), PlaybackUpdate.Position(positionMs = 100L, speed = 1.0f))
             clock = 2_000L
-            repo.save("newest", positionMs = 5_000L, playbackSpeed = 1.5f, hasCustomSpeed = true)
+            repo.savePlaybackState(BookId("newest"), PlaybackUpdate.Speed(positionMs = 5_000L, speed = 1.5f, custom = true))
 
             val result = repo.getLastPlayedBook()
 

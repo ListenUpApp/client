@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.library
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
@@ -43,8 +44,8 @@ sealed interface LibraryUiState {
         val authors: List<ContributorWithBookCount>,
         val narrators: List<ContributorWithBookCount>,
         // Progress derived from playback positions
-        val bookProgress: Map<String, Float>,
-        val bookIsFinished: Map<String, Boolean>,
+        val bookProgress: Map<BookId, Float>,
+        val bookIsFinished: Map<BookId, Boolean>,
         // Sync
         val syncState: SyncState,
         val isServerScanning: Boolean,

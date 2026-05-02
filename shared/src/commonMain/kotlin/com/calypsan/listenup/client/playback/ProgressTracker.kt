@@ -597,7 +597,7 @@ open class ProgressTracker(
             // Mark book as complete (Issue #206)
             val finishedAt = Clock.System.now().toEpochMilliseconds()
             when (val r = positionRepository.markComplete(
-                bookId = bookId.value,
+                bookId = bookId,
                 startedAt = null,
                 finishedAt = finishedAt,
             )) {
@@ -613,8 +613,12 @@ open class ProgressTracker(
      * Clear progress for a book (reset to beginning).
      */
     suspend fun clearProgress(bookId: BookId) {
-        positionRepository.delete(bookId.value)
-        logger.info { "Progress cleared for book: ${bookId.value}" }
+        when (val r = positionRepository.delete(bookId)) {
+            is AppResult.Success -> logger.info { "Progress cleared for book: ${bookId.value}" }
+            is AppResult.Failure -> logger.warn {
+                "Failed to clear progress for book ${bookId.value}: ${r.error.message}"
+            }
+        }
     }
 
     /**

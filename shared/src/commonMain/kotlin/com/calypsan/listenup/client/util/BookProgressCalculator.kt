@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.util
 
 import com.calypsan.listenup.client.core.AppResult
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -22,7 +23,7 @@ suspend fun PlaybackPositionRepository.calculateProgressMap(
     books: List<BookListItem>,
     excludeComplete: Boolean = true,
     excludeUnstarted: Boolean = true,
-): Map<String, Float> =
+): Map<BookId, Float> =
     books
         .mapNotNull { book ->
             val position =
@@ -41,7 +42,7 @@ suspend fun PlaybackPositionRepository.calculateProgressMap(
                 val isInProgress =
                     (!excludeUnstarted || progress > 0f) &&
                         (!excludeComplete || progress < 0.99f)
-                if (isInProgress) book.id.value to progress else null
+                if (isInProgress) book.id to progress else null
             } else {
                 null
             }

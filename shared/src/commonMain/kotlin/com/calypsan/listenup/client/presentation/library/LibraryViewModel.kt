@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.ContributorRole
@@ -67,8 +68,8 @@ private data class SyncSnapshot(
 
 /** Progress maps derived from playback positions and book durations. */
 private data class ProgressSnapshot(
-    val progressMap: Map<String, Float>,
-    val finishedMap: Map<String, Boolean>,
+    val progressMap: Map<BookId, Float>,
+    val finishedMap: Map<BookId, Boolean>,
 )
 
 /**
@@ -410,11 +411,11 @@ class LibraryViewModel(
 
     private fun computeProgress(
         books: List<BookListItem>,
-        positions: Map<String, PlaybackPosition>,
+        positions: Map<BookId, PlaybackPosition>,
     ): ProgressSnapshot {
-        val bookDurations = books.associate { it.id.value to it.duration }
-        val progressMap = mutableMapOf<String, Float>()
-        val finishedMap = mutableMapOf<String, Boolean>()
+        val bookDurations = books.associate { it.id to it.duration }
+        val progressMap = mutableMapOf<BookId, Float>()
+        val finishedMap = mutableMapOf<BookId, Boolean>()
 
         for ((bookId, position) in positions) {
             // Track isFinished for all positions (authoritative from server)

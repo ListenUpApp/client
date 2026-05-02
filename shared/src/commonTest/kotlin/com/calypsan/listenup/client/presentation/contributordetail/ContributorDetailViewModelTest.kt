@@ -297,7 +297,7 @@ class ContributorDetailViewModelTest {
             advanceUntilIdle()
 
             val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
-            assertEquals(0.5f, state.bookProgress["book-1"])
+            assertEquals(0.5f, state.bookProgress[BookId("book-1")])
         }
 
     @Test
@@ -322,7 +322,7 @@ class ContributorDetailViewModelTest {
             advanceUntilIdle()
 
             val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
-            assertFalse(state.bookProgress.containsKey("book-1"))
+            assertFalse(state.bookProgress.containsKey(BookId("book-1")))
         }
 
     @Test
@@ -346,7 +346,7 @@ class ContributorDetailViewModelTest {
             advanceUntilIdle()
 
             val state = assertIs<ContributorDetailUiState.Ready>(viewModel.state.value)
-            assertFalse(state.bookProgress.containsKey("book-1"))
+            assertFalse(state.bookProgress.containsKey(BookId("book-1")))
         }
 
     // ========== View All Threshold ==========
