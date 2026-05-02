@@ -7,6 +7,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.await
 import androidx.work.workDataOf
 import com.calypsan.listenup.client.core.AppResult
 import com.calypsan.listenup.client.core.BookId
@@ -184,7 +185,10 @@ class DownloadManager(
      * Cancel active download for a book.
      */
     override suspend fun cancelDownload(bookId: BookId) {
-        workManager.cancelAllWorkByTag("download_${bookId.value}")
+        // Await WorkManager cancellation completion before updating DB state. Closes the race
+        // where a worker's final updateProgress write lands after cancelAllWorkByTag returns
+        // but before the state update fires (Finding 08 D10).
+        workManager.cancelAllWorkByTag("download_${bookId.value}").await()
         downloadDao.updateStateForBook(bookId.value, DownloadState.PAUSED)
         logger.info { "Cancelled download: ${bookId.value}" }
     }
@@ -196,7 +200,10 @@ class DownloadManager(
      */
     override suspend fun deleteDownload(bookId: BookId) {
         // Cancel any active downloads first
-        workManager.cancelAllWorkByTag("download_${bookId.value}")
+        // Await WorkManager cancellation completion before deleting files. Closes the race
+        // where a worker's final updateProgress write lands after cancelAllWorkByTag returns
+        // but before the deletion fires (Finding 08 D10).
+        workManager.cancelAllWorkByTag("download_${bookId.value}").await()
 
         // Delete files from disk
         fileManager.deleteBookFiles(bookId.value)
