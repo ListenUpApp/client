@@ -85,11 +85,9 @@ class PlaybackPositionRepositoryImpl(
             dao.get(bookId)
         }
 
-    override fun observe(bookId: String): Flow<PlaybackPosition?> = dao.observe(BookId(bookId)).map { it?.toDomain() }
-
-    override fun observeAll(): Flow<Map<String, PlaybackPosition>> =
+    override fun observeAll(): Flow<Map<BookId, PlaybackPosition>> =
         dao.observeAll().map { positions ->
-            positions.associate { it.bookId.value to it.toDomain() }
+            positions.associate { it.bookId to it.toDomain() }
         }
 
     override suspend fun getLastPlayedBook(): AppResult<LastPlayedInfo?> =
@@ -106,46 +104,22 @@ class PlaybackPositionRepositoryImpl(
 
     // ----- Write paths -----------------------------------------------------------------------
 
-    override suspend fun save(
-        bookId: String,
-        positionMs: Long,
-        playbackSpeed: Float,
-        hasCustomSpeed: Boolean,
-    ) {
-        val now = currentEpochMilliseconds()
-        val existing = dao.get(BookId(bookId))
-
-        val entity =
-            PlaybackPositionEntity(
-                bookId = BookId(bookId),
-                positionMs = positionMs,
-                playbackSpeed = playbackSpeed,
-                hasCustomSpeed = hasCustomSpeed,
-                updatedAt = now,
-                syncedAt = existing?.syncedAt,
-                lastPlayedAt = now,
-                isFinished = existing?.isFinished ?: false,
-                finishedAt = existing?.finishedAt,
-                startedAt = existing?.startedAt ?: now, // Set on first save
-            )
-        dao.save(entity)
-    }
-
-    override suspend fun delete(bookId: String) {
-        dao.delete(BookId(bookId))
-    }
+    override suspend fun delete(bookId: BookId): AppResult<Unit> =
+        suspendRunCatching {
+            dao.delete(bookId)
+        }
 
     override suspend fun markComplete(
-        bookId: String,
+        bookId: BookId,
         startedAt: Long?,
         finishedAt: Long?,
-    ): AppResult<Unit> = savePlaybackState(BookId(bookId), PlaybackUpdate.MarkComplete(startedAt, finishedAt))
+    ): AppResult<Unit> = savePlaybackState(bookId, PlaybackUpdate.MarkComplete(startedAt, finishedAt))
 
-    override suspend fun discardProgress(bookId: String): AppResult<Unit> =
-        savePlaybackState(BookId(bookId), PlaybackUpdate.DiscardProgress)
+    override suspend fun discardProgress(bookId: BookId): AppResult<Unit> =
+        savePlaybackState(bookId, PlaybackUpdate.DiscardProgress)
 
-    override suspend fun restartBook(bookId: String): AppResult<Unit> =
-        savePlaybackState(BookId(bookId), PlaybackUpdate.Restart)
+    override suspend fun restartBook(bookId: BookId): AppResult<Unit> =
+        savePlaybackState(bookId, PlaybackUpdate.Restart)
 
     // ----- Canonical entry point ------------------------------------------------------------
 
