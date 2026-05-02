@@ -126,6 +126,7 @@ import com.calypsan.listenup.client.data.sync.push.OperationExecutor
 import com.calypsan.listenup.client.data.sync.push.OperationExecutorContract
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepository
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.DiscardProgressHandler
 import com.calypsan.listenup.client.data.sync.push.EndPlaybackSessionHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.PlaybackPositionHandler
@@ -135,6 +136,7 @@ import com.calypsan.listenup.client.data.sync.push.ProfileUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.data.sync.push.RemoveBookFromShelfHandler
+import com.calypsan.listenup.client.data.sync.push.RestartBookHandler
 import com.calypsan.listenup.client.data.sync.push.SeriesUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.SetBookContributorsHandler
 import com.calypsan.listenup.client.data.sync.push.SetBookSeriesHandler
@@ -1216,6 +1218,8 @@ val syncModule =
         single { ProfileUpdateHandler(transactionRunner = get(), api = get(), userDao = get()) }
         single { ProfileAvatarHandler(api = get(), userDao = get(), imageDownloader = get()) }
         single { MarkCompleteHandler(api = get()) }
+        single { DiscardProgressHandler(api = get()) }
+        single { RestartBookHandler(api = get()) }
         single { EndPlaybackSessionHandler(api = get()) }
         single { CreateShelfHandler(api = get()) }
         single { UpdateShelfHandler(api = get()) }
@@ -1259,6 +1263,8 @@ val syncModule =
                 profileUpdateHandler = get(),
                 profileAvatarHandler = get(),
                 markCompleteHandler = get(),
+                discardProgressHandler = get(),
+                restartBookHandler = get(),
                 endPlaybackSessionHandler = get(),
                 createShelfHandler = get(),
                 updateShelfHandler = get(),
