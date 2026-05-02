@@ -23,10 +23,10 @@ interface DownloadDao {
     suspend fun getByAudioFileId(audioFileId: String): DownloadEntity?
 
     /**
-     * Get all downloads not in COMPLETED (ordinal 3) or DELETED (ordinal 5) state.
+     * Get all downloads not in COMPLETED or DELETED state.
      * Used to find stalled/interrupted downloads for resume.
      */
-    @Query("SELECT * FROM downloads WHERE state NOT IN (3, 5) ORDER BY bookId, fileIndex")
+    @Query("SELECT * FROM downloads WHERE state NOT IN ('COMPLETED', 'DELETED') ORDER BY bookId, fileIndex")
     suspend fun getIncomplete(): List<DownloadEntity>
 
     /**
@@ -45,9 +45,8 @@ interface DownloadDao {
 
     /**
      * Get local path for a completed download.
-     * Uses ordinal 3 for COMPLETED state (QUEUED=0, DOWNLOADING=1, PAUSED=2, COMPLETED=3, FAILED=4)
      */
-    @Query("SELECT localPath FROM downloads WHERE audioFileId = :audioFileId AND state = 3")
+    @Query("SELECT localPath FROM downloads WHERE audioFileId = :audioFileId AND state = 'COMPLETED'")
     suspend fun getLocalPath(audioFileId: String): String?
 
     // Insert
@@ -147,17 +146,17 @@ interface DownloadDao {
     ) = updateErrorWithState(audioFileId, error, DownloadState.FAILED)
 
     /**
-     * Mark all files for a book as DELETED (ordinal 5).
+     * Mark all files for a book as DELETED.
      * Used when user explicitly deletes a download - keeps records for tracking.
      */
-    @Query("UPDATE downloads SET state = 5, localPath = NULL WHERE bookId = :bookId")
+    @Query("UPDATE downloads SET state = 'DELETED', localPath = NULL WHERE bookId = :bookId")
     suspend fun markDeletedForBook(bookId: String)
 
     /**
      * Check if a book has any DELETED records (user explicitly deleted).
      * Used to determine if we should auto-download on playback.
      */
-    @Query("SELECT EXISTS(SELECT 1 FROM downloads WHERE bookId = :bookId AND state = 5)")
+    @Query("SELECT EXISTS(SELECT 1 FROM downloads WHERE bookId = :bookId AND state = 'DELETED')")
     suspend fun hasDeletedRecords(bookId: String): Boolean
 
     // Delete
