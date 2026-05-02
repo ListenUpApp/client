@@ -61,9 +61,6 @@ class DownloadManager(
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
         downloadRepository.observeBookStatus(bookId)
 
-    /**
-     * Observe download status for all books (for library indicators).
-     */
     override fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> = downloadRepository.observeAllStatuses()
 
     /**
