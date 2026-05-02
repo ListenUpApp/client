@@ -12,9 +12,13 @@ import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.sync.push.DiscardProgressHandler
+import com.calypsan.listenup.client.data.sync.push.DiscardProgressPayload
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompletePayload
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.RestartBookHandler
+import com.calypsan.listenup.client.data.sync.push.RestartBookPayload
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.LastPlayedInfo
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
@@ -50,6 +54,8 @@ private val logger = KotlinLogging.logger {}
  * @property syncApi API for syncing progress changes to server
  * @property pendingOps Queue for pending push operations
  * @property markCompleteHandler Handler for MARK_COMPLETE pending ops
+ * @property discardProgressHandler Handler for DISCARD_PROGRESS pending ops
+ * @property restartBookHandler Handler for RESTART_BOOK pending ops
  * @property transactionRunner Runs each variant handler inside a write transaction
  */
 class PlaybackPositionRepositoryImpl(
@@ -57,6 +63,8 @@ class PlaybackPositionRepositoryImpl(
     private val syncApi: SyncApiContract,
     private val pendingOps: PendingOperationRepositoryContract,
     private val markCompleteHandler: MarkCompleteHandler,
+    private val discardProgressHandler: DiscardProgressHandler,
+    private val restartBookHandler: RestartBookHandler,
     private val transactionRunner: TransactionRunner,
 ) : PlaybackPositionRepository {
     // ----- Per-book Mutex map ---------------------------------------------------------------
@@ -487,10 +495,9 @@ class PlaybackPositionRepositoryImpl(
     }
 
     private suspend fun handleDiscardProgress(bookId: BookId) {
-        // Local-only reset. The existing public `discardProgress(bookId)` facade
-        // owns the server-sync side (syncApi.discardProgress + rollback). No
-        // pending-op infrastructure exists for DISCARD_PROGRESS; the handler's
-        // job is just the local DB write inside the same transaction.
+        // Local-only reset followed by DISCARD_PROGRESS pending-op enqueue.
+        // The OperationExecutor processes the op asynchronously; the local
+        // DB write and the enqueue happen inside the same transaction.
         val existing = dao.get(bookId) ?: return // no-op if no row
         val now = currentEpochMilliseconds()
         dao.save(
@@ -503,13 +510,19 @@ class PlaybackPositionRepositoryImpl(
                 syncedAt = null,
             ),
         )
+        pendingOps.queue(
+            type = OperationType.DISCARD_PROGRESS,
+            entityType = EntityType.BOOK,
+            entityId = bookId.value,
+            payload = DiscardProgressPayload(bookId = bookId.value),
+            handler = discardProgressHandler,
+        )
     }
 
     private suspend fun handleRestart(bookId: BookId) {
-        // Local-only reset. The existing public `restartBook(bookId)` facade owns
-        // the server-sync side (syncApi.restartBook + rollback). No pending-op
-        // infrastructure exists for RESTART_BOOK; the handler's job is just the
-        // local DB write inside the same transaction.
+        // Local-only reset followed by RESTART_BOOK pending-op enqueue.
+        // The OperationExecutor processes the op asynchronously; the local
+        // DB write and the enqueue happen inside the same transaction.
         val existing = dao.get(bookId) ?: return // no-op if no row
         val now = currentEpochMilliseconds()
         dao.save(
@@ -522,6 +535,13 @@ class PlaybackPositionRepositoryImpl(
                 lastPlayedAt = now,
                 syncedAt = null,
             ),
+        )
+        pendingOps.queue(
+            type = OperationType.RESTART_BOOK,
+            entityType = EntityType.BOOK,
+            entityId = bookId.value,
+            payload = RestartBookPayload(bookId = bookId.value),
+            handler = restartBookHandler,
         )
     }
 

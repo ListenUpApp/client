@@ -11,9 +11,11 @@ import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.test.db.passThroughTransactionRunner
 import com.calypsan.listenup.client.data.sync.SSEEvent
 import com.calypsan.listenup.client.data.sync.ProgressPayload
+import com.calypsan.listenup.client.data.sync.push.DiscardProgressHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
 import com.calypsan.listenup.client.data.sync.push.MarkCompletePayload
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.RestartBookHandler
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.LastPlayedInfo
 import com.calypsan.listenup.client.domain.repository.PlaybackUpdate
@@ -95,6 +97,8 @@ class PlaybackPositionRepositoryImplTest {
         syncApi: SyncApiContract = createMockSyncApi(),
         pendingOps: PendingOperationRepositoryContract = mock<PendingOperationRepositoryContract>(MockMode.autoUnit),
         markCompleteHandler: MarkCompleteHandler = MarkCompleteHandler(createMockSyncApi()),
+        discardProgressHandler: DiscardProgressHandler = DiscardProgressHandler(createMockSyncApi()),
+        restartBookHandler: RestartBookHandler = RestartBookHandler(createMockSyncApi()),
         transactionRunner: TransactionRunner = passThroughTransactionRunner(),
     ): PlaybackPositionRepositoryImpl =
         PlaybackPositionRepositoryImpl(
@@ -102,6 +106,8 @@ class PlaybackPositionRepositoryImplTest {
             syncApi = syncApi,
             pendingOps = pendingOps,
             markCompleteHandler = markCompleteHandler,
+            discardProgressHandler = discardProgressHandler,
+            restartBookHandler = restartBookHandler,
             transactionRunner = transactionRunner,
         )
 

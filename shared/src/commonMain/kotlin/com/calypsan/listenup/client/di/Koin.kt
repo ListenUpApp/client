@@ -1505,6 +1505,8 @@ val syncModule =
                 syncApi = get(),
                 pendingOps = get(),
                 markCompleteHandler = get(),
+                discardProgressHandler = get(),
+                restartBookHandler = get(),
                 transactionRunner = get(),
             )
         }
