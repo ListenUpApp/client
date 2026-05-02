@@ -78,6 +78,12 @@ enum class OperationType {
     // Mark book as complete (retry on failure)
     MARK_COMPLETE,
 
+    // Discard local + remote progress for a book (coalesce by entityId)
+    DISCARD_PROGRESS,
+
+    // Restart a book from the beginning (coalesce by entityId)
+    RESTART_BOOK,
+
     // End a playback session and record total duration (coalesce by book)
     END_PLAYBACK_SESSION,
 
