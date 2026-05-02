@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.contributordetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.BookListItem
@@ -222,7 +223,7 @@ sealed interface ContributorDetailUiState {
     data class Ready(
         val contributor: Contributor,
         val roleSections: List<RoleSection>,
-        val bookProgress: Map<String, Float>,
+        val bookProgress: Map<BookId, Float>,
         /** Maps bookId to creditedAs name when different from contributor's name. */
         val bookCreditedAs: Map<String, String>,
         /** True while a delete is in flight. Screen shows an overlay spinner. */

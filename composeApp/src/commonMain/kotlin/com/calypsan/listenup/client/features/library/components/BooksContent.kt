@@ -48,6 +48,7 @@ import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.SortSplitButton
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.domain.model.BookListItem
 import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.features.library.BookCard
@@ -226,8 +227,8 @@ fun BooksContent(
     scanProgress: ScanProgressState? = null,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
-    bookProgress: Map<String, Float>,
-    bookIsFinished: Map<String, Boolean> = emptyMap(),
+    bookProgress: Map<BookId, Float>,
+    bookIsFinished: Map<BookId, Boolean> = emptyMap(),
     isInSelectionMode: Boolean = false,
     selectedBookIds: Set<String> = emptySet(),
     onCategorySelected: (SortCategory) -> Unit,
@@ -304,8 +305,8 @@ private fun BookGrid(
     books: List<BookListItem>,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
-    bookProgress: Map<String, Float>,
-    bookIsFinished: Map<String, Boolean>,
+    bookProgress: Map<BookId, Float>,
+    bookIsFinished: Map<BookId, Boolean>,
     isInSelectionMode: Boolean,
     selectedBookIds: Set<String>,
     onCategorySelected: (SortCategory) -> Unit,
@@ -415,8 +416,8 @@ private fun BookGrid(
                             onClick = { onBookClick(bookId) },
                             authorName = gridItem.book.authorNames,
                             duration = gridItem.book.formatDuration(),
-                            progress = bookProgress[bookId],
-                            isFinished = bookIsFinished[bookId] ?: false,
+                            progress = bookProgress[gridItem.book.id],
+                            isFinished = bookIsFinished[gridItem.book.id] ?: false,
                             isInSelectionMode = isInSelectionMode,
                             isSelected = bookId in selectedBookIds,
                             onLongPress =
