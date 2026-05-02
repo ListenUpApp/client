@@ -9,7 +9,6 @@ import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
-import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.push.DiscardProgressHandler
 import com.calypsan.listenup.client.data.sync.push.DiscardProgressPayload
 import com.calypsan.listenup.client.data.sync.push.MarkCompleteHandler
@@ -45,8 +44,6 @@ import kotlin.time.Instant
  * book serialize on a per-book Mutex; different books proceed in parallel.
  *
  * @property dao Room DAO for position operations
- * @property syncApi API for syncing progress changes to server (read-back only;
- *   write paths go through the pending-op handlers)
  * @property pendingOps Queue for pending push operations
  * @property markCompleteHandler Handler for MARK_COMPLETE pending ops
  * @property discardProgressHandler Handler for DISCARD_PROGRESS pending ops
@@ -55,7 +52,6 @@ import kotlin.time.Instant
  */
 class PlaybackPositionRepositoryImpl(
     private val dao: PlaybackPositionDao,
-    private val syncApi: SyncApiContract,
     private val pendingOps: PendingOperationRepositoryContract,
     private val markCompleteHandler: MarkCompleteHandler,
     private val discardProgressHandler: DiscardProgressHandler,

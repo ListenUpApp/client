@@ -1502,7 +1502,6 @@ val syncModule =
         single<PlaybackPositionRepository> {
             PlaybackPositionRepositoryImpl(
                 dao = get(),
-                syncApi = get(),
                 pendingOps = get(),
                 markCompleteHandler = get(),
                 discardProgressHandler = get(),

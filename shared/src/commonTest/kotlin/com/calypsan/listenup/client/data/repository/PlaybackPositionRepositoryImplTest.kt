@@ -96,7 +96,6 @@ class PlaybackPositionRepositoryImplTest {
      */
     private fun createRepo(
         dao: PlaybackPositionDao = createMockDao(),
-        syncApi: SyncApiContract = createMockSyncApi(),
         pendingOps: PendingOperationRepositoryContract = mock<PendingOperationRepositoryContract>(MockMode.autoUnit),
         markCompleteHandler: MarkCompleteHandler = MarkCompleteHandler(createMockSyncApi()),
         discardProgressHandler: DiscardProgressHandler = DiscardProgressHandler(createMockSyncApi()),
@@ -105,7 +104,6 @@ class PlaybackPositionRepositoryImplTest {
     ): PlaybackPositionRepositoryImpl =
         PlaybackPositionRepositoryImpl(
             dao = dao,
-            syncApi = syncApi,
             pendingOps = pendingOps,
             markCompleteHandler = markCompleteHandler,
             discardProgressHandler = discardProgressHandler,
@@ -1232,12 +1230,11 @@ class PlaybackPositionRepositoryImplTest {
         runTest {
             val dao = createMockDao()
             val pendingOps = mock<PendingOperationRepositoryContract>(MockMode.autoUnit)
-            val syncApi = createMockSyncApi()
             val bookId = "book-discard-facade"
             val existing = createPlaybackPositionEntity(bookId = bookId, positionMs = 5000L).copy(isFinished = true)
             everySuspend { dao.get(BookId(bookId)) } returns existing
             everySuspend { dao.save(any()) } returns Unit
-            val repository = createRepo(dao = dao, syncApi = syncApi, pendingOps = pendingOps)
+            val repository = createRepo(dao = dao, pendingOps = pendingOps)
 
             val result = repository.discardProgress(bookId)
 
@@ -1251,7 +1248,6 @@ class PlaybackPositionRepositoryImplTest {
                     handler = any(),
                 )
             }
-            verifySuspend(VerifyMode.exactly(0)) { syncApi.discardProgress(any(), any()) }
         }
 
     // ========== restartBook — public-facade delegation (Z1) ==========
@@ -1261,12 +1257,11 @@ class PlaybackPositionRepositoryImplTest {
         runTest {
             val dao = createMockDao()
             val pendingOps = mock<PendingOperationRepositoryContract>(MockMode.autoUnit)
-            val syncApi = createMockSyncApi()
             val bookId = "book-restart-facade"
             val existing = createPlaybackPositionEntity(bookId = bookId, positionMs = 9999L).copy(isFinished = true)
             everySuspend { dao.get(BookId(bookId)) } returns existing
             everySuspend { dao.save(any()) } returns Unit
-            val repository = createRepo(dao = dao, syncApi = syncApi, pendingOps = pendingOps)
+            val repository = createRepo(dao = dao, pendingOps = pendingOps)
 
             val result = repository.restartBook(bookId)
 
@@ -1280,7 +1275,6 @@ class PlaybackPositionRepositoryImplTest {
                     handler = any(),
                 )
             }
-            verifySuspend(VerifyMode.exactly(0)) { syncApi.restartBook(any()) }
         }
 
     // ========== savePlaybackState — failure path (Task 2) ==========
