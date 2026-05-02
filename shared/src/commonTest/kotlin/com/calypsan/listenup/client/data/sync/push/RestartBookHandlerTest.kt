@@ -6,8 +6,8 @@ import com.calypsan.listenup.client.core.error.NetworkError
 import com.calypsan.listenup.client.data.local.db.OperationStatus
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
-import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
@@ -35,17 +35,18 @@ class RestartBookHandlerTest {
             lastError = null,
         )
 
-    private val emptyResponse = PlaybackProgressResponse(
-        userId = "user-1",
-        bookId = "book-1",
-        currentPositionMs = 0L,
-        progress = 0.0,
-        isFinished = false,
-        startedAt = "1970-01-01T00:00:00Z",
-        lastPlayedAt = "1970-01-01T00:00:00Z",
-        totalListenTimeMs = 0L,
-        updatedAt = "1970-01-01T00:00:00Z",
-    )
+    private val emptyResponse =
+        PlaybackProgressResponse(
+            userId = "user-1",
+            bookId = "book-1",
+            currentPositionMs = 0L,
+            progress = 0.0,
+            isFinished = false,
+            startedAt = "1970-01-01T00:00:00Z",
+            lastPlayedAt = "1970-01-01T00:00:00Z",
+            totalListenTimeMs = 0L,
+            updatedAt = "1970-01-01T00:00:00Z",
+        )
 
     @Test
     fun `execute calls syncApi restartBook with bookId`() =
