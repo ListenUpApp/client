@@ -46,11 +46,20 @@ dependencies {
 
     // Test deps
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlinx.rpc.krpc.client)
     testImplementation(libs.kotlinx.rpc.krpc.ktor.client)
+}
+
+kotlin {
+    compilerOptions {
+        // :shared compiles against Kotlin 2.3.20, which marks classfiles as pre-release.
+        // Allow :server to consume those classfiles without the pre-release guard.
+        freeCompilerArgs.add("-Xskip-prerelease-check")
+    }
 }
 
 tasks.test {
