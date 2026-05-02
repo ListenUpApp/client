@@ -14,6 +14,7 @@ import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagEntity
+import com.calypsan.listenup.client.data.local.db.RoomTransactionRunner
 import com.calypsan.listenup.client.data.local.db.TransactionRunner
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
@@ -175,9 +176,18 @@ class BookRepositoryImplTest {
                 assertNotNull(initial)
                 assertTrue(initial.genres.isEmpty())
 
-                // Insert a genre + cross-ref.
-                genreDao.upsert(makeGenreEntity(id = "g-1", name = "Fantasy"))
-                genreDao.insertBookGenre(BookGenreCrossRef(bookId = BookId("book-1"), genreId = "g-1"))
+                // Insert genre + cross-ref atomically so Room's invalidation tracker
+                // fires once at commit, after both rows are present. Without the
+                // transaction, two separate invalidations expose an intermediate
+                // state (genre row inserted, cross-ref row not yet) where the
+                // observer re-emits with empty genres — the cause of drift #23's
+                // intermittent flake. Real Room transaction is required; the
+                // class-field passthrough TransactionRunner does not invoke Room's
+                // invalidation-batching machinery.
+                RoomTransactionRunner(db).atomically {
+                    genreDao.upsert(makeGenreEntity(id = "g-1", name = "Fantasy"))
+                    genreDao.insertBookGenre(BookGenreCrossRef(bookId = BookId("book-1"), genreId = "g-1"))
+                }
 
                 val updated = turbine.awaitItem()
                 assertNotNull(updated)
@@ -199,8 +209,11 @@ class BookRepositoryImplTest {
                 assertNotNull(initial)
                 assertTrue(initial.tags.isEmpty())
 
-                tagDao.upsert(makeTagEntity(id = "t-1", slug = "epic"))
-                tagDao.insertBookTag(BookTagCrossRef(bookId = BookId("book-1"), tagId = "t-1"))
+                // See genres-test note above — same atomic-write rationale.
+                RoomTransactionRunner(db).atomically {
+                    tagDao.upsert(makeTagEntity(id = "t-1", slug = "epic"))
+                    tagDao.insertBookTag(BookTagCrossRef(bookId = BookId("book-1"), tagId = "t-1"))
+                }
 
                 val updated = turbine.awaitItem()
                 assertNotNull(updated)
