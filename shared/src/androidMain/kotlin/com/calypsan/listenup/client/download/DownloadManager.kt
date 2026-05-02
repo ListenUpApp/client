@@ -55,7 +55,7 @@ class DownloadManager(
 ) : DownloadService {
     companion object {
         private const val STORAGE_BUFFER_MULTIPLIER = 1.1 // 10% buffer for download size estimates
-        private const val BYTES_PER_MB = 1_000_000L
+        private const val DECIMAL_BYTES_PER_MB = 1_000_000L
     }
 
     /**
@@ -110,7 +110,7 @@ class DownloadManager(
         if (availableBytes < requiredWithBuffer) {
             logger.warn {
                 "Insufficient storage for book ${bookId.value}: " +
-                    "need ${requiredBytes / BYTES_PER_MB}MB, have ${availableBytes / BYTES_PER_MB}MB"
+                    "need ${requiredBytes / DECIMAL_BYTES_PER_MB}MB, have ${availableBytes / DECIMAL_BYTES_PER_MB}MB"
             }
             return AppResult.Success(
                 DownloadOutcome.InsufficientStorage(
@@ -173,11 +173,11 @@ class DownloadManager(
                             .setRequiredNetworkType(requiredNetworkType)
                             .build(),
                     ).addTag(bookTag(bookId))
-                    .addTag(fileTag(file.id))
+                    .addTag(fileCancelTag(file.id))
                     .build()
 
             workManager.enqueueUniqueWork(
-                workName(file.id),
+                fileWorkName(file.id),
                 ExistingWorkPolicy.REPLACE,
                 workRequest,
             )
@@ -279,11 +279,11 @@ class DownloadManager(
                             .setRequiredNetworkType(requiredNetworkType)
                             .build(),
                     ).addTag(bookTag(download.bookId))
-                    .addTag(fileTag(download.audioFileId))
+                    .addTag(fileCancelTag(download.audioFileId))
                     .build()
 
             workManager.enqueueUniqueWork(
-                workName(download.audioFileId),
+                fileWorkName(download.audioFileId),
                 ExistingWorkPolicy.KEEP,
                 workRequest,
             )
@@ -315,11 +315,15 @@ class DownloadManager(
         logger.info { "Deleted all downloads" }
     }
 
+    // --- WorkManager string identifiers ---
+    // fileWorkName is the unique-work name for enqueueUniqueWork; fileCancelTag is for
+    // addTag/cancelAllWorkByTag. They produce different strings on purpose — do not consolidate.
+
     private fun bookTag(bookId: BookId): String = bookTag(bookId.value)
 
     private fun bookTag(bookIdValue: String): String = "download_$bookIdValue"
 
-    private fun fileTag(audioFileId: String): String = "download_file_$audioFileId"
+    private fun fileCancelTag(audioFileId: String): String = "download_file_$audioFileId"
 
-    private fun workName(audioFileId: String): String = "download_$audioFileId"
+    private fun fileWorkName(audioFileId: String): String = "download_$audioFileId"
 }
