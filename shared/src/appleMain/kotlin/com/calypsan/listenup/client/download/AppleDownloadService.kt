@@ -347,6 +347,13 @@ class AppleDownloadService(
             aggregateBookDownloadStatus(bookId.value, entities)
         }
 
+    override fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> =
+        downloadDao.observeAll().map { downloads ->
+            downloads
+                .groupBy { it.bookId }
+                .mapValues { (bookId, files) -> aggregateBookDownloadStatus(bookId, files) }
+        }
+
     // Inline copy of DownloadManager.aggregateStatus until Task 8 moves the canonical version
     // into DownloadRepository. iOS keeps its own copy through W10 (deferred carveout per W8 design).
     private fun aggregateBookDownloadStatus(

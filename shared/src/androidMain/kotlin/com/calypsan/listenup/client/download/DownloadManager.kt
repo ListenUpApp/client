@@ -64,7 +64,7 @@ class DownloadManager(
     /**
      * Observe download status for all books (for library indicators).
      */
-    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> = downloadRepository.observeAllStatuses()
+    override fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> = downloadRepository.observeAllStatuses()
 
     /**
      * Download a book (queue all audio files).

@@ -58,6 +58,12 @@ interface DownloadService {
     fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus>
 
     /**
+     * Observe download status for all books, keyed by bookId. Used by cross-book UIs
+     * (library list indicators) to render download badges without N+1 per-book queries.
+     */
+    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>>
+
+    /**
      * Resume any incomplete downloads (e.g. after re-authentication or app restart).
      */
     suspend fun resumeIncompleteDownloads()
