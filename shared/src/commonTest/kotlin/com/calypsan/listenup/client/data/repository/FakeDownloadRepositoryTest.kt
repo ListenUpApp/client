@@ -202,6 +202,28 @@ class FakeDownloadRepositoryTest {
         }
 
     @Test
+    fun `aggregator counts WAITING_FOR_SERVER files`() =
+        runTest {
+            val fake =
+                FakeDownloadRepository(
+                    initial =
+                        listOf(
+                            entity("file-1", state = DownloadState.WAITING_FOR_SERVER),
+                            entity("file-2", state = DownloadState.WAITING_FOR_SERVER),
+                            entity("file-3", state = DownloadState.QUEUED),
+                        ),
+                )
+            fake.observeBookStatus(BookId("book-1")).test {
+                val status = awaitItem()
+                assertIs<BookDownloadStatus.InProgress>(status)
+                assertEquals(2, status.waitingForServerFiles)
+                assertEquals(0, status.downloadingFiles)
+                assertEquals(3, status.totalFiles)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
     fun `aggregator returns Paused when all files paused`() =
         runTest {
             val fake =

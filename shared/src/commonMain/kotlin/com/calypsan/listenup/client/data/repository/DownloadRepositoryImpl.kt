@@ -322,7 +322,7 @@ class DownloadRepositoryImpl(
                     bookId = bookId,
                     totalFiles = totalFiles,
                     downloadingFiles = activeDownloads.count { it.state == DownloadState.DOWNLOADING },
-                    waitingForServerFiles = 0,
+                    waitingForServerFiles = activeDownloads.count { it.state == DownloadState.WAITING_FOR_SERVER },
                     completedFiles = completedFiles,
                     totalBytes = totalBytes,
                     downloadedBytes = downloadedBytes,
