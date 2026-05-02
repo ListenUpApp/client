@@ -42,7 +42,10 @@ dependencies {
     implementation(libs.kotlinx.rpc.krpc.serialization.json)
 
     // Logging
+    implementation(libs.kotlin.logging)
     implementation(libs.logback.classic)
+    implementation(libs.logstash.logback.encoder)
+    runtimeOnly(libs.janino) // enables logback.xml <if>/<condition> elements
 
     // Test deps
     testImplementation(libs.ktor.server.test.host)
