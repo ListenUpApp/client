@@ -10,22 +10,24 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.testing.testApplication
 
-class InstanceRoutesTest : FunSpec({
-    test("GET /api/v1/instance returns ServerInfo deserializable in commonMain") {
-        testApplication {
-            application { module() }
+class InstanceRoutesTest :
+    FunSpec({
+        test("GET /api/v1/instance returns ServerInfo deserializable in commonMain") {
+            testApplication {
+                application { module() }
 
-            val httpClient = createClient {
-                install(ContentNegotiation) { json() }
+                val httpClient =
+                    createClient {
+                        install(ContentNegotiation) { json() }
+                    }
+
+                val response = httpClient.get("/api/v1/instance")
+                response.status shouldBe HttpStatusCode.OK
+
+                val info: ServerInfo = response.body()
+                info.name shouldBe "ListenUp"
+                info.apiVersion shouldBe "v1"
+                info.version.isNotBlank() shouldBe true
             }
-
-            val response = httpClient.get("/api/v1/instance")
-            response.status shouldBe HttpStatusCode.OK
-
-            val info: ServerInfo = response.body()
-            info.name shouldBe "ListenUp"
-            info.apiVersion shouldBe "v1"
-            info.version.isNotBlank() shouldBe true
         }
-    }
-})
+    })
