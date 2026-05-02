@@ -183,7 +183,7 @@ private fun PendingApprovalNavigation(
     password: String,
 ) {
     val viewModel: PendingApprovalViewModel =
-        koinInject {
+        koinViewModel {
             org.koin.core.parameter
                 .parametersOf(userId, email, password)
         }
@@ -212,7 +212,7 @@ private fun InviteRegistrationNavigation(
     onCancel: () -> Unit,
 ) {
     val viewModel: InviteRegistrationViewModel =
-        koinInject {
+        koinViewModel {
             org.koin.core.parameter
                 .parametersOf(serverUrl, inviteCode)
         }
@@ -952,7 +952,7 @@ private fun AuthenticatedNavigation(
                         }
                         entry<AdminCollections> {
                             val viewModel: com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel =
-                                koinInject()
+                                koinViewModel()
                             com.calypsan.listenup.client.features.admin.collections.AdminCollectionsScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
@@ -966,7 +966,7 @@ private fun AuthenticatedNavigation(
                         entry<AdminCollectionDetail> { args ->
                             val viewModel:
                                 com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel =
-                                koinInject {
+                                koinViewModel {
                                     org.koin.core.parameter
                                         .parametersOf(args.collectionId)
                                 }
@@ -980,7 +980,7 @@ private fun AuthenticatedNavigation(
                         entry<AdminUserDetail> { args ->
                             val viewModel:
                                 com.calypsan.listenup.client.presentation.admin.UserDetailViewModel =
-                                koinInject {
+                                koinViewModel {
                                     org.koin.core.parameter
                                         .parametersOf(args.userId)
                                 }
@@ -994,7 +994,7 @@ private fun AuthenticatedNavigation(
                         entry<AdminLibrarySettings> { args ->
                             val viewModel:
                                 com.calypsan.listenup.client.presentation.admin.LibrarySettingsViewModel =
-                                koinInject {
+                                koinViewModel {
                                     org.koin.core.parameter
                                         .parametersOf(args.libraryId)
                                 }

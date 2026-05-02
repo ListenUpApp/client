@@ -35,6 +35,7 @@ import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_checking_server
@@ -145,7 +146,7 @@ private fun PendingApprovalNavigation(
     password: String,
 ) {
     val viewModel: PendingApprovalViewModel =
-        koinInject {
+        koinViewModel {
             org.koin.core.parameter
                 .parametersOf(userId, email, password)
         }
