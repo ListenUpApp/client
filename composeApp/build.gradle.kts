@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.mokkery)
 }
 
@@ -46,7 +47,13 @@ kotlin {
         androidResources { enable = true }
 
         // Enable Android host tests (JVM-based unit tests)
-        withHostTest {}
+        // isIncludeAndroidResources = true merges AndroidManifest + transitive AAR
+        // manifests (notably ui-test-manifest's `androidx.activity.ComponentActivity`
+        // launcher entry) so Robolectric-hosted Compose UI tests can resolve the
+        // activity that `createComposeRule()` launches.
+        withHostTest {
+            isIncludeAndroidResources = true
+        }
 
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
@@ -90,6 +97,9 @@ kotlin {
             // Navigation 3 Android-specific (deep linking)
             implementation(libs.androidx.navigation3.ui.android)
 
+            // Navigation 3 ViewModel decorator add-on (per-entry ViewModelStore scoping)
+            implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+
             // WorkManager for background sync
             implementation(libs.androidx.work.runtime.ktx)
 
@@ -125,6 +135,9 @@ kotlin {
 
             // Navigation 3 (multiplatform)
             implementation(libs.navigation3.ui)
+
+            // Navigation 3 ViewModel decorator add-on (multiplatform — per-entry ViewModelStore scoping)
+            implementation(libs.androidx.lifecycle.viewmodel.navigation3)
 
             // Material 3 Adaptive (multiplatform)
             implementation(libs.material3.adaptive)
@@ -175,6 +188,14 @@ kotlin {
             dependencies {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
+
+                // Phase A NavDisplay test harness
+                implementation(libs.robolectric)
+                implementation(libs.androidx.compose.ui.test.junit4)
+                implementation(libs.androidx.compose.ui.test.manifest)
+                implementation(libs.androidx.navigation3.ui.android)
+                implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+                implementation(libs.koin.test)
             }
         }
         val desktopTest by getting {

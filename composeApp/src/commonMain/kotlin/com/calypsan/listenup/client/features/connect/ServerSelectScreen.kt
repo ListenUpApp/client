@@ -50,7 +50,7 @@ import com.calypsan.listenup.client.domain.model.ServerWithStatus
 import com.calypsan.listenup.client.presentation.connect.ServerSelectUiEvent
 import com.calypsan.listenup.client.presentation.connect.ServerSelectUiState
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.connect_add_server_manually
@@ -79,7 +79,7 @@ fun ServerSelectScreen(
     onServerActivated: () -> Unit,
     onManualEntryRequested: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ServerSelectViewModel = koinInject(),
+    viewModel: ServerSelectViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

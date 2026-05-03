@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Test-only manifest for `androidHostTest` (Robolectric host tests).
+
+  Two responsibilities:
+
+  1) Compose UI Test's `createComposeRule()` launches an
+     `androidx.activity.ComponentActivity` as the test host. Under Robolectric,
+     the test runtime resolves activities via `Intent.ACTION_MAIN` +
+     `CATEGORY_LAUNCHER`, so we register `ComponentActivity` here with that
+     intent filter. Without this, `createComposeRule()` fails with
+     "Unable to resolve activity for Intent { act=android.intent.action.MAIN ... }"
+     (Robolectric PR #4736).
+
+  2) Override the production `<application android:name="...ListenUp">` class
+     via `tools:replace`, so Robolectric does NOT instantiate the real
+     `ListenUp` Application during host tests. The real class boots Koin and
+     other production-only subsystems, which is unwanted and undesirable in
+     unit-test isolation. `android.app.Application` is the empty default.
+
+  This manifest is only consumed by androidHostTest — production code is
+  unaffected.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name="android.app.Application"
+        tools:replace="android:name">
+        <activity
+            android:name="androidx.activity.ComponentActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

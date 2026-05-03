@@ -48,14 +48,14 @@ import com.calypsan.listenup.client.presentation.admin.RestoreBackupUiState
 import com.calypsan.listenup.client.presentation.admin.RestoreBackupViewModel
 import com.calypsan.listenup.client.presentation.admin.RestoreMode
 import com.calypsan.listenup.client.presentation.admin.RestoreStep
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RestoreBackupScreen(
     backupId: String,
-    viewModel: RestoreBackupViewModel = koinInject { parametersOf(backupId) },
+    viewModel: RestoreBackupViewModel = koinViewModel { parametersOf(backupId) },
     onBackClick: () -> Unit,
     onComplete: () -> Unit,
 ) {

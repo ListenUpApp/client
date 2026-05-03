@@ -48,7 +48,7 @@ import com.calypsan.listenup.client.presentation.auth.LoginErrorType
 import com.calypsan.listenup.client.presentation.auth.LoginField
 import com.calypsan.listenup.client.presentation.auth.LoginUiState
 import com.calypsan.listenup.client.presentation.auth.LoginViewModel
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.auth_change_server
@@ -76,7 +76,7 @@ fun LoginScreen(
     onChangeServer: () -> Unit,
     onRegister: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: LoginViewModel = koinInject(),
+    viewModel: LoginViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

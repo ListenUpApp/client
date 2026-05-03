@@ -58,7 +58,7 @@ import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.presentation.setup.LibrarySetupUiState
 import com.calypsan.listenup.client.presentation.setup.LibrarySetupViewModel
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Library setup screen for initial library configuration.
@@ -72,7 +72,7 @@ import org.koin.compose.koinInject
 fun LibrarySetupScreen(
     onSetupComplete: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LibrarySetupViewModel = koinInject(),
+    viewModel: LibrarySetupViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

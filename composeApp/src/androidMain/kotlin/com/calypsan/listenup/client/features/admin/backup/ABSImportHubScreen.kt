@@ -83,7 +83,7 @@ import com.calypsan.listenup.client.presentation.admin.ABSImportListUiState
 import com.calypsan.listenup.client.presentation.admin.ImportHubTab
 import com.calypsan.listenup.client.util.DocumentPickerResult
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 private const val IMPORT_STATUS_ANALYZING = "analyzing"
 private const val IMPORT_STATUS_ACTIVE = "active"
@@ -98,7 +98,7 @@ private const val LABEL_CANCEL_IMPORT = "Cancel Import"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ABSImportListScreen(
-    viewModel: ABSImportHubViewModel = koinInject(),
+    viewModel: ABSImportHubViewModel = koinViewModel(),
     onBackClick: () -> Unit,
     onImportClick: (String) -> Unit,
     onLegacyImport: () -> Unit,
@@ -634,7 +634,7 @@ private fun CreateImportDialog(
 @Composable
 fun ABSImportHubDetailScreen(
     importId: String,
-    viewModel: ABSImportHubViewModel = koinInject(),
+    viewModel: ABSImportHubViewModel = koinViewModel(),
     onBackClick: () -> Unit,
 ) {
     val state by viewModel.hubState.collectAsStateWithLifecycle()

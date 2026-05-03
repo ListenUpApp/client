@@ -17,7 +17,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -25,7 +24,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
@@ -181,7 +183,7 @@ private fun PendingApprovalNavigation(
     password: String,
 ) {
     val viewModel: PendingApprovalViewModel =
-        koinInject {
+        koinViewModel {
             org.koin.core.parameter
                 .parametersOf(userId, email, password)
         }
@@ -210,7 +212,7 @@ private fun InviteRegistrationNavigation(
     onCancel: () -> Unit,
 ) {
     val viewModel: InviteRegistrationViewModel =
-        koinInject {
+        koinViewModel {
             org.koin.core.parameter
                 .parametersOf(serverUrl, inviteCode)
         }
@@ -250,10 +252,15 @@ private fun LoadingScreen(message: String = "Loading...") {
  */
 @Composable
 private fun ServerSetupNavigation() {
-    val backStack = remember { mutableStateListOf<AuthRoute>(ServerSelect) }
+    val backStack = rememberNavBackStack(ServerSelect)
 
     NavDisplay(
         backStack = backStack,
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
         onBack = {
             if (backStack.size > 1) {
                 backStack.removeAt(backStack.lastIndex)
@@ -292,10 +299,15 @@ private fun ServerSetupNavigation() {
  */
 @Composable
 private fun SetupNavigation() {
-    val backStack = remember { mutableStateListOf<AuthRoute>(Setup) }
+    val backStack = rememberNavBackStack(Setup)
 
     NavDisplay(
         backStack = backStack,
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
         entryProvider =
             entryProvider {
                 entry<Setup> {
@@ -318,7 +330,7 @@ private fun LoginNavigation(
     openRegistration: Boolean,
 ) {
     val scope = rememberCoroutineScope()
-    val backStack = remember { mutableStateListOf<AuthRoute>(Login) }
+    val backStack = rememberNavBackStack(Login)
     val serverConfig: com.calypsan.listenup.client.domain.repository.ServerConfig = koinInject()
 
     // Refresh open registration value from server
@@ -329,6 +341,11 @@ private fun LoginNavigation(
 
     NavDisplay(
         backStack = backStack,
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
         entryProvider =
             entryProvider {
                 entry<Login> {
@@ -386,7 +403,7 @@ private fun AuthenticatedNavigation(
     val scope = rememberCoroutineScope()
 
     // ViewModels for shortcut action handling
-    val nowPlayingViewModel: NowPlayingViewModel = koinInject()
+    val nowPlayingViewModel: NowPlayingViewModel = koinViewModel()
 
     // AppStartupViewModel holds the library-setup check result across Activity re-creations.
     // This prevents the loading screen from reappearing on every config change or short
@@ -396,9 +413,10 @@ private fun AuthenticatedNavigation(
     val startupState by startupViewModel.state.collectAsStateWithLifecycle()
 
     // Hoist navigation state above the isChecking check so it survives loading periods.
-    // Using remember without key ensures the backStack persists when isChecking toggles,
+    // rememberNavBackStack persists across configuration changes and process death
+    // (rubric §Navigation rule); the back stack survives when isChecking toggles,
     // preventing navigation position from being lost on app resume.
-    val backStack = remember { mutableStateListOf<Route>(Shell) }
+    val backStack = rememberNavBackStack(Shell)
 
     // Track shell tab state here so it survives navigation to detail screens
     var currentShellDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
@@ -503,6 +521,11 @@ private fun AuthenticatedNavigation(
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
             NavDisplay(
                 backStack = backStack,
+                entryDecorators =
+                    listOf(
+                        rememberSaveableStateHolderNavEntryDecorator(),
+                        rememberViewModelStoreNavEntryDecorator(),
+                    ),
                 // Only handle back if we're not at root - let system handle back-to-home
                 onBack = {
                     if (backStack.size > 1) {
@@ -525,7 +548,7 @@ private fun AuthenticatedNavigation(
                         entry<Shell> {
                             // Preload library data by injecting LibraryViewModel early
                             @Suppress("UNUSED_VARIABLE")
-                            val libraryViewModel: LibraryViewModel = koinInject()
+                            val libraryViewModel: LibraryViewModel = koinViewModel()
 
                             // Get search state for overlay
                             AppShell(
@@ -833,8 +856,8 @@ private fun AuthenticatedNavigation(
                         }
                         // Admin screens
                         entry<Admin> {
-                            val viewModel: AdminViewModel = koinInject()
-                            val settingsViewModel: AdminSettingsViewModel = koinInject()
+                            val viewModel: AdminViewModel = koinViewModel()
+                            val settingsViewModel: AdminSettingsViewModel = koinViewModel()
                             val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
                             val readySettings = settingsState as? AdminSettingsUiState.Ready
 
@@ -895,7 +918,7 @@ private fun AuthenticatedNavigation(
                             }
                         }
                         entry<AdminInbox> {
-                            val viewModel: AdminInboxViewModel = koinInject()
+                            val viewModel: AdminInboxViewModel = koinViewModel()
                             com.calypsan.listenup.client.features.admin.inbox.AdminInboxScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
@@ -907,7 +930,7 @@ private fun AuthenticatedNavigation(
                             )
                         }
                         entry<AdminCategories> {
-                            val viewModel: AdminCategoriesViewModel = koinInject()
+                            val viewModel: AdminCategoriesViewModel = koinViewModel()
                             com.calypsan.listenup.client.features.admin.categories.AdminCategoriesScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
@@ -916,7 +939,7 @@ private fun AuthenticatedNavigation(
                             )
                         }
                         entry<CreateInvite> {
-                            val viewModel: CreateInviteViewModel = koinInject()
+                            val viewModel: CreateInviteViewModel = koinViewModel()
                             CreateInviteScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
@@ -929,7 +952,7 @@ private fun AuthenticatedNavigation(
                         }
                         entry<AdminCollections> {
                             val viewModel: com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel =
-                                koinInject()
+                                koinViewModel()
                             com.calypsan.listenup.client.features.admin.collections.AdminCollectionsScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
@@ -943,7 +966,7 @@ private fun AuthenticatedNavigation(
                         entry<AdminCollectionDetail> { args ->
                             val viewModel:
                                 com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel =
-                                koinInject {
+                                koinViewModel {
                                     org.koin.core.parameter
                                         .parametersOf(args.collectionId)
                                 }
@@ -957,7 +980,7 @@ private fun AuthenticatedNavigation(
                         entry<AdminUserDetail> { args ->
                             val viewModel:
                                 com.calypsan.listenup.client.presentation.admin.UserDetailViewModel =
-                                koinInject {
+                                koinViewModel {
                                     org.koin.core.parameter
                                         .parametersOf(args.userId)
                                 }
@@ -971,7 +994,7 @@ private fun AuthenticatedNavigation(
                         entry<AdminLibrarySettings> { args ->
                             val viewModel:
                                 com.calypsan.listenup.client.presentation.admin.LibrarySettingsViewModel =
-                                koinInject {
+                                koinViewModel {
                                     org.koin.core.parameter
                                         .parametersOf(args.libraryId)
                                 }
