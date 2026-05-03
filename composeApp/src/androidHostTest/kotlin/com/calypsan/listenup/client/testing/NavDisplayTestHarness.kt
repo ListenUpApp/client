@@ -59,17 +59,19 @@ class NavDisplayTestHarness(
                 SideEffect { backStack = stack }
                 NavDisplay(
                     backStack = stack,
-                    entryDecorators = listOf(
-                        rememberSaveableStateHolderNavEntryDecorator(),
-                        rememberViewModelStoreNavEntryDecorator(),
-                    ),
-                    entryProvider = entryProvider(
-                        fallback = { key -> NavEntry(key) { Box(Modifier) } },
-                    ) {
-                        if (entryProviderBlock != null) {
-                            entryProviderBlock()
-                        }
-                    },
+                    entryDecorators =
+                        listOf(
+                            rememberSaveableStateHolderNavEntryDecorator(),
+                            rememberViewModelStoreNavEntryDecorator(),
+                        ),
+                    entryProvider =
+                        entryProvider(
+                            fallback = { key -> NavEntry(key) { Box(Modifier) } },
+                        ) {
+                            if (entryProviderBlock != null) {
+                                entryProviderBlock()
+                            }
+                        },
                 )
             }
             if (koinModule != null) {

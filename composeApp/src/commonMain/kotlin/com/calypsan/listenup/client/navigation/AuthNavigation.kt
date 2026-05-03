@@ -49,17 +49,19 @@ import listenup.composeapp.generated.resources.common_checking_server
  * need every subtype enumerated here so the polymorphic discriminator survives
  * a process-death save→restore round trip.
  */
-private val authNavSavedStateConfiguration = SavedStateConfiguration {
-    serializersModule = SerializersModule {
-        polymorphic(NavKey::class) {
-            subclass(ServerSelect::class)
-            subclass(ServerSetup::class)
-            subclass(Setup::class)
-            subclass(Login::class)
-            subclass(Register::class)
-        }
+private val authNavSavedStateConfiguration =
+    SavedStateConfiguration {
+        serializersModule =
+            SerializersModule {
+                polymorphic(NavKey::class) {
+                    subclass(ServerSelect::class)
+                    subclass(ServerSetup::class)
+                    subclass(Setup::class)
+                    subclass(Login::class)
+                    subclass(Register::class)
+                }
+            }
     }
-}
 
 /**
  * Auth-only navigation for initial authentication flow.

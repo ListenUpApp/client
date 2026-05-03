@@ -20,14 +20,16 @@ import org.jetbrains.kotlin.psi.KtProperty
  * flagged. Types whose name does not end exactly in `ViewModel` (e.g. `LoginViewModelFactory`)
  * are also not flagged.
  */
-class NoKoinInjectViewModelRule(config: Config) : Rule(config) {
-
-    override val issue: Issue = Issue(
-        id = "NoKoinInjectViewModel",
-        severity = Severity.Defect,
-        description = "ViewModels must not be resolved via koinInject(); use koinViewModel().",
-        debt = Debt.FIVE_MINS,
-    )
+class NoKoinInjectViewModelRule(
+    config: Config,
+) : Rule(config) {
+    override val issue: Issue =
+        Issue(
+            id = "NoKoinInjectViewModel",
+            severity = Severity.Defect,
+            description = "ViewModels must not be resolved via koinInject(); use koinViewModel().",
+            debt = Debt.FIVE_MINS,
+        )
 
     override fun visitCallExpression(expression: KtCallExpression) {
         super.visitCallExpression(expression)
@@ -36,7 +38,11 @@ class NoKoinInjectViewModelRule(config: Config) : Rule(config) {
         if (callee != "koinInject") return
 
         // Pattern 1: koinInject<XxxViewModel>()
-        val typeArg = expression.typeArguments.firstOrNull()?.typeReference?.text ?: ""
+        val typeArg =
+            expression.typeArguments
+                .firstOrNull()
+                ?.typeReference
+                ?.text ?: ""
         if (typeArg.endsWithViewModel()) {
             report(
                 CodeSmell(
@@ -50,11 +56,12 @@ class NoKoinInjectViewModelRule(config: Config) : Rule(config) {
         }
 
         // Pattern 2: viewModel: XxxViewModel = koinInject() — declared type ends in ViewModel
-        val declaredType = when (val parent = expression.parent) {
-            is KtProperty -> parent.typeReference?.text
-            is KtParameter -> parent.typeReference?.text
-            else -> null
-        } ?: return
+        val declaredType =
+            when (val parent = expression.parent) {
+                is KtProperty -> parent.typeReference?.text
+                is KtParameter -> parent.typeReference?.text
+                else -> null
+            } ?: return
 
         if (declaredType.endsWithViewModel()) {
             report(

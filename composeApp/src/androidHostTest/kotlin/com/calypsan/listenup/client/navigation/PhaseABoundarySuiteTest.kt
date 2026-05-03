@@ -32,7 +32,6 @@ import kotlin.test.assertEquals
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class PhaseABoundarySuiteTest {
-
     @get:Rule val composeRule = createComposeRule()
 
     @Test
@@ -60,12 +59,14 @@ class PhaseABoundarySuiteTest {
         // `rememberViewModelStoreNavEntryDecorator` appear in the same NavDisplay
         // arglist.
 
-        val authNav = readNavigationSource(
-            "composeApp/src/commonMain/kotlin/com/calypsan/listenup/client/navigation/AuthNavigation.kt",
-        )
-        val listenUpNav = readNavigationSource(
-            "composeApp/src/androidMain/kotlin/com/calypsan/listenup/client/navigation/ListenUpNavigation.kt",
-        )
+        val authNav =
+            readNavigationSource(
+                "composeApp/src/commonMain/kotlin/com/calypsan/listenup/client/navigation/AuthNavigation.kt",
+            )
+        val listenUpNav =
+            readNavigationSource(
+                "composeApp/src/androidMain/kotlin/com/calypsan/listenup/client/navigation/ListenUpNavigation.kt",
+            )
 
         val sites = mutableListOf<Pair<String, Int>>()
         sites += findNavDisplaySites("AuthNavigation.kt", authNav)
@@ -86,17 +87,22 @@ class PhaseABoundarySuiteTest {
 
     private fun readNavigationSource(path: String): List<String> {
         // Test working directory is `client/composeApp/`. Project root is two levels up.
-        val candidates = listOf(
-            java.io.File("../../$path"),
-            java.io.File("../$path"),
-            java.io.File(path),
-        )
-        val file = candidates.firstOrNull { it.exists() }
-            ?: error("Could not locate $path; tried: ${candidates.joinToString { it.absolutePath }}")
+        val candidates =
+            listOf(
+                java.io.File("../../$path"),
+                java.io.File("../$path"),
+                java.io.File(path),
+            )
+        val file =
+            candidates.firstOrNull { it.exists() }
+                ?: error("Could not locate $path; tried: ${candidates.joinToString { it.absolutePath }}")
         return file.readLines()
     }
 
-    private fun findNavDisplaySites(name: String, lines: List<String>): List<Pair<String, Int>> =
+    private fun findNavDisplaySites(
+        name: String,
+        lines: List<String>,
+    ): List<Pair<String, Int>> =
         lines.mapIndexedNotNull { idx, line ->
             if (Regex("""\bNavDisplay\(""").containsMatchIn(line)) name to idx else null
         }
@@ -109,9 +115,10 @@ class PhaseABoundarySuiteTest {
         // Module override binds FakeNavViewModel via the canonical viewModel { } DSL,
         // ensuring koinViewModel() resolves against the per-entry ViewModelStore
         // that rememberViewModelStoreNavEntryDecorator provides.
-        val testModule = module {
-            viewModel { FakeNavViewModel() }
-        }
+        val testModule =
+            module {
+                viewModel { FakeNavViewModel() }
+            }
 
         harness.composeBackStack(
             initialKey = BookDetail("book-X"),
@@ -144,9 +151,10 @@ class PhaseABoundarySuiteTest {
     fun `popping a NavEntry triggers onCleared on the entry-scoped VM`() {
         val harness = NavDisplayTestHarness(composeRule)
         val capturedVM = AtomicReference<FakeNavViewModel?>()
-        val testModule = module {
-            viewModel { FakeNavViewModel() }
-        }
+        val testModule =
+            module {
+                viewModel { FakeNavViewModel() }
+            }
 
         // Start with a base destination plus one BookDetail on top so pop() leaves
         // the harness on a valid entry rather than an empty stack.
